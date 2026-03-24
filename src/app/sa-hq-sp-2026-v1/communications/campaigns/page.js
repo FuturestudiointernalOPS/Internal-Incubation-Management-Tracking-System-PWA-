@@ -113,7 +113,7 @@ export default function CampaignsPage() {
           <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
             <Rocket className="w-16 h-16 text-slate-500 mx-auto mb-6 opacity-50" />
             <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-2">No Campaigns</h4>
-            <p className="text-slate-400 text-sm font-bold">You haven't launched any communication campaigns yet.</p>
+            <p className="text-slate-400 text-sm font-bold">You haven&apos;t launched any communication campaigns yet.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

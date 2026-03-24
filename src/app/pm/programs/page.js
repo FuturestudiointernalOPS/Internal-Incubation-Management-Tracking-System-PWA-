@@ -239,7 +239,7 @@ export default function PMPrograms() {
                   <div className="space-y-8">
                     <div>
                       <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Mission & Vision</h3>
-                      <p className="text-slate-400 font-bold opacity-70">The strategic core of this program's existence.</p>
+                      <p className="text-slate-400 font-bold opacity-70">The strategic core of this program&apos;s existence.</p>
                     </div>
 
                     <div className="space-y-3">

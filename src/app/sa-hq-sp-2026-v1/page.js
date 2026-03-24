@@ -6,7 +6,7 @@ import {
   Layers, FolderRoot, UserPlus, FileText, Target, Calendar,
   Trash2, CheckCircle, Eye, EyeOff, MessageCircle, Key, ChartBar,
   AlertCircle, ChevronLeft, ChevronRight, ArrowRight, Search, List, Trash, RefreshCcw, LayoutDashboard,
-  TrendingUp, Zap, Sparkles, Filter, Download, Camera, X
+  TrendingUp, Zap, Sparkles, Filter, Download, Camera, X, Mail, Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -331,7 +331,7 @@ export default function SuperAdminHQ() {
                        
                        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-4 mb-6">
                           <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center overflow-hidden">
-                             {manager?.image ? <img src={manager.image} className="w-full h-full object-cover" /> : <Users className="w-5 h-5 text-slate-500" />}
+                             {manager?.image ? <img src={manager.image} alt={manager.fullName} className="w-full h-full object-cover" /> : <Users className="w-5 h-5 text-slate-500" />}
                           </div>
                           <div>
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Manager ID</p>
@@ -422,7 +422,7 @@ export default function SuperAdminHQ() {
                     <div className="space-y-8">
                       <div>
                         <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Mission & Vision</h3>
-                        <p className="text-slate-400 font-bold opacity-70">The strategic core of this program's existence.</p>
+                        <p className="text-slate-400 font-bold opacity-70">The strategic core of this program&apos;s existence.</p>
                       </div>
 
                       <div className="ios-card overflow-hidden bg-white/[0.02] border-white/5">
@@ -612,7 +612,7 @@ export default function SuperAdminHQ() {
                           <td className="px-8 py-7">
                             <div className="flex items-center gap-4">
                                <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center overflow-hidden shadow-2xl">
-                                  {s.image ? <img src={s.image} className="w-full h-full object-cover" /> : <Users className="w-6 h-6 text-indigo-400 opacity-40" />}
+                                  {s.image ? <img src={s.image} alt={s.fullName} className="w-full h-full object-cover" /> : <Users className="w-6 h-6 text-indigo-400 opacity-40" />}
                                </div>
                                <div>
                                  <p className="font-black text-white uppercase tracking-tighter text-base mb-1">{s.fullName}</p>
@@ -998,7 +998,7 @@ const StaffModal = ({ isOpen, onClose, onSave, feedback }) => {
               <div className="flex items-center gap-5 bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
                    <div className="w-16 h-16 rounded-2xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden group hover:border-indigo-500/30 transition-colors relative flex-shrink-0">
                       {form.image ? (
-                        <img src={form.image} className="w-full h-full object-cover" />
+                        <img src={form.image} alt={form.fullName || "Personnel Photo"} className="w-full h-full object-cover" />
                       ) : (
                         <Camera className="w-6 h-6 text-slate-600 group-hover:text-indigo-400 transition-colors" />
                       )}
