@@ -1,0 +1,56 @@
+{
+  "users": [
+    {
+      "id": "u1",
+      "name": "Super Admin",
+      "email": "superadmin",
+      "phone": "+2348000000000",
+      "role": "super_admin",
+      "password": "147369"
+    },
+    {
+      "id": "u2",
+      "name": "Sarah Analyst",
+      "email": "sarah@impactos.com",
+      "phone": "+2348123456789",
+      "role": "program_manager",
+      "password": "pass-sarah-123"
+    },
+    {
+        "id": "u3",
+        "name": "Prof. Marcus",
+        "email": "marcus@impactos.com",
+        "phone": "+2348098765432",
+        "role": "mentor",
+        "password": "mentor-pass-99"
+    }
+  ],
+  "roles": [
+    { "id": "super_admin", "name": "Super Administration", "permissions": ["all"] },
+    { "id": "program_manager", "name": "Program Manager", "permissions": ["manage_cohorts", "view_reports"] },
+    { "id": "mentor", "name": "Mentor", "permissions": ["add_feedback"] },
+    { "id": "startup_lead", "name": "Startup Founder", "permissions": ["submit_milestones"] },
+    { "id": "collaborator", "name": "Project Collaborator", "permissions": ["view_tasks"] }
+  ],
+  "projects": [
+    {
+      "id": "p1",
+      "name": "Impact Batch 4",
+      "type": "Incubation Cohort",
+      "manager_id": "u1",
+      "team": ["u1", "u2"],
+      "status": "active"
+    }
+  ],
+  "cohorts": [
+    { "id": 1, "name": "Batch 4 - Spring 2026", "project_id": "p1", "status": "active" }
+  ],
+  "startups": [
+    { "id": 1, "name": "VortexAI", "progress": 85, "status": "Active", "category": "SaaS", "risk": "Low", "cohort_id": 1, "project_id": "p1" },
+    { "id": 2, "name": "GreenFlow", "progress": 62, "status": "Active", "category": "Cleantech", "risk": "Medium", "cohort_id": 1, "project_id": "p1" }
+  ],
+  "activities": [
+    { "id": 1, "type": "writing", "user_id": "u2", "target_id": "p1", "content": "Updated cohort milestones" },
+    { "id": 2, "type": "posting", "user_id": "u3", "target_id": "1", "content": "Mentor feedback for VortexAI" }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "name": "impact-os",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.2",
+    "@supabase/supabase-js": "^2.48.1",
+    "axios": "^1.7.9",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.0.0",
+    "googleapis": "^171.4.0",
+    "lucide-react": "^0.473.0",
+    "mailgen": "^2.0.32",
+    "next": "15.1.7",
+    "next-pwa": "^5.6.0",
+    "nodemailer": "^8.0.3",
+    "papaparse": "^5.5.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "tailwind-merge": "^3.0.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.27",
+    "eslint": "9.18.0",
+    "eslint-config-next": "15.1.7",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19"
+  }
+}
