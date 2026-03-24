@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CheckCircle, Loader2 } from 'lucide-react';
-
+import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 export default function PublicFormView() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -21,6 +20,7 @@ export default function PublicFormView() {
 
   useEffect(() => {
     fetchForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form_id]);
 
   const fetchForm = async () => {

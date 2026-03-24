@@ -5,12 +5,14 @@ import {
   Users, Briefcase, ChevronRight, ChevronLeft, 
   CheckCircle2, Info, User, Target, Zap, 
   Shield, Mail, Phone, DollarSign, BarChart3,
-  Rocket, Award, Clock
+  Rocket, Award, Clock, TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 export default function ParticipantOnboarding() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', phone: '',
