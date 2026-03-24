@@ -27,7 +27,8 @@ export async function POST(req) {
         cid,
         name: c.name,
         email: c.email.toLowerCase(),
-        phone: c.phone || null
+        phone: c.phone || null,
+        group_name: c.group_name || null
       });
     }
     
@@ -35,8 +36,8 @@ export async function POST(req) {
     for (const vc of validContacts) {
       try {
         await db.execute({
-          sql: "INSERT INTO contacts (cid, name, email, phone) VALUES (?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, phone = excluded.phone",
-          args: [vc.cid, vc.name, vc.email, vc.phone]
+          sql: "INSERT INTO contacts (cid, name, email, phone, group_name) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, phone = excluded.phone, group_name = COALESCE(excluded.group_name, contacts.group_name)",
+          args: [vc.cid, vc.name, vc.email, vc.phone, vc.group_name]
         });
         inserted++;
       } catch (err) {

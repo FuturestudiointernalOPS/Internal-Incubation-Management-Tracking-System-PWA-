@@ -7,6 +7,7 @@ import { Users, LayoutDashboard, Briefcase, Calendar,
   FileText, ShieldCheck, Activity, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 
 /**
  * IMPACTOS MIDNIGHT EXECUTIVE — GLOBAL LAYOUT
@@ -125,13 +126,13 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
                       {item.subItems.map(subItem => {
                         const isSubActive = onTabChange ? (activeTab === subItem.id) : (pathname === subItem.href);
                         return (
-                          <button
+                          <Link
                             key={subItem.id || subItem.href}
-                            onClick={() => { 
+                            href={subItem.href === '#' && onTabChange ? '#' : subItem.href}
+                            onClick={(e) => { 
                               if (onTabChange && subItem.id && subItem.href === '#') {
+                                e.preventDefault();
                                 onTabChange(subItem.id);
-                              } else {
-                                router.push(subItem.href);
                               }
                               setMobileMenuOpen(false); 
                             }}
@@ -139,7 +140,7 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
                           >
                             <span className="truncate">{subItem.name}</span>
                             {isSubActive && <motion.div layoutId="nav-glow-sub" className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />}
-                          </button>
+                          </Link>
                         );
                       })}
                     </motion.div>
@@ -151,13 +152,13 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
 
           const isActive = onTabChange && item.id && item.href === '#' ? (activeTab === item.id) : (pathname === item.href);
           return (
-            <div key={item.id || item.href} className="px-3">
-              <button
-                onClick={() => { 
+            <Link
+                key={item.id || item.href}
+                href={item.href === '#' && onTabChange ? '#' : item.href}
+                onClick={(e) => { 
                   if (onTabChange && item.id && item.href === '#') {
+                    e.preventDefault();
                     onTabChange(item.id);
-                  } else {
-                    router.push(item.href);
                   }
                   setMobileMenuOpen(false); 
                 }}
@@ -169,8 +170,7 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
                 {isActive && !collapsed && (
                   <motion.div layoutId="nav-glow" className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />
                 )}
-              </button>
-            </div>
+              </Link>
           );
         })}
       </nav>

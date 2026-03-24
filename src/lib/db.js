@@ -13,6 +13,7 @@ export async function initDb() {
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       phone TEXT,
+      group_name TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -77,6 +78,10 @@ export async function initDb() {
 
   try {
     await db.execute("ALTER TABLE campaigns ADD COLUMN segment_id INTEGER");
+  } catch(e) {}
+
+  try {
+    await db.execute("ALTER TABLE contacts ADD COLUMN group_name TEXT");
   } catch(e) {}
 }
 
