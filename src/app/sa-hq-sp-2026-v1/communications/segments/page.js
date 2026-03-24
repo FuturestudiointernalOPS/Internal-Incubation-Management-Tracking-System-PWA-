@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Users, Rocket, Save, X, Search, Loader2 } from 'lucide-react';
+import { Filter, Users, Rocket, Save, X, Search, Loader2, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function SegmentsPage() {
