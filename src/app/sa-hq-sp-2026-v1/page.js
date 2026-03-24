@@ -55,7 +55,7 @@ export default function SuperAdminHQ() {
     setProgramList(JSON.parse(localStorage.getItem('impactos_programs') || '[]'));
     setProjectList(JSON.parse(localStorage.getItem('impactos_projects') || '[]'));
     setActivityLogs(JSON.parse(localStorage.getItem('impactos_logs') || '[]'));
-    setTimeout(() => setIsLoaded(true), 500);
+    setIsLoaded(true);
   }, [router]);
 
   const saveState = (key, data) => { localStorage.setItem(key, JSON.stringify(data)); };
@@ -70,6 +70,9 @@ export default function SuperAdminHQ() {
     const link = `${window.location.origin}/register-staff`;
     navigator.clipboard.writeText(link);
     setCopied(true);
+    window.dispatchEvent(new CustomEvent('impactos:notify', { 
+       detail: { type: 'success', message: 'Staff registration link copied to clipboard!' } 
+    }));
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -80,7 +83,9 @@ export default function SuperAdminHQ() {
     const isDuplicate = staffList.some(s => !s.deleted && (s.email || '').replace(/\s+/g, '').toLowerCase() === cleanEmail);
     
     if (isDuplicate) {
-      setFeedback({ message: 'Personnel with this email already exists.', type: 'error' });
+      window.dispatchEvent(new CustomEvent('impactos:notify', { 
+         detail: { type: 'error', message: 'Personnel with this email already exists.' } 
+      }));
       return;
     }
 
@@ -99,6 +104,9 @@ export default function SuperAdminHQ() {
     logAction(`Added new personnel: ${newStaff.fullName}`);
 
     setFeedback({ message: 'Personnel registered successfully!', type: 'success' });
+    window.dispatchEvent(new CustomEvent('impactos:notify', { 
+       detail: { type: 'success', message: `${newStaff.fullName} successfully registered for ImpactOS.` } 
+    }));
     setTimeout(() => {
       setShowStaffModal(false);
       setFeedback({ message: '', type: '' });
@@ -111,6 +119,9 @@ export default function SuperAdminHQ() {
     setStaffList(newList);
     saveState('impactos_staff', newList);
     logAction(`Moved a staff member to Recycle Bin.`);
+    window.dispatchEvent(new CustomEvent('impactos:notify', { 
+       detail: { type: 'success', message: 'Record moved to Recycle Bin.' } 
+    }));
   };
 
   const restoreStaff = (id) => {
@@ -145,7 +156,9 @@ export default function SuperAdminHQ() {
     setStaffList(newList);
     saveState('impactos_staff', newList);
     logAction(`Reset password for a staff member.`);
-    alert(`Password reset successfully!\nNew Password: ${newPassword}`);
+    window.dispatchEvent(new CustomEvent('impactos:notify', { 
+       detail: { type: 'success', message: `Password reset successfully. New Access Code: ${newPassword}`, duration: 8000 } 
+    }));
   };
 
   const togglePassword = (id) => { setShowPasswordMap(prev => ({ ...prev, [id]: !prev[id] })); };
@@ -235,29 +248,8 @@ export default function SuperAdminHQ() {
       role="super_admin" 
       activeTab={view} 
       onTabChange={handleViewChange}
-      modals={
-        <AnimatePresence>
-          {showStaffModal && (
-            <StaffModal 
-              isOpen={showStaffModal} 
-              onClose={() => setShowStaffModal(false)} 
-              onSave={handleAddStaff}
-              feedback={feedback}
-            />
-          )}
-
-          {showProgramModal && (
-            <ProgramModal 
-              isOpen={showProgramModal} 
-              onClose={() => setShowProgramModal(false)} 
-              onSave={handleAddProgram}
-              staffList={staffList}
-            />
-          )}
-        </AnimatePresence>
-      }
     >
-      <div key={view} className="animation-reveal">
+      <div key={view}>
         {/* --- MAIN HIGH-LEVEL DASHBOARD --- */}
         {view === 'dashboard' && (
           <div className="space-y-12">
@@ -597,7 +589,7 @@ export default function SuperAdminHQ() {
             ) : filteredStaff.length === 0 ? (
               <EmptyState icon={Search} title="No Matches" subtitle="We couldn't find anyone matching your search." />
             ) : (
-              <div className="animation-reveal">
+              <div>
                 <div className="ios-card !p-0 overflow-visible bg-transparent border-none">
                   <table className="executive-table w-full">
                     <thead>
@@ -705,7 +697,7 @@ export default function SuperAdminHQ() {
             {JSON.parse(localStorage.getItem('impactos_participants') || '[]').length === 0 ? (
               <EmptyState icon={Users} title="Global Roster Empty" subtitle="No participants have registered across any programs yet." />
             ) : (
-              <div className="animation-reveal">
+              <div>
                 <div className="ios-card !p-0 overflow-visible bg-transparent border-none">
                   <table className="executive-table w-full">
                     <thead>

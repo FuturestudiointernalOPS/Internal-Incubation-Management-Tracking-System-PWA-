@@ -6,16 +6,22 @@ export async function GET() {
   try {
     await initDb();
     
-    // Find pending contacts
+    // Find pending contacts and their current step requirements
     const result = await db.execute(`
-      SELECT cc.id as cc_id, cc.cid, cc.campaign_id, c.email, c.name, cam.name as campaign_name, cam.form_id
+      SELECT cc.id as cc_id, cc.cid, cc.campaign_id, cc.sequence_step,
+             c.email, c.name, cam.name as campaign_name, cam.form_id,
+             cs.subject as step_subject, cs.body as step_body, cs.delay_days
       FROM campaign_contacts cc
       JOIN contacts c ON cc.cid = c.cid
       JOIN campaigns cam ON cc.campaign_id = cam.id
+      JOIN campaign_steps cs ON cc.campaign_id = cs.campaign_id AND cc.sequence_step = cs.step_order
       WHERE cc.status = 'pending' 
-      AND (cc.next_send_at IS NULL OR cc.next_send_at <= CURRENT_TIMESTAMP)
+      AND (cc.next_send_at IS NULL OR datetime(cc.next_send_at) <= datetime('now'))
+      AND cam.status != 'paused'
       LIMIT 10
     `);
+
+    console.log(`[AUTOMATION] Found ${result.rows.length} pending contacts for dispatch.`);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: true, sent: 0, message: "No pending emails" });
@@ -39,12 +45,13 @@ export async function GET() {
         "Content-Type: text/html; charset=utf-8",
         "",
         content
-      ].join("\\n");
+      ].join("\n");
     
       const encodedMessage = Buffer.from(message)
         .toString("base64")
-        .replace(/\\+/g, "-")
-        .replace(/\\//g, "_");
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
     
       await gmail.users.messages.send({
         userId: "me",
@@ -56,40 +63,60 @@ export async function GET() {
     
     for (const row of result.rows) {
       const formUrl = row.form_id ? `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/form/${row.form_id}?cid=${row.cid}` : '';
-      const subject = `Update: ${row.campaign_name}`;
-      const content = `
-          <div style="font-family: inherit; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 16px;">
-            <p style="font-size: 14px; letter-spacing: 0.1em; color: #6366f1; font-weight: 900; text-transform: uppercase;">ImpactOS Secure Channel</p>
-            <h2 style="font-size: 24px; font-weight: 900; color: #0f172a; margin-top: 20px;">Hello ${row.name},</h2>
-            <p style="font-size: 16px; color: #475569; line-height: 1.6;">You have received a formal communication request regarding the <strong>${row.campaign_name}</strong> module.</p>
+      
+      // Personalize Content
+      let subject = row.step_subject || `Message from ImpactOS`;
+      let body = row.step_body || `Hello, please check your portal.`;
+
+      const personalizedBody = body
+        .replace(/{{name}}/g, row.name)
+        .replace(/{{campaign}}/g, row.campaign_name)
+        .replace(/{{link}}/g, formUrl);
+
+      const htmlContent = `
+          <div style="font-family: sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 16px;">
+            <p style="font-size: 11px; letter-spacing: 0.2em; color: #6366f1; font-weight: 900; text-transform: uppercase; margin-bottom: 24px;">Secure Communication Channel</p>
+            <div style="font-size: 16px; color: #334155; line-height: 1.8; white-space: pre-wrap;">${personalizedBody}</div>
             
             ${formUrl ? `
-              <div style="margin: 40px 0;">
-                <p style="font-size: 14px; font-weight: bold; color: #0f172a; margin-bottom: 16px;">Action Required:</p>
-                <a href="${formUrl}" style="display: inline-block; padding: 16px 32px; background-color: #6366f1; color: #ffffff; text-decoration: none; border-radius: 12px; font-weight: 900; letter-spacing: 0.05em; font-size: 14px;">PROCEED TO PORTAL</a>
+              <div style="margin: 40px 0; text-align: center;">
+                <a href="${formUrl}" style="display: inline-block; padding: 18px 36px; background: #6366f1; color: #ffffff; text-decoration: none; border-radius: 14px; font-weight: 900; letter-spacing: 0.05em; font-size: 13px; text-transform: uppercase; box-shadow: 0 10px 20px rgba(99,102,241,0.2);">Proceed to Secure Portal</a>
               </div>
             ` : ''}
             
-            <p style="margin-top: 40px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px;">This is an automated encrypted dispatch from the FutureStudio Super Admin Core. Reply tracking is active payload.</p>
+            <p style="margin-top: 50px; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 25px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: bold;">Electronic Dispatch ID: ${row.cid} · ImpactOS Executive Core</p>
           </div>
         `;
 
       try {
         if (gmail) {
-           await sendEmailViaGmailApi(row.email, subject, content);
+           await sendEmailViaGmailApi(row.email, subject, htmlContent);
         } else {
-           console.log("[MOCK SEND] Email prepared for:", row.email);
+           console.log("[MOCK SEND] Email prepared for:", row.email, "Subject:", subject);
         }
         
-        // Update to mark sent
-        await db.execute({
-          sql: `UPDATE campaign_contacts 
-                SET sequence_step = sequence_step + 1, 
-                    next_send_at = datetime('now', '+3 days'),
-                    status = 'sent'
-                WHERE id = ?`,
-          args: [row.cc_id]
+        // Update: Move pulse, calculate next window
+        const nextSteps = await db.execute({
+           sql: "SELECT id FROM campaign_steps WHERE campaign_id = ? AND step_order > ?",
+           args: [row.campaign_id, row.sequence_step]
         });
+
+        if (nextSteps.rows.length > 0) {
+           const nextWindow = `+${row.delay_days || 3} days`;
+           await db.execute({
+             sql: `UPDATE campaign_contacts 
+                   SET sequence_step = sequence_step + 1, 
+                       next_send_at = datetime('now', ?),
+                       status = 'pending'
+                   WHERE id = ?`,
+             args: [nextWindow, row.cc_id]
+           });
+        } else {
+           await db.execute({
+             sql: `UPDATE campaign_contacts SET status = 'completed', next_send_at = NULL WHERE id = ?`,
+             args: [row.cc_id]
+           });
+        }
         sentCount++;
       } catch (err) {
         console.error("Failed to send email to", row.email, err);
@@ -98,6 +125,7 @@ export async function GET() {
 
     return NextResponse.json({ success: true, sent: sentCount });
   } catch (err) {
+    console.error("Automation Error:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

@@ -8,11 +8,122 @@ import { Users, LayoutDashboard, Briefcase, Calendar,
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import GlobalToast from '@/components/ui/GlobalToast';
 
 /**
  * IMPACTOS MIDNIGHT EXECUTIVE — GLOBAL LAYOUT
  * Standardized navigation and workspace frame.
  */
+const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, pathname, activeTab, onTabChange, setMobileMenuOpen, handleLogout }) => (
+  <>
+    {/* BRAND LOGO */}
+    <div className="flex items-center gap-4 px-2 mb-10">
+      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <Activity className="text-white w-6 h-6" />
+      </div>
+      {!collapsed && (
+        <div className="animation-reveal">
+          <h1 className="text-lg font-black tracking-tighter text-white uppercase leading-none">ImpactOS</h1>
+          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">{role?.replace(/_/g, ' ')}</p>
+        </div>
+      )}
+    </div>
+
+    {/* NAVIGATION */}
+    <nav className="flex-1 space-y-1">
+      {navItems.map((item) => {
+        if (item.subItems) {
+          const isChildActive = item.subItems.some(sub => 
+            (onTabChange && activeTab === sub.id) || 
+            (pathname?.startsWith(sub.href))
+          );
+          const isOpen = openMenus[item.id] || isChildActive;
+
+          return (
+            <div key={item.id} className="space-y-1 px-3">
+              <button
+                onClick={() => toggleMenu(item.id)}
+                className={`w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all font-bold text-sm select-none ${isChildActive ? 'text-white bg-white/5' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                title={collapsed ? item.name : undefined}
+              >
+                <div className="flex items-center gap-3">
+                  <item.icon className={`w-5 h-5 flex-shrink-0 ${isChildActive ? 'text-indigo-400' : 'text-slate-500'}`} />
+                  {!collapsed && <span className="truncate text-left">{item.name}</span>}
+                </div>
+                {!collapsed && (
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180 text-indigo-400' : 'text-slate-500'}`} />
+                )}
+              </button>
+              {isOpen && !collapsed && (
+                <div className="pl-7 space-y-1">
+                  {item.subItems.map(subItem => {
+                    const isSubActive = onTabChange ? (activeTab === subItem.id) : (pathname === subItem.href);
+                    return (
+                      <Link
+                        key={subItem.id || subItem.href}
+                        href={subItem.href === '#' && onTabChange ? '#' : subItem.href}
+                        onClick={(e) => { 
+                          if (onTabChange && subItem.id && subItem.href === '#') {
+                            e.preventDefault();
+                            onTabChange(subItem.id);
+                          }
+                          setMobileMenuOpen(false); 
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all font-bold text-[13px] text-left select-none ${isSubActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                      >
+                        <span className="truncate">{subItem.name}</span>
+                        {isSubActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        const isActive = onTabChange && item.id && item.href === '#' ? (activeTab === item.id) : (pathname === item.href);
+        return (
+          <Link
+              key={item.id || item.href}
+              href={item.href === '#' && onTabChange ? '#' : item.href}
+              onClick={(e) => { 
+                if (onTabChange && item.id && item.href === '#') {
+                  e.preventDefault();
+                  onTabChange(item.id);
+                }
+                setMobileMenuOpen(false); 
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-bold text-sm text-left select-none ${isActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+              title={collapsed ? item.name : undefined}
+            >
+              <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
+              {!collapsed && <span className="truncate">{item.name}</span>}
+              {isActive && !collapsed && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />
+              )}
+            </Link>
+        );
+      })}
+    </nav>
+
+    {/* BOTTOM ACTIONS */}
+    <div className="mt-auto pt-6 border-t border-white/5 space-y-1">
+      <button className="sidebar-link group">
+        <Settings className="w-5 h-5 flex-shrink-0 group-hover:rotate-45 transition-transform" />
+        {!collapsed && <span className="animation-reveal">System Config</span>}
+      </button>
+      <button 
+        onClick={handleLogout}
+        className="sidebar-link text-rose-500 hover:bg-rose-500/10 hover:text-rose-400"
+      >
+        <LogOut className="w-5 h-5 flex-shrink-0" />
+        {!collapsed && <span className="animation-reveal font-bold">Sign Out</span>}
+      </button>
+    </div>
+  </>
+);
+
 export default function DashboardLayout({ children, role = 'admin', activeTab, onTabChange, modals }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -75,140 +186,24 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
     router.push('/sa-hq-sp-2026-v1/login');
   };
 
-  const SidebarContent = () => (
-    <>
-      {/* BRAND LOGO */}
-      <div className="flex items-center gap-4 px-2 mb-10">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <Activity className="text-white w-6 h-6" />
-        </div>
-        {!collapsed && (
-          <div className="animation-reveal">
-            <h1 className="text-lg font-black tracking-tighter text-white uppercase leading-none">ImpactOS</h1>
-            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">{role.replace(/_/g, ' ')}</p>
-          </div>
-        )}
-      </div>
-
-      {/* NAVIGATION */}
-      <nav className="flex-1 space-y-1">
-        {navItems.map((item) => {
-          if (item.subItems) {
-            const isChildActive = item.subItems.some(sub => 
-              (onTabChange && activeTab === sub.id) || 
-              (pathname.startsWith(sub.href))
-            );
-            const isOpen = openMenus[item.id] || isChildActive;
-
-            return (
-              <div key={item.id} className="space-y-1 px-3">
-                <button
-                  onClick={() => toggleMenu(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all font-bold text-sm select-none ${isChildActive ? 'text-white bg-white/5' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                  title={collapsed ? item.name : undefined}
-                >
-                  <div className="flex items-center gap-3">
-                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isChildActive ? 'text-indigo-400' : 'text-slate-500'}`} />
-                    {!collapsed && <span className="animation-reveal truncate text-left">{item.name}</span>}
-                  </div>
-                  {!collapsed && (
-                    <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180 text-indigo-400' : 'text-slate-500'}`} />
-                  )}
-                </button>
-                <AnimatePresence>
-                  {isOpen && !collapsed && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden pl-7 space-y-1"
-                    >
-                      {item.subItems.map(subItem => {
-                        const isSubActive = onTabChange ? (activeTab === subItem.id) : (pathname === subItem.href);
-                        return (
-                          <Link
-                            key={subItem.id || subItem.href}
-                            href={subItem.href === '#' && onTabChange ? '#' : subItem.href}
-                            onClick={(e) => { 
-                              if (onTabChange && subItem.id && subItem.href === '#') {
-                                e.preventDefault();
-                                onTabChange(subItem.id);
-                              }
-                              setMobileMenuOpen(false); 
-                            }}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all font-bold text-[13px] text-left select-none ${isSubActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
-                          >
-                            <span className="truncate">{subItem.name}</span>
-                            {isSubActive && <motion.div layoutId="nav-glow-sub" className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />}
-                          </Link>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          }
-
-          const isActive = onTabChange && item.id && item.href === '#' ? (activeTab === item.id) : (pathname === item.href);
-          return (
-            <Link
-                key={item.id || item.href}
-                href={item.href === '#' && onTabChange ? '#' : item.href}
-                onClick={(e) => { 
-                  if (onTabChange && item.id && item.href === '#') {
-                    e.preventDefault();
-                    onTabChange(item.id);
-                  }
-                  setMobileMenuOpen(false); 
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-bold text-sm text-left select-none ${isActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                title={collapsed ? item.name : undefined}
-              >
-                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
-                {!collapsed && <span className="animation-reveal truncate">{item.name}</span>}
-                {isActive && !collapsed && (
-                  <motion.div layoutId="nav-glow" className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />
-                )}
-              </Link>
-          );
-        })}
-      </nav>
-
-      {/* BOTTOM ACTIONS */}
-      <div className="mt-auto pt-6 border-t border-white/5 space-y-1">
-        <button className="sidebar-link group">
-          <Settings className="w-5 h-5 flex-shrink-0 group-hover:rotate-45 transition-transform" />
-          {!collapsed && <span className="animation-reveal">System Config</span>}
-        </button>
-        <button 
-          onClick={handleLogout}
-          className="sidebar-link text-rose-500 hover:bg-rose-500/10 hover:text-rose-400"
-        >
-          <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="animation-reveal font-bold">Sign Out</span>}
-        </button>
-      </div>
-    </>
-  );
+  const commonProps = {
+    collapsed, role, navItems, openMenus, toggleMenu, pathname, activeTab, onTabChange, setMobileMenuOpen, handleLogout
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#080810] text-slate-200 selection:bg-indigo-500/30 font-sans bg-mesh">
-      
-      <motion.aside
-        initial={false}
-        animate={{ width: collapsed ? 80 : 280 }}
+      <aside
         style={{ width: collapsed ? 80 : 280 }}
-        className="hidden md:flex flex-col h-screen sticky top-0 bg-[#0d0d18]/50 backdrop-blur-3xl border-r border-white/5 p-6 overflow-hidden z-[100] flex-shrink-0"
+        className="hidden md:flex flex-col h-screen sticky top-0 bg-[#0d0d18] border-r border-white/5 p-6 overflow-hidden z-[100] flex-shrink-0 transition-[width] duration-200"
       >
-        <SidebarContent />
+        <SidebarContent {...commonProps} />
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center border border-white/10 hover:scale-110 transition-transform shadow-xl"
         >
           <ChevronRight className={`w-3 h-3 text-white transition-transform ${collapsed ? '' : 'rotate-180'}`} />
         </button>
-      </motion.aside>
+      </aside>
 
       {/* MOBILE TRIGGER */}
       <div className="md:hidden fixed top-4 left-4 z-[200]">
@@ -221,33 +216,25 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
       </div>
 
       {/* MOBILE NAVIGATION DRAWER */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+      {mobileMenuOpen && (
+        <>
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/80 z-[150]"
+          />
+          <aside
+            className="fixed inset-y-0 left-0 w-[280px] bg-[#0d0d18] border-r border-white/10 p-8 z-[160] overflow-hidden"
+          >
+            <button 
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[150]"
-            />
-            <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              className="fixed inset-y-0 left-0 w-[280px] bg-[#0d0d18] border-r border-white/10 p-8 z-[160] overflow-hidden"
+              className="absolute top-4 right-4 p-2 text-slate-400"
             >
-              <button 
-                onClick={() => setMobileMenuOpen(false)}
-                className="absolute top-4 right-4 p-2 text-slate-400"
-              >
-                <X className="w-6 h-6" />
-              </button>
-              <SidebarContent />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+              <X className="w-6 h-6" />
+            </button>
+            <SidebarContent {...commonProps} />
+          </aside>
+        </>
+      )}
 
       {/* MAIN WORKSPACE */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
@@ -302,6 +289,7 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
             {modals}
           </div>
         )}
+        <GlobalToast />
       </div>
     </div>
   );

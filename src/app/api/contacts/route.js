@@ -28,6 +28,8 @@ export async function POST(req) {
         name: c.name,
         email: c.email.toLowerCase(),
         phone: c.phone || null,
+        address: c.address || null,
+        dob: c.dob || null,
         group_name: c.group_name || null
       });
     }
@@ -35,9 +37,24 @@ export async function POST(req) {
     let inserted = 0;
     for (const vc of validContacts) {
       try {
+        // Ensure family exists
+        if (vc.group_name) {
+          await db.execute({
+            sql: "INSERT OR IGNORE INTO families (name) VALUES (?)",
+            args: [vc.group_name]
+          });
+        }
+
         await db.execute({
-          sql: "INSERT INTO contacts (cid, name, email, phone, group_name) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, phone = excluded.phone, group_name = COALESCE(excluded.group_name, contacts.group_name)",
-          args: [vc.cid, vc.name, vc.email, vc.phone, vc.group_name]
+          sql: `INSERT INTO contacts (cid, name, email, phone, address, dob, group_name) 
+                VALUES (?, ?, ?, ?, ?, ?, ?) 
+                ON CONFLICT(email) DO UPDATE SET 
+                  name = excluded.name, 
+                  phone = excluded.phone, 
+                  address = excluded.address,
+                  dob = excluded.dob,
+                  group_name = COALESCE(excluded.group_name, contacts.group_name)`,
+          args: [vc.cid, vc.name, vc.email, vc.phone, vc.address, vc.dob, vc.group_name]
         });
         inserted++;
       } catch (err) {

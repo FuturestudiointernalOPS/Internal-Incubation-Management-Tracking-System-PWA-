@@ -13,7 +13,17 @@ export async function initDb() {
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       phone TEXT,
+      address TEXT,
+      dob TEXT,
       group_name TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS families (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -51,6 +61,22 @@ export async function initDb() {
   `);
 
   await db.execute(`
+    CREATE TABLE IF NOT EXISTS campaign_steps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER,
+      step_order INTEGER NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      delay_days INTEGER DEFAULT 3,
+      delay_minutes INTEGER DEFAULT 0,
+      delay_hours INTEGER DEFAULT 0,
+      wait_type TEXT DEFAULT 'days',
+      scheduled_date TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS form_responses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       form_id TEXT NOT NULL,
@@ -83,6 +109,36 @@ export async function initDb() {
   try {
     await db.execute("ALTER TABLE contacts ADD COLUMN group_name TEXT");
   } catch(e) {}
+
+  try {
+    await db.execute("ALTER TABLE contacts ADD COLUMN address TEXT");
+  } catch(e) {}
+
+  try {
+    await db.execute("ALTER TABLE contacts ADD COLUMN dob TEXT");
+  } catch(e) {}
+
+  try {
+    await db.execute("ALTER TABLE campaign_steps ADD COLUMN delay_minutes INTEGER DEFAULT 0");
+  } catch(e) {}
+
+  try {
+    await db.execute("ALTER TABLE campaign_steps ADD COLUMN delay_hours INTEGER DEFAULT 0");
+  } catch(e) {}
+
+  try {
+    await db.execute("ALTER TABLE campaign_steps ADD COLUMN specific_time TEXT");
+  } catch(e) {}
+
+  try {
+    await db.execute("ALTER TABLE campaign_steps ADD COLUMN wait_type TEXT DEFAULT 'days'");
+  } catch(e) {}
+
+  // Speed Optimization: Add Indexes
+  await db.execute("CREATE INDEX IF NOT EXISTS idx_campaign_contacts_id ON campaign_contacts(campaign_id)");
+  await db.execute("CREATE INDEX IF NOT EXISTS idx_campaign_contacts_cid ON campaign_contacts(cid)");
+  await db.execute("CREATE INDEX IF NOT EXISTS idx_campaign_steps_id ON campaign_steps(campaign_id)");
+  await db.execute("CREATE INDEX IF NOT EXISTS idx_form_responses_fid ON form_responses(form_id)");
 }
 
 export default db;

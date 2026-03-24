@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Plus, Users, Mail, Phone, Search, AlertCircle, X, Loader2, CheckCircle } from 'lucide-react';
+import { Upload, Plus, Users, Mail, Phone, Search, AlertCircle, X, Loader2, CheckCircle, Download, CreditCard, MapPin, Calendar as CalendarIcon } from 'lucide-react';
 import Papa from 'papaparse';
+import { IMPACT_CACHE } from '@/utils/impactCache';
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState([]);
@@ -11,25 +12,57 @@ export default function ContactsPage() {
   const [search, setSearch] = useState('');
   
   // Modals & UI State
-  const [showManualModal, setShowManualModal] = useState(false);
+  const [showFamilyModal, setShowFamilyModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStats, setUploadStats] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState('All Contacts');
+  const [families, setFamilies] = useState([]);
   const fileInputRef = useRef(null);
   
   // Forms
-  const [form, setForm] = useState({ name: '', email: '', phone: '', group_name: '' });
+  const [familyForm, setFamilyForm] = useState({ name: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', address: '', dob: '', group_name: '' });
   const [bulkGroupName, setBulkGroupName] = useState('');
+  const [bulkUseExisting, setBulkUseExisting] = useState(false);
 
-  useEffect(() => { fetchContacts(); }, []);
+  useEffect(() => { 
+    // Load from cache first for instant feedback
+    const cachedContacts = IMPACT_CACHE.get('contacts');
+    const cachedFamilies = IMPACT_CACHE.get('families');
+    if (cachedContacts) {
+      setContacts(cachedContacts);
+      setLoading(false);
+    }
+    if (cachedFamilies) setFamilies(cachedFamilies);
+
+    // Refresh in background
+    fetchContacts(); 
+    fetchFamilies();
+  }, []);
+
+  const fetchFamilies = async () => {
+    try {
+      const res = await fetch('/api/families');
+      const data = await res.json();
+      if (data.success) {
+        setFamilies(data.families || []);
+        IMPACT_CACHE.set('families', data.families || []);
+      }
+    } catch (err) { console.error(err); }
+  };
 
   const fetchContacts = async () => {
     try {
-      setLoading(true);
+      // If no cache, show full loader. If cache exists, we just refresh silenty.
+      if (!IMPACT_CACHE.get('contacts')) setLoading(true);
       const res = await fetch('/api/contacts');
       const data = await res.json();
-      if (data.success) setContacts(data.contacts || []);
+      if (data.success) {
+        setContacts(data.contacts || []);
+        IMPACT_CACHE.set('contacts', data.contacts || []);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -68,6 +101,7 @@ export default function ContactsPage() {
             setShowBulkModal(false);
             setBulkGroupName('');
             fetchContacts();
+            fetchFamilies();
           } else {
             console.error(json.error);
           }
@@ -81,30 +115,60 @@ export default function ContactsPage() {
     });
   };
 
-  const submitManualContact = async (e) => {
+  const submitFamily = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email) return;
-
+    if (!familyForm.name) return;
     try {
-      const res = await fetch('/api/contacts', {
+      const res = await fetch('/api/families', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([form])
+        body: JSON.stringify(familyForm)
       });
       const data = await res.json();
       if (data.success) {
-        setShowManualModal(false);
-        setForm({ name: '', email: '', phone: '' });
-        fetchContacts();
+        setShowFamilyModal(false);
+        setFamilyForm({ name: '' });
+        fetchFamilies();
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+           detail: { type: 'success', message: `Family group '${familyForm.name}' established successfully.` } 
+        }));
       } else {
-        alert(data.errors[0]?.error || data.error);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+           detail: { type: 'error', message: data.error } 
+        }));
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
-  const groups = ['All Contacts', ...new Set(contacts.map(c => c.group_name).filter(Boolean))];
+  const exportFamily = (groupName) => {
+    const data = contacts.filter(c => c.group_name === groupName);
+    const csv = Papa.unparse(data);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Family_Export_${groupName.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadSkeleton = () => {
+    const skeleton = [
+      { name: 'John Doe', email: 'john@example.com', phone: '+2348000000000', address: '123 Victoria Island, Lagos', dob: '1990-01-01' }
+    ];
+    const csv = Papa.unparse(skeleton);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "ImpactOS_Contact_Template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const groups = ['All Contacts', ...new Set(families.map(f => f.name))];
 
   const filtered = contacts.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -117,11 +181,11 @@ export default function ContactsPage() {
 
   return (
     <DashboardLayout role="super_admin">
-      <div className="animation-reveal space-y-8 min-h-[60vh]">
+      <div className="space-y-8 min-h-[60vh]">
         <header className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div>
-            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Contacts HQ</h2>
-            <p className="text-slate-400 font-bold tracking-tight">Upload and manage communications contacts.</p>
+            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Contacts</h2>
+            <p className="text-slate-400 font-bold tracking-tight">Upload and manage your messaging lists.</p>
           </div>
           <div className="flex gap-4">
             <input 
@@ -132,6 +196,12 @@ export default function ContactsPage() {
               onChange={handleFileUpload} 
             />
             <button 
+              onClick={() => setShowFamilyModal(true)} 
+              className="btn-ghost !py-4 shadow-indigo-600/10"
+            >
+              <Users className="w-5 h-5 mr-2" /> New Family
+            </button>
+            <button 
               onClick={() => setShowBulkModal(true)} 
               disabled={isUploading}
               className="btn-ghost !py-4 shadow-indigo-600/10 cursor-pointer disabled:opacity-50"
@@ -141,31 +211,41 @@ export default function ContactsPage() {
             </button>
             <button 
               onClick={() => {
-                setForm({ name: '', email: '', phone: '', group_name: selectedGroup !== 'All Contacts' ? selectedGroup : '' });
+                setForm({ name: '', email: '', phone: '', address: '', dob: '', group_name: selectedGroup !== 'All Contacts' ? selectedGroup : '' });
                 setShowManualModal(true);
               }} 
               className="btn-prime !py-4 shadow-indigo-600/10"
             >
-              <Plus className="w-5 h-5 mr-2" /> Individual Entry
+              <Plus className="w-5 h-5 mr-2" /> Add a Contact
             </button>
           </div>
         </header>
 
-        {/* Group Filter Chips */}
-        <div className="flex flex-wrap gap-2 pb-4">
-           {groups.map(g => (
-             <button
-               key={g}
-               onClick={() => setSelectedGroup(g)}
-               className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${selectedGroup === g ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'}`}
-             >
-               {g}
-             </button>
-           ))}
+        {/* Group Filter Chips + Export Action */}
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-4 border-b border-white/5 pb-6">
+          <div className="flex flex-wrap gap-2">
+             {groups.map(g => (
+               <button
+                 key={g}
+                 onClick={() => setSelectedGroup(g)}
+                 className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${selectedGroup === g ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'}`}
+               >
+                 {g}
+               </button>
+             ))}
+          </div>
+          {selectedGroup !== 'All Contacts' && (
+            <button 
+              onClick={() => exportFamily(selectedGroup)}
+              className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition-colors"
+            >
+              <Download className="w-4 h-4" /> Download {selectedGroup} CSV
+            </button>
+          )}
         </div>
 
         {uploadStats && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-start gap-4 shadow-2xl">
+          <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-start gap-4 shadow-2xl">
             <CheckCircle className="w-6 h-6 text-emerald-400 flex-shrink-0" />
             <div>
               <p className="text-sm font-black text-white uppercase tracking-widest mb-1">Upload Complete</p>
@@ -183,7 +263,7 @@ export default function ContactsPage() {
               )}
             </div>
             <button onClick={() => setUploadStats(null)} className="ml-auto text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
-          </motion.div>
+          </div>
         )}
 
         <div className="flex items-center gap-4">
@@ -240,6 +320,8 @@ export default function ContactsPage() {
                       <div className="flex flex-col gap-1.5">
                         <span className="flex items-center gap-2 text-xs font-bold text-slate-400"><Mail className="w-3.5 h-3.5" /> {c.email}</span>
                         {c.phone && <span className="flex items-center gap-2 text-xs font-bold text-slate-400"><Phone className="w-3.5 h-3.5" /> {c.phone}</span>}
+                        {c.address && <span className="flex items-center gap-2 text-[10px] font-bold text-slate-500"><MapPin className="w-3 h-3" /> {c.address}</span>}
+                        {c.dob && <span className="flex items-center gap-2 text-[10px] font-bold text-slate-500"><CalendarIcon className="w-3 h-3" /> {c.dob}</span>}
                       </div>
                     </td>
                   </tr>
@@ -249,77 +331,147 @@ export default function ContactsPage() {
           </div>
         )}
 
-        {/* Manual Addition Modal */}
-        <AnimatePresence>
-          {showManualModal && (
-            <div className="fixed inset-0 z-[300] flex items-center justify-center pointer-events-auto">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowManualModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-md ios-card !p-8 shadow-2xl bg-[#080810] border border-white/10 m-4">
-                <button onClick={() => setShowManualModal(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
-                <div className="mb-8">
-                  <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">New Contact</h3>
-                  <p className="text-sm text-slate-400 font-bold">Add an individual recipient to the database.</p>
+        {/* Create Family Modal */}
+        {showFamilyModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center pointer-events-auto">
+            <div onClick={() => setShowFamilyModal(false)} className="absolute inset-0 bg-black/80" />
+            <div className="relative w-full max-w-sm ios-card !p-8 shadow-2xl bg-[#080810] border border-white/10 m-4">
+              <button onClick={() => setShowFamilyModal(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+              <div className="mb-6">
+                <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-1">Create Family Title</h3>
+                <p className="text-xs text-slate-400 font-bold">Define a logical grouping for your contacts.</p>
+              </div>
+              <form onSubmit={submitFamily} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Title Name</label>
+                  <input autoFocus required type="text" value={familyForm.name} onChange={e => setFamilyForm({name: e.target.value})} placeholder="e.g. Lagos Incubation Program" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50" />
                 </div>
-                <form onSubmit={submitManualContact} className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Full Name</label>
-                    <input autoFocus required type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Group / Family Name</label>
-                    <input required type="text" value={form.group_name} onChange={e => setForm({...form, group_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold" placeholder="E.g. Johnson Family" />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Email</label>
-                      <input required type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Phone</label>
-                      <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold" />
-                    </div>
-                  </div>
-                  <div className="pt-4">
-                    <button type="submit" className="w-full btn-prime !py-4 shadow-indigo-600/20 text-sm">Add to Group Database</button>
-                  </div>
-                </form>
-              </motion.div>
+                <button type="submit" className="w-full btn-prime !py-3 text-xs">Register Family</button>
+              </form>
             </div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
+
+        {/* Manual Addition Modal */}
+        {showManualModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center pointer-events-auto">
+            <div onClick={() => setShowManualModal(false)} className="absolute inset-0 bg-black/80" />
+            <div className="relative w-full max-w-lg ios-card !p-8 shadow-2xl bg-[#080810] border border-white/10 m-4">
+              <button onClick={() => setShowManualModal(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+              <div className="mb-8">
+                <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Individual Entry</h3>
+                <p className="text-sm text-slate-400 font-bold">Add a detailed recipient unit to the database.</p>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  const res = await fetch('/api/contacts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify([form])
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setShowManualModal(false);
+                    const savedName = form.name;
+                    setForm({ name: '', email: '', phone: '', address: '', dob: '', group_name: '' });
+                    fetchContacts();
+                    fetchFamilies();
+                    window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                       detail: { type: 'success', message: `${savedName} successfully added to database.` } 
+                    }));
+                  }
+                } catch (err) { console.error(err); }
+              }} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Identity / Full Name</label>
+                     <input autoFocus required type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Family Group</label>
+                    <select required value={form.group_name} onChange={e => setForm({...form, group_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 appearance-none font-bold">
+                      <option value="">Select Family...</option>
+                      {families.map(f => <option key={f.id} value={f.name} className="bg-[#080810]">{f.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Date of Birth</label>
+                    <input type="date" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Email</label>
+                    <input required type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Phone</label>
+                    <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 font-bold" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Physical Address</label>
+                    <input type="text" value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 font-bold" />
+                  </div>
+                </div>
+                <div className="pt-4">
+                  <button type="submit" className="w-full btn-prime !py-4 shadow-indigo-600/20 text-sm">Save Contact</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Bulk Addition Modal */}
-        <AnimatePresence>
-          {showBulkModal && (
-            <div className="fixed inset-0 z-[300] flex items-center justify-center pointer-events-auto">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowBulkModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-md ios-card !p-8 shadow-2xl bg-[#080810] border border-white/10 m-4">
-                <button onClick={() => setShowBulkModal(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
-                <div className="mb-8 text-center">
-                  <Upload className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
-                  <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Family Import</h3>
-                  <p className="text-sm text-slate-400 font-bold">Assign a group identity to this bulk list.</p>
+        {showBulkModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center pointer-events-auto">
+            <div onClick={() => setShowBulkModal(false)} className="absolute inset-0 bg-black/80" />
+            <div className="relative w-full max-w-md ios-card !p-8 shadow-2xl bg-[#080810] border border-white/10 m-4">
+              <button onClick={() => setShowBulkModal(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+              <div className="mb-8 text-center">
+                <Upload className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
+                <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Family Import</h3>
+                <p className="text-sm text-slate-400 font-bold">Assign imported data to a specific title.</p>
+              </div>
+              <div className="space-y-6">
+                <div className="flex gap-4 mb-4">
+                  <button onClick={() => setBulkUseExisting(false)} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all ${!bulkUseExisting ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>New Name</button>
+                  <button onClick={() => setBulkUseExisting(true)} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all ${bulkUseExisting ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>Existing</button>
                 </div>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Destination Group Name</label>
-                    <input required type="text" value={bulkGroupName} onChange={e => setBulkGroupName(e.target.value)} placeholder="E.g. Lagos Outreach Group" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold" />
-                  </div>
-                  
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                      {bulkUseExisting ? 'Select Family' : 'Create New Family Name'}
+                  </label>
+                  {bulkUseExisting ? (
+                      <select value={bulkGroupName} onChange={e => setBulkGroupName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-indigo-500/50 appearance-none font-bold">
+                        <option value="">Choose Existing Family...</option>
+                        {families.map(f => <option key={f.id} value={f.name} className="bg-[#080810]">{f.name}</option>)}
+                      </select>
+                  ) : (
+                      <input required type="text" value={bulkGroupName} onChange={e => setBulkGroupName(e.target.value)} placeholder="E.g. Johnson Cluster" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-indigo-500/50 font-bold" />
+                  )}
+                </div>
+                
+                <div className="pt-2">
                   <button 
                     disabled={!bulkGroupName || isUploading}
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full btn-prime !py-5 shadow-indigo-600/20 text-sm disabled:opacity-30 disabled:grayscale transition-all"
+                    className="w-full btn-prime !py-5 shadow-indigo-600/20 text-sm disabled:opacity-30 disabled:grayscale transition-all mb-6"
                   >
-                    Select CSV File & Initialize
+                    {isUploading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Select CSV File & Execute'}
                   </button>
                   
-                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Requirement: CSV must contain 'name' and 'email' columns.</p>
+                  <button 
+                    type="button"
+                    onClick={downloadSkeleton}
+                    className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors flex items-center gap-2 mx-auto"
+                  >
+                    <Download className="w-4 h-4" /> Download Skeleton CSV
+                  </button>
                 </div>
-              </motion.div>
+              </div>
             </div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
