@@ -21,23 +21,32 @@ export async function GET(req, { params }) {
     if (!campaignRes.rows[0]) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
     const campaign = campaignRes.rows[0];
     
-    // Get Steps
+    // 1. Get individual Step Logic
     const stepsRes = await db.execute({
       sql: "SELECT * FROM campaign_steps WHERE campaign_id = ? ORDER BY step_order",
       args: [id]
     });
     
-    // Get Contacts
+    // 2. Get Step-by-Step Delivery Counts
+    // A contact has 'received' step N if their current sequence_step is > N 
+    // OR if they have marked the entire campaign as 'completed'.
     const contactsRes = await db.execute({
-      sql: "SELECT * FROM campaign_contacts WHERE campaign_id = ?",
+      sql: "SELECT cid, sequence_step, status FROM campaign_contacts WHERE campaign_id = ?",
       args: [id]
+    });
+
+    const stepsWithCounts = stepsRes.rows.map(step => {
+       const deliveredCount = contactsRes.rows.filter(c => 
+          c.sequence_step > step.step_order || c.status === 'completed'
+       ).length;
+       return { ...step, delivered_count: deliveredCount };
     });
 
     return NextResponse.json({ 
       success: true, 
       campaign: {
         ...campaign,
-        steps: stepsRes.rows,
+        steps: stepsWithCounts,
         contacts: contactsRes.rows
       }
     });

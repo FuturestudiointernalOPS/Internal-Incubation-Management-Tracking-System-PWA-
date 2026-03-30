@@ -95,23 +95,35 @@ export async function GET() {
            console.log("[MOCK SEND] Email prepared for:", row.email, "Subject:", subject);
         }
         
-        // Update: Move pulse, calculate next window
-        const nextSteps = await db.execute({
-           sql: "SELECT id FROM campaign_steps WHERE campaign_id = ? AND step_order > ?",
-           args: [row.campaign_id, row.sequence_step]
+        // 1. Identify the NEXT step in the sequence
+        const nextStepResult = await db.execute({
+           sql: "SELECT * FROM campaign_steps WHERE campaign_id = ? AND step_order = ?",
+           args: [row.campaign_id, row.sequence_step + 1]
         });
 
-        if (nextSteps.rows.length > 0) {
-           const nextWindow = `+${row.delay_days || 3} days`;
-           await db.execute({
-             sql: `UPDATE campaign_contacts 
-                   SET sequence_step = sequence_step + 1, 
-                       next_send_at = datetime('now', ?),
-                       status = 'pending'
-                   WHERE id = ?`,
-             args: [nextWindow, row.cc_id]
-           });
+        if (nextStepResult.rows.length > 0) {
+           const ns = nextStepResult.rows[0];
+           
+           // 2. Calculate the next dispatch window correctly
+           if (ns.wait_type === 'date' && ns.scheduled_date) {
+              // Fixed Date/Time logic
+              await db.execute({
+                sql: `UPDATE campaign_contacts SET sequence_step = sequence_step + 1, next_send_at = ?, status = 'pending' WHERE id = ?`,
+                args: [ns.scheduled_date, row.cc_id]
+              });
+           } else {
+              // Dynamic Delay logic (Minutes/Hours/Days)
+              const unit = ns.wait_type || 'days';
+              const val = unit === 'minutes' ? (ns.delay_minutes || 0) : (unit === 'hours' ? (ns.delay_hours || 0) : (ns.delay_days || 0));
+              const window = `+${val} ${unit}`;
+              
+              await db.execute({
+                sql: `UPDATE campaign_contacts SET sequence_step = sequence_step + 1, next_send_at = datetime('now', ?), status = 'pending' WHERE id = ?`,
+                args: [window, row.cc_id]
+              });
+           }
         } else {
+           // Sequence complete
            await db.execute({
              sql: `UPDATE campaign_contacts SET status = 'completed', next_send_at = NULL WHERE id = ?`,
              args: [row.cc_id]

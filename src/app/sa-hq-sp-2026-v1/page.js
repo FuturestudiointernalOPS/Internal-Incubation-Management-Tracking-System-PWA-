@@ -56,6 +56,9 @@ export default function SuperAdminHQ() {
     setProjectList(JSON.parse(localStorage.getItem('impactos_projects') || '[]'));
     setActivityLogs(JSON.parse(localStorage.getItem('impactos_logs') || '[]'));
     setIsLoaded(true);
+    
+    // Auto-Pulse: Wake up automation engine on every HQ interaction
+    fetch('/api/send-pending').catch(() => {});
   }, [router]);
 
   const saveState = (key, data) => { localStorage.setItem(key, JSON.stringify(data)); };
@@ -261,6 +264,10 @@ export default function SuperAdminHQ() {
                 </p>
               </div>
               <div className="flex gap-4">
+                 <button onClick={() => router.push('/v2/superadmin')} className="btn-prime !py-3 bg-indigo-600 shadow-indigo-600/30 border-none group">
+                    <Zap className="w-4 h-4 mr-2 group-hover:animate-pulse" /> 
+                    Version 2 HQ
+                 </button>
                  <button className="btn-ghost !py-3"><RefreshCcw className="w-4 h-4 mr-2" /> Refresh Data</button>
                  <button onClick={() => setView('activity')} className="btn-prime !py-3 shadow-indigo-600/10"><Shield className="w-4 h-4 mr-2" /> Security Log</button>
               </div>

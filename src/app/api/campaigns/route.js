@@ -7,7 +7,9 @@ export async function GET() {
     const result = await db.execute(`
       SELECT c.*, 
              COUNT(cc.id) as total_contacts,
-             SUM(CASE WHEN cc.sequence_step > 0 OR cc.status = 'completed' THEN 1 ELSE 0 END) as sent_contacts
+             SUM(CASE WHEN cc.sequence_step > 0 OR cc.status = 'completed' THEN 1 ELSE 0 END) as sent_contacts,
+             (SELECT COUNT(*) FROM campaign_steps cs WHERE cs.campaign_id = c.id) as total_steps,
+             MAX(cc.sequence_step) as current_step
       FROM campaigns c
       LEFT JOIN campaign_contacts cc ON c.id = cc.campaign_id
       GROUP BY c.id

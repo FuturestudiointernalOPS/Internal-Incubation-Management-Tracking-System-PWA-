@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, LayoutDashboard, Briefcase, Calendar,
   MessageSquare, Settings, LogOut, Bell,
   Search, ChevronRight, ChevronDown, TrendingUp,
-  FileText, ShieldCheck, Activity, Menu, X } from 'lucide-react';
+  FileText, ShieldCheck, Activity, Menu, X, Zap, Rocket } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -102,6 +102,9 @@ const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, path
               {isActive && !collapsed && (
                 <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />
               )}
+              {item.glow && !isActive && !collapsed && (
+                 <span className="ml-auto px-2 py-0.5 rounded-md bg-indigo-500 text-[8px] font-black uppercase text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] animate-pulse">New</span>
+              )}
             </Link>
         );
       })}
@@ -139,6 +142,7 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
   const navigation = {
     super_admin: [
       { id: 'dashboard', name: 'Command HQ', icon: ShieldCheck, href: '/sa-hq-sp-2026-v1' },
+      { id: 'v2', name: 'Version 2', icon: Zap, href: '/v2/superadmin', glow: true },
       { id: 'staff', name: 'Staff & Personnel', icon: Users, href: '#' },
       { id: 'participants', name: 'Participants', icon: Users, href: '#' },
       { id: 'programs', name: 'Core Programs', icon: Briefcase, href: '#' },
@@ -160,19 +164,28 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
     ],
     admin: [
       { name: 'Command HQ', icon: ShieldCheck, href: '/sa-hq-sp-2026-v1' },
+      { name: 'Version 2', icon: Zap, href: '/v2/superadmin' },
       { name: 'Staff & Personnel', icon: Users, href: '/admin/personnel' },
       { name: 'Core Initiatives', icon: Briefcase, href: '/admin/projects' },
       { name: 'System Logs', icon: FileText, href: '/admin/logs' },
     ],
     program_manager: [
       { name: 'Work Summary', icon: LayoutDashboard, href: '/pm/dashboard' },
+      { name: 'Version 2', icon: Zap, href: '/v2/pm' },
       { name: 'Core Programs', icon: Briefcase, href: '/pm/programs' },
       { name: 'Participants', icon: Users, href: '/pm/participants' },
       { name: 'Live Sessions', icon: Calendar, href: '/pm/sessions' },
       { name: 'Progress Tracking', icon: TrendingUp, href: '/pm/portfolio' },
     ],
+    teacher: [
+      { name: 'Work Summary', icon: LayoutDashboard, href: '/v2/teacher/dashboard' },
+      { name: 'Version 2', icon: Zap, href: '/v2/teacher' },
+      { name: 'My Sessions', icon: Calendar, href: '/v2/teacher/sessions' },
+      { name: 'Submissions', icon: FileText, href: '/v2/teacher/reviews' },
+    ],
     participant: [
       { name: 'My Startup', icon: Briefcase, href: '/startup/profile' },
+      { name: 'Version 2', icon: Zap, href: '/v2/participant' },
       { name: 'Tasks & Milestones', icon: FileText, href: '/startup/tasks' },
       { name: 'Feedback Hub', icon: MessageSquare, href: '/startup/feedback' },
     ],

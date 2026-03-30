@@ -319,12 +319,20 @@ export default function CampaignsPage() {
                       ) : (
                          <span className="badge bg-indigo-500/10 text-indigo-400 border-indigo-500/20">UPCOMING</span>
                       )}
-                   </div>
-                   
-                   <div className="mb-4">
-                      <h3 className="text-xl font-black text-white uppercase tracking-tighter group-hover:text-indigo-400 transition-colors truncate">{c.name}</h3>
-                      <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">Ref: {c.id}</p>
-                   </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mb-3">
+                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-400">
+                          <Settings2 className="w-3 h-3" />
+                          <span className="text-[9px] font-black uppercase tracking-tighter">
+                             {c.sent_contacts > 0 ? `${Math.min(c.current_step + 1, c.total_steps)} OF ${c.total_steps} PHASES` : 'PENDING ACTIVATION'}
+                          </span>
+                       </div>
+                    </div>
+                    <div className="mb-4">
+                       <h3 className="text-xl font-black text-white uppercase tracking-tighter group-hover:text-indigo-400 transition-colors truncate">{c.name}</h3>
+                       <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">Ref: {c.id}</p>
+                    </div>
                     
                    <div className="space-y-4 flex-1">
                       <div className="flex justify-between items-end mb-1">
@@ -617,10 +625,18 @@ export default function CampaignsPage() {
                              <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-4">
                                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center font-black text-white text-lg">{idx + 1}</div>
-                                   <div>
-                                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{idx === 0 ? 'Anchor Step' : `Follow-up ${idx}`}</p>
-                                      <h5 className="text-sm font-black text-white uppercase tracking-tighter mt-1">
-                                         {step.wait_type === 'instant' ? 'Instant Dispatch' : `Wait ${step.delay_days || step.delay_hours || step.delay_minutes} ${step.wait_type}`}
+                                   <div className="flex-1 min-w-[200px]">
+                                      <div className="flex items-center justify-between mb-1">
+                                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{idx === 0 ? 'Anchor Step' : `Follow-up ${idx}`}</p>
+                                         {step.delivered_count > 0 && (
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                               <CheckCircle className="w-3 h-3" />
+                                               <span className="text-[8px] font-black uppercase tracking-tighter">Received by {step.delivered_count}</span>
+                                            </div>
+                                         )}
+                                      </div>
+                                      <h5 className="text-sm font-black text-white uppercase tracking-tighter">
+                                         {step.wait_type === 'instant' ? 'Instant Dispatch' : (step.wait_type === 'date' ? `Scheduled: ${step.scheduled_date || '?'}` : `Wait ${step.delay_days || step.delay_hours || step.delay_minutes || 0} ${step.wait_type}`)}
                                       </h5>
                                    </div>
                                 </div>
