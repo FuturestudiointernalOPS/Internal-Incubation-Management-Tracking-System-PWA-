@@ -25,36 +25,47 @@ export async function POST(req) {
       const cid = "USER_" + uuidv4().split('-')[0].toUpperCase() + Math.floor(Math.random() * 10000);
       validContacts.push({
         cid,
-        name: c.name,
+        name: c.name || c.fullName,
         email: c.email.toLowerCase(),
         phone: c.phone || null,
         address: c.address || null,
         dob: c.dob || null,
-        group_name: c.group_name || null
+        group_name: c.group_name || null,
+        role: c.role || 'unassigned',
+        password: c.password || null,
+        program_id: c.program_id || null,
+        program_name: c.program_name || null,
+        image: c.image || null,
+        status: c.status || 'approved',
+        deleted: !!c.deleted
       });
     }
     
     let inserted = 0;
     for (const vc of validContacts) {
       try {
-        // Ensure family exists
-        if (vc.group_name) {
-          await db.execute({
-            sql: "INSERT OR IGNORE INTO families (name) VALUES (?)",
-            args: [vc.group_name]
-          });
-        }
-
         await db.execute({
-          sql: `INSERT INTO contacts (cid, name, email, phone, address, dob, group_name) 
-                VALUES (?, ?, ?, ?, ?, ?, ?) 
+          sql: `INSERT INTO contacts (
+                  cid, name, email, phone, address, dob, group_name, 
+                  role, password, program_id, program_name, image, status, deleted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
                 ON CONFLICT(email) DO UPDATE SET 
                   name = excluded.name, 
                   phone = excluded.phone, 
                   address = excluded.address,
                   dob = excluded.dob,
-                  group_name = COALESCE(excluded.group_name, contacts.group_name)`,
-          args: [vc.cid, vc.name, vc.email, vc.phone, vc.address, vc.dob, vc.group_name]
+                  group_name = COALESCE(excluded.group_name, contacts.group_name),
+                  role = COALESCE(excluded.role, contacts.role),
+                  password = COALESCE(excluded.password, contacts.password),
+                  program_id = COALESCE(excluded.program_id, contacts.program_id),
+                  program_name = COALESCE(excluded.program_name, contacts.program_name),
+                  image = COALESCE(excluded.image, contacts.image),
+                  status = excluded.status,
+                  deleted = excluded.deleted`,
+          args: [
+            vc.cid, vc.name, vc.email, vc.phone, vc.address, vc.dob, vc.group_name,
+            vc.role, vc.password, vc.program_id, vc.program_name, vc.image, vc.status, vc.deleted ? 1 : 0
+          ]
         });
         inserted++;
       } catch (err) {

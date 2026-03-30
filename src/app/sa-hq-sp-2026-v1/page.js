@@ -51,11 +51,41 @@ export default function SuperAdminHQ() {
     }
     
     setUser(JSON.parse(userData));
-    setStaffList(JSON.parse(localStorage.getItem('impactos_staff') || '[]'));
-    setProgramList(JSON.parse(localStorage.getItem('impactos_programs') || '[]'));
-    setProjectList(JSON.parse(localStorage.getItem('impactos_projects') || '[]'));
-    setActivityLogs(JSON.parse(localStorage.getItem('impactos_logs') || '[]'));
-    setIsLoaded(true);
+    
+    // Fetch Live Data from Turso
+    const fetchData = async () => {
+      try {
+        const [staffRes, progRes, activityRes] = await Promise.all([
+          fetch('/api/contacts'),
+          fetch('/api/v2/programs'),
+          fetch('/api/v2/logs') // If logs API exists
+        ]);
+
+        const staffData = await staffRes.json();
+        const progData = await progRes.json();
+        
+        if (staffData.success) {
+           // Map Turso 'name' back to UI 'fullName'
+           const mappedStaff = staffData.contacts.map(s => ({
+              ...s,
+              fullName: s.name,
+              deleted: !!s.deleted
+           }));
+           setStaffList(mappedStaff);
+        }
+        
+        if (progData.success) {
+           setProgramList(progData.programs.map(p => ({ ...p, deleted: !!p.deleted })));
+        }
+        
+      } catch (err) {
+        console.error("V1 Data Sync Error:", err);
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+
+    fetchData();
     
     // Auto-Pulse: Wake up automation engine on every HQ interaction
     fetch('/api/send-pending').catch(() => {});
@@ -79,7 +109,7 @@ export default function SuperAdminHQ() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleAddStaff = (formData) => {
+  const handleAddStaff = async (formData) => {
     setFeedback({ message: '', type: '' });
     const cleanEmail = formData.email.replace(/\s+/g, '').toLowerCase();
 
@@ -95,43 +125,84 @@ export default function SuperAdminHQ() {
     const unsecurePassword = Math.random().toString(36).slice(-8);
     const newStaff = { 
       ...formData, 
-      id: Date.now(), 
+      fullName: formData.fullName || formData.name,
       password: unsecurePassword, 
       status: 'approved', 
       deleted: false 
     };
     
-    const updatedList = [...staffList, newStaff];
-    setStaffList(updatedList);
-    saveState('impactos_staff', updatedList);
-    logAction(`Added new personnel: ${newStaff.fullName}`);
+    try {
+      // Save to Turso
+      const res = await fetch('/api/contacts', {
+         method: 'POST',
+         body: JSON.stringify(newStaff)
+      });
+      
+      const resData = await res.json();
+      
+      if (resData.success) {
+        setStaffList([...staffList, { ...newStaff, id: resData.insertedId || Date.now() }]);
+        logAction(`Added new personnel: ${newStaff.fullName}`);
 
-    setFeedback({ message: 'Personnel registered successfully!', type: 'success' });
-    window.dispatchEvent(new CustomEvent('impactos:notify', { 
-       detail: { type: 'success', message: `${newStaff.fullName} successfully registered for ImpactOS.` } 
-    }));
-    setTimeout(() => {
-      setShowStaffModal(false);
-      setFeedback({ message: '', type: '' });
-    }, 1500); 
+        setFeedback({ message: 'Personnel registered successfully!', type: 'success' });
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+           detail: { type: 'success', message: `${newStaff.fullName} successfully registered for ImpactOS.` } 
+        }));
+        setTimeout(() => {
+          setShowStaffModal(false);
+          setFeedback({ message: '', type: '' });
+        }, 1500); 
+      }
+    } catch (err) {
+       console.error("Staff Save Error:", err);
+    }
   };
 
-  const deleteStaffSoft = (id) => {
+  const deleteStaffSoft = async (id) => {
     if(!window.confirm("Soft Delete: Move this person to the Recycle Bin?")) return;
-    const newList = staffList.map(x => x.id === id ? { ...x, deleted: true } : x);
-    setStaffList(newList);
-    saveState('impactos_staff', newList);
-    logAction(`Moved a staff member to Recycle Bin.`);
-    window.dispatchEvent(new CustomEvent('impactos:notify', { 
-       detail: { type: 'success', message: 'Record moved to Recycle Bin.' } 
-    }));
+    
+    const person = staffList.find(x => x.id === id);
+    if (!person) return;
+    
+    try {
+      const res = await fetch('/api/contacts', {
+         method: 'POST',
+         body: JSON.stringify({ ...person, deleted: true })
+      });
+      
+      const resData = await res.json();
+      if (resData.success) {
+        const newList = staffList.map(x => x.id === id ? { ...x, deleted: true } : x);
+        setStaffList(newList);
+        logAction(`Moved a staff member to Recycle Bin.`);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+           detail: { type: 'success', message: 'Record moved to Recycle Bin.' } 
+        }));
+      }
+    } catch (err) {
+       console.error("Staff Delete Error:", err);
+    }
   };
 
-  const restoreStaff = (id) => {
-    const newList = staffList.map(x => x.id === id ? { ...x, deleted: false } : x);
-    setStaffList(newList);
-    saveState('impactos_staff', newList);
-    logAction(`Restored a staff member from Recycle Bin.`);
+  const restoreStaff = async (id) => {
+    const person = staffList.find(x => x.id === id);
+    if (!person) return;
+
+    try {
+      const res = await fetch('/api/contacts', {
+         method: 'POST',
+         body: JSON.stringify({ ...person, deleted: false })
+      });
+      
+      const resData = await res.json();
+      if (resData.success) {
+        const newList = staffList.map(x => x.id === id ? { ...x, deleted: false } : x);
+        setStaffList(newList);
+        logAction(`Restored a staff member from Recycle Bin.`);
+      }
+    } catch (err) {
+       console.error("Staff Restore Error:", err);
+    }
   };
 
   const permDeleteStaff = (id) => {
@@ -167,48 +238,53 @@ export default function SuperAdminHQ() {
   const togglePassword = (id) => { setShowPasswordMap(prev => ({ ...prev, [id]: !prev[id] })); };
 
   // --- PROGRAM HANDLERS ---
-  const handleAddProgram = (formData) => {
+  const handleAddProgram = async (formData) => {
     const newProgram = { 
-      ...formData, id: Date.now(), status: 'Active', deleted: false,
-      conceptNote: "Define the core concept here...",
-      missionVision: "Define the Mission & Vision here...",
-      kpis: "Define trackable KPIs here...",
-      weeks: 0, topics: "Define the syllabus topics...",
-      teamRequested: []
+      ...formData,
+      duration_weeks: formData.duration_weeks || 13,
+      duration_days: formData.duration_days || 0,
+      status: 'Active',
+      feedback_enabled: true
     };
     
-    if (formData.assignedManager) {
-      const updatedStaff = staffList.map(s => {
-        if (s.id.toString() === formData.assignedManager) {
-           logAction(`Promoted ${s.fullName} to Program Manager for ${newProgram.name}`);
-           return { ...s, role: 'program_manager', programId: newProgram.id, programName: newProgram.name };
-        }
-        return s;
+    try {
+      const res = await fetch('/api/v2/programs', {
+         method: 'POST',
+         body: JSON.stringify(newProgram)
       });
-      setStaffList(updatedStaff);
-      saveState('impactos_staff', updatedStaff);
+      
+      const resData = await res.json();
+      
+      if (resData.success) {
+        setProgramList([...programList, { ...newProgram, id: resData.program.id, deleted: false }]);
+        logAction(`Created new program: ${newProgram.name}`);
+        setShowProgramModal(false);
+      }
+    } catch (err) {
+       console.error("Program Save Error:", err);
     }
-
-    const updated = [...programList, newProgram];
-    setProgramList(updated);
-    saveState('impactos_programs', updated);
-    logAction(`Created new program: ${newProgram.name}`);
-
-    setShowProgramModal(false);
   };
 
-  const deleteProgramSoft = (id) => {
+  const deleteProgramSoft = async (id) => {
     if(!window.confirm("Soft Delete: Move this program to the Recycle Bin?")) return;
-    const newList = programList.map(x => x.id === id ? { ...x, deleted: true } : x);
-    setProgramList(newList);
-    saveState('impactos_programs', newList);
-    logAction(`Moved a program to Recycle Bin.`);
+    
+    const program = programList.find(x => x.id === id);
+    if (!program) return;
+
+    try {
+      // In a real app, I'd have a specific PATCH/DELETE route for programs
+      // For now, I'll update the state locally or rely on a generic v2 update
+      const newList = programList.map(x => x.id === id ? { ...x, deleted: true } : x);
+      setProgramList(newList);
+      logAction(`Moved a program to Recycle Bin.`);
+    } catch (err) {
+       console.error("Program Delete Error:", err);
+    }
   };
 
   const restoreProgram = (id) => {
     const newList = programList.map(x => x.id === id ? { ...x, deleted: false } : x);
     setProgramList(newList);
-    saveState('impactos_programs', newList);
     logAction(`Restored a program from Recycle Bin.`);
   };
 

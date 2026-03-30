@@ -16,6 +16,13 @@ export async function initDb() {
       address TEXT,
       dob TEXT,
       group_name TEXT,
+      role TEXT DEFAULT 'unassigned',
+      password TEXT,
+      program_id TEXT,
+      program_name TEXT,
+      image TEXT,
+      status TEXT DEFAULT 'approved',
+      deleted BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -130,6 +137,13 @@ export async function initDb() {
     await db.execute("ALTER TABLE campaign_steps ADD COLUMN specific_time TEXT");
   } catch(e) {}
 
+  try { await db.execute("ALTER TABLE contacts ADD COLUMN role TEXT DEFAULT 'unassigned'"); } catch(e) {}
+  try { await db.execute("ALTER TABLE contacts ADD COLUMN password TEXT"); } catch(e) {}
+  try { await db.execute("ALTER TABLE contacts ADD COLUMN program_id TEXT"); } catch(e) {}
+  try { await db.execute("ALTER TABLE contacts ADD COLUMN program_name TEXT"); } catch(e) {}
+  try { await db.execute("ALTER TABLE contacts ADD COLUMN image TEXT"); } catch(e) {}
+  try { await db.execute("ALTER TABLE contacts ADD COLUMN status TEXT DEFAULT 'approved'"); } catch(e) {}
+  try { await db.execute("ALTER TABLE contacts ADD COLUMN deleted BOOLEAN DEFAULT 0"); } catch(e) {}
   try {
     await db.execute("ALTER TABLE campaign_steps ADD COLUMN wait_type TEXT DEFAULT 'days'");
   } catch(e) {}
