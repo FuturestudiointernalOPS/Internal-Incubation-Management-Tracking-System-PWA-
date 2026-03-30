@@ -27,12 +27,41 @@ export default function SuperAdminV2Dashboard() {
   const [isLoaded, setIsLoaded] = useState(false);
   const router = useRouter();
 
+  const [stats, setStats] = useState({ programs: 0, projects: 0, participants: 0 });
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const sa = localStorage.getItem('sa_session');
     if (sa !== 'prime-2026-active') {
       router.replace('/sa-hq-sp-2026-v1/login');
       return;
     }
+
+    const fetchData = async () => {
+      try {
+        const [progRes, projRes, partRes] = await Promise.all([
+          fetch('/api/v2/programs'),
+          fetch('/api/v2/projects'),
+          fetch('/api/v2/participants')
+        ]);
+        
+        const progs = await progRes.json();
+        const projs = await projRes.json();
+        const parts = await partRes.json();
+
+        setStats({
+          programs: progs.programs?.length || 0,
+          projects: projs.projects?.length || 0,
+          participants: parts.participants?.length || 0
+        });
+      } catch (err) {
+        console.error("Fetch Error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
     setIsLoaded(true);
   }, [router]);
 
@@ -67,9 +96,9 @@ export default function SuperAdminV2Dashboard() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard title="Active v2 Cohorts" value="0" icon={Layers} color="text-indigo-400" badge="V2-READY" />
-          <StatCard title="Running Projects" value="0" icon={Rocket} color="text-emerald-400" />
-          <StatCard title="Total Enrolled" value="0" icon={Users} color="text-amber-400" />
+          <StatCard title="Active v2 Cohorts" value={stats.programs} icon={Layers} color="text-indigo-400" badge="V2-READY" />
+          <StatCard title="Running Projects" value={stats.projects} icon={Rocket} color="text-emerald-400" />
+          <StatCard title="Total Enrolled" value={stats.participants} icon={Users} color="text-amber-400" />
           <StatCard title="Automation Health" value="100%" icon={Activity} color="text-rose-400" badge="STABLE" />
         </div>
 
@@ -115,7 +144,7 @@ export default function SuperAdminV2Dashboard() {
                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">System Status</h4>
                  <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Supabase Instance</span>
+                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Turso Database Engine</span>
                        <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">ONLINE</span>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
