@@ -27,9 +27,29 @@ export default function PublicParticipantRegistration() {
   const [status, setStatus] = useState({ state: 'idle', message: '' });
 
   useEffect(() => {
-    // Load active programs to allow them to choose
-    const p = JSON.parse(localStorage.getItem('impactos_programs') || '[]');
-    setPrograms(p.filter(x => !x.deleted && x.status === 'Active'));
+    // Extract program from URL
+    const searchParams = new URLSearchParams(window.location.search);
+    const targetProgramName = searchParams.get('program');
+
+    const fetchProgramRegistry = async () => {
+       try {
+          const res = await fetch('/api/v2/programs');
+          const data = await res.json();
+          const active = (data.programs || []).filter(x => x.status === 'Active');
+          setPrograms(active);
+
+          if (targetProgramName) {
+             const matched = active.find(p => p.name === targetProgramName);
+             if (matched) setFormData(prev => ({ ...prev, programId: matched.id }));
+          }
+       } catch (e) {
+          // Fallback to local storage if API fails
+          const p = JSON.parse(localStorage.getItem('impactos_programs') || '[]');
+          setPrograms(p.filter(x => !x.deleted && x.status === 'Active'));
+       }
+    };
+
+    fetchProgramRegistry();
   }, []);
 
   const handleFileUpload = (e) => {
@@ -44,35 +64,37 @@ export default function PublicParticipantRegistration() {
   };
 
   const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.programId) {
       setStatus({ state: 'error', message: 'You must select a target program.' });
       return;
     }
     
-    setStatus({ state: 'loading', message: '' });
-
     try {
-      const existing = JSON.parse(localStorage.getItem('impactos_participants') || '[]');
-      
-      const newParticipant = { 
-        ...formData, 
-        id: Date.now(), 
-        status: 'pending', 
-        createdAt: new Date().toISOString()
-      };
-      
-      localStorage.setItem('impactos_participants', JSON.stringify([...existing, newParticipant]));
-
-      setTimeout(() => {
+      const res = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+           ...formData, 
+           status: 'pending',
+           role: 'participant',
+           group_name: programs.find(p => p.id === formData.programId)?.name || null
+        })
+      });
+ 
+      const data = await res.json();
+ 
+      if (data.success) {
         setStatus({ 
           state: 'success', 
-          message: 'Your application has been received successfully. The Program Manager will review your CV and details.' 
+          message: 'Your application has been received successfully. You will be notified once your access credentials are initiated by the Program Manager.' 
         });
-      }, 1000);
+      } else {
+        setStatus({ state: 'error', message: data.error || 'Failed to submit application.' });
+      }
     } catch (err) {
-      console.error(err);
-      setStatus({ state: 'error', message: 'An issue occurred saving your application. Plase upload a smaller CV file.' });
+      setStatus({ state: 'error', message: 'An issue occurred saving your application. Please check your network or CV size.' });
     }
   };
 

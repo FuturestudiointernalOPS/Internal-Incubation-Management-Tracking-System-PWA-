@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/mailer";
 
 export async function POST(req) {
   try {
@@ -35,6 +36,7 @@ export async function POST(req) {
   }
 }
 
+
 export async function PATCH(req) {
   try {
      await initDb();
@@ -44,10 +46,52 @@ export async function PATCH(req) {
         return NextResponse.json({ success: false, error: "Missing ID or status" }, { status: 400 });
      }
 
+     // 1. Fetch current submission & participant details for notification
+     const subRes = await db.execute({
+        sql: `
+           SELECT s.program_id, p.email, p.name as participant_name, 
+                  d.title as deliverable_title, prog.assigned_pm_id
+           FROM v2_submissions s
+           JOIN v2_participants p ON s.participant_id = p.id
+           JOIN v2_deliverables d ON s.deliverable_id = d.id
+           JOIN v2_programs prog ON s.program_id = prog.id
+           WHERE s.id = ?
+        `,
+        args: [id]
+     });
+
+     const sub = subRes.rows[0];
+
+     // 2. Update Database
      await db.execute({
         sql: "UPDATE v2_submissions SET status = ?, feedback = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?",
         args: [status, feedback || null, id]
      });
+
+     // 3. Dispatch Notification (Flexible Branding)
+     if (sub) {
+        // Try to find the PM name for a personal touch
+        let fromName = "ImpactOS Program Office";
+        if (sub.assigned_pm_id) {
+           const pmRes = await db.execute({
+              sql: "SELECT name FROM contacts WHERE role = 'program_manager' AND cid = ?", // Or however users are stored
+              args: [sub.assigned_pm_id]
+           });
+           if (pmRes.rows[0]) {
+              fromName = pmRes.rows[0].name;
+           }
+        }
+
+        const subject = `Update on your submission: ${sub.deliverable_title}`;
+        const body = `Hello ${sub.participant_name},\n\nYour submission for "${sub.deliverable_title}" has been reviewed.\n\nStatus: **${status}**\nFeedback: ${feedback || "No additional comments provided."}\n\nPlease check your dashboard for more details.`;
+
+        await sendEmail({
+           to: sub.email,
+           subject,
+           body,
+           fromName
+        });
+     }
 
      return NextResponse.json({ success: true });
   } catch (error) {

@@ -1,8 +1,9 @@
-import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
+import db, { initDb } from "@/lib/db";
 
 export async function POST(req) {
   try {
+    await initDb();
     const body = await req.json();
     const { 
       program_id, 
@@ -17,56 +18,51 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
-      .from("v2_projects")
-      .insert([
-        { 
-          program_id, 
-          name, 
-          status: status || 'Active', 
-          type: type || 'Incubation', 
-          concept_note,
-          assigned_pm_id // We should ensure our schema handles this, or link it via the program
-        }
-      ])
-      .select();
+    const meta = JSON.stringify({ type, concept_note, assigned_pm_id });
+    
+    const result = await db.execute({
+      sql: 'INSERT INTO v2_projects (program_id, name, status, meta) VALUES (?, ?, ?, ?)',
+      args: [program_id, name, status || 'Active', meta]
+    });
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, project: data[0] });
+    return NextResponse.json({ success: true, project_id: result.lastInsertRowid });
   } catch (error) {
+    console.error("Project Save Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
 export async function GET(req) {
   try {
+    await initDb();
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get('program_id');
-    const assigned_pm_id = searchParams.get('pm_id');
 
-    let query = supabase.from("v2_projects").select("*, v2_programs(name)");
-    
+    let query = `
+      SELECT p.*, pr.name as program_name 
+      FROM v2_projects p
+      LEFT JOIN v2_programs pr ON p.program_id = pr.id
+    `;
+    let args = [];
+
     if (program_id) {
-       query = query.eq('program_id', program_id);
-    }
-    if (assigned_pm_id) {
-       // Filtering by PM ID (assuming PM is linked to program or project)
-       // For now, filtering directly on project if column exists or via join
-       // Based on Ticket 1.2 schema, we might need a join or direct column
-       query = query.eq('assigned_pm_id', assigned_pm_id);
+       query += " WHERE p.program_id = ?";
+       args.push(program_id);
     }
 
-    const { data, error } = await query.order("created_at", { ascending: false });
+    query += " ORDER BY p.created_at DESC";
 
-    if (error) {
-       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    const result = await db.execute({ sql: query, args });
 
-    return NextResponse.json({ success: true, projects: data });
+    // Parse meta JSON for each project
+    const projects = result.rows.map(row => ({
+      ...row,
+      meta: row.meta ? JSON.parse(row.meta) : {}
+    }));
+
+    return NextResponse.json({ success: true, projects });
   } catch (error) {
+    console.error("Project Fetch Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

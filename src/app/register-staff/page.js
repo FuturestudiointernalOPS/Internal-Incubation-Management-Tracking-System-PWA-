@@ -41,28 +41,34 @@ export default function PublicStaffRegistration() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setStatus({ state: 'loading', message: '' });
+ 
     try {
-      // Get current staff list
-      const existingStaff = JSON.parse(localStorage.getItem('impactos_staff') || '[]');
-
-      // Auto-generate a secure random password for their account
-      const unsecurePassword = Math.random().toString(36).slice(-8);
-
-      // Save new staff
-      const newStaff = { ...formData, id: Date.now(), status: 'pending', password: unsecurePassword };
-      localStorage.setItem('impactos_staff', JSON.stringify([...existingStaff, newStaff]));
-
-      // Clear instantly
-      setStatus({ 
-        state: 'success', 
-        message: 'Registration complete! Your profile has been sent to the Super Admin.' 
+      const res = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+           ...formData, 
+           status: 'pending',
+           role: 'unassigned'
+        })
       });
+ 
+      const data = await res.json();
+ 
+      if (data.success) {
+        setStatus({ 
+          state: 'success', 
+          message: 'Registration complete! Your profile has been sent to the Super Admin. You will be notified once assigned to a program.' 
+        });
+      } else {
+        setStatus({ state: 'error', message: data.error || 'Failed to submit application.' });
+      }
     } catch (err) {
       console.error(err);
-      setStatus({ state: 'error', message: 'Something went wrong saving your data.' });
+      setStatus({ state: 'error', message: 'Network error or server failure.' });
     }
   };
 

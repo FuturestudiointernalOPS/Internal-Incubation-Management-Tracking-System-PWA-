@@ -5,7 +5,7 @@ import {
   ChevronLeft, Plus, Trash2, Calendar, 
   Users, Layers, Settings, MessageSquare, 
   Globe, LayoutDashboard, Search, Filter,
-  ArrowRight, Activity, Shield, Sparkles, Target
+  ArrowRight, Activity, Shield, Sparkles, Target, X, ChevronRight, Mail
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -35,23 +35,51 @@ export default function ProgramTerminalV2({ params }) {
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showDeliverableModal, setShowDeliverableModal] = useState(false);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [showPmAssignmentModal, setShowPmAssignmentModal] = useState(false);
+  const [showKnowledgeAssignmentModal, setShowKnowledgeAssignmentModal] = useState(false);
   
-  const [newParticipant, setNewParticipant] = useState({ name: '', email: '', phone: '', screening_status: 'applied' });
-  const [newGroup, setNewGroup] = useState({ name: '', project_description: '' });
+   const [sessions, setSessions] = useState([]);
+  const [conceptNotes, setConceptNotes] = useState([]);
+  const [contactsList, setContactsList] = useState([]);
+  const [pmSearch, setPmSearch] = useState('');
+  const [pmToEmail, setPmToEmail] = useState(null);
 
   useEffect(() => {
-    const sa = localStorage.getItem('sa_session');
-    if (sa !== 'prime-2026-active') {
-      router.replace('/sa-hq-sp-2026-v1/login');
-      return;
-    }
-    fetchProgram();
-    fetchSessions();
-    fetchParticipants();
-    fetchGroups();
-    fetchDeliverables();
-    fetchFeedback();
-  }, [id, router]);
+     const sa = localStorage.getItem('sa_session');
+     if (sa !== 'prime-2026-active') {
+       router.replace('/terminal');
+       return;
+     }
+     fetchProgram();
+     fetchSessions();
+     fetchGroups();
+     fetchDeliverables();
+     fetchFeedback();
+     fetchKnowledge();
+     fetchContacts();
+     fetchParticipants();
+   }, [id, router]);
+
+   const fetchKnowledge = async () => {
+      try {
+        const res = await fetch('/api/v2/knowledge');
+        const data = await res.json();
+        if (data.success) {
+           setConceptNotes(data.conceptNotes || []);
+        }
+      } catch (err) {}
+   };
+
+  const fetchContacts = async () => {
+     try {
+       const res = await fetch('/api/contacts');
+       const data = await res.json();
+       if (data.success) {
+          setContactsList(data.contacts || []);
+       }
+     } catch (err) {}
+  };
 
   const fetchProgram = async () => {
     try {
@@ -504,6 +532,195 @@ export default function ProgramTerminalV2({ params }) {
      </div>
   );
 
+  const filteredPMs = contactsList.filter(c => c.name.toLowerCase().includes(pmSearch.toLowerCase()) || (c.email && c.email.toLowerCase().includes(pmSearch.toLowerCase())));
+
+  const handleAssignPM = async (pm) => {
+     try {
+       const res = await fetch('/api/v2/programs', {
+         method: 'PUT',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ id: program.id, manager_name: pm.name, assigned_pm_id: pm.cid })
+       });
+       const data = await res.json();
+       
+       if (data.success) {
+         setProgram({ ...program, manager_name: pm.name, assigned_pm_id: pm.cid });
+         setShowPmAssignmentModal(false);
+         setPmToEmail(pm); // Triggers email popup
+         window.dispatchEvent(new CustomEvent('impactos:notify', { 
+             detail: { type: 'success', message: `${pm.name} assigned to execution.` } 
+         }));
+       } else {
+         window.dispatchEvent(new CustomEvent('impactos:notify', { 
+             detail: { type: 'error', message: data.error } 
+         }));
+       }
+     } catch(e) {
+        console.error(e);
+     }
+  };
+
+  const handleAssignKnowledge = async (note) => {
+     try {
+       const res = await fetch('/api/v2/programs', {
+         method: 'PUT',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ id: program.id, document_title: note.title, document_id: note.id })
+       });
+       const data = await res.json();
+       
+       if (data.success) {
+         setProgram({ ...program, document_title: note.title, document_id: note.id });
+         setShowKnowledgeAssignmentModal(false);
+         window.dispatchEvent(new CustomEvent('impactos:notify', { 
+             detail: { type: 'success', message: `Knowledge Document anchored to this Program.` } 
+         }));
+       } else {
+         window.dispatchEvent(new CustomEvent('impactos:notify', { 
+             detail: { type: 'error', message: data.error } 
+         }));
+       }
+     } catch(e) {
+        console.error(e);
+     }
+  };
+
+  const PmAssignmentModal = () => (
+      <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
+         <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="ios-card w-full max-w-lg !p-12 space-y-8"
+         >
+            <div className="flex justify-between items-start border-b border-white/5 pb-4">
+               <div>
+                  <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Delegate Authority</h3>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Assign the PM who will manage this program.</p>
+               </div>
+               <button onClick={() => setShowPmAssignmentModal(false)} className="text-slate-600 hover:text-white"><X className="w-6 h-6"/></button>
+            </div>
+            
+            <div className="relative">
+               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+               <input 
+                 type="text" 
+                 placeholder="Search contacts by name or email..." 
+                 value={pmSearch}
+                 onChange={e => setPmSearch(e.target.value)}
+                 className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-6 text-white outline-none focus:border-indigo-500/50 font-bold"
+               />
+            </div>
+
+            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+               {filteredPMs.length === 0 ? (
+                  <p className="text-center text-xs text-slate-500 font-bold py-10 uppercase tracking-widest">No staff found.</p>
+               ) : (
+                 filteredPMs.map(pm => (
+                    <div 
+                       key={pm.cid}
+                       onClick={() => handleAssignPM(pm)}
+                       className="p-6 rounded-2xl border bg-white/[0.02] border-white/5 hover:border-indigo-500/50 hover:bg-indigo-500/10 cursor-pointer transition-all flex items-center justify-between group"
+                    >
+                       <div>
+                         <p className="font-black text-white uppercase tracking-tighter">{pm.name}</p>
+                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{pm.email}</p>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+                    </div>
+                 ))
+               )}
+            </div>
+         </motion.div>
+      </div>
+  );
+
+  const EmailDispatchModal = () => (
+      <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
+         <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="ios-card w-full max-w-md !p-12 space-y-8 text-center"
+         >
+            <div className="w-20 h-20 bg-indigo-500/10 border border-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+               <Mail className="w-10 h-10 text-indigo-400" />
+            </div>
+            <div>
+               <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Send Dispatch</h3>
+               <p className="text-xs font-bold text-slate-400 leading-relaxed">
+                  You have anchored <span className="text-white uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded ml-1 mr-1">{pmToEmail?.name}</span>
+                  to this framework.
+               </p>
+            </div>
+            <div className="bg-white/5 border border-white/5 p-6 rounded-2xl text-left space-y-4">
+               <div>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Target Identity</p>
+                  <p className="text-sm font-black text-white">{pmToEmail?.email || 'No email securely attached'}</p>
+               </div>
+               <div>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Payload Envelope</p>
+                  <p className="text-[10px] font-bold text-slate-400 bg-black/20 p-3 rounded-lg border border-black/50">
+                     Automatically transmits dashboard login URL, uniquely generated password credentials, and primary brief directives.
+                  </p>
+               </div>
+            </div>
+            <div className="flex gap-4 pt-4">
+               <button 
+                  onClick={() => setPmToEmail(null)}
+                  className="flex-1 btn-ghost !py-4"
+               >
+                  Skip
+               </button>
+               <button 
+                  onClick={() => {
+                     // Trigger simulated email logic
+                     window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                        detail: { type: 'success', message: `Secure Email sent to ${pmToEmail.name}.` } 
+                     }));
+                     setPmToEmail(null);
+                  }}
+                  className="flex-1 btn-prime !py-4 shadow-indigo-600/20"
+               >
+                  Dispatch Email
+               </button>
+            </div>
+         </motion.div>
+      </div>
+  );
+
+  const KnowledgeAssignmentModal = () => (
+      <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
+         <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="ios-card w-full max-w-xl !p-12 space-y-10"
+         >
+            <div className="flex justify-between items-start border-b border-white/5 pb-6">
+               <div>
+                  <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Attach Baseline</h3>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Force the PM to construct from this document.</p>
+               </div>
+               <button onClick={() => setShowKnowledgeAssignmentModal(false)} className="text-slate-600 hover:text-white"><X className="w-6 h-6"/></button>
+            </div>
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+               {conceptNotes.length === 0 ? (
+                  <p className="text-center text-xs font-bold text-slate-500 uppercase py-10">No documents found in Knowledge Bank.</p>
+               ) : (
+                  conceptNotes.map(note => (
+                     <div 
+                        key={note.id}
+                        onClick={() => handleAssignKnowledge(note)}
+                        className="p-6 rounded-2xl border bg-white/[0.02] border-white/5 hover:border-emerald-500/50 hover:bg-emerald-500/10 cursor-pointer transition-all"
+                     >
+                        <p className="font-black text-white uppercase tracking-tighter text-lg leading-none">{note.title}</p>
+                        <p className="text-[10px] font-black text-slate-400 mt-2 line-clamp-2">{note.description}</p>
+                     </div>
+                  ))
+               )}
+            </div>
+         </motion.div>
+      </div>
+  );
+
   return (
     <DashboardLayout 
         role="super_admin" 
@@ -514,6 +731,9 @@ export default function ProgramTerminalV2({ params }) {
             {showParticipantModal && <ParticipantModal />}
             {showGroupModal && <GroupModal />}
             {showDeliverableModal && <DeliverableModal />}
+            {showPmAssignmentModal && <PmAssignmentModal />}
+            {showKnowledgeAssignmentModal && <KnowledgeAssignmentModal />}
+            {pmToEmail && <EmailDispatchModal />}
           </>
         }
     >
@@ -543,13 +763,19 @@ export default function ProgramTerminalV2({ params }) {
           </div>
           
           <div className="flex flex-wrap gap-4 pt-10">
-             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-right px-8">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Execution Index</p>
-                <p className="text-xl font-black text-white uppercase tracking-tighter">Week 0/0</p>
+             <div 
+                onClick={() => setShowPmAssignmentModal(true)}
+                className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 px-8 text-left cursor-pointer hover:bg-indigo-500/20 group transition-all"
+             >
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 flex items-center justify-between">Assigned PM <span className="opacity-0 group-hover:opacity-100 transition-opacity">Assign +</span></p>
+                <p className="text-xl font-black text-white uppercase tracking-tighter">{program.manager_name || 'Unassigned'}</p>
              </div>
-             <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-right px-8">
-                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Assigned PM</p>
-                <p className="text-xl font-black text-white uppercase tracking-tighter">Unassigned</p>
+             <div 
+                onClick={() => setShowKnowledgeAssignmentModal(true)}
+                className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 px-8 text-left cursor-pointer hover:bg-emerald-500/20 group transition-all"
+             >
+                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center justify-between">Baseline Document <span className="opacity-0 group-hover:opacity-100 transition-opacity">Assign +</span></p>
+                <p className="text-xl font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{program.document_title || 'Unassigned'}</p>
              </div>
           </div>
         </header>

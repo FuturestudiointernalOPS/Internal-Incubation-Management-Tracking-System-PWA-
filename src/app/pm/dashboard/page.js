@@ -18,7 +18,7 @@ export default function PMDashboard() {
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
-    if (!userData) { router.replace('/sa-hq-sp-2026-v1/login'); return; }
+    if (!userData) { router.replace('/terminal'); return; }
     setUser(JSON.parse(userData));
     setTimeout(() => setIsLoaded(true), 400);
   }, [router]);

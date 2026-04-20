@@ -76,3 +76,55 @@ export async function GET() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const data = await req.json();
+    
+    if (!data.id) {
+       return NextResponse.json({ success: false, error: "Program ID is required for update." }, { status: 400 });
+    }
+
+    const fieldsToUpdate = [];
+    const args = [];
+    
+    // Whitelist updatable fields
+    const updatableColumns = [
+       'name', 'description', 'duration_weeks', 'duration_days', 
+       'topics', 'outcomes', 'deliverables', 'resources', 
+       'assigned_pm_id', 'manager_name', 'document_title', 'document_id', 
+       'feedback_enabled', 'status'
+    ];
+
+    for (const col of updatableColumns) {
+       if (data[col] !== undefined) {
+          fieldsToUpdate.push(`${col} = ?`);
+          
+          if (['topics', 'outcomes', 'deliverables', 'resources'].includes(col)) {
+             args.push(JSON.stringify(data[col] || []));
+          } else if (col === 'feedback_enabled') {
+             args.push(data[col] ? 1 : 0);
+          } else {
+             args.push(data[col]);
+          }
+       }
+    }
+
+    if (fieldsToUpdate.length === 0) {
+       return NextResponse.json({ success: true, message: "No fields to update." });
+    }
+
+    // Add ID for the WHERE clause
+    args.push(data.id);
+
+    const match = await db.execute({
+       sql: `UPDATE v2_programs SET ${fieldsToUpdate.join(', ')} WHERE id = ?`,
+       args: args
+    });
+
+    return NextResponse.json({ success: true, rowsAffected: match.rowsAffected });
+  } catch (err) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}

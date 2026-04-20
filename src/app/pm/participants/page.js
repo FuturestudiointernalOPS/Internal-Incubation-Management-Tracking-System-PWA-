@@ -20,7 +20,7 @@ export default function PMParticipants() {
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('user'));
-    if (!userData) { router.replace('/sa-hq-sp-2026-v1/login'); return; }
+    if (!userData) { router.replace('/terminal'); return; }
     setUser(userData);
     
     // Load programs mapped to this user

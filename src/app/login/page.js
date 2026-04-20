@@ -13,43 +13,38 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const router = useRouter();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
     
-    setTimeout(() => {
-        const cleanEmail = (email || '').replace(/\s+/g, '').toLowerCase();
-        const cleanPassword = (password || '').replace(/\s+/g, '');
-
-        // Redirection logic based on role
-        if (cleanEmail === 'superadmin' && cleanPassword === '147369') {
-            setErrorMsg('Use HQ Console for Administrative Access.');
-            setLoading(false);
-            return;
-        }
-
-        const storedStaff = JSON.parse(localStorage.getItem('impactos_staff') || '[]');
-        const foundUser = storedStaff.find(s => 
-            (s.email || '').replace(/\s+/g, '').toLowerCase() === cleanEmail && 
-            (s.password || '').replace(/\s+/g, '') === cleanPassword && 
-            !s.deleted
-        );
-
-        if (foundUser) {
-            localStorage.setItem('user', JSON.stringify(foundUser));
-            router.push('/pm/dashboard');
-        } else if (cleanEmail === 'sarah@impactos.com' && cleanPassword === 'pass-sarah-123') {
-            // Demo fallback
-            localStorage.setItem('user', JSON.stringify({
-                id: 'u2', name: 'Sarah Analyst', email: 'sarah@impactos.com', role: 'program_manager'
-            }));
-            router.push('/pm/dashboard');
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+            // Redirect based on role
+            if (data.user.role === 'super_admin') {
+                router.push('/v2/superadmin');
+            } else if (data.user.role === 'program_manager') {
+                router.push('/pm/dashboard');
+            } else {
+                router.push('/v2/participant');
+            }
         } else {
-            setErrorMsg('Invalid Credentials: Login Denied');
+            setErrorMsg(data.error || 'Login Denied');
         }
+    } catch (err) {
+        setErrorMsg('System error. Please try again later.');
+    } finally {
         setLoading(false);
-    }, 1200);
+    }
   };
 
   return (

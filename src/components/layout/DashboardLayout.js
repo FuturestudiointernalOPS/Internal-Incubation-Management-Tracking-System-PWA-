@@ -1,135 +1,157 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, LayoutDashboard, Briefcase, Calendar,
+import { Users, LayoutDashboard, Briefcase, Calendar, User,
   MessageSquare, Settings, LogOut, Bell,
   Search, ChevronRight, ChevronDown, TrendingUp,
-  FileText, ShieldCheck, Activity, Menu, X, Zap, Rocket } from 'lucide-react';
+  FileText, ShieldCheck, Activity, Menu, X, Zap, Rocket, Trash2, Send, Library } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import GlobalToast from '@/components/ui/GlobalToast';
+import { prefetchData } from '@/utils/prefetch';
 
 /**
  * IMPACTOS MIDNIGHT EXECUTIVE — GLOBAL LAYOUT
  * Standardized navigation and workspace frame.
  */
-const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, pathname, activeTab, onTabChange, setMobileMenuOpen, handleLogout }) => (
-  <>
-    {/* BRAND LOGO */}
-    <div className="flex items-center gap-4 px-2 mb-10">
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-        <Activity className="text-white w-6 h-6" />
-      </div>
-      {!collapsed && (
-        <div className="animation-reveal">
-          <h1 className="text-lg font-black tracking-tighter text-white uppercase leading-none">ImpactOS</h1>
-          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">{role?.replace(/_/g, ' ')}</p>
+const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, pathname, activeTab, onTabChange, setMobileMenuOpen, handleLogout }) => {
+  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {};
+
+  const handleHover = (item) => {
+    if (item.href === '/v2/superadmin') prefetchData('/api/v2/superadmin/full-state', 'superadmin_dashboard');
+    if (item.href === '/v2/participant') prefetchData(`/api/v2/participant/full-state?email=${user.email}&group_name=${user.group_name}`, 'participant_dashboard');
+    if (item.href === '/v2/pm') prefetchData('/api/v2/programs', 'pm_programs_list');
+    if (item.href === '/v2/superadmin/communications/contacts') prefetchData('/api/v2/contacts/full-state', 'contacts');
+  };
+
+  return (
+    <>
+      {/* BRAND LOGO */}
+      <div className="flex items-center gap-4 px-2 mb-10">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <Activity className="text-white w-6 h-6" />
         </div>
-      )}
-    </div>
+        {!collapsed && (
+          <div className="animation-reveal">
+            <h1 className="text-lg font-black tracking-tighter text-white uppercase leading-none">ImpactOS</h1>
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">{role?.replace(/_/g, ' ')}</p>
+          </div>
+        )}
+      </div>
 
-    {/* NAVIGATION */}
-    <nav className="flex-1 space-y-1">
-      {navItems.map((item) => {
-        if (item.subItems) {
-          const isChildActive = item.subItems.some(sub => 
-            (onTabChange && activeTab === sub.id) || 
-            (pathname?.startsWith(sub.href))
-          );
-          const isOpen = openMenus[item.id] || isChildActive;
+      {/* NAVIGATION */}
+      <nav className="flex-1 space-y-1">
+        {navItems.map((item) => {
+          if (item.subItems) {
+            const isChildActive = item.subItems.some(sub => 
+              (onTabChange && activeTab === sub.id) || 
+              (pathname?.startsWith(sub.href))
+            );
+            const isOpen = openMenus[item.id] || isChildActive;
 
+            return (
+              <div key={item.id} className="space-y-1 px-3">
+                <button
+                  onClick={() => toggleMenu(item.id)}
+                  onMouseEnter={() => handleHover(item)}
+                  className={`w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all font-bold text-sm select-none ${isChildActive ? 'text-white bg-white/5' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                  title={collapsed ? item.name : undefined}
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isChildActive ? 'text-indigo-400' : 'text-slate-500'}`} />
+                    {!collapsed && <span className="truncate text-left">{item.name}</span>}
+                  </div>
+                  {!collapsed && (
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180 text-indigo-400' : 'text-slate-500'}`} />
+                  )}
+                </button>
+                {isOpen && !collapsed && (
+                  <div className="pl-7 space-y-1">
+                    {item.subItems.map(subItem => {
+                      const isSubActive = onTabChange ? (activeTab === subItem.id) : (pathname === subItem.href);
+                      return (
+                        <Link
+                          key={subItem.id || subItem.href}
+                          href={subItem.href === '#' && onTabChange ? '#' : subItem.href}
+                          onMouseEnter={() => handleHover(subItem)}
+                          onClick={(e) => { 
+                            if (onTabChange && subItem.id && subItem.href === '#') {
+                              e.preventDefault();
+                              onTabChange(subItem.id);
+                            }
+                            setMobileMenuOpen(false); 
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-bold text-[13px] text-left select-none ${isSubActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                          <span className="truncate">{subItem.name}</span>
+                          {isSubActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const isActive = onTabChange && item.id && item.href === '#' ? (activeTab === item.id) : (pathname === item.href);
           return (
-            <div key={item.id} className="space-y-1 px-3">
-              <button
-                onClick={() => toggleMenu(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all font-bold text-sm select-none ${isChildActive ? 'text-white bg-white/5' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+            <Link
+                key={item.id || item.href}
+                href={item.href === '#' && onTabChange ? '#' : item.href}
+                onMouseEnter={() => handleHover(item)}
+                onClick={(e) => { 
+                  if (onTabChange && item.id && item.href === '#') {
+                    e.preventDefault();
+                    onTabChange(item.id);
+                  }
+                  setMobileMenuOpen(false); 
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 font-bold text-sm text-left select-none ${isActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                 title={collapsed ? item.name : undefined}
               >
-                <div className="flex items-center gap-3">
-                  <item.icon className={`w-5 h-5 flex-shrink-0 ${isChildActive ? 'text-indigo-400' : 'text-slate-500'}`} />
-                  {!collapsed && <span className="truncate text-left">{item.name}</span>}
-                </div>
-                {!collapsed && (
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180 text-indigo-400' : 'text-slate-500'}`} />
+                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
+                {!collapsed && <span className="truncate">{item.name}</span>}
+                {isActive && !collapsed && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />
                 )}
-              </button>
-              {isOpen && !collapsed && (
-                <div className="pl-7 space-y-1">
-                  {item.subItems.map(subItem => {
-                    const isSubActive = onTabChange ? (activeTab === subItem.id) : (pathname === subItem.href);
-                    return (
-                      <Link
-                        key={subItem.id || subItem.href}
-                        href={subItem.href === '#' && onTabChange ? '#' : subItem.href}
-                        onClick={(e) => { 
-                          if (onTabChange && subItem.id && subItem.href === '#') {
-                            e.preventDefault();
-                            onTabChange(subItem.id);
-                          }
-                          setMobileMenuOpen(false); 
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all font-bold text-[13px] text-left select-none ${isSubActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
-                      >
-                        <span className="truncate">{subItem.name}</span>
-                        {isSubActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                {item.glow && !isActive && !collapsed && (
+                   <span className="ml-auto px-2 py-0.5 rounded-md bg-indigo-500 text-[8px] font-black uppercase text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] animate-pulse">New</span>
+                )}
+              </Link>
           );
-        }
+        })}
+      </nav>
 
-        const isActive = onTabChange && item.id && item.href === '#' ? (activeTab === item.id) : (pathname === item.href);
-        return (
-          <Link
-              key={item.id || item.href}
-              href={item.href === '#' && onTabChange ? '#' : item.href}
-              onClick={(e) => { 
-                if (onTabChange && item.id && item.href === '#') {
-                  e.preventDefault();
-                  onTabChange(item.id);
-                }
-                setMobileMenuOpen(false); 
-              }}
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-bold text-sm text-left select-none ${isActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-              title={collapsed ? item.name : undefined}
-            >
-              <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
-              {!collapsed && <span className="truncate">{item.name}</span>}
-              {isActive && !collapsed && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />
-              )}
-              {item.glow && !isActive && !collapsed && (
-                 <span className="ml-auto px-2 py-0.5 rounded-md bg-indigo-500 text-[8px] font-black uppercase text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] animate-pulse">New</span>
-              )}
-            </Link>
-        );
-      })}
-    </nav>
-
-    {/* BOTTOM ACTIONS */}
-    <div className="mt-auto pt-6 border-t border-white/5 space-y-1">
-      <button className="sidebar-link group">
-        <Settings className="w-5 h-5 flex-shrink-0 group-hover:rotate-45 transition-transform" />
-        {!collapsed && <span className="animation-reveal">System Config</span>}
-      </button>
-      <button 
-        onClick={handleLogout}
-        className="sidebar-link text-rose-500 hover:bg-rose-500/10 hover:text-rose-400"
-      >
-        <LogOut className="w-5 h-5 flex-shrink-0" />
-        {!collapsed && <span className="animation-reveal font-bold">Sign Out</span>}
-      </button>
-    </div>
-  </>
-);
+      {/* BOTTOM ACTIONS */}
+      <div className="mt-auto pt-6 border-t border-white/5 space-y-4">
+        <Link 
+          href="/v2/superadmin/settings" 
+          onClick={() => setMobileMenuOpen(false)}
+          className="sidebar-link group text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-3 px-3 py-3 rounded-xl font-bold text-sm w-full"
+        >
+          <Settings className="w-5 h-5 flex-shrink-0 group-hover:rotate-45 transition-transform" />
+          {!collapsed && <span className="animation-reveal">System Config</span>}
+        </Link>
+        
+        {/* PROMINENT LOGOUT ACTION */}
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white transition-all duration-300 group shadow-lg shadow-rose-500/5"
+        >
+          <LogOut className="w-5 h-5 flex-shrink-0 group-hover:-translate-x-1 transition-transform" />
+          {!collapsed && <span className="animation-reveal font-black uppercase tracking-widest text-[11px]">Lock Terminal</span>}
+        </button>
+      </div>
+    </>
+  );
+};
 
 export default function DashboardLayout({ children, role = 'admin', activeTab, onTabChange, modals }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [openMenus, setOpenMenus] = useState({});
   const router = useRouter();
   const pathname = usePathname();
@@ -141,62 +163,45 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
   // Navigation Schema
   const navigation = {
     super_admin: [
-      { id: 'dashboard', name: 'Command HQ', icon: ShieldCheck, href: '/sa-hq-sp-2026-v1' },
-      { id: 'v2', name: 'Version 2', icon: Zap, href: '/v2/superadmin', glow: true },
-      { id: 'staff', name: 'Staff & Personnel', icon: Users, href: '#' },
-      { id: 'participants', name: 'Participants', icon: Users, href: '#' },
-      { id: 'programs', name: 'Core Programs', icon: Briefcase, href: '#' },
-      { id: 'projects', name: 'Projects', icon: Briefcase, href: '#' },
-      { 
-        id: 'communications', 
-        name: 'Communications', 
-        icon: MessageSquare, 
-        subItems: [
-          { id: 'contacts', name: 'Contacts', href: '/sa-hq-sp-2026-v1/communications/contacts' },
-          { id: 'segments', name: 'Segments', href: '/sa-hq-sp-2026-v1/communications/segments' },
-          { id: 'campaigns', name: 'Campaigns', href: '/sa-hq-sp-2026-v1/communications/campaigns' },
-          { id: 'forms', name: 'Forms', href: '/sa-hq-sp-2026-v1/communications/forms' },
-          { id: 'responses', name: 'Responses', href: '/sa-hq-sp-2026-v1/communications/responses' }
-        ]
-      },
-      { id: 'activity', name: 'System Logs', icon: FileText, href: '#' },
-      { id: 'recycleBin', name: 'Recycle Bin', icon: Activity, href: '#' },
+      { id: 'dashboard', name: 'Dashboard', icon: ShieldCheck, href: '/v2/superadmin' },
+      { id: 'knowledge', name: 'Knowledge Bank', icon: Library, href: '/v2/superadmin/knowledge', glow: true },
+      { id: 'staff', name: 'Team', icon: Users, href: '/v2/superadmin/communications/contacts' },
+      { id: 'communications', name: 'Emails & Campaigns', icon: Send, href: '/v2/superadmin/communications/campaigns' },
+      { id: 'forms', name: 'Forms', icon: FileText, href: '/v2/superadmin/communications/forms' },
+      { id: 'security', name: 'Security', icon: Activity, href: '/v2/superadmin/security' },
     ],
     admin: [
-      { name: 'Command HQ', icon: ShieldCheck, href: '/sa-hq-sp-2026-v1' },
-      { name: 'Version 2', icon: Zap, href: '/v2/superadmin' },
-      { name: 'Staff & Personnel', icon: Users, href: '/admin/personnel' },
-      { name: 'Core Initiatives', icon: Briefcase, href: '/admin/projects' },
-      { name: 'System Logs', icon: FileText, href: '/admin/logs' },
+      { name: 'Dashboard', icon: ShieldCheck, href: '/v2/superadmin' },
+      { name: 'Team Settings', icon: Users, href: '/admin/personnel' },
+      { name: 'Projects', icon: Briefcase, href: '/admin/projects' },
+      { name: 'Activity Logs', icon: FileText, href: '/admin/logs' },
     ],
     program_manager: [
-      { name: 'Work Summary', icon: LayoutDashboard, href: '/pm/dashboard' },
-      { name: 'Version 2', icon: Zap, href: '/v2/pm' },
-      { name: 'Core Programs', icon: Briefcase, href: '/pm/programs' },
+      { name: 'Dashboard', icon: LayoutDashboard, href: '/v2/pm' },
+      { name: 'Programs', icon: Briefcase, href: '/pm/programs' },
       { name: 'Participants', icon: Users, href: '/pm/participants' },
       { name: 'Live Sessions', icon: Calendar, href: '/pm/sessions' },
       { name: 'Progress Tracking', icon: TrendingUp, href: '/pm/portfolio' },
+      { name: 'My Profile', icon: User, href: '/v2/pm/profile' },
     ],
     teacher: [
-      { name: 'Work Summary', icon: LayoutDashboard, href: '/v2/teacher/dashboard' },
-      { name: 'Version 2', icon: Zap, href: '/v2/teacher' },
+      { name: 'Dashboard', icon: LayoutDashboard, href: '/v2/teacher' },
       { name: 'My Sessions', icon: Calendar, href: '/v2/teacher/sessions' },
       { name: 'Submissions', icon: FileText, href: '/v2/teacher/reviews' },
     ],
     participant: [
-      { name: 'My Startup', icon: Briefcase, href: '/startup/profile' },
-      { name: 'Version 2', icon: Zap, href: '/v2/participant' },
-      { name: 'Tasks & Milestones', icon: FileText, href: '/startup/tasks' },
-      { name: 'Feedback Hub', icon: MessageSquare, href: '/startup/feedback' },
+      { name: 'Dashboard', icon: Briefcase, href: '/v2/participant' },
+      { name: 'Tasks', icon: FileText, href: '/startup/tasks' },
+      { name: 'Feedback', icon: MessageSquare, href: '/startup/feedback' },
     ],
   };
 
   const navItems = navigation[role] || navigation.admin;
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
     localStorage.removeItem('sa_session');
-    router.push('/sa-hq-sp-2026-v1/login');
+    localStorage.removeItem('user');
+    router.replace('/terminal');
   };
 
   const commonProps = {
@@ -273,10 +278,45 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
               <span className="absolute right-4 px-1.5 py-0.5 rounded border border-white/10 text-[10px] font-bold text-slate-500">⌘K</span>
             </div>
 
-            <button className="relative p-2 text-slate-400 hover:text-white transition-colors group">
-              <Bell className="w-5 h-5 group-hover:animate-bounce" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,1)]" />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 text-slate-400 hover:text-white transition-colors group"
+              >
+                <Bell className="w-5 h-5 group-hover:animate-bounce" />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,1)]" />
+              </button>
+
+              {/* NOTIFICATION BOX DROPDOWN */}
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 top-12 w-80 bg-[#0d0d18] border border-white/10 shadow-2xl shadow-black rounded-2xl overflow-hidden z-[200]"
+                  >
+                    <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                      <h4 className="text-xs font-black text-white uppercase tracking-widest">Notifications</h4>
+                      <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded cursor-pointer hover:bg-indigo-500/20">Mark All Read</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-white/10">
+                        <p className="text-[11px] font-bold text-white mb-1"><span className="text-indigo-400">System</span>: Database Engine Sync Complete</p>
+                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Just now</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-transparent hover:bg-white/5 transition-colors cursor-pointer border border-transparent hover:border-white/10">
+                        <p className="text-[11px] font-bold text-slate-300 mb-1"><span className="text-slate-400">Security</span>: New login detected from HQ.</p>
+                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">2 hours ago</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-transparent border border-dashed border-white/5 text-center my-2">
+                        <p className="text-[10px] font-bold text-slate-500">No further alerts.</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             <div className="flex items-center gap-4 pl-6 border-l border-white/5">
               <div className="text-right hidden sm:block">
@@ -298,9 +338,9 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
         </main>
         
         {modals && (
-          <div className="absolute inset-0 z-[200] pointer-events-none flex">
+          <>
             {modals}
-          </div>
+          </>
         )}
         <GlobalToast />
       </div>

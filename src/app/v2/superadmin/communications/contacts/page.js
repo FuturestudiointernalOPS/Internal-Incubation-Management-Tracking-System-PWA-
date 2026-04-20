@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Plus, Users, Mail, Phone, Search, AlertCircle, X, Loader2, CheckCircle, Download, CreditCard, MapPin, Calendar as CalendarIcon } from 'lucide-react';
+import { Upload, Plus, Users, Mail, Phone, Search, AlertCircle, X, Loader2, CheckCircle, Download, CreditCard, MapPin, Calendar as CalendarIcon, Edit3 } from 'lucide-react';
 import Papa from 'papaparse';
 import { IMPACT_CACHE } from '@/utils/impactCache';
 
@@ -23,7 +23,7 @@ export default function ContactsPage() {
   
   // Forms
   const [familyForm, setFamilyForm] = useState({ name: '' });
-  const [form, setForm] = useState({ name: '', email: '', phone: '', address: '', dob: '', group_name: '' });
+  const [form, setForm] = useState({ cid: '', name: '', email: '', phone: '', address: '', dob: '', group_name: '', gender: '', mother_name: '', password: '' });
   const [bulkGroupName, setBulkGroupName] = useState('');
   const [bulkUseExisting, setBulkUseExisting] = useState(false);
 
@@ -38,30 +38,22 @@ export default function ContactsPage() {
     if (cachedFamilies) setFamilies(cachedFamilies);
 
     // Refresh in background
-    fetchContacts(); 
-    fetchFamilies();
+    fetchRegistryData();
   }, []);
 
-  const fetchFamilies = async () => {
+  const fetchRegistryData = async () => {
     try {
-      const res = await fetch('/api/families');
-      const data = await res.json();
-      if (data.success) {
-        setFamilies(data.families || []);
-        IMPACT_CACHE.set('families', data.families || []);
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const fetchContacts = async () => {
-    try {
-      // If no cache, show full loader. If cache exists, we just refresh silenty.
+      // If no cache, show full loader. If cache exists, we just refresh silently.
       if (!IMPACT_CACHE.get('contacts')) setLoading(true);
-      const res = await fetch('/api/contacts');
+      
+      const res = await fetch('/api/v2/contacts/full-state');
       const data = await res.json();
+      
       if (data.success) {
         setContacts(data.contacts || []);
+        setFamilies(data.families || []);
         IMPACT_CACHE.set('contacts', data.contacts || []);
+        IMPACT_CACHE.set('families', data.families || []);
       }
     } catch (err) {
       console.error(err);
@@ -100,8 +92,7 @@ export default function ContactsPage() {
             setUploadStats({ inserted: json.inserted, errors: json.errors });
             setShowBulkModal(false);
             setBulkGroupName('');
-            fetchContacts();
-            fetchFamilies();
+            fetchRegistryData();
           } else {
             console.error(json.error);
           }
@@ -128,7 +119,7 @@ export default function ContactsPage() {
       if (data.success) {
         setShowFamilyModal(false);
         setFamilyForm({ name: '' });
-        fetchFamilies();
+        fetchRegistryData();
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
            detail: { type: 'success', message: `Family group '${familyForm.name}' established successfully.` } 
         }));
@@ -211,7 +202,7 @@ export default function ContactsPage() {
             </button>
             <button 
               onClick={() => {
-                setForm({ name: '', email: '', phone: '', address: '', dob: '', group_name: selectedGroup !== 'All Contacts' ? selectedGroup : '' });
+                setForm({ cid: '', name: '', email: '', phone: '', address: '', dob: '', group_name: selectedGroup !== 'All Contacts' ? selectedGroup : '', gender: '', mother_name: '', password: '' });
                 setShowManualModal(true);
               }} 
               className="btn-prime !py-4 shadow-indigo-600/10"
@@ -235,12 +226,26 @@ export default function ContactsPage() {
              ))}
           </div>
           {selectedGroup !== 'All Contacts' && (
-            <button 
-              onClick={() => exportFamily(selectedGroup)}
-              className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition-colors"
-            >
-              <Download className="w-4 h-4" /> Download {selectedGroup} CSV
-            </button>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => {
+                   const url = `${window.location.origin}/register/${encodeURIComponent(selectedGroup)}`;
+                   navigator.clipboard.writeText(url);
+                   window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                       detail: { type: 'success', message: `Public link copied for ${selectedGroup}.` } 
+                   }));
+                }}
+                className="flex items-center gap-2 text-[10px] font-black text-emerald-400 uppercase tracking-widest hover:text-white transition-colors border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 rounded-lg"
+              >
+                <Plus className="w-4 h-4" /> Copy Onboarding Link
+              </button>
+              <button 
+                onClick={() => exportFamily(selectedGroup)}
+                className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition-colors"
+              >
+                <Download className="w-4 h-4" /> Download {selectedGroup} CSV
+              </button>
+            </div>
           )}
         </div>
 
@@ -279,57 +284,87 @@ export default function ContactsPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center p-20">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
-            <Users className="w-16 h-16 text-slate-500 mx-auto mb-6 opacity-50" />
-            <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-2">No Contacts Found</h4>
-            <p className="text-slate-400 text-sm font-bold">Import your first CSV or create someone manually to start your campaign operations.</p>
-          </div>
-        ) : (
-          <div className="ios-card !p-0 overflow-visible bg-transparent border-none">
-            <table className="executive-table w-full">
-              <thead>
-                <tr className="bg-transparent border-none shadow-none">
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] text-left">Tracking ID</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] text-left">Identity</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] text-left">Group/Family</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] text-left">Contact Data</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(c => (
-                  <tr key={c.cid} className="group hover:bg-white/[0.02] transition-colors rounded-3xl border-b border-white/[0.03]">
-                    <td className="px-8 py-6">
-                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 shadow-inner">
-                        {c.cid}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
-                      <p className="font-black text-white uppercase tracking-tighter text-base">{c.name}</p>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] border border-white/5 px-2 py-1 rounded bg-white/[0.02]">
-                        {c.group_name || 'Individual'}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex flex-col gap-1.5">
-                        <span className="flex items-center gap-2 text-xs font-bold text-slate-400"><Mail className="w-3.5 h-3.5" /> {c.email}</span>
-                        {c.phone && <span className="flex items-center gap-2 text-xs font-bold text-slate-400"><Phone className="w-3.5 h-3.5" /> {c.phone}</span>}
-                        {c.address && <span className="flex items-center gap-2 text-[10px] font-bold text-slate-500"><MapPin className="w-3 h-3" /> {c.address}</span>}
-                        {c.dob && <span className="flex items-center gap-2 text-[10px] font-bold text-slate-500"><CalendarIcon className="w-3 h-3" /> {c.dob}</span>}
-                      </div>
-                    </td>
-                  </tr>
+        <div className="ios-card !p-0 overflow-visible bg-transparent border-none">
+          {loading ? (
+             <div className="space-y-4">
+                {[...Array(8)].map((_, i) => (
+                   <div key={i} className="h-20 bg-white/5 border border-white/5 rounded-2xl animate-[pulse_0.2s_ease-in-out_infinite] flex items-center px-8 gap-12 text-transparent">
+                      <div className="w-24 h-6 bg-white/5 rounded-lg" />
+                      <div className="w-48 h-8 bg-white/5 rounded-lg" />
+                      <div className="w-32 h-6 bg-white/5 rounded-lg" />
+                      <div className="flex-1 h-12 bg-white/5 rounded-lg" />
+                   </div>
                 ))}
-              </tbody>
+             </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
+              <Users className="w-16 h-16 text-slate-500 mx-auto mb-6 opacity-50" />
+              <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-2">No Contacts Found</h4>
+              <p className="text-slate-400 text-sm font-bold">Import your first CSV or create someone manually to start your campaign operations.</p>
+            </div>
+          ) : (
+            <table className="executive-table w-full">
+                <thead>
+                  <tr className="bg-transparent border-none shadow-none">
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] text-left">SN</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] text-left">Identity</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] text-left">Group/Family</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] text-left">Contact Data</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((c, index) => (
+                    <tr key={c.cid} className="group hover:bg-white/[0.02] transition-colors rounded-3xl border-b border-white/[0.03]">
+                      <td className="px-8 py-6">
+                        <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                          {index + 1}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <p className="font-black text-white uppercase tracking-tighter text-base">{c.name}</p>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] border border-white/5 px-2 py-1 rounded bg-white/[0.02]">
+                          {c.group_name || 'Individual'}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="flex items-center gap-2 text-xs font-bold text-slate-400"><Mail className="w-3.5 h-3.5" /> {c.email}</span>
+                          {c.phone && <span className="flex items-center gap-2 text-xs font-bold text-slate-400"><Phone className="w-3.5 h-3.5" /> {c.phone}</span>}
+                          {c.address && <span className="flex items-center gap-2 text-[10px] font-bold text-slate-500"><MapPin className="w-3 h-3" /> {c.address}</span>}
+                          {c.dob && <span className="flex items-center gap-2 text-[10px] font-bold text-slate-500"><CalendarIcon className="w-3 h-3" /> {c.dob}</span>}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <button 
+                           onClick={() => {
+                              setForm({
+                                 cid: c.cid,
+                                 name: c.name || '',
+                                 email: c.email || '',
+                                 phone: c.phone || '',
+                                 address: c.address || '',
+                                 dob: c.dob || '',
+                                 group_name: c.group_name || '',
+                                 gender: c.gender || '',
+                                 mother_name: c.mother_name || '',
+                                 password: ''
+                              });
+                              setShowManualModal(true);
+                           }}
+                           className="p-2 rounded-xl bg-white/5 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors border border-transparent hover:border-indigo-500/30"
+                        >
+                           <Edit3 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
             </table>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Create Family Modal */}
         {showFamilyModal && (
@@ -359,26 +394,30 @@ export default function ContactsPage() {
             <div className="relative w-full max-w-lg ios-card !p-8 shadow-2xl bg-[#080810] border border-white/10 m-4">
               <button onClick={() => setShowManualModal(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
               <div className="mb-8">
-                <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Individual Entry</h3>
-                <p className="text-sm text-slate-400 font-bold">Add a detailed recipient unit to the database.</p>
+                <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">{form.cid ? 'Edit Contact' : 'Individual Entry'}</h3>
+                <p className="text-sm text-slate-400 font-bold">{form.cid ? 'Modify existing record and credentials.' : 'Add a detailed recipient unit to the database.'}</p>
               </div>
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 try {
+                  const isEdit = !!form.cid;
                   const res = await fetch('/api/contacts', {
-                    method: 'POST',
+                    method: isEdit ? 'PUT' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify([form])
+                    body: JSON.stringify(isEdit ? form : [form])
                   });
                   const data = await res.json();
                   if (data.success) {
                     setShowManualModal(false);
                     const savedName = form.name;
-                    setForm({ name: '', email: '', phone: '', address: '', dob: '', group_name: '' });
-                    fetchContacts();
-                    fetchFamilies();
+                    setForm({ cid: '', name: '', email: '', phone: '', address: '', dob: '', group_name: '', gender: '', mother_name: '', password: '' });
+                    fetchRegistryData();
                     window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                       detail: { type: 'success', message: `${savedName} successfully added to database.` } 
+                       detail: { type: 'success', message: `${savedName} successfully ${isEdit ? 'updated' : 'added'}.` } 
+                    }));
+                  } else {
+                    window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                       detail: { type: 'error', message: data.error } 
                     }));
                   }
                 } catch (err) { console.error(err); }
@@ -389,9 +428,9 @@ export default function ContactsPage() {
                      <input autoFocus required type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 font-bold" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Family Group</label>
-                    <select required value={form.group_name} onChange={e => setForm({...form, group_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 appearance-none font-bold">
-                      <option value="">Select Family...</option>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Assigned Program</label>
+                    <select required value={form.group_name} onChange={e => setForm({...form, group_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 appearance-none font-bold text-sm">
+                      <option value="">Select Program...</option>
                       {families.map(f => <option key={f.id} value={f.name} className="bg-[#080810]">{f.name}</option>)}
                     </select>
                   </div>
@@ -406,6 +445,23 @@ export default function ContactsPage() {
                   <div>
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Phone</label>
                     <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Gender</label>
+                    <select value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 appearance-none font-bold">
+                       <option value="">Select Gender...</option>
+                       <option value="Male" className="bg-[#080810]">Male</option>
+                       <option value="Female" className="bg-[#080810]">Female</option>
+                       <option value="Other" className="bg-[#080810]">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-rose-500/80 uppercase tracking-widest mb-2 flex items-center gap-2">Reset Password {form.cid && <span className="text-[8px] bg-rose-500/20 text-rose-400 px-1 rounded">Leave blank to keep</span>}</label>
+                    <input type="text" placeholder={form.cid ? 'New password...' : 'Initial password...'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full bg-rose-500/[0.02] border border-rose-500/20 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-rose-500/50 font-bold placeholder:text-rose-500/30" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Mother&apos;s Maiden Name</label>
+                    <input type="text" value={form.mother_name} onChange={e => setForm({...form, mother_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 font-bold" />
                   </div>
                   <div className="col-span-2">
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Physical Address</label>

@@ -9,6 +9,7 @@ import {
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { prefetchData } from '@/utils/prefetch';
 
 export default function PMV2Dashboard() {
   const router = useRouter();
@@ -16,18 +17,28 @@ export default function PMV2Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchPMPrograms();
-  }, []);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const pmSession = localStorage.getItem('pm_session');
+    
+    if (!pmSession || user.roleLabel !== 'Program Manager') {
+      router.replace('/terminal');
+      return;
+    }
+    fetchPMPrograms(user.id);
+  }, [router]);
 
-  const fetchPMPrograms = async () => {
+  const fetchPMPrograms = async (pmId) => {
     try {
       const res = await fetch('/api/v2/programs');
       const data = await res.json();
-      // In a real scenario, filter programs where pm_id matches current PM
-      setPrograms(data.programs || []);
+      
+      // Filter programs explicitly for this PM
+      const assigned = (data.programs || []).filter(p => p.assigned_pm_id === pmId);
+      setPrograms(assigned);
       setIsLoading(false);
     } catch (e) {
       console.error(e);
+      setIsLoading(false);
     }
   };
 
@@ -38,7 +49,7 @@ export default function PMV2Dashboard() {
   );
 
   return (
-    <DashboardLayout role="pm" activeTab="v2">
+    <DashboardLayout role="program_manager" activeTab="v2">
       <div className="space-y-12">
         <header className="flex flex-col lg:flex-row justify-between items-start gap-10 border-b border-white/5 pb-10">
           <div className="animation-reveal">
@@ -58,11 +69,12 @@ export default function PMV2Dashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
            {programs.map(program => (
-              <div 
-                 key={program.id}
-                 onClick={() => router.push(`/v2/pm/programs/${program.id}`)}
-                 className="ios-card bg-white/[0.02] border-white/5 p-8 group cursor-pointer hover:border-indigo-500/30 transition-all hover:bg-white/5"
-              >
+               <div 
+                  key={program.id}
+                  onClick={() => router.push(`/v2/pm/programs/${program.id}`)}
+                  onMouseEnter={() => prefetchData(`/api/v2/pm/full-state?id=${program.id}`, `pm_program_${program.id}`)}
+                  className="ios-card bg-white/[0.02] border-white/5 p-8 group cursor-pointer hover:border-indigo-500/30 transition-all hover:bg-white/5"
+               >
                  <div className="flex justify-between items-start mb-6">
                     <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400">
                        <Rocket className="w-6 h-6" />

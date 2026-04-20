@@ -112,7 +112,7 @@ export default function ResponsesPage() {
            detail: { type: 'success', message: 'Follow-up campaign started.' } 
         }));
         setShowRetargetModal(false);
-        router.push('/sa-hq-sp-2026-v1/communications/campaigns');
+        router.push('/v2/superadmin/communications/campaigns');
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
            detail: { type: 'error', message: json.error } 

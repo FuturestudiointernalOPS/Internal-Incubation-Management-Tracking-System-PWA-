@@ -9,9 +9,11 @@ import {
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { getPrefetchedData } from '@/utils/prefetch';
+import { IMPACT_CACHE } from '@/utils/impactCache';
 
 const StatCard = ({ title, value, icon: Icon, color, badge }) => (
-  <div className="ios-card group hover:border-indigo-500/30 transition-all duration-500">
+  <div className="ios-card group hover:border-indigo-500/30 transition-all duration-300">
     <div className="flex justify-between items-start mb-6">
       <div className={`p-3 rounded-xl bg-white/5 border border-white/5 ${color}`}>
         <Icon className="w-6 h-6" />
@@ -33,27 +35,39 @@ export default function SuperAdminV2Dashboard() {
   useEffect(() => {
     const sa = localStorage.getItem('sa_session');
     if (sa !== 'prime-2026-active') {
-      router.replace('/sa-hq-sp-2026-v1/login');
+      router.replace('/terminal');
       return;
     }
 
     const fetchData = async () => {
       try {
-        const [progRes, projRes, partRes] = await Promise.all([
-          fetch('/api/v2/programs'),
-          fetch('/api/v2/projects'),
-          fetch('/api/v2/participants')
-        ]);
+        const url = '/api/v2/superadmin/full-state';
         
-        const progs = await progRes.json();
-        const projs = await projRes.json();
-        const parts = await partRes.json();
+        // 1. Check Prefetch Store (Zero Latency)
+        const prefetched = getPrefetchedData(url);
+        if (prefetched) {
+          setStats({ ...prefetched.stats, activeLogs: prefetched.activity || [] });
+          setLoading(false);
+          return;
+        }
 
-        setStats({
-          programs: progs.programs?.length || 0,
-          projects: projs.projects?.length || 0,
-          participants: parts.participants?.length || 0
-        });
+        // 2. Check Local Cache (Fast Feedback)
+        const cached = IMPACT_CACHE.get('superadmin_dashboard');
+        if (cached) {
+          setStats({ ...cached.stats, activeLogs: cached.activity || [] });
+          setLoading(false);
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data.success) {
+           setStats({
+              ...data.stats,
+              activeLogs: data.activity || []
+           });
+           IMPACT_CACHE.set('superadmin_dashboard', data);
+        }
       } catch (err) {
         console.error("Fetch Error:", err);
       } finally {
@@ -97,8 +111,8 @@ export default function SuperAdminV2Dashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard title="Active v2 Cohorts" value={stats.programs} icon={Layers} color="text-indigo-400" badge="V2-READY" />
-          <StatCard title="Running Projects" value={stats.projects} icon={Rocket} color="text-emerald-400" />
-          <StatCard title="Total Enrolled" value={stats.participants} icon={Users} color="text-amber-400" />
+          <StatCard title="Team Personnel" value={stats.totalStaff} icon={Users} color="text-emerald-400" badge="V1-SYNCED" />
+          <StatCard title="Total Enrolled" value={stats.participants} icon={Rocket} color="text-amber-400" />
           <StatCard title="Automation Health" value="100%" icon={Activity} color="text-rose-400" badge="STABLE" />
         </div>
 
@@ -112,11 +126,28 @@ export default function SuperAdminV2Dashboard() {
                     <button className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition-colors">View All Logs</button>
                  </div>
                  
-                 <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-dashed border-white/10">
-                       <Activity className="w-8 h-8 text-slate-700" />
-                    </div>
-                    <p className="text-slate-500 font-bold max-w-xs">No active v2 programs found. Create your first program to start tracking benchmarks.</p>
+                 <div className="space-y-6">
+                    {stats.activeLogs && stats.activeLogs.length > 0 ? (
+                       stats.activeLogs.map((log, index) => (
+                          <div key={index} className="flex items-center gap-4 group cursor-default">
+                             <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0 group-hover:border-indigo-500/30 transition-all">
+                                <Activity className="w-4 h-4 text-indigo-400" />
+                             </div>
+                             <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-black text-white uppercase tracking-tighter truncate">{log.action}</p>
+                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{log.user || 'System'} · {new Date(log.timestamp).toLocaleString()}</p>
+                             </div>
+                             <ChevronRight className="w-3 h-3 text-slate-800" />
+                          </div>
+                       ))
+                    ) : (
+                       <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                          <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-dashed border-white/10">
+                             <Activity className="w-8 h-8 text-slate-700" />
+                          </div>
+                          <p className="text-slate-500 font-bold max-w-xs">Connecting to the Turso pulse stream... No active events found yet.</p>
+                       </div>
+                    )}
                  </div>
               </div>
            </div>

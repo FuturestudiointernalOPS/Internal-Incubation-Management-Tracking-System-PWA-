@@ -71,18 +71,24 @@ export default function TeacherV2Dashboard() {
     // Basic role check (In real scenario, check v1 session or auth)
     const sa = localStorage.getItem('sa_session');
     // For now, let's assume teacher access if staff session exists
-    fetchPendingSubmissions();
+    fetchDashboardData();
   }, []);
 
-  const fetchPendingSubmissions = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const res = await fetch('/api/v2/submissions?status=pending');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const res = await fetch(`/api/v2/teacher/full-state?cid=${user.cid || user.id}`);
       const data = await res.json();
+      
       if (data.success) {
-         setSubmissions(data.submissions);
+         setSubmissions(data.submissions || []);
+         setSessions(data.sessions || []);
       }
       setIsLoading(false);
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e);
+      setIsLoading(false);
+    }
   };
 
   const handleReviewAction = async (sub, status) => {

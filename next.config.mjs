@@ -11,6 +11,20 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: '/sa-hq-sp-2026-v1/:path*',
+        destination: '/v2/superadmin',
+        permanent: true,
+      },
+      {
+        source: '/sa-hq-sp-2026-v1',
+        destination: '/v2/superadmin',
+        permanent: true,
+      }
+    ]
+  },
   // We disable the PWA in development to prevent "loading till infinity"
 };
 

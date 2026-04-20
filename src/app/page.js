@@ -17,10 +17,10 @@ export default function LandingPage() {
     const sa_session = localStorage.getItem('sa_session');
 
     if (sa_session === 'prime-2026-active') {
-      router.push('/sa-hq-sp-2026-v1');
+      router.push('/v2/superadmin');
     } else if (user) {
       if (user.role === 'program_manager') router.push('/pm/dashboard');
-      else if (user.role === 'super_admin') router.push('/sa-hq-sp-2026-v1');
+      else if (user.role === 'super_admin') router.push('/v2/superadmin');
     }
   }, [router]);
 

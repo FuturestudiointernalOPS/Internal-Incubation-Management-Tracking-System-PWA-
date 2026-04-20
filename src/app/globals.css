@@ -283,6 +283,22 @@
       radial-gradient(at 100% 0%, hsla(339,49%,30%,0.1) 0, transparent 50%);
   }
 
-  .animation-reveal { animation: none; }
+  .animation-reveal { animation: fadeIn 0.1s ease-out forwards; }
+  .animation-reveal-fast { animation: fadeIn 0.07s ease-out forwards; }
+  
+  /* Hyper-Snappy Pulse */
+  @keyframes pulse-fast {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
 }
 
+/* OVERRIDE GLOBAL ANIMATION SPEEDS */
+.animate-spin {
+  animation: spin 0.25s linear infinite !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

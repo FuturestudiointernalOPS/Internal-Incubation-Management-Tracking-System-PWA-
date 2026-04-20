@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { sendEmail } from "@/lib/mailer";
 
 export async function GET() {
   try {
@@ -26,38 +26,6 @@ export async function GET() {
     if (result.rows.length === 0) {
       return NextResponse.json({ success: true, sent: 0, message: "No pending emails" });
     }
-
-    let auth, gmail;
-    if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_REFRESH_TOKEN) {
-      auth = new google.auth.OAuth2(
-        process.env.GMAIL_CLIENT_ID,
-        process.env.GMAIL_CLIENT_SECRET,
-        process.env.GMAIL_REDIRECT_URI || "https://developers.google.com/oauthplayground"
-      );
-      auth.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
-      gmail = google.gmail({ version: "v1", auth });
-    }
-
-    const sendEmailViaGmailApi = async (to, subject, content) => {
-      const message = [
-        `To: ${to}`,
-        `Subject: ${subject}`,
-        "Content-Type: text/html; charset=utf-8",
-        "",
-        content
-      ].join("\n");
-    
-      const encodedMessage = Buffer.from(message)
-        .toString("base64")
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/, "");
-    
-      await gmail.users.messages.send({
-        userId: "me",
-        requestBody: { raw: encodedMessage }
-      });
-    };
 
     let sentCount = 0;
     
@@ -89,11 +57,12 @@ export async function GET() {
         `;
 
       try {
-        if (gmail) {
-           await sendEmailViaGmailApi(row.email, subject, htmlContent);
-        } else {
-           console.log("[MOCK SEND] Email prepared for:", row.email, "Subject:", subject);
-        }
+        await sendEmail({
+          to: row.email,
+          subject,
+          body: htmlContent,
+          isHtml: true
+        });
         
         // 1. Identify the NEXT step in the sequence
         const nextStepResult = await db.execute({
