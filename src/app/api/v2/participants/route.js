@@ -27,25 +27,31 @@ export async function POST(req) {
     });
 
     // 3. FLEXIBLE SYNC: Upsert into V1 Contacts
-    // This allows V1 campaigns to target V2 participants immediately.
+    // Automatically generate a Participant Password (FSPXXXXX)
+    const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const generatedPassword = `FSP${randomStr}`;
+
     const contactCheck = await db.execute({
        sql: "SELECT cid FROM contacts WHERE email = ?",
        args: [email]
     });
 
     if (contactCheck.rows.length > 0) {
-       // Update existing contact
+       // Update existing contact (preserve password if already exists, else add)
        await db.execute({
-          sql: "UPDATE contacts SET name = ?, phone = ?, program_id = ?, program_name = ? WHERE email = ?",
-          args: [name, phone || null, program_id, programName, email]
+          sql: `UPDATE contacts SET 
+                name = ?, phone = ?, program_id = ?, program_name = ?, 
+                password = COALESCE(password, ?), role = 'participant' 
+                WHERE email = ?`,
+          args: [name, phone || null, program_id, programName, generatedPassword, email]
        });
     } else {
-       // Create new contact
+       // Create new contact with FSP credential
        const cid = `c-${Math.random().toString(36).substr(2, 9)}`;
        await db.execute({
-          sql: `INSERT INTO contacts (cid, name, email, phone, program_id, program_name, role) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          args: [cid, name, email, phone || null, program_id, programName, 'participant']
+          sql: `INSERT INTO contacts (cid, name, email, phone, program_id, program_name, role, password) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [cid, name, email, phone || null, program_id, programName, 'participant', generatedPassword]
        });
     }
 

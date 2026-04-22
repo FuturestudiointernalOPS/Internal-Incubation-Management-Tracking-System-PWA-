@@ -31,9 +31,12 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Program ID and Name are required." }, { status: 400 });
     }
 
+    const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const generatedPassword = `FST${randomStr}`;
+
     const result = await db.execute({
-      sql: "INSERT INTO v2_teams (program_id, name, handler_id, handler_name) VALUES (?, ?, ?, ?) RETURNING *",
-      args: [program_id, name, handler_id || null, handler_name || null]
+      sql: "INSERT INTO v2_teams (program_id, name, handler_id, handler_name, password) VALUES (?, ?, ?, ?, ?) RETURNING *",
+      args: [program_id, name, handler_id || null, handler_name || null, generatedPassword]
     });
 
     return NextResponse.json({ success: true, team: result.rows[0] });

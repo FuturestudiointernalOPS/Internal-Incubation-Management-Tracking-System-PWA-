@@ -10,6 +10,7 @@ let isInitialized = false;
 
 export async function initDb() {
   if (isInitialized) return;
+  isInitialized = true;
   
   try {
     console.log("[DB] Synchronizing Mission Architecture...");
@@ -98,6 +99,7 @@ export async function initDb() {
         name TEXT NOT NULL,
         handler_id TEXT, -- Staff member assigned as Manager/Handler
         handler_name TEXT,
+        password TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -141,7 +143,21 @@ export async function initDb() {
       )
     `);
 
-    // 5. Submissions (Participants uploading files or links)
+    // 5. Sessions & Topics (The Core of the Program)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS v2_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        program_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        week_number INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending', -- pending, active, completed
+        resource_links TEXT, -- JSON array
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 6. Submissions (Participants uploading files or links)
     await db.execute(`
       CREATE TABLE IF NOT EXISTS v2_submissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -193,9 +209,27 @@ export async function initDb() {
       )
     `);
 
+    // 9. Knowledge Bank (Concept Notes)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS v2_knowledge_bank (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT,
+        url TEXT NOT NULL,
+        fileName TEXT,
+        is_archived BOOLEAN DEFAULT 0,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute("ALTER TABLE v2_knowledge_bank ADD COLUMN is_archived BOOLEAN DEFAULT 0").catch(() => {});
+    
     // Enhance requirements to link to specific sessions/topics
     await db.execute("ALTER TABLE v2_document_requirements ADD COLUMN session_id INTEGER");
 
+    await db.execute("ALTER TABLE v2_programs ADD COLUMN assigned_assistant_id TEXT").catch(() => {});
+    await db.execute("ALTER TABLE v2_programs ADD COLUMN note_id TEXT").catch(() => {});
+    
     // Speed Optimization Indices
     await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_projects_pid ON v2_projects(program_id)");
     await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_participants_pid ON v2_participants(program_id)");

@@ -23,20 +23,23 @@ export async function POST(req) {
       }
       
       const cid = "USER_" + uuidv4().split('-')[0].toUpperCase() + Math.floor(Math.random() * 10000);
+
+      // --- AUTONOMOUS CREDENTIAL PROVISIONING ---
+      // Staff (Future Studio Staff) -> FSSXXXXX
+      // Participant (Future Studio Participant) -> FSPXXXXX
+      // General -> FSXXXXX
       
-      // Logins are only initiated when assigned to a group (Program)
       let finalPassword = c.password;
-      if (!finalPassword && c.group_name && c.group_name !== 'unassigned') {
-         const randomDigits = Math.floor(10000 + Math.random() * 90000);
-         finalPassword = `FS${randomDigits}`;
-      } else if (!c.group_name || c.group_name === 'unassigned') {
-         finalPassword = null; // No login permitted without program assignment
+      if (!finalPassword) {
+         const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+         const prefix = c.role === 'staff' ? 'FSS' : (c.role === 'participant' ? 'FSP' : 'FS');
+         finalPassword = `${prefix}${randomStr}`;
       }
 
       validContacts.push({
         cid,
-        name: c.name || c.fullName,
-        email: c.email.toLowerCase(),
+        name: (c.name || c.fullName || '').trim(),
+        email: (c.email || '').toLowerCase().trim(),
         phone: c.phone || null,
         address: c.address || null,
         dob: c.dob || null,

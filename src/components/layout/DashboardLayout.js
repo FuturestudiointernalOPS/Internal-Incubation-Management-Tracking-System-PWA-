@@ -15,8 +15,7 @@ import { prefetchData } from '@/utils/prefetch';
  * IMPACTOS MIDNIGHT EXECUTIVE — GLOBAL LAYOUT
  * Standardized navigation and workspace frame.
  */
-const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, pathname, activeTab, onTabChange, setMobileMenuOpen, handleLogout }) => {
-  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {};
+const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu, pathname, activeTab, onTabChange, setMobileMenuOpen, handleLogout }) => {
 
   const handleHover = (item) => {
     if (item.href === '/v2/superadmin') prefetchData('/api/v2/superadmin/full-state', 'superadmin_dashboard');
@@ -29,13 +28,13 @@ const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, path
     <>
       {/* BRAND LOGO */}
       <div className="flex items-center gap-4 px-2 mb-10">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0066FF] to-[#0052cc] flex items-center justify-center shadow-lg shadow-blue-500/10">
           <Activity className="text-white w-6 h-6" />
         </div>
         {!collapsed && (
           <div className="animation-reveal">
-            <h1 className="text-lg font-black tracking-tighter text-white uppercase leading-none">ImpactOS</h1>
-            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">{role?.replace(/_/g, ' ')}</p>
+            <h1 className="text-lg font-black tracking-tighter text-white uppercase leading-none italic">ImpactOS</h1>
+            <p className="text-[10px] font-bold text-[#0066FF] uppercase tracking-widest mt-1 opacity-80 italic">{role?.replace(/_/g, ' ')}</p>
           </div>
         )}
       </div>
@@ -59,11 +58,11 @@ const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, path
                   title={collapsed ? item.name : undefined}
                 >
                   <div className="flex items-center gap-3">
-                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isChildActive ? 'text-indigo-400' : 'text-slate-500'}`} />
+                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isChildActive ? 'text-[#0066FF]' : 'text-slate-500'}`} />
                     {!collapsed && <span className="truncate text-left">{item.name}</span>}
                   </div>
                   {!collapsed && (
-                    <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180 text-indigo-400' : 'text-slate-500'}`} />
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180 text-[#0066FF]' : 'text-slate-500'}`} />
                   )}
                 </button>
                 {isOpen && !collapsed && (
@@ -82,10 +81,10 @@ const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, path
                             }
                             setMobileMenuOpen(false); 
                           }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-bold text-[13px] text-left select-none ${isSubActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-black text-[13px] text-left select-none uppercase tracking-tighter ${isSubActive ? 'bg-[#0066FF]/10 text-white border border-[#0066FF]/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
                         >
                           <span className="truncate">{subItem.name}</span>
-                          {isSubActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />}
+                          {isSubActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0066FF] shadow-[0_0_10px_rgba(0,102,255,0.5)]" />}
                         </Link>
                       );
                     })}
@@ -97,27 +96,20 @@ const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, path
 
           const isActive = onTabChange && item.id && item.href === '#' ? (activeTab === item.id) : (pathname === item.href);
           return (
-            <Link
+            <Link 
                 key={item.id || item.href}
-                href={item.href === '#' && onTabChange ? '#' : item.href}
+                href={item.href}
                 onMouseEnter={() => handleHover(item)}
-                onClick={(e) => { 
-                  if (onTabChange && item.id && item.href === '#') {
-                    e.preventDefault();
-                    onTabChange(item.id);
-                  }
-                  setMobileMenuOpen(false); 
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 font-bold text-sm text-left select-none ${isActive ? 'bg-indigo-500/10 text-white shadow-inner border border-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                title={collapsed ? item.name : undefined}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 font-black text-[11px] uppercase tracking-[0.2em] select-none ${isActive ? 'bg-[#0066FF] text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
               >
-                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
+                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
                 {!collapsed && <span className="truncate">{item.name}</span>}
                 {isActive && !collapsed && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,1)]" />
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0066FF] shadow-[0_0_10px_rgba(0,102,255,1)]" />
                 )}
                 {item.glow && !isActive && !collapsed && (
-                   <span className="ml-auto px-2 py-0.5 rounded-md bg-indigo-500 text-[8px] font-black uppercase text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] animate-pulse">New</span>
+                   <span className="ml-auto px-2 py-0.5 rounded-md bg-[#0066FF] text-[8px] font-black uppercase text-white shadow-[0_0_15px_rgba(0,102,255,0.5)] animate-pulse">New</span>
                 )}
               </Link>
           );
@@ -132,8 +124,9 @@ const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, path
           className="sidebar-link group text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-3 px-3 py-3 rounded-xl font-bold text-sm w-full"
         >
           <Settings className="w-5 h-5 flex-shrink-0 group-hover:rotate-45 transition-transform" />
-          {!collapsed && <span className="animation-reveal">System Config</span>}
+          {!collapsed && <span className="animation-reveal italic uppercase">System Config</span>}
         </Link>
+
         
         {/* PROMINENT LOGOUT ACTION */}
         <button 
@@ -141,12 +134,58 @@ const SidebarContent = ({ collapsed, role, navItems, openMenus, toggleMenu, path
           className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white transition-all duration-300 group shadow-lg shadow-rose-500/5"
         >
           <LogOut className="w-5 h-5 flex-shrink-0 group-hover:-translate-x-1 transition-transform" />
-          {!collapsed && <span className="animation-reveal font-black uppercase tracking-widest text-[11px]">Lock Terminal</span>}
+          {!collapsed && <span className="animation-reveal font-black uppercase tracking-widest text-[11px]">Logout</span>}
         </button>
       </div>
     </>
   );
 };
+
+/**
+ * NAVIGATION SCHEMA (Static)
+ */
+const NAVIGATION_MATRIX = {
+  super_admin: [
+    { id: 'dashboard', name: 'Dashboard', icon: ShieldCheck, href: '/v2/superadmin' },
+    { id: 'programs', name: 'Program Management', icon: Briefcase, subItems: [
+        { id: 'list_programs', name: 'All Programs', href: '/v2/superadmin/programs' },
+        { id: 'create_program', name: 'Create Program', href: '/v2/superadmin/programs/new' },
+    ]},
+    { id: 'communication', name: 'Communication', icon: Send, subItems: [
+        { id: 'campaigns', name: 'Emails & Campaigns', href: '/v2/superadmin/communications/campaigns' },
+        { id: 'forms', name: 'Forms', href: '/v2/superadmin/communications/forms' },
+        { id: 'all_contacts', name: 'All Contacts', href: '/v2/superadmin/communications/contacts' },
+    ]},
+    { id: 'knowledge', name: 'Knowledge Bank', icon: Library, href: '/v2/superadmin/knowledge' },
+    { id: 'staff', name: 'Our Team', icon: Users, href: '/v2/superadmin/communications/contacts?role=Staff' },
+    { id: 'profile', name: 'My Profile', icon: User, href: '/v2/superadmin/profile' },
+  ],
+  admin: [
+    { id: 'dashboard', name: 'Dashboard', icon: ShieldCheck, href: '/v2/superadmin' },
+    { id: 'personnel', name: 'Team Settings', icon: Users, href: '/admin/personnel' },
+    { id: 'projects', name: 'Projects', icon: Briefcase, href: '/admin/projects' },
+    { id: 'logs', name: 'Activity Logs', icon: FileText, href: '/admin/logs' },
+  ],
+  program_manager: [
+    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, href: '/v2/pm' },
+    { id: 'programs', name: 'Programs', icon: Briefcase, href: '/v2/pm' },
+    { id: 'analytics', name: 'Analytics', icon: TrendingUp, href: '#' },
+    { id: 'profile', name: 'My Profile', icon: User, href: '/v2/pm/profile' },
+  ],
+  teacher: [
+    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, href: '/v2/teacher' },
+    { id: 'sessions', name: 'My Sessions', icon: Calendar, href: '/v2/teacher/sessions' },
+    { id: 'reviews', name: 'Submissions', icon: FileText, href: '/v2/teacher/reviews' },
+    { id: 'profile', name: 'My Profile', icon: User, href: '/v2/teacher/profile' },
+  ],
+  participant: [
+    { id: 'dashboard', name: 'Dashboard', icon: Briefcase, href: '/v2/participant' },
+    { id: 'tasks', name: 'Tasks', icon: FileText, href: '#' },
+    { id: 'feedback', name: 'Feedback', icon: MessageSquare, href: '#' },
+    { id: 'profile', name: 'My Profile', icon: User, href: '/v2/participant/profile' },
+  ],
+};
+
 
 export default function DashboardLayout({ children, role = 'admin', activeTab, onTabChange, modals }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -156,47 +195,18 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
   const router = useRouter();
   const pathname = usePathname();
 
-  const toggleMenu = (id) => {
+  // Optimized State Hydration
+  const [user, setUser] = React.useState({});
+  React.useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) setUser(JSON.parse(savedUser));
+  }, []);
+
+  const toggleMenu = React.useCallback((id) => {
     setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+  }, []);
 
-  // Navigation Schema
-  const navigation = {
-    super_admin: [
-      { id: 'dashboard', name: 'Dashboard', icon: ShieldCheck, href: '/v2/superadmin' },
-      { id: 'knowledge', name: 'Knowledge Bank', icon: Library, href: '/v2/superadmin/knowledge', glow: true },
-      { id: 'staff', name: 'Team', icon: Users, href: '/v2/superadmin/communications/contacts' },
-      { id: 'communications', name: 'Emails & Campaigns', icon: Send, href: '/v2/superadmin/communications/campaigns' },
-      { id: 'forms', name: 'Forms', icon: FileText, href: '/v2/superadmin/communications/forms' },
-      { id: 'security', name: 'Security', icon: Activity, href: '/v2/superadmin/security' },
-    ],
-    admin: [
-      { name: 'Dashboard', icon: ShieldCheck, href: '/v2/superadmin' },
-      { name: 'Team Settings', icon: Users, href: '/admin/personnel' },
-      { name: 'Projects', icon: Briefcase, href: '/admin/projects' },
-      { name: 'Activity Logs', icon: FileText, href: '/admin/logs' },
-    ],
-    program_manager: [
-      { name: 'Dashboard', icon: LayoutDashboard, href: '/v2/pm' },
-      { name: 'Programs', icon: Briefcase, href: '/pm/programs' },
-      { name: 'Participants', icon: Users, href: '/pm/participants' },
-      { name: 'Live Sessions', icon: Calendar, href: '/pm/sessions' },
-      { name: 'Progress Tracking', icon: TrendingUp, href: '/pm/portfolio' },
-      { name: 'My Profile', icon: User, href: '/v2/pm/profile' },
-    ],
-    teacher: [
-      { name: 'Dashboard', icon: LayoutDashboard, href: '/v2/teacher' },
-      { name: 'My Sessions', icon: Calendar, href: '/v2/teacher/sessions' },
-      { name: 'Submissions', icon: FileText, href: '/v2/teacher/reviews' },
-    ],
-    participant: [
-      { name: 'Dashboard', icon: Briefcase, href: '/v2/participant' },
-      { name: 'Tasks', icon: FileText, href: '/startup/tasks' },
-      { name: 'Feedback', icon: MessageSquare, href: '/startup/feedback' },
-    ],
-  };
-
-  const navItems = navigation[role] || navigation.admin;
+  const navItems = React.useMemo(() => NAVIGATION_MATRIX[role] || NAVIGATION_MATRIX.admin, [role]);
 
   const handleLogout = () => {
     localStorage.removeItem('sa_session');
@@ -205,11 +215,11 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
   };
 
   const commonProps = {
-    collapsed, role, navItems, openMenus, toggleMenu, pathname, activeTab, onTabChange, setMobileMenuOpen, handleLogout
+    collapsed, role, user, navItems, openMenus, toggleMenu, pathname, activeTab, onTabChange, setMobileMenuOpen, handleLogout
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#080810] text-slate-200 selection:bg-indigo-500/30 font-sans bg-mesh">
+    <div className="flex h-screen w-full overflow-hidden bg-[#080810] text-slate-200 selection:bg-[#0066FF]/30 font-sans">
       <aside
         style={{ width: collapsed ? 80 : 280 }}
         className="hidden md:flex flex-col h-screen sticky top-0 bg-[#0d0d18] border-r border-white/5 p-6 overflow-hidden z-[100] flex-shrink-0 transition-[width] duration-200"
@@ -217,7 +227,7 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
         <SidebarContent {...commonProps} />
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center border border-white/10 hover:scale-110 transition-transform shadow-xl"
+          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-[#0066FF] flex items-center justify-center border border-white/10 hover:scale-110 transition-transform shadow-xl shadow-blue-500/20"
         >
           <ChevronRight className={`w-3 h-3 text-white transition-transform ${collapsed ? '' : 'rotate-180'}`} />
         </button>
@@ -227,7 +237,7 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
       <div className="md:hidden fixed top-4 left-4 z-[200]">
         <button 
           onClick={() => setMobileMenuOpen(true)}
-          className="p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-600/20"
+          className="p-3 bg-[#0066FF] rounded-xl shadow-lg shadow-blue-600/20"
         >
           <Menu className="w-6 h-6 text-white" />
         </button>
@@ -320,10 +330,10 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
 
             <div className="flex items-center gap-4 pl-6 border-l border-white/5">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-black text-white leading-none mb-1 uppercase tracking-tight">Active Session</p>
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter opacity-80">{role}</p>
+                <p className="text-sm font-black text-white leading-none mb-1 uppercase tracking-tight italic">Active Session</p>
+                <p className="text-[10px] font-bold text-[#0066FF] uppercase tracking-tighter opacity-80 italic">{role}</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-500 flex items-center justify-center font-black text-xs shadow-lg shadow-orange-500/10">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[#FF6B00] flex items-center justify-center font-black text-xs shadow-lg shadow-orange-500/5">
                 {String(role).charAt(0).toUpperCase()}
               </div>
             </div>
