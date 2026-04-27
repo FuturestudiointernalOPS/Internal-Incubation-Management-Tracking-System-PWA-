@@ -63,7 +63,6 @@ export default function PublicParticipantRegistration() {
     }
   };
 
-  const handleSubmit = (e) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.programId) {

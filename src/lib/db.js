@@ -344,6 +344,47 @@ export async function initDb() {
       )
     `);
 
+    // 15. Participant Invites & Onboarding (Ticket 1)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS v2_invitations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT UNIQUE NOT NULL,
+        program_id TEXT NOT NULL,
+        group_name TEXT, 
+        role TEXT DEFAULT 'participant',
+        expires_at DATETIME,
+        created_by TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 16. Task & Action Layer (Ticket 6)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS v2_task_completions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        participant_id TEXT NOT NULL,
+        team_id INTEGER,
+        session_id INTEGER, -- Course/Module
+        requirement_id INTEGER, -- Specific Task/Action
+        status TEXT DEFAULT 'completed',
+        completed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 17. Feedback System (Ticket 7)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS v2_participant_feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        participant_id TEXT NOT NULL,
+        team_id INTEGER,
+        session_id INTEGER,
+        requirement_id INTEGER,
+        feedback_text TEXT NOT NULL,
+        rating INTEGER,
+        submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     return db;
   } catch (error) {
     console.error("[DB] Optimization Failure:", error);
