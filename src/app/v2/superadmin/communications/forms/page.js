@@ -14,6 +14,13 @@ export default function FormsPage() {
   const [responses, setResponses] = useState([]);
   const [selectedResponse, setSelectedResponse] = useState(null);
   const [showResponseDetails, setShowResponseDetails] = useState(false);
+  const [searchForms, setSearchForms] = useState('');
+  const [families, setFamilies] = useState([]);
+  const [schema, setSchema] = useState([]);
+  const [formName, setFormName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editFormId, setEditFormId] = useState(null);
+  const [copiedLink, setCopiedLink] = useState('');
 
   useEffect(() => { 
     // Instant-Load from cache
