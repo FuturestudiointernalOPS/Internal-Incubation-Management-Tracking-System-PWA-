@@ -254,7 +254,7 @@ export default function CampaignsPage() {
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Campaigns</h2>
             <p className="text-slate-400 font-bold tracking-tight">Broadcast messages and track engagement metrics.</p>
           </div>
-          <button onClick={() => setShowCreateModal(true)} className="btn-prime !py-4 shadow-indigo-600/10">
+          <button onClick={() => setShowCreateModal(true)} className="btn-prime !py-4 shadow-[#FF6600]/10">
             <Plus className="w-5 h-5 mr-2" /> Start Campaign
           </button>
         </header>
@@ -265,7 +265,7 @@ export default function CampaignsPage() {
                  <button 
                    key={tab} 
                    onClick={() => setActiveTab(tab)}
-                   className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+                   className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#FF6600]/80 text-white shadow-lg shadow-[#FF6600]/80/20' : 'text-slate-500 hover:text-white'}`}
                  >
                    {tab}
                  </button>
@@ -275,7 +275,7 @@ export default function CampaignsPage() {
            <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer group">
                  <input type="checkbox" checked={hideCompleted} onChange={e => setHideCompleted(e.target.checked)} className="hidden" />
-                 <div className={`w-10 h-5 rounded-full border border-white/10 transition-all p-1 flex ${hideCompleted ? 'bg-indigo-500 justify-end' : 'bg-white/5 justify-start'}`}>
+                 <div className={`w-10 h-5 rounded-full border border-white/10 transition-all p-1 flex ${hideCompleted ? 'bg-[#FF6600]/80 justify-end' : 'bg-white/5 justify-start'}`}>
                     <div className="w-3 h-3 bg-white rounded-full shadow-sm shadow-black/20" />
                  </div>
                  <span className="text-[10px] font-black text-slate-500 group-hover:text-slate-400 uppercase tracking-widest transition-colors">Hide Finished</span>
@@ -285,7 +285,7 @@ export default function CampaignsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center p-20"><Loader2 className="w-10 h-10 text-indigo-500 animate-spin" /></div>
+          <div className="flex items-center justify-center p-20"><Loader2 className="w-10 h-10 text-[#FF6600]/80 animate-spin" /></div>
         ) : filteredCampsList.length === 0 ? (
           <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
             <Rocket className="w-16 h-16 text-slate-500 mx-auto mb-6 opacity-30" />
@@ -297,10 +297,10 @@ export default function CampaignsPage() {
             {filteredCampsList.map(c => {
                const p = Math.round((c.sent_contacts / c.total_contacts) * 100) || 0;
                return (
-                <div key={c.id} onClick={() => openDetails(c)} className="ios-card group hover:border-indigo-500/30 transition-all duration-500 cursor-pointer text-left flex flex-col h-full relative z-10 pointer-events-auto">
+                <div key={c.id} onClick={() => openDetails(c)} className="ios-card group hover:border-[#FF6600]/80/30 transition-all duration-500 cursor-pointer text-left flex flex-col h-full relative z-10 pointer-events-auto">
                    <div className="flex justify-between items-start mb-6">
                       <div className="flex items-center gap-3">
-                         <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 group-hover:scale-110 transition-transform">
+                         <div className="p-3 rounded-xl bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 text-indigo-400 group-hover:scale-110 transition-transform">
                            <Rocket className="w-6 h-6" />
                          </div>
                          <button 
@@ -317,7 +317,7 @@ export default function CampaignsPage() {
                       ) : p > 0 ? (
                          <span className="badge badge-glow-warning bg-amber-500/10 text-amber-500 border-amber-500/20">RUNNING</span>
                       ) : (
-                         <span className="badge bg-indigo-500/10 text-indigo-400 border-indigo-500/20">UPCOMING</span>
+                         <span className="badge bg-[#FF6600]/80/10 text-indigo-400 border-[#FF6600]/80/20">UPCOMING</span>
                       )}
                     </div>
                     
@@ -340,7 +340,7 @@ export default function CampaignsPage() {
                          <p className="text-xs font-black text-white">{p}%</p>
                       </div>
                       <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                         <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${p}%` }} />
+                         <div className="h-full bg-[#FF6600]/80 transition-all duration-1000" style={{ width: `${p}%` }} />
                       </div>
                       <div className="grid grid-cols-2 gap-4 pt-2">
                          <div className="bg-white/5 p-3 rounded-xl border border-white/5">
@@ -390,7 +390,7 @@ export default function CampaignsPage() {
                     <div className="space-y-6">
                        <div>
                          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Campaign Name</label>
-                         <input required type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Phase 1 Outreach" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50 font-bold" />
+                         <input required type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Phase 1 Outreach" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 font-bold" />
                        </div>
                        <div>
                          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Form Logic (Optional)</label>
@@ -404,7 +404,7 @@ export default function CampaignsPage() {
                     <div className="space-y-6">
                        <div className="flex items-center justify-between">
                          <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">Sequence Pipeline</h4>
-                         <button type="button" onClick={() => addStep(false)} className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-black uppercase rounded-lg border border-indigo-500/20 hover:bg-indigo-500 hover:text-white transition-all">+ Add Follow-up</button>
+                         <button type="button" onClick={() => addStep(false)} className="px-3 py-1 bg-[#FF6600]/80/10 text-indigo-400 text-[10px] font-black uppercase rounded-lg border border-[#FF6600]/80/20 hover:bg-[#FF6600]/80 hover:text-white transition-all">+ Add Follow-up</button>
                        </div>
                        <div className="space-y-4">
                           {form.steps.map((step, idx) => (
@@ -452,7 +452,7 @@ export default function CampaignsPage() {
                        <p className="text-[8px] font-black text-slate-600 uppercase mb-2 tracking-[0.2em]">Pick Families</p>
                        <div className="flex flex-wrap gap-2">
                           {families.map(f => (
-                             <button key={f.id} type="button" onClick={() => selectFamily(f.name, false)} className="px-3 py-1.5 rounded-lg border border-white/5 bg-white/5 text-[10px] font-heavy text-slate-400 hover:border-indigo-500/50 hover:text-white transition-all uppercase">
+                             <button key={f.id} type="button" onClick={() => selectFamily(f.name, false)} className="px-3 py-1.5 rounded-lg border border-white/5 bg-white/5 text-[10px] font-heavy text-slate-400 hover:border-[#FF6600]/80/50 hover:text-white transition-all uppercase">
                                 + {f.name}
                              </button>
                           ))}
@@ -465,7 +465,7 @@ export default function CampaignsPage() {
                     </div>
                     <div className="flex-1 space-y-2">
                        {contacts.filter(c => c.name.toLowerCase().includes(searchContacts.toLowerCase())).map(c => (
-                          <div key={c.cid} onClick={() => toggleContact(c.cid)} className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${form.cids.includes(c.cid) ? 'bg-indigo-500/10 border-indigo-500' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
+                          <div key={c.cid} onClick={() => toggleContact(c.cid)} className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${form.cids.includes(c.cid) ? 'bg-[#FF6600]/80/10 border-[#FF6600]/80' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
                              <div>
                                 <p className="text-xs font-black text-white">{c.name}</p>
                                 <p className="text-[9px] text-slate-500 font-bold uppercase">{c.group_name || 'Individual'}</p>
@@ -479,7 +479,7 @@ export default function CampaignsPage() {
 
               <footer className="px-8 py-6 border-t border-white/5 bg-[#0d0d18] flex justify-end gap-4 flex-shrink-0">
                  <button onClick={() => setShowCreateModal(false)} className="btn-ghost !px-8 text-xs">CANCEL</button>
-                 <button onClick={submitCampaign} disabled={isSubmitting} className="btn-prime !px-10 text-xs shadow-indigo-600/30 flex items-center gap-2">
+                 <button onClick={submitCampaign} disabled={isSubmitting} className="btn-prime !px-10 text-xs shadow-[#FF6600]/30 flex items-center gap-2">
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     {isSubmitting ? 'INITIATING...' : 'FIRE CAMPAIGN'}
                  </button>
@@ -495,13 +495,13 @@ export default function CampaignsPage() {
             <div className="relative w-full max-w-6xl ios-card !p-0 shadow-2xl bg-[#080810] border border-white/10 flex flex-col h-[90vh] text-left overflow-hidden">
               <header className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-[#0d0d18] flex-shrink-0">
                 <div className="flex items-center gap-6">
-                   <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                   <div className="w-16 h-16 rounded-2xl bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 flex items-center justify-center text-indigo-400">
                      <Rocket className="w-8 h-8" />
                    </div>
                    <div>
                      <input 
                         disabled={selectedCampaign.sent_contacts >= selectedCampaign.total_contacts}
-                        className="text-3xl font-black text-white bg-transparent outline-none focus:border-b-2 border-indigo-500 uppercase tracking-tighter disabled:opacity-50 w-full max-w-lg" 
+                        className="text-3xl font-black text-white bg-transparent outline-none focus:border-b-2 border-[#FF6600]/80 uppercase tracking-tighter disabled:opacity-50 w-full max-w-lg" 
                         value={selectedCampaign.name} 
                         onChange={e => setSelectedCampaign({...selectedCampaign, name: e.target.value})} 
                      />
@@ -555,7 +555,7 @@ export default function CampaignsPage() {
                        <section className="space-y-6">
                           <div className="flex items-center justify-between border-b border-white/5 pb-4">
                              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Target Selection</h4>
-                             <span className="badge badge-glow-success bg-indigo-500/10 text-indigo-400 border-indigo-500/20">{selectedCampaign.cids?.length} Contacts</span>
+                             <span className="badge badge-glow-success bg-[#FF6600]/80/10 text-indigo-400 border-[#FF6600]/80/20">{selectedCampaign.cids?.length} Contacts</span>
                           </div>
                           
                           {selectedCampaign.sent_contacts < selectedCampaign.total_contacts && (
@@ -563,7 +563,7 @@ export default function CampaignsPage() {
                                <p className="text-[8px] font-black text-slate-600 uppercase mb-2 tracking-[0.2em]">Add Families</p>
                                <div className="flex flex-wrap gap-2">
                                   {families.map(f => (
-                                     <button key={f.id} onClick={() => selectFamily(f.name, true)} className="px-3 py-1.5 rounded-lg border border-white/5 bg-white/5 text-[10px] font-heavy text-slate-400 hover:border-indigo-500/50 hover:text-white transition-all uppercase">+ {f.name}</button>
+                                     <button key={f.id} onClick={() => selectFamily(f.name, true)} className="px-3 py-1.5 rounded-lg border border-white/5 bg-white/5 text-[10px] font-heavy text-slate-400 hover:border-[#FF6600]/80/50 hover:text-white transition-all uppercase">+ {f.name}</button>
                                   ))}
                                </div>
                             </div>
@@ -582,7 +582,7 @@ export default function CampaignsPage() {
                                       if (selectedCampaign.sent_contacts >= selectedCampaign.total_contacts) return;
                                       const nextCids = isPicked ? selectedCampaign.cids.filter(id => id !== c.cid) : [...selectedCampaign.cids, c.cid];
                                       setSelectedCampaign({...selectedCampaign, cids: nextCids});
-                                   }} className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isPicked ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-white/5 border-white/5 hover:bg-white/10'} ${selectedCampaign.sent_contacts >= selectedCampaign.total_contacts ? 'cursor-default' : ''}`}>
+                                   }} className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isPicked ? 'bg-[#FF6600]/80/10 border-[#FF6600]/80/50' : 'bg-white/5 border-white/5 hover:bg-white/10'} ${selectedCampaign.sent_contacts >= selectedCampaign.total_contacts ? 'cursor-default' : ''}`}>
                                       <div>
                                          <p className="text-[10px] font-black text-white truncate">{c.name}</p>
                                          <p className="text-[8px] text-slate-500 font-bold uppercase">{c.group_name || 'Individual'}</p>
@@ -657,7 +657,7 @@ export default function CampaignsPage() {
                                        disabled={selectedCampaign.sent_contacts >= selectedCampaign.total_contacts}
                                        value={step.subject} 
                                        onChange={e => updateStep(idx, 'subject', e.target.value, true)} 
-                                       className="w-full bg-transparent border-b border-white/10 pb-2 text-xl font-black text-white outline-none focus:border-indigo-500 transition-colors uppercase tracking-tighter disabled:opacity-30" 
+                                       className="w-full bg-transparent border-b border-white/10 pb-2 text-xl font-black text-white outline-none focus:border-[#FF6600]/80 transition-colors uppercase tracking-tighter disabled:opacity-30" 
                                    />
                                 </div>
                                 <div className="grid grid-cols-2 gap-6">
@@ -712,7 +712,7 @@ export default function CampaignsPage() {
                           </div>
                        ))}
                        {selectedCampaign.sent_contacts < selectedCampaign.total_contacts && (
-                          <button onClick={() => addStep(true)} className="w-full py-6 border-2 border-dashed border-white/5 rounded-3xl text-slate-500 hover:text-indigo-400 hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all text-[10px] font-black uppercase tracking-[0.3em]">+ Add Sequential Message</button>
+                          <button onClick={() => addStep(true)} className="w-full py-6 border-2 border-dashed border-white/5 rounded-3xl text-slate-500 hover:text-indigo-400 hover:border-[#FF6600]/80/30 hover:bg-[#FF6600]/80/5 transition-all text-[10px] font-black uppercase tracking-[0.3em]">+ Add Sequential Message</button>
                        )}
                     </div>
                  </div>

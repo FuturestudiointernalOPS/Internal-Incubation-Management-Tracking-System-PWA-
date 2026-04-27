@@ -137,7 +137,7 @@ export default function ResponsesPage() {
             <p className="text-slate-400 font-bold tracking-tight">Track how people are responding to your campaigns.</p>
           </div>
           <div className="flex gap-4">
-             <button onClick={() => setView('analytics')} className={`font-black text-[10px] tracking-widest uppercase px-6 py-3 rounded-xl transition-all ${view === 'analytics' ? 'bg-indigo-500 text-white shadow-indigo-600/20 shadow-lg' : 'bg-white/5 text-slate-400 hover:text-white'}`}>Charts</button>
+             <button onClick={() => setView('analytics')} className={`font-black text-[10px] tracking-widest uppercase px-6 py-3 rounded-xl transition-all ${view === 'analytics' ? 'bg-[#FF6600]/80 text-white shadow-[#FF6600]/20 shadow-lg' : 'bg-white/5 text-slate-400 hover:text-white'}`}>Charts</button>
              <button onClick={() => setView('review')} className={`font-black text-[10px] tracking-widest uppercase px-6 py-3 rounded-xl transition-all flex items-center gap-2 ${view === 'review' ? 'bg-rose-500 text-white shadow-rose-600/20 shadow-lg' : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'}`}>
                 Fix Matches
                 {data.flaggedResponses?.length > 0 && <span className="bg-rose-900 border border-rose-500 px-2 rounded-full text-[10px]">{data.flaggedResponses.length}</span>}
@@ -147,7 +147,7 @@ export default function ResponsesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center p-20">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+            <Loader2 className="w-10 h-10 text-[#FF6600]/80 animate-spin" />
           </div>
         ) : view === 'review' ? (
           <div className="space-y-4 text-left">
@@ -170,7 +170,7 @@ export default function ResponsesPage() {
                       </div>
                       <div className="flex flex-col md:items-end gap-2 w-full md:w-auto">
                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Match with Person</label>
-                         <select onChange={(e) => resolveMatch(f.response_id, e.target.value)} defaultValue="" className="w-full md:w-[300px] bg-[#0d0d18] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50 appearance-none font-bold">
+                         <select onChange={(e) => resolveMatch(f.response_id, e.target.value)} defaultValue="" className="w-full md:w-[300px] bg-[#0d0d18] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold">
                             <option value="" disabled>Choose a person...</option>
                             {globalContacts.map(gc => (
                               <option key={gc.cid} value={gc.cid}>{gc.name} ({gc.email})</option>
@@ -196,12 +196,12 @@ export default function ResponsesPage() {
                   <button 
                     key={c.id}
                     onClick={() => { setActiveCampaign(c.id); setFilterMode('all'); }}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all ${activeCampaign === c.id ? 'bg-indigo-500/10 border-indigo-500 text-white' : 'bg-white/5 border-white/5 hover:bg-white/10 text-slate-400'}`}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all ${activeCampaign === c.id ? 'bg-[#FF6600]/80/10 border-[#FF6600]/80 text-white' : 'bg-white/5 border-white/5 hover:bg-white/10 text-slate-400'}`}
                   >
                     <p className="font-black uppercase tracking-tighter text-sm truncate mb-1">{c.name}</p>
                     <p className="text-[10px] font-bold opacity-70 border-t border-white/10 pt-2 flex items-center justify-between">
                        <span>Total: {c.total}</span>
-                       {activeCampaign === c.id && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,1)]" />}
+                       {activeCampaign === c.id && <div className="w-1.5 h-1.5 rounded-full bg-[#FF6600]/80 shadow-[0_0_8px_rgba(99,102,241,1)]" />}
                     </p>
                   </button>
                 ))}
@@ -239,12 +239,12 @@ export default function ResponsesPage() {
                           placeholder="Search list..." 
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-sm text-white outline-none focus:border-indigo-500/50 transition-colors font-bold"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-sm text-white outline-none focus:border-[#FF6600]/80/50 transition-colors font-bold"
                         />
                       </div>
                       <button 
                          onClick={() => setShowRetargetModal(true)}
-                         className="flex items-center justify-center gap-2 py-3 px-6 bg-indigo-500 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-105 transition-all w-full md:w-auto"
+                         className="flex items-center justify-center gap-2 py-3 px-6 bg-[#FF6600]/80 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-105 transition-all w-full md:w-auto"
                       >
                          <Rocket className="w-4 h-4" /> Send Follow-up
                       </button>
@@ -297,10 +297,10 @@ export default function ResponsesPage() {
               <form onSubmit={executeRetarget} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Campaign Name</label>
-                  <input required autoFocus type="text" value={newCampaignName} onChange={e => setNewCampaignName(e.target.value)} placeholder="e.g. Second Outreach" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold" />
+                  <input required autoFocus type="text" value={newCampaignName} onChange={e => setNewCampaignName(e.target.value)} placeholder="e.g. Second Outreach" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold" />
                 </div>
                 <div className="pt-4">
-                  <button type="submit" disabled={isSubmitting} className="w-full btn-prime !py-4 shadow-indigo-600/20 text-sm disabled:opacity-50">
+                  <button type="submit" disabled={isSubmitting} className="w-full btn-prime !py-4 shadow-[#FF6600]/20 text-sm disabled:opacity-50">
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (
                       <div className="flex items-center justify-center gap-2">
                         <Rocket className="w-4 h-4" /> 

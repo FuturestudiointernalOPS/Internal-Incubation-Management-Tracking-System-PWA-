@@ -31,14 +31,11 @@ export default function ParticipantV2Dashboard() {
   const [followups, setFollowups] = useState([]);
   const [team, setTeam] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState(null);
   
   // State for feedback modal
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedback, setFeedback] = useState({ learnings: '', challenges: '', suggestions: '' });
-
-  // Mocked ID for demonstration (In production, derived from session)
-  const programId = "P-2026-ALPHA"; 
-  const participantId = "PART-DEMO";
 
   useEffect(() => {
     fetchDashboardData();
@@ -46,9 +43,10 @@ export default function ParticipantV2Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const email = user.email;
-      const url = `/api/v2/participant/full-state?email=${email}&group_name=${user.group_name}`;
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      setUser(storedUser);
+      const email = storedUser.email;
+      const url = `/api/v2/participant/full-state?email=${email}&group_name=${storedUser.group_name}`;
 
       const processData = (data) => {
         const sesList = data.sessions || [];
@@ -110,9 +108,9 @@ export default function ParticipantV2Dashboard() {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({
-              program_id: programId,
+              program_id: program?.id || user?.group_name,
               deliverable_id: delId,
-              participant_id: participantId,
+              participant_id: user?.email || user?.cid,
               submission_link: link
            })
         });
@@ -130,8 +128,8 @@ export default function ParticipantV2Dashboard() {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({
-              program_id: programId,
-              participant_id: participantId,
+              program_id: program?.id || user?.group_name,
+              participant_id: user?.email || user?.cid,
               ...feedback
            })
         });
@@ -146,7 +144,7 @@ export default function ParticipantV2Dashboard() {
 
   if (isLoading) return (
      <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-[#FF6600]/80/20 border-t-[#FF6600]/80 rounded-full animate-spin" />
      </div>
   );
 
@@ -157,7 +155,7 @@ export default function ParticipantV2Dashboard() {
           <div className="animation-reveal">
             <div className="flex items-center gap-4 mb-4">
                <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Participant Portal</span>
-               <div className="h-px w-10 bg-indigo-500/30" />
+               <div className="h-px w-10 bg-[#FF6600]/80/30" />
                <span className="badge badge-glow-indigo uppercase text-[8px] font-black">WEEK {metrics.currentWeek}</span>
             </div>
             <h2 className="text-5xl font-black text-white tracking-tighter uppercase leading-none mb-4">
@@ -174,15 +172,15 @@ export default function ParticipantV2Dashboard() {
           </div>
 
           <div className="w-full lg:w-96 flex gap-6">
-             <div className="flex-1 ios-card bg-indigo-600/5 border-indigo-500/20 !p-8 flex flex-col justify-between">
+             <div className="flex-1 ios-card bg-[#FF6600]/5 border-[#FF6600]/80/20 !p-8 flex flex-col justify-between">
                 <div className="flex justify-between items-start mb-6">
                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Execution Index</p>
-                   <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400"><Activity className="w-4 h-4" /></div>
+                   <div className="p-2 rounded-lg bg-[#FF6600]/80/10 text-indigo-400"><Activity className="w-4 h-4" /></div>
                 </div>
                 <div className="space-y-1">
                    <p className="text-3xl font-black text-white italic">{metrics.percentComplete}%</p>
                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${metrics.percentComplete}%` }} />
+                      <div className="h-full bg-[#FF6600]/80 transition-all duration-1000" style={{ width: `${metrics.percentComplete}%` }} />
                    </div>
                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest pt-2">Topics Sync'd: {sessions.filter(s => s.status === 'completed').length} / {sessions.length}</p>
                 </div>
@@ -190,7 +188,7 @@ export default function ParticipantV2Dashboard() {
              
              {team && (
                 <div className="w-32 ios-card bg-[#0d0d18] border-white/5 !p-4 flex flex-col items-center justify-center text-center">
-                   <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-2">
+                   <div className="w-10 h-10 rounded-full bg-[#FF6600]/80/10 flex items-center justify-center text-indigo-400 mb-2">
                       <Users className="w-4 h-4" />
                    </div>
                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">TEAM NODE</p>
@@ -211,7 +209,7 @@ export default function ParticipantV2Dashboard() {
                   </div>
                   <div className="space-y-4">
                      {followups.map(fol => (
-                        <div key={fol.id} className="ios-card bg-[#0d0d18] border-white/5 !p-8 border-l-4 border-l-indigo-500/50">
+                        <div key={fol.id} className="ios-card bg-[#0d0d18] border-white/5 !p-8 border-l-4 border-l-[#FF6600]/80/50">
                            <div className="flex justify-between items-start mb-2">
                               <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Week {fol.week_number} Documentation</p>
                               <Clock className="w-3 h-3 text-slate-700" />
@@ -268,7 +266,7 @@ export default function ParticipantV2Dashboard() {
                </section>
 
               <section className="ios-card bg-mesh py-16 text-center space-y-6">
-                 <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mx-auto">
+                 <div className="w-16 h-16 rounded-full bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 flex items-center justify-center text-indigo-400 mx-auto">
                     <MessageSquare className="w-8 h-8" />
                  </div>
                  <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Venture Pulse</h3>
@@ -291,7 +289,7 @@ export default function ParticipantV2Dashboard() {
                        <p className="text-[10px] text-slate-700 font-bold text-center py-4 italic">No pending alerts.</p>
                     ) : (
                        notifications.slice(0, 3).map(notif => (
-                          <div key={notif.id} className={`p-4 rounded-xl border ${notif.read ? 'bg-transparent border-white/5' : 'bg-indigo-500/5 border-indigo-500/20 shadow-lg shadow-indigo-500/5'}`}>
+                          <div key={notif.id} className={`p-4 rounded-xl border ${notif.read ? 'bg-transparent border-white/5' : 'bg-[#FF6600]/80/5 border-[#FF6600]/80/20 shadow-lg shadow-[#FF6600]/80/5'}`}>
                              <p className="text-[11px] font-black text-white uppercase mb-1">{notif.title}</p>
                              <p className="text-[10px] text-slate-500 font-bold leading-relaxed">{notif.message}</p>
                           </div>
@@ -336,17 +334,17 @@ export default function ParticipantV2Dashboard() {
                                          const link = prompt(`Enter Anchor Link for ${doc.title}:`);
                                          if(!link) return;
                                          try {
-                                            const res = await fetch('/api/v2/submissions', {
-                                               method: 'POST',
-                                               headers: { 'Content-Type': 'application/json' },
-                                               body: JSON.stringify({
-                                                  program_id: user.group_name,
-                                                  participant_id: email,
-                                                  requirement_id: doc.id,
-                                                  submission_type: 'link',
-                                                  submission_link: link
-                                               })
-                                            });
+                                             const res = await fetch('/api/v2/submissions', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                   program_id: program?.id || user?.group_name,
+                                                   participant_id: user?.email || user?.cid,
+                                                   requirement_id: doc.id,
+                                                   submission_type: 'link',
+                                                   submission_link: link
+                                                })
+                                             });
                                             if((await res.json()).success) {
                                                alert("Operational Asset Anchored.");
                                                fetchDashboardData();
@@ -371,7 +369,7 @@ export default function ParticipantV2Dashboard() {
                     {sessions.map(ses => (
                        <div key={ses.id} className="flex gap-4">
                           <div className="w-px bg-white/5 relative">
-                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
+                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-[#FF6600]/80 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
                           </div>
                           <div className="pb-8">
                              <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">WEEK {ses.week_number} • {ses.type}</p>
@@ -411,7 +409,7 @@ export default function ParticipantV2Dashboard() {
                            value={feedback.learnings}
                            onChange={e => setFeedback({...feedback, learnings: e.target.value})}
                            rows={3}
-                           className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-indigo-500/30 resize-none"
+                           className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[#FF6600]/80/30 resize-none"
                            placeholder="What nodes did you master this week?"
                         />
                      </div>
@@ -421,7 +419,7 @@ export default function ParticipantV2Dashboard() {
                            value={feedback.challenges}
                            onChange={e => setFeedback({...feedback, challenges: e.target.value})}
                            rows={3}
-                           className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-indigo-500/30 resize-none"
+                           className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[#FF6600]/80/30 resize-none"
                            placeholder="Any roadblocks in execution?"
                         />
                      </div>
@@ -431,7 +429,7 @@ export default function ParticipantV2Dashboard() {
                            value={feedback.suggestions}
                            onChange={e => setFeedback({...feedback, suggestions: e.target.value})}
                            rows={3}
-                           className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-indigo-500/30 resize-none"
+                           className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[#FF6600]/80/30 resize-none"
                            placeholder="Optimization ideas?"
                         />
                      </div>

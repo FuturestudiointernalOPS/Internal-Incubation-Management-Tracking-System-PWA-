@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
 export async function POST(req) {
   try {
@@ -36,6 +37,8 @@ export async function POST(req) {
          finalPassword = `${prefix}${randomStr}`;
       }
 
+      const hashedPassword = await bcrypt.hash(finalPassword, 10);
+
       validContacts.push({
         cid,
         name: (c.name || c.fullName || '').trim(),
@@ -45,7 +48,7 @@ export async function POST(req) {
         dob: c.dob || null,
         group_name: c.group_name || null,
         role: c.role || 'unassigned',
-        password: finalPassword,
+        password: hashedPassword,
         program_id: c.program_id || null,
         program_name: c.program_name || null,
         image: c.image || null,
@@ -117,8 +120,17 @@ export async function PUT(req) {
 
     for (const col of updatableColumns) {
        if (data[col] !== undefined) {
-          fieldsToUpdate.push(`${col} = ?`);
-          args.push(col === 'deleted' ? (data[col] ? 1 : 0) : data[col]);
+          // Prevention: Do not overwrite with empty password on update
+          if (col === 'password' && data[col] === '') continue;
+          
+          if (col === 'password') {
+             const hashedPassword = await bcrypt.hash(data[col], 10);
+             fieldsToUpdate.push(`${col} = ?`);
+             args.push(hashedPassword);
+          } else {
+             fieldsToUpdate.push(`${col} = ?`);
+             args.push(col === 'deleted' ? (data[col] ? 1 : 0) : data[col]);
+          }
        }
     }
 

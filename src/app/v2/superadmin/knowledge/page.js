@@ -230,11 +230,11 @@ export default function KnowledgeBank() {
                       <div className="space-y-6">
                          <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Title</label>
-                            <input type="text" placeholder="Note Title" value={newNote.title} onChange={e => setNewNote({...newNote, title: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-6 text-white outline-none focus:border-[#0066FF]/30 font-bold" />
+                            <input type="text" placeholder="Note Title" value={newNote.title} onChange={e => setNewNote({...newNote, title: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-6 text-white outline-none focus:border-[#FF6600]/30 font-bold" />
                          </div>
                          <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Description</label>
-                            <textarea rows={3} placeholder="About this note..." value={newNote.description} onChange={e => setNewNote({...newNote, description: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-6 text-white outline-none focus:border-[#0066FF]/30 font-bold resize-none" />
+                            <textarea rows={3} placeholder="About this note..." value={newNote.description} onChange={e => setNewNote({...newNote, description: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-6 text-white outline-none focus:border-[#FF6600]/30 font-bold resize-none" />
                          </div>
                          <div className="space-y-4 pt-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Attachments</label>
@@ -242,32 +242,40 @@ export default function KnowledgeBank() {
                                {newNote.files.map((f, idx) => (
                                   <div key={idx} className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl">
                                      <div className="flex items-center gap-3">
-                                        <FileText className="w-4 h-4 text-[#0066FF]" />
+                                        <FileText className="w-4 h-4 text-[#FF6600]" />
                                         <span className="text-xs font-bold text-white truncate max-w-[300px]">{f.name}</span>
                                      </div>
                                      <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-white transition-colors underline-none"><X className="w-4 h-4" /></button>
                                   </div>
                                ))}
-                               <label className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-white/10 rounded-2xl cursor-pointer hover:border-[#0066FF]/50 hover:bg-[#0066FF]/5 transition-all text-center">
+                               <label className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-white/10 rounded-2xl cursor-pointer hover:border-[#FF6600]/50 hover:bg-[#FF6600]/5 transition-all text-center">
                                   <input type="file" accept=".pdf" multiple className="hidden" onChange={(e) => handleFileUpload(e)} />
-                                  <Plus className="w-6 h-6 mb-2 text-[#0066FF]" />
+                                  <Plus className="w-6 h-6 mb-2 text-[#FF6600]" />
                                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-sans">Add PDF</span>
                                </label>
                             </div>
                          </div>
                       </div>
-                      <button 
-                        onClick={handleCreateNote} 
-                        disabled={isSaving} 
-                        className={`w-full btn-strong py-5 rounded-2xl flex items-center justify-center gap-3 transition-all ${isSaving ? 'bg-[#0066FF]/50 cursor-not-allowed text-white/50' : 'bg-[#0066FF] text-white hover:bg-blue-600'}`}
-                      >
-                         {isSaving ? (
-                            <>
-                               <Loader2 className="w-4 h-4 animate-spin text-white" />
-                               <span>Creating...</span>
-                            </>
-                         ) : <span>Create</span>}
-                      </button>
+                       <div className="grid grid-cols-2 gap-4">
+                          <button 
+                             onClick={() => setShowUploadModal(false)}
+                             className="py-5 bg-white/5 text-slate-500 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white/10 transition-all italic"
+                          >
+                             Cancel
+                          </button>
+                          <button 
+                            onClick={handleCreateNote} 
+                            disabled={isSaving} 
+                            className={`btn-strong py-5 rounded-2xl flex items-center justify-center gap-3 transition-all ${isSaving ? 'bg-[#FF6600]/50 cursor-not-allowed text-white/50' : 'bg-[#FF6600] text-white hover:bg-blue-600'}`}
+                          >
+                             {isSaving ? (
+                                <>
+                                   <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                   <span>Creating...</span>
+                                </>
+                             ) : <span>Create</span>}
+                          </button>
+                       </div>
                    </motion.div>
                 </div>
              )}
@@ -285,11 +293,11 @@ export default function KnowledgeBank() {
                       <div className="space-y-6">
                          <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Title</label>
-                            <input type="text" value={editingNote.title} onChange={e => setEditingNote({...editingNote, title: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl py-4 px-6 text-white outline-none focus:border-[#0066FF]/30 font-bold" />
+                            <input type="text" value={editingNote.title} onChange={e => setEditingNote({...editingNote, title: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl py-4 px-6 text-white outline-none focus:border-[#FF6600]/30 font-bold" />
                          </div>
                          <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Description</label>
-                            <textarea rows={3} value={editingNote.description || ''} onChange={e => setEditingNote({...editingNote, description: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl py-4 px-6 text-white outline-none focus:border-[#0066FF]/30 font-bold resize-none" />
+                            <textarea rows={3} value={editingNote.description || ''} onChange={e => setEditingNote({...editingNote, description: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl py-4 px-6 text-white outline-none focus:border-[#FF6600]/30 font-bold resize-none" />
                          </div>
                          <div className="space-y-4 pt-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Attachments</label>
@@ -297,32 +305,40 @@ export default function KnowledgeBank() {
                                {editingNote.files.map((f, idx) => (
                                   <div key={idx} className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl">
                                      <div className="flex items-center gap-3">
-                                        <FileText className="w-4 h-4 text-[#0066FF]" />
+                                        <FileText className="w-4 h-4 text-[#FF6600]" />
                                         <span className="text-xs font-bold text-white truncate max-w-[280px]">{f.name}</span>
                                      </div>
                                      <button onClick={() => removeFile(idx, true)} className="text-rose-500 hover:text-white transition-colors underline-none"><X className="w-4 h-4" /></button>
                                   </div>
                                ))}
-                               <label className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-white/10 rounded-2xl cursor-pointer hover:border-[#0066FF]/50 hover:bg-[#0066FF]/5 transition-all text-center">
+                               <label className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-white/10 rounded-2xl cursor-pointer hover:border-[#FF6600]/50 hover:bg-[#FF6600]/5 transition-all text-center">
                                   <input type="file" accept=".pdf" multiple className="hidden" onChange={(e) => handleFileUpload(e, true)} />
-                                  <Plus className="w-6 h-6 mb-2 text-[#0066FF]" />
+                                  <Plus className="w-6 h-6 mb-2 text-[#FF6600]" />
                                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-sans">Add PDF</span>
                                </label>
                             </div>
                          </div>
                       </div>
-                      <button 
-                        onClick={handleSaveUpdate} 
-                        disabled={isSaving} 
-                        className={`w-full btn-strong py-5 rounded-2xl flex items-center justify-center gap-3 transition-all ${isSaving ? 'bg-[#0066FF]/50 cursor-not-allowed text-white/50' : 'bg-[#0066FF] text-white hover:bg-blue-600'}`}
-                      >
-                         {isSaving ? (
-                            <>
-                               <Loader2 className="w-4 h-4 animate-spin text-white" />
-                               <span>Saving...</span>
-                            </>
-                         ) : <span>Save</span>}
-                      </button>
+                       <div className="grid grid-cols-2 gap-4">
+                          <button 
+                             onClick={() => setShowEditModal(false)}
+                             className="py-5 bg-white/5 text-slate-500 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white/10 transition-all italic"
+                          >
+                             Cancel
+                          </button>
+                          <button 
+                            onClick={handleSaveUpdate} 
+                            disabled={isSaving} 
+                            className={`btn-strong py-5 rounded-2xl flex items-center justify-center gap-3 transition-all ${isSaving ? 'bg-[#FF6600]/50 cursor-not-allowed text-white/50' : 'bg-[#FF6600] text-white hover:bg-blue-600'}`}
+                          >
+                             {isSaving ? (
+                                <>
+                                   <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                   <span>Saving...</span>
+                                </>
+                             ) : <span>Save</span>}
+                          </button>
+                       </div>
                    </motion.div>
                 </div>
              )}
@@ -333,13 +349,13 @@ export default function KnowledgeBank() {
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/5 pb-10">
           <div>
             <div className="flex items-center gap-4 mb-4 text-left">
-               <span className="text-[#0066FF] font-black text-[10px] uppercase tracking-[0.4em]">Resource Library</span>
-               <div className="h-px w-10 bg-[#0066FF]/30" />
+               <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">Resource Library</span>
+               <div className="h-px w-10 bg-[#FF6600]/30" />
             </div>
             <h2 className="text-5xl font-black text-white tracking-tighter uppercase leading-none italic">Knowledge Bank</h2>
             <p className="text-slate-500 font-bold mt-4 uppercase text-[10px] tracking-widest leading-none font-sans opacity-60">Overview and Management of baseline documents</p>
           </div>
-          <button onClick={() => setShowUploadModal(true)} className="px-10 py-4 bg-[#0066FF] text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-blue-600 transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2">
+          <button onClick={() => setShowUploadModal(true)} className="px-10 py-4 bg-[#FF6600] text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-blue-600 transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2">
             <Plus className="w-5 h-5" />
             <span>Create New</span>
           </button>
@@ -350,7 +366,7 @@ export default function KnowledgeBank() {
                <div className="flex justify-between items-end">
                   <div className="flex items-center gap-6">
                      <h3 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-3 italic font-sans">
-                        <Eye className="w-5 h-5 text-[#0066FF]" /> Viewer
+                        <Eye className="w-5 h-5 text-[#FF6600]" /> Viewer
                      </h3>
                      {viewingNote && viewingNote.files && viewingNote.files.length > 1 && (
                         <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
@@ -358,7 +374,7 @@ export default function KnowledgeBank() {
                               <button 
                                  key={i} 
                                  onClick={() => setActiveFileUrl(f.url)}
-                                 className={`px-4 py-1.5 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all ${activeFileUrl === f.url ? 'bg-[#0066FF] text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                                 className={`px-4 py-1.5 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all ${activeFileUrl === f.url ? 'bg-[#FF6600] text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
                               >
                                  Document {i+1}
                               </button>
@@ -366,7 +382,7 @@ export default function KnowledgeBank() {
                         </div>
                      )}
                   </div>
-                  {viewingNote && <button onClick={() => setViewingNote(null)} className="text-[10px] text-[#0066FF] font-black uppercase tracking-widest hover:text-white transition-colors underline-none">Close x</button>}
+                  {viewingNote && <button onClick={() => setViewingNote(null)} className="text-[10px] text-[#FF6600] font-black uppercase tracking-widest hover:text-white transition-colors underline-none">Close x</button>}
                </div>
                {!viewingNote && (
                   <div className="ios-card bg-white/[0.01] border-white/5 py-40 flex flex-col items-center justify-center text-center">
@@ -377,16 +393,16 @@ export default function KnowledgeBank() {
                )}
                 {viewingNote && previewUrl && (
                   <div className="space-y-4">
-                     <div className="flex items-center justify-between bg-[#0066FF]/5 p-5 rounded-2xl border border-[#0066FF]/10 text-left">
+                     <div className="flex items-center justify-between bg-[#FF6600]/5 p-5 rounded-2xl border border-[#FF6600]/10 text-left">
                         <div className="flex items-center gap-4">
-                           <FileText className="w-6 h-6 text-[#0066FF]" />
+                           <FileText className="w-6 h-6 text-[#FF6600]" />
                            <div>
                               <h4 className="text-white font-black text-lg tracking-tighter uppercase leading-none">{viewingNote.title}</h4>
                               <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1 italic">{viewingNote.description}</p>
                            </div>
                         </div>
                         <div className="flex items-center gap-2 px-4 py-2 bg-black/40 rounded-xl border border-white/5">
-                           <Paperclip className="w-3 h-3 text-[#0066FF]" />
+                           <Paperclip className="w-3 h-3 text-[#FF6600]" />
                            <span className="text-[10px] font-black text-white uppercase tracking-tighter truncate max-w-[200px]">
                               {viewingNote.files.find(f => f.url === activeFileUrl)?.name}
                            </span>
@@ -406,7 +422,7 @@ export default function KnowledgeBank() {
                      <span className="text-[8px] bg-white/10 text-slate-400 uppercase font-black px-3 py-1 rounded-full">{filteredNotes.length} Items</span>
                   </div>
                   <div className="flex bg-white/5 p-1 rounded-xl">
-                     <button onClick={() => setLibraryTab('active')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'active' ? 'bg-[#0066FF] text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>Active</button>
+                     <button onClick={() => setLibraryTab('active')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'active' ? 'bg-[#FF6600] text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>Active</button>
                      <button onClick={() => setLibraryTab('archive')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'archive' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}><Archive className="w-3 h-3" /> Pin</button>
                   </div>
                </div>
@@ -416,7 +432,7 @@ export default function KnowledgeBank() {
                      <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic p-6 border border-white/5 rounded-2xl text-center bg-white/[0.01]">Empty.</p>
                   ) : (
                      filteredNotes.map(note => (
-                        <div key={note.id} onClick={() => setViewingNote(note)} className={`p-6 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 text-left ${viewingNote?.id === note.id ? 'bg-[#0066FF]/10 border-[#0066FF]/30' : 'bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/5'}`}>
+                        <div key={note.id} onClick={() => setViewingNote(note)} className={`p-6 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 text-left ${viewingNote?.id === note.id ? 'bg-[#FF6600]/10 border-[#FF6600]/30' : 'bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/5'}`}>
                            <div>
                               <div className="flex justify-between items-start mb-2">
                                  <p className="text-sm font-black text-white leading-tight uppercase relative z-10">{note.title}</p>
@@ -435,7 +451,7 @@ export default function KnowledgeBank() {
                                <div className="flex items-center gap-2">
                                   {activeTab === 'active' ? (
                                      <>
-                                        <button onClick={(e) => { e.stopPropagation(); setEditingNote(note); setShowEditModal(true); }} className="hover:text-[#0066FF] transition-all opacity-0 group-hover:opacity-100 font-black text-[9px] uppercase tracking-tighter underline-none">Edit</button>
+                                        <button onClick={(e) => { e.stopPropagation(); setEditingNote(note); setShowEditModal(true); }} className="hover:text-[#FF6600] transition-all opacity-0 group-hover:opacity-100 font-black text-[9px] uppercase tracking-tighter underline-none">Edit</button>
                                         <button onClick={(e) => handleArchiveAction(note.id, true, e)} className="hover:text-orange-500 transition-all opacity-0 group-hover:opacity-100 font-black text-[9px] uppercase tracking-tighter underline-none">Archive</button>
                                      </>
                                   ) : (
@@ -444,7 +460,7 @@ export default function KnowledgeBank() {
                                         <button onClick={(e) => handlePermanentDelete(note.id, e)} className="hover:text-rose-500 transition-all font-black text-[9px] uppercase tracking-tighter underline-none">Delete</button>
                                      </>
                                   )}
-                                  <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-[#0066FF] group-hover:translate-x-1 transition-all" />
+                                  <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-[#FF6600] group-hover:translate-x-1 transition-all" />
                                </div>
                             </div>
                          </div>

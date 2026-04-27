@@ -66,7 +66,7 @@ export default function GroupWorkspaceV2({ params }) {
            </h2>
            <button 
               onClick={handleUpdate}
-              className="btn-prime !py-3 !px-8 shadow-indigo-600/10"
+              className="btn-prime !py-3 !px-8 shadow-[#FF6600]/10"
            >
               <Save className="w-4 h-4 mr-2" /> Anchor Metrics
            </button>
@@ -90,7 +90,7 @@ export default function GroupWorkspaceV2({ params }) {
                     value={group.project_description}
                     onChange={e => setGroup({...group, project_description: e.target.value})}
                     placeholder="Enter deep dive on project objectives..."
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white font-bold outline-none focus:border-indigo-500 transition-colors resize-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white font-bold outline-none focus:border-[#FF6600]/80 transition-colors resize-none"
                  />
               </div>
 
@@ -124,13 +124,13 @@ export default function GroupWorkspaceV2({ params }) {
                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Team Composition</h4>
                     <div className="space-y-3">
                        <div className="flex items-center gap-4 p-4 rounded-xl bg-black/40 border border-white/5">
-                          <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400"><Users className="w-5 h-5" /></div>
+                          <div className="w-10 h-10 rounded-lg bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 flex items-center justify-center text-indigo-400"><Users className="w-5 h-5" /></div>
                           <div>
                              <p className="text-[10px] font-black text-white uppercase tracking-widest">Founding Node</p>
                              <p className="text-[9px] text-slate-600 font-bold">Linked Participant</p>
                           </div>
                        </div>
-                       <button className="w-full py-3 border border-dashed border-white/10 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-widest hover:border-indigo-500/30 hover:text-indigo-400 transition-all">
+                       <button className="w-full py-3 border border-dashed border-white/10 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-widest hover:border-[#FF6600]/80/30 hover:text-indigo-400 transition-all">
                           + Assign Personnel
                        </button>
                     </div>
@@ -154,7 +154,7 @@ export default function GroupWorkspaceV2({ params }) {
                        { date: 'Current', event: 'Workspace Sync' }
                     ].map((log, i) => (
                        <div key={i} className="flex gap-4 items-start relative">
-                          <div className="w-4 h-4 rounded-full bg-indigo-500 border-4 border-[#0d0d18] z-10" />
+                          <div className="w-4 h-4 rounded-full bg-[#FF6600]/80 border-4 border-[#0d0d18] z-10" />
                           <div>
                              <p className="text-[10px] font-black text-white uppercase tracking-tighter leading-none">{log.event}</p>
                              <p className="text-[8px] text-slate-600 font-black uppercase tracking-widest mt-1">{log.date} TIMESTAMP</p>

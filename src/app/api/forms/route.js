@@ -23,18 +23,37 @@ export async function POST(req) {
   try {
     await initDb();
     const data = await req.json();
-    const { name, schema } = data;
+    const { name, schema, group_name } = data;
     
     if (!name || !schema) return NextResponse.json({ success: false, error: "Name and Schema required" }, { status: 400 });
 
     const form_id = "FORM_" + uuidv4().split('-')[0].toUpperCase();
     
     await db.execute({
-      sql: "INSERT INTO forms (form_id, name, schema) VALUES (?, ?, ?)",
-      args: [form_id, name, JSON.stringify(schema)]
+      sql: "INSERT INTO forms (form_id, name, schema, group_name) VALUES (?, ?, ?, ?)",
+      args: [form_id, name, JSON.stringify(schema), group_name || null]
     });
     
     return NextResponse.json({ success: true, form_id });
+  } catch (err) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const data = await req.json();
+    const { form_id, name, schema, group_name } = data;
+    
+    if (!form_id) return NextResponse.json({ success: false, error: "Form ID required" }, { status: 400 });
+
+    await db.execute({
+      sql: "UPDATE forms SET name = ?, schema = ?, group_name = ? WHERE form_id = ?",
+      args: [name, JSON.stringify(schema), group_name || null, form_id]
+    });
+    
+    return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }

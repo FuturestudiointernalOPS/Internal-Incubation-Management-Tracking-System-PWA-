@@ -1,1048 +1,450 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
-  ChevronLeft, Plus, Trash2, Calendar, 
-  Users, Layers, Settings, MessageSquare, 
-  Globe, LayoutDashboard, Search, Filter,
-  ArrowRight, Activity, Shield, Sparkles, Target, X, ChevronRight, Mail
+  Activity, Briefcase, ChevronRight, BookOpen, 
+  Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle, Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import TimelineEngine from '@/components/v2/TimelineEngine';
-import BulkParticipantImporter from '@/components/v2/BulkParticipantImporter';
 
-/**
- * OPERATIONS TERMINAL — VERSION 2
- * Central workspace for managing a specific program instance.
- */
-export default function ProgramTerminalV2({ params }) {
+export default function SuperAdminExecutiveView({ params }) {
   const unwrappedParams = use(params);
   const { id } = unwrappedParams;
   const router = useRouter();
-  
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview'); // overview | sessions | staff | participants | settings
+
   const [program, setProgram] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [requirements, setRequirements] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [followups, setFollowups] = useState([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   
-  // Modals
-  // Participants & Groups
-  const [participants, setParticipants] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [deliverables, setDeliverables] = useState([]);
-  const [feedback, setFeedback] = useState([]);
-  const [showParticipantModal, setShowParticipantModal] = useState(false);
-  const [showGroupModal, setShowGroupModal] = useState(false);
-  const [showDeliverableModal, setShowDeliverableModal] = useState(false);
-  const [showSessionModal, setShowSessionModal] = useState(false);
-  const [showPmAssignmentModal, setShowPmAssignmentModal] = useState(false);
-  const [showKnowledgeAssignmentModal, setShowKnowledgeAssignmentModal] = useState(false);
-  
-   const [sessions, setSessions] = useState([]);
-  const [conceptNotes, setConceptNotes] = useState([]);
-  const [contactsList, setContactsList] = useState([]);
-  const [pmSearch, setPmSearch] = useState('');
-  const [pmToEmail, setPmToEmail] = useState(null);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [newFollowup, setNewFollowup] = useState({ week: null, session_id: null, comment: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-     const sa = localStorage.getItem('sa_session');
-     if (sa !== 'prime-2026-active') {
-       router.replace('/terminal');
-       return;
-     }
-     fetchProgram();
-     fetchSessions();
-     fetchGroups();
-     fetchDeliverables();
-     fetchFeedback();
-     fetchKnowledge();
-     fetchContacts();
-     fetchParticipants();
-   }, [id, router]);
+    fetchData();
+  }, [id]);
 
-   const fetchKnowledge = async () => {
-      try {
-        const res = await fetch('/api/v2/knowledge');
-        const data = await res.json();
-        if (data.success) {
-           setConceptNotes(data.conceptNotes || []);
-        }
-      } catch (err) {}
-   };
-
-  const fetchContacts = async () => {
-     try {
-       const res = await fetch('/api/contacts');
-       const data = await res.json();
-       if (data.success) {
-          setContactsList(data.contacts || []);
-       }
-     } catch (err) {}
-  };
-
-  const fetchProgram = async () => {
+  const fetchData = async () => {
     try {
-      const res = await fetch('/api/v2/programs');
-      const data = await res.json();
-      const match = data.programs.find(p => p.id === id);
-      setProgram(match);
+      // 1. Program & Curriculum
+      const progRes = await fetch(`/api/v2/pm/full-state?id=${id}`);
+      const progData = await progRes.json();
+      if (progData.success) {
+        setProgram(progData.program);
+        setSessions(progData.sessions || []);
+        setRequirements(progData.requirements || []);
+      }
+
+      // 2. Weekly Reports
+      const reportRes = await fetch(`/api/v2/teacher/reports?program_id=${id}`);
+      const reportData = await reportRes.json();
+      if (reportData.success) setReports(reportData.reports || []);
+
+      // 3. Follow-ups
+      const followupRes = await fetch(`/api/v2/followups?program_id=${id}`);
+      const followupData = await followupRes.json();
+      if (followupData.success) setFollowups(followupData.followups || []);
+
       setIsLoaded(true);
     } catch (e) {
       console.error(e);
+      setIsLoaded(true);
     }
   };
 
-  const fetchSessions = async () => {
-     try {
-       const res = await fetch(`/api/v2/sessions?program_id=${id}`);
-       const data = await res.json();
-       if (data.success) {
-          setSessions(data.sessions);
-       }
-     } catch (e) {
-        console.error(e);
-     }
-  };
-
-  const fetchParticipants = async () => {
-     try {
-       const res = await fetch(`/api/v2/participants?program_id=${id}`);
-       const data = await res.json();
-       if (data.success) {
-          setParticipants(data.participants);
-       }
-     } catch (e) {
-        console.error(e);
-     }
-  };
-
-  const fetchGroups = async () => {
-     try {
-       const res = await fetch(`/api/v2/groups?program_id=${id}`);
-       const data = await res.json();
-       if (data.success) {
-          setGroups(data.groups);
-       }
-     } catch (e) {
-        console.error(e);
-     }
-  };
-
-  const fetchDeliverables = async () => {
-     try {
-       const res = await fetch(`/api/v2/deliverables?program_id=${id}`);
-       const data = await res.json();
-       if (data.success) {
-          setDeliverables(data.deliverables);
-       }
-     } catch (e) {
-        console.error(e);
-     }
-  };
-
-  const fetchFeedback = async () => {
-     try {
-       const res = await fetch(`/api/v2/feedback?program_id=${id}`);
-       const data = await res.json();
-       if (data.success) {
-          setFeedback(data.feedback);
-       }
-     } catch (e) { console.error(e); }
-  };
-
-  const [newDeliverable, setNewDeliverable] = useState({ title: '', description: '', week_number: 1, type: 'Group' });
-
-  const handleCreateDeliverable = async () => {
-     try {
-       const res = await fetch('/api/v2/deliverables', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...newDeliverable, program_id: id })
-       });
-       const data = await res.json();
-       if (data.success) {
-          setDeliverables([...deliverables, data.deliverable]);
-          setShowDeliverableModal(false);
-          setNewDeliverable({ title: '', description: '', week_number: 1, type: 'Group' });
-       }
-     } catch (e) {
-        alert("Deliverable creation failed.");
-     }
-  };
-
-  const handleCreateSession = async () => {
+  const handleAddFollowup = async (wn, sid = null) => {
+    if (!newFollowup.comment.trim()) return;
+    setIsSubmitting(true);
     try {
-      const res = await fetch('/api/v2/sessions', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ ...newSession, program_id: id })
+      const res = await fetch('/api/v2/followups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          program_id: id,
+          week_number: wn,
+          session_id: sid,
+          comment: newFollowup.comment
+        })
       });
-      const data = await res.json();
-      if (data.success) {
-         setSessions([...sessions, data.session]);
-         setShowSessionModal(false);
-         setNewSession({ title: '', week_number: 1, type: 'Masterclass', start_at: '' });
+      if ((await res.json()).success) {
+        setNewFollowup({ week: null, session_id: null, comment: '' });
+        fetchData();
       }
     } catch (e) {
-       alert("Scheduling failed.");
+      console.error(e);
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const handleAddParticipant = async () => {
-     try {
-       const res = await fetch('/api/v2/participants', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...newParticipant, program_id: id })
-       });
-       const data = await res.json();
-       if (data.success) {
-          setParticipants([...participants, data.participant]);
-          setShowParticipantModal(false);
-          setNewParticipant({ name: '', email: '', phone: '', screening_status: 'applied' });
-       }
-     } catch (e) {
-        alert("Addition failed.");
-     }
-  };
-
-  const handleCreateGroup = async () => {
-     try {
-       const res = await fetch('/api/v2/groups', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...newGroup, program_id: id })
-       });
-       const data = await res.json();
-       if (data.success) {
-          setGroups([...groups, data.group]);
-          setShowGroupModal(false);
-          setNewGroup({ name: '', project_description: '' });
-       }
-     } catch (e) {
-        alert("Group creation failed.");
-     }
-  };
-
-  const handleToggleFeedback = async () => {
-     const status = !program.feedback_enabled;
-     try {
-       // Mock patch or handle in backend as needed
-       setProgram({ ...program, feedback_enabled: status });
-       alert(`Lifecycle Pulse Collection ${status ? 'Activated' : 'Suspended'}.`);
-     } catch (e) { alert("Toggle failed."); }
-  };
-
-  const handleDeployProject = async () => {
-     const name = prompt("Enter Project Instance Name (e.g., Venture Cohort Alpha)");
-     if (!name) return;
-
-     try {
-       const res = await fetch('/api/v2/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, program_id: id, status: 'Active' })
-       });
-       const data = await res.json();
-       if (data.success) {
-          alert("Project node successfully anchored to program.");
-          // Update overview if needed
-       }
-     } catch (e) {
-        alert("Deployment failed.");
-     }
   };
 
   if (!isLoaded || !program) return (
     <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+      <div className="w-12 h-12 border-4 border-[#FF6600]/20 border-t-[#FF6600] rounded-full animate-spin" />
     </div>
   );
 
-  const SessionModal = () => (
-     <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-        <motion.div 
-           initial={{ opacity: 0, scale: 0.95 }}
-           animate={{ opacity: 1, scale: 1 }}
-           className="ios-card w-full max-w-lg !p-12 space-y-10"
-        >
-           <div>
-              <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Blueprint Scheduling</h3>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Define an executable masterclass or workshop.</p>
-           </div>
-           
-           <div className="space-y-6">
-              <div className="space-y-2">
-                 <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Session Title</label>
-                 <input 
-                   type="text" 
-                   value={newSession.title}
-                   onChange={e => setNewSession({...newSession, title: e.target.value})}
-                   className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold"
-                 />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-6">
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Week Index</label>
-                    <input 
-                      type="number" 
-                      value={newSession.week_number}
-                      onChange={e => setNewSession({...newSession, week_number: e.target.value})}
-                      className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold"
-                    />
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Type</label>
-                    <select 
-                      value={newSession.type}
-                      onChange={e => setNewSession({...newSession, type: e.target.value})}
-                      className="w-full bg-[#121220] border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold appearance-none"
-                    >
-                       <option value="Masterclass">Masterclass</option>
-                       <option value="Workshop">Workshop</option>
-                       <option value="Review">Review Session</option>
-                    </select>
-                 </div>
-              </div>
-
-              <div className="space-y-2">
-                 <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Assigned Staff (Node ID)</label>
-                 <input 
-                   type="text" 
-                   value={newSession.teacher_id || ''}
-                   onChange={e => setNewSession({...newSession, teacher_id: e.target.value})}
-                   placeholder="e.g., T-2026-X"
-                   className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold"
-                 />
-              </div>
-           </div>
-
-           <div className="flex gap-4 pt-6">
-              <button 
-                 onClick={() => setShowSessionModal(false)}
-                 className="flex-1 btn-ghost !py-4"
-              >
-                 Cancel Node
-              </button>
-              <button 
-                 onClick={handleCreateSession}
-                 className="flex-1 btn-prime !py-4"
-              >
-                 Confirm Node
-              </button>
-           </div>
-        </motion.div>
-     </div>
-  );
-
-  const ParticipantModal = () => (
-     <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-        <motion.div 
-           initial={{ opacity: 0, scale: 0.95 }}
-           animate={{ opacity: 1, scale: 1 }}
-           className="ios-card w-full max-w-2xl !p-12 space-y-10"
-        >
-           <div className="flex justify-between items-start">
-              <div>
-                 <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Onboard Participant</h3>
-                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Add specific records to this lifecycle.</p>
-              </div>
-              <button 
-                 onClick={() => setShowParticipantModal(false)}
-                 className="p-2 rounded-xl bg-white/5 border border-white/5 text-slate-600 hover:text-white transition-colors"
-              >
-                 <Trash2 className="w-5 h-5" />
-              </button>
-           </div>
-           
-           <nav className="flex items-center gap-8 border-b border-white/5 pb-0">
-              {['Manual Node', 'Bulk Sync'].map(tab => (
-                 <button 
-                    key={tab}
-                    onClick={() => {
-                       // We can handle local tab state if needed
-                    }}
-                    className="py-4 text-[9px] font-black uppercase tracking-widest text-indigo-400 border-b-2 border-indigo-500"
-                 >
-                    {tab}
-                 </button>
-              ))}
-           </nav>
-
-           <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Full Name</label>
-                    <input 
-                      type="text" 
-                      value={newParticipant.name}
-                      onChange={e => setNewParticipant({...newParticipant, name: e.target.value})}
-                      className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold"
-                    />
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Email Identity</label>
-                    <input 
-                      type="email" 
-                      value={newParticipant.email}
-                      onChange={e => setNewParticipant({...newParticipant, email: e.target.value})}
-                      className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold"
-                    />
-                 </div>
-              </div>
-
-              <div className="h-px w-full bg-white/5 my-8" />
-              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest text-center">--- OR ---</p>
-              
-              <BulkParticipantImporter 
-                 programId={id} 
-                 onComplete={() => {
-                    fetchParticipants();
-                    setShowParticipantModal(false);
-                 }} 
-              />
-           </div>
-
-           <div className="flex gap-4 pt-6">
-              <button 
-                 onClick={handleAddParticipant}
-                 className="w-full btn-prime !py-4"
-              >
-                 Confirm Onboarding
-              </button>
-           </div>
-        </motion.div>
-     </div>
-  );
-
-  const GroupModal = () => (
-     <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-        <motion.div 
-           initial={{ opacity: 0, scale: 0.95 }}
-           animate={{ opacity: 1, scale: 1 }}
-           className="ios-card w-full max-w-lg !p-12 space-y-10"
-        >
-           <div>
-              <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Form Team</h3>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Initialize a new venture group node.</p>
-           </div>
-           
-           <div className="space-y-6">
-              <div className="space-y-2">
-                 <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Team Name</label>
-                 <input 
-                   type="text" 
-                   value={newGroup.name}
-                   onChange={e => setNewGroup({...newGroup, name: e.target.value})}
-                   className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold"
-                 />
-              </div>
-              <div className="space-y-2">
-                 <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Concept Description</label>
-                 <textarea 
-                   rows={3}
-                   value={newGroup.project_description}
-                   onChange={e => setNewGroup({...newGroup, project_description: e.target.value})}
-                   className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold resize-none"
-                 />
-              </div>
-           </div>
-
-           <div className="flex gap-4 pt-6">
-              <button 
-                 onClick={() => setShowGroupModal(false)}
-                 className="flex-1 btn-ghost !py-4"
-              >
-                 Cancel
-              </button>
-              <button 
-                 onClick={handleCreateGroup}
-                 className="flex-1 btn-prime !py-4"
-              >
-                 Establish Team
-              </button>
-           </div>
-        </motion.div>
-     </div>
-  );
-
-  const DeliverableModal = () => (
-     <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-        <motion.div 
-           initial={{ opacity: 0, scale: 0.95 }}
-           animate={{ opacity: 1, scale: 1 }}
-           className="ios-card w-full max-w-lg !p-12 space-y-10"
-        >
-           <div>
-              <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Define Deliverable</h3>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Map an evaluation node to a lifecycle week.</p>
-           </div>
-           
-           <div className="space-y-6">
-              <div className="space-y-2">
-                 <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Title</label>
-                 <input 
-                   type="text" 
-                   value={newDeliverable.title}
-                   onChange={e => setNewDeliverable({...newDeliverable, title: e.target.value})}
-                   className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold"
-                 />
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Week Index</label>
-                    <input 
-                      type="number" 
-                      value={newDeliverable.week_number}
-                      onChange={e => setNewDeliverable({...newDeliverable, week_number: e.target.value})}
-                      className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold"
-                    />
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Submission Mode</label>
-                    <select 
-                      value={newDeliverable.type}
-                      onChange={e => setNewDeliverable({...newDeliverable, type: e.target.value})}
-                      className="w-full bg-[#121220] border border-white/5 rounded-xl py-4 px-6 text-white outline-none focus:border-indigo-500/30 font-bold appearance-none"
-                    >
-                       <option value="Group">Group Unit</option>
-                       <option value="Individual">Individual Node</option>
-                    </select>
-                 </div>
-              </div>
-           </div>
-
-           <div className="flex gap-4 pt-6">
-              <button 
-                 onClick={() => setShowDeliverableModal(false)}
-                 className="flex-1 btn-ghost !py-4"
-              >
-                 Cancel
-              </button>
-              <button 
-                 onClick={handleCreateDeliverable}
-                 className="flex-1 btn-prime !py-4"
-              >
-                 Sync Node
-              </button>
-           </div>
-        </motion.div>
-     </div>
-  );
-
-  const filteredPMs = contactsList.filter(c => c.name.toLowerCase().includes(pmSearch.toLowerCase()) || (c.email && c.email.toLowerCase().includes(pmSearch.toLowerCase())));
-
-  const handleAssignPM = async (pm) => {
-     try {
-       const res = await fetch('/api/v2/programs', {
-         method: 'PUT',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ id: program.id, manager_name: pm.name, assigned_pm_id: pm.cid })
-       });
-       const data = await res.json();
-       
-       if (data.success) {
-         setProgram({ ...program, manager_name: pm.name, assigned_pm_id: pm.cid });
-         setShowPmAssignmentModal(false);
-         setPmToEmail(pm); // Triggers email popup
-         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-             detail: { type: 'success', message: `${pm.name} assigned to execution.` } 
-         }));
-       } else {
-         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-             detail: { type: 'error', message: data.error } 
-         }));
-       }
-     } catch(e) {
-        console.error(e);
-     }
-  };
-
-  const handleAssignKnowledge = async (note) => {
-     try {
-       const res = await fetch('/api/v2/programs', {
-         method: 'PUT',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ id: program.id, document_title: note.title, document_id: note.id })
-       });
-       const data = await res.json();
-       
-       if (data.success) {
-         setProgram({ ...program, document_title: note.title, document_id: note.id });
-         setShowKnowledgeAssignmentModal(false);
-         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-             detail: { type: 'success', message: `Knowledge Document anchored to this Program.` } 
-         }));
-       } else {
-         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-             detail: { type: 'error', message: data.error } 
-         }));
-       }
-     } catch(e) {
-        console.error(e);
-     }
-  };
-
-  const PmAssignmentModal = () => (
-      <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-         <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="ios-card w-full max-w-lg !p-12 space-y-8"
-         >
-            <div className="flex justify-between items-start border-b border-white/5 pb-4">
-               <div>
-                  <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Delegate Authority</h3>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Assign the PM who will manage this program.</p>
-               </div>
-               <button onClick={() => setShowPmAssignmentModal(false)} className="text-slate-600 hover:text-white"><X className="w-6 h-6"/></button>
-            </div>
-            
-            <div className="relative">
-               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-               <input 
-                 type="text" 
-                 placeholder="Search contacts by name or email..." 
-                 value={pmSearch}
-                 onChange={e => setPmSearch(e.target.value)}
-                 className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-6 text-white outline-none focus:border-indigo-500/50 font-bold"
-               />
-            </div>
-
-            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-               {filteredPMs.length === 0 ? (
-                  <p className="text-center text-xs text-slate-500 font-bold py-10 uppercase tracking-widest">No staff found.</p>
-               ) : (
-                 filteredPMs.map(pm => (
-                    <div 
-                       key={pm.cid}
-                       onClick={() => handleAssignPM(pm)}
-                       className="p-6 rounded-2xl border bg-white/[0.02] border-white/5 hover:border-indigo-500/50 hover:bg-indigo-500/10 cursor-pointer transition-all flex items-center justify-between group"
-                    >
-                       <div>
-                         <p className="font-black text-white uppercase tracking-tighter">{pm.name}</p>
-                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{pm.email}</p>
-                       </div>
-                       <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
-                    </div>
-                 ))
-               )}
-            </div>
-         </motion.div>
-      </div>
-  );
-
-  const EmailDispatchModal = () => (
-      <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-         <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="ios-card w-full max-w-md !p-12 space-y-8 text-center"
-         >
-            <div className="w-20 h-20 bg-indigo-500/10 border border-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-               <Mail className="w-10 h-10 text-indigo-400" />
-            </div>
-            <div>
-               <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Send Dispatch</h3>
-               <p className="text-xs font-bold text-slate-400 leading-relaxed">
-                  You have anchored <span className="text-white uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded ml-1 mr-1">{pmToEmail?.name}</span>
-                  to this framework.
-               </p>
-            </div>
-            <div className="bg-white/5 border border-white/5 p-6 rounded-2xl text-left space-y-4">
-               <div>
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Target Identity</p>
-                  <p className="text-sm font-black text-white">{pmToEmail?.email || 'No email securely attached'}</p>
-               </div>
-               <div>
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Payload Envelope</p>
-                  <p className="text-[10px] font-bold text-slate-400 bg-black/20 p-3 rounded-lg border border-black/50">
-                     Automatically transmits dashboard login URL, uniquely generated password credentials, and primary brief directives.
-                  </p>
-               </div>
-            </div>
-            <div className="flex gap-4 pt-4">
-               <button 
-                  onClick={() => setPmToEmail(null)}
-                  className="flex-1 btn-ghost !py-4"
-               >
-                  Skip
-               </button>
-               <button 
-                  onClick={() => {
-                     // Trigger simulated email logic
-                     window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                        detail: { type: 'success', message: `Secure Email sent to ${pmToEmail.name}.` } 
-                     }));
-                     setPmToEmail(null);
-                  }}
-                  className="flex-1 btn-prime !py-4 shadow-indigo-600/20"
-               >
-                  Dispatch Email
-               </button>
-            </div>
-         </motion.div>
-      </div>
-  );
-
-  const KnowledgeAssignmentModal = () => (
-      <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-         <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="ios-card w-full max-w-xl !p-12 space-y-10"
-         >
-            <div className="flex justify-between items-start border-b border-white/5 pb-6">
-               <div>
-                  <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Attach Baseline</h3>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Force the PM to construct from this document.</p>
-               </div>
-               <button onClick={() => setShowKnowledgeAssignmentModal(false)} className="text-slate-600 hover:text-white"><X className="w-6 h-6"/></button>
-            </div>
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-               {conceptNotes.length === 0 ? (
-                  <p className="text-center text-xs font-bold text-slate-500 uppercase py-10">No documents found in Knowledge Bank.</p>
-               ) : (
-                  conceptNotes.map(note => (
-                     <div 
-                        key={note.id}
-                        onClick={() => handleAssignKnowledge(note)}
-                        className="p-6 rounded-2xl border bg-white/[0.02] border-white/5 hover:border-emerald-500/50 hover:bg-emerald-500/10 cursor-pointer transition-all"
-                     >
-                        <p className="font-black text-white uppercase tracking-tighter text-lg leading-none">{note.title}</p>
-                        <p className="text-[10px] font-black text-slate-400 mt-2 line-clamp-2">{note.description}</p>
-                     </div>
-                  ))
-               )}
-            </div>
-         </motion.div>
-      </div>
-  );
+  const weeks = Array.from({ length: program.duration_weeks || 13 }, (_, i) => i + 1);
 
   return (
-    <DashboardLayout 
-        role="super_admin" 
-        activeTab="v2" 
-        modals={
-          <>
-            {showSessionModal && <SessionModal />}
-            {showParticipantModal && <ParticipantModal />}
-            {showGroupModal && <GroupModal />}
-            {showDeliverableModal && <DeliverableModal />}
-            {showPmAssignmentModal && <PmAssignmentModal />}
-            {showKnowledgeAssignmentModal && <KnowledgeAssignmentModal />}
-            {pmToEmail && <EmailDispatchModal />}
-          </>
-        }
-    >
-      <div className="space-y-12">
-        <header className="flex flex-col lg:flex-row justify-between items-start gap-10 border-b border-white/5 pb-10">
-          <div className="animation-reveal">
-            <button 
-              onClick={() => router.push('/v2/superadmin')}
-              className="btn-ghost !py-2 !px-4 hover:bg-white/5 mb-6"
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" /> HQ Registry
-            </button>
-            <div className="flex items-center gap-4 mb-4">
-               <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Operations Terminal</span>
-               <div className="h-px w-10 bg-indigo-500/30" />
-               <button 
-                  onClick={handleDeployProject}
-                  className="badge badge-glow-success uppercase text-[8px] font-black hover:scale-105 transition-transform cursor-pointer"
-               >
-                  DEPOY PROJECT INSTANCE
-               </button>
-            </div>
-            <h2 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">
-              {program.name}
-            </h2>
-            <p className="text-slate-500 font-bold mt-4 opacity-70 max-w-2xl">{program.description || 'No description provided.'}</p>
-          </div>
-          
-          <div className="flex flex-wrap gap-4 pt-10">
-             <div 
-                onClick={() => setShowPmAssignmentModal(true)}
-                className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 px-8 text-left cursor-pointer hover:bg-indigo-500/20 group transition-all"
-             >
-                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 flex items-center justify-between">Assigned PM <span className="opacity-0 group-hover:opacity-100 transition-opacity">Assign +</span></p>
-                <p className="text-xl font-black text-white uppercase tracking-tighter">{program.manager_name || 'Unassigned'}</p>
+    <DashboardLayout role="super_admin" activeTab="Progress Hub">
+      <div className="space-y-12 pb-20">
+        
+        {/* EXECUTIVE HEADER */}
+        <header className="flex flex-col lg:flex-row justify-between items-end gap-8">
+          <div className="space-y-4 text-left">
+             <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#FF6600]/10 border border-[#FF6600]/20 flex items-center justify-center text-[#FF6600] shadow-xl">
+                   <Briefcase className="w-6 h-6" />
+                </div>
+                <div>
+                   <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">{program.name}</h2>
+                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 italic">Executive Oversight Portfolio · ID: {program.id}</p>
+                </div>
              </div>
-             <div 
-                onClick={() => setShowKnowledgeAssignmentModal(true)}
-                className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 px-8 text-left cursor-pointer hover:bg-emerald-500/20 group transition-all"
-             >
-                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center justify-between">Baseline Document <span className="opacity-0 group-hover:opacity-100 transition-opacity">Assign +</span></p>
-                <p className="text-xl font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{program.document_title || 'Unassigned'}</p>
+          </div>
+
+          <div className="flex items-center gap-6">
+             <div className="text-right">
+                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1 italic">Lead Administrator</p>
+                <p className="text-sm font-black text-white uppercase italic">{program.pm_name || 'Unassigned'}</p>
+             </div>
+             <div className="w-px h-8 bg-white/10" />
+             <div className="text-right">
+                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1 italic">Status</p>
+                <p className="text-sm font-black text-[#FF6600] uppercase italic">{program.status || 'Active'}</p>
              </div>
           </div>
         </header>
 
-        {/* COMPONENT NAVIGATION */}
-        <nav className="flex items-center gap-8 border-b border-white/5 pb-0 overflow-x-auto">
-           {['overview', 'sessions', 'participants', 'groups', 'staff', 'feedback'].map(tab => (
-              <button 
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-6 text-[11px] font-black uppercase tracking-[0.3em] transition-all relative ${activeTab === tab ? 'text-indigo-400' : 'text-slate-500 hover:text-white'}`}
-              >
-                {tab}
-                {activeTab === tab && (
-                  <motion.div 
-                    layoutId="activeTabUnderline"
-                    className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500 rounded-t-full shadow-[0_0_15px_rgba(99,102,241,1)]" 
-                  />
-                )}
-              </button>
-           ))}
-        </nav>
+        {/* METRICS GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+           <div className="ios-card bg-white/[0.02] border-white/5 !p-8 relative group overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#FF6600]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4 italic flex items-center gap-2">
+                    Fulfillment Index 
+                    <AlertCircle className="w-3 h-3 text-slate-700 cursor-help" title="Weighted: Sessions (5pt) + Assets (2pt) + Report (10pt)" />
+                 </p>
+                 <h4 className="text-3xl font-black text-white italic">{(program.completion_index || 0).toFixed(1)}%</h4>
+                 <p className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] mt-3 italic leading-relaxed">
+                    Global Velocity Index (Weighted)
+                 </p>
+              </div>
+           </div>
+           <div className="ios-card bg-white/[0.02] border-white/5 !p-8">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4 italic">Asset Submission</p>
+              <h4 className="text-3xl font-black text-white italic">{requirements.filter(r => r.is_completed).length}/{requirements.length}</h4>
+           </div>
+           <div className="ios-card bg-white/[0.02] border-white/5 !p-8">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4 italic">Tactical Reports</p>
+              <h4 className="text-3xl font-black text-[#FF6600] italic">{reports.length} Logs</h4>
+           </div>
+           <div className="ios-card bg-[#FF6600]/5 border-[#FF6600]/20 !p-8">
+              <p className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest mb-4 italic">Executive Comments</p>
+              <h4 className="text-3xl font-black text-white italic">{followups.length}</h4>
+           </div>
+        </div>
 
-        <motion.div 
-           key={activeTab}
-           initial={{ opacity: 0, x: 10 }}
-           animate={{ opacity: 1, x: 0 }}
-           className="min-h-[400px]"
-        >
-           {/* TAB DEFINITIONS */}
-           {activeTab === 'overview' && (
-              <TimelineEngine program={program} sessions={sessions} />
-           )}
+        {/* STRATEGIC TIMELINE */}
+        <div className="space-y-12">
+           <div className="flex items-center gap-4">
+              <Clock className="w-5 h-5 text-slate-700" />
+              <h3 className="text-xl font-black text-white uppercase tracking-widest italic">Mission Lifecycle Timeline</h3>
+           </div>
 
-           {activeTab === 'sessions' && (
-              <div className="space-y-12">
-                 <div className="flex justify-between items-center">
-                    <div>
-                       <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Curriculum Architecture</h3>
-                       <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Masterclasses and Evaluation Nodes.</p>
-                    </div>
-                    <div className="flex gap-4">
-                       <button 
-                          onClick={() => setShowDeliverableModal(true)}
-                          className="btn-ghost !font-black !text-[10px] !uppercase !tracking-widest"
-                       >
-                          + Add Deliverable
-                       </button>
-                       <button 
-                          onClick={() => setShowSessionModal(true)}
-                          className="btn-prime !py-4 px-8"
-                       >
-                          <Plus className="w-5 h-5 mr-2" /> Schedule Session
-                       </button>
-                    </div>
-                 </div>
+           <div className="space-y-8 relative">
+              <div className="absolute left-[27px] top-0 bottom-0 w-px bg-white/5" />
+              
+              {weeks.map(wn => {
+                 const weekReports = reports.filter(r => r.week_number === wn);
+                 const weekFollowups = followups.filter(f => f.week_number === wn);
+                 const weekSessions = sessions.filter(s => s.week_number === wn);
+                 const weekDocs = requirements.filter(r => r.session_id && weekSessions.map(s => s.id).includes(r.session_id));
+                 
+                 const completedPoints = (weekSessions.filter(s => s.status === 'completed').length * 5) + (weekDocs.filter(d => d.is_completed).length * 2) + (weekReports.length > 0 ? 10 : 0);
+                 const totalPoints = (weekSessions.length * 5) + (weekDocs.length * 2) + 10;
+                 const weekProgress = totalPoints > 0 ? (completedPoints / totalPoints) * 100 : 0;
 
-                 <div className="space-y-8">
-                    {Array.from({ length: program.duration_weeks || 13 }, (_, i) => i + 1).map(week => {
-                       const weekSessions = sessions.filter(s => s.week_number === week);
-                       const weekDeliverables = deliverables.filter(d => d.week_number === week);
-                       
-                       return (
-                          <div key={week} className="ios-card bg-white/[0.01] border-white/5 !p-8">
-                             <div className="flex items-center gap-6 mb-8">
-                                <span className="text-4xl font-black text-slate-800 italic">W{week}</span>
-                                <div className="h-px flex-1 bg-white/5" />
-                             </div>
-                             
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-4">
-                                   <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Sessions</p>
-                                   {weekSessions.length > 0 ? weekSessions.map(s => (
-                                      <div key={s.id} className="flex items-center gap-4 p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
-                                         <Calendar className="w-4 h-4 text-indigo-400" />
-                                         <span className="text-xs font-bold text-white uppercase">{s.title}</span>
-                                         <span className="badge badge-glow-indigo text-[7px] font-black uppercase ml-auto">{s.type}</span>
-                                      </div>
-                                   )) : <p className="text-[10px] text-slate-700 font-bold italic pl-2">No sessions scheduled.</p>}
+                 const isCompleted = weekSessions.length > 0 && weekSessions.every(s => s.status === 'completed');
+
+                 return (
+                    <div key={wn} className="relative pl-16">
+                       {/* DOT */}
+                       <div className={`absolute left-0 top-0 w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all ${
+                          weekReports.length > 0 ? 'bg-[#FF6600] border-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'bg-[#080810] border-white/10 text-slate-700'
+                       }`}>
+                          <span className="text-lg font-black">{wn}</span>
+                       </div>
+
+                       <div className="ios-card bg-white/[0.01] border-white/5 !p-10 hover:bg-white/[0.02] transition-all text-left space-y-10">
+                          <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
+                             <div className="flex-1 space-y-4">
+                                <div className="flex items-center gap-3">
+                                   <h4 className="text-2xl font-black text-white uppercase italic tracking-tighter">
+                                      {weekSessions[0]?.title || `Phase ${wn} Operations`}
+                                   </h4>
+                                   {isCompleted && <CheckCircle2 className="w-5 h-5 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]" />}
                                 </div>
-                                <div className="space-y-4">
-                                   <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Evaluations</p>
-                                   {weekDeliverables.length > 0 ? weekDeliverables.map(d => (
-                                      <div key={d.id} className="flex items-center gap-4 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                                         <Target className="w-4 h-4 text-emerald-400" />
-                                         <span className="text-xs font-bold text-white uppercase">{d.title}</span>
-                                         <span className="badge badge-glow-success text-[7px] font-black uppercase ml-auto">{d.type}</span>
-                                      </div>
-                                   )) : <p className="text-[10px] text-slate-700 font-bold italic pl-2">No deliverables defined.</p>}
-                                </div>
-                             </div>
-                          </div>
-                       );
-                    })}
-                 </div>
-              </div>
-           )}
-
-           {activeTab === 'participants' && (
-              <div className="space-y-8">
-                 <div className="flex justify-between items-center">
-                    <div>
-                       <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Participant Roster</h3>
-                       <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Manage registration and screening status.</p>
-                    </div>
-                    <div className="flex gap-4">
-                       <button 
-                          onClick={() => setShowParticipantModal(true)}
-                          className="btn-prime !py-4 px-8"
-                       >
-                          <Plus className="w-5 h-5 mr-2" /> Add Record
-                       </button>
-                    </div>
-                 </div>
-
-                 {participants.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-40 border-2 border-dashed border-white/5 rounded-[3rem]">
-                       <Users className="w-16 h-16 text-slate-800 mb-6" />
-                       <p className="text-slate-600 font-bold max-w-xs text-center mx-auto">No participants onboarded yet. Use &apos;Add Record&apos; or start a bulk import.</p>
-                    </div>
-                 ) : (
-                    <div className="ios-card !p-0 overflow-hidden">
-                       <table className="executive-table">
-                          <thead>
-                             <tr>
-                                {['Name', 'Email', 'Screening', 'Status', 'Actions'].map(h => (
-                                   <th key={h} className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.25em]">{h}</th>
-                                ))}
-                             </tr>
-                          </thead>
-                          <tbody>
-                             {participants.map(p => (
-                                <tr key={p.id}>
-                                   <td className="px-8 py-6 font-black text-white uppercase tracking-tighter">{p.name}</td>
-                                   <td className="px-8 py-6 text-slate-400 font-bold">{p.email}</td>
-                                   <td className="px-8 py-6 uppercase font-black text-[10px] text-indigo-400">{p.screening_status}</td>
-                                   <td className="px-8 py-6 uppercase font-black text-[10px] text-emerald-400">{p.status}</td>
-                                   <td className="px-8 py-6 text-right">
-                                      <button className="text-slate-600 hover:text-white transition-colors"><Settings className="w-4 h-4" /></button>
-                                   </td>
-                                </tr>
-                             ))}
-                          </tbody>
-                       </table>
-                    </div>
-                 )}
-              </div>
-           )}
-
-           {activeTab === 'groups' && (
-              <div className="space-y-8">
-                 <div className="flex justify-between items-center">
-                    <div>
-                       <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Venture Groups</h3>
-                       <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Teams and project nodes within this program.</p>
-                    </div>
-                    <button 
-                       onClick={() => setShowGroupModal(true)}
-                       className="btn-prime !py-4 px-8"
-                    >
-                       <Plus className="w-5 h-5 mr-2" /> Form Team
-                    </button>
-                 </div>
-
-                 {groups.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-40 border-2 border-dashed border-white/5 rounded-[3rem]">
-                       <Layers className="w-16 h-16 text-slate-800 mb-6" />
-                       <p className="text-slate-600 font-bold max-w-xs text-center mx-auto">No teams formed yet. Click &apos;Form Team&apos; to initialize a new venture node.</p>
-                    </div>
-                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       {groups.map((group) => (
-                          <div 
-                             key={group.id} 
-                             onClick={() => router.push(`/v2/superadmin/programs/${id}/groups/${group.id}`)}
-                             className="ios-card bg-white/[0.02] border-white/5 p-8 group cursor-pointer hover:border-indigo-500/30 transition-all hover:bg-white/5"
-                          >
-                             <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-2">{group.name}</h4>
-                             <p className="text-xs text-slate-500 font-bold line-clamp-2 mb-6">{group.project_description || 'No description provided.'}</p>
-                             <div className="flex items-center justify-between pt-6 border-t border-white/5">
-                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Workspace</span>
-                                <ChevronRight className="w-4 h-4 text-slate-600 group-hover:translate-x-1 transition-transform" />
-                             </div>
-                          </div>
-                       ))}
-                    </div>
-                 )}
-              </div>
-           )}
-
-           {activeTab === 'staff' && (
-              <div className="space-y-8">
-                 <div className="flex justify-between items-center">
-                    <div>
-                       <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Internal Assets</h3>
-                       <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Assigned Project Managers and Instructors.</p>
-                    </div>
-                    <button className="btn-prime !py-4 px-8"><Plus className="w-5 h-5 mr-2" /> Assign Personnel</button>
-                 </div>
-
-                 <div className="py-40 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
-                    <Shield className="w-16 h-16 text-slate-800 mx-auto mb-6" />
-                    <p className="text-slate-600 font-bold max-w-xs mx-auto">Project Managers assigned in the v1 dashboard will appear here as the bridge to Version 2 execution.</p>
-                 </div>
-              </div>
-           )}
-
-           {activeTab === 'feedback' && (
-              <div className="space-y-8">
-                 <div className="flex justify-between items-center">
-                    <div>
-                       <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Pulse Check HQ</h3>
-                       <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Weekly feedback and sentiment analysis.</p>
-                    </div>
-                    <div className="flex items-center gap-6">
-                       <span className={`text-[9px] font-black uppercase tracking-widest ${program.feedback_enabled ? 'text-emerald-400' : 'text-slate-600'}`}>
-                          {program.feedback_enabled ? 'COLLECTING' : 'SUSPENDED'}
-                       </span>
-                       <button 
-                          onClick={handleToggleFeedback}
-                          className={`w-12 h-6 rounded-full relative transition-colors bg-white/5 border border-white/10 ${program.feedback_enabled ? 'bg-indigo-500/20' : ''}`}
-                       >
-                          <div className={`absolute top-1 w-4 h-4 rounded-full transition-all ${program.feedback_enabled ? 'right-1 bg-indigo-400' : 'left-1 bg-slate-700'}`} />
-                       </button>
-                    </div>
-                 </div>
-
-                 {feedback.length === 0 ? (
-                    <div className="py-40 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
-                       <MessageSquare className="w-16 h-16 text-slate-800 mx-auto mb-6" />
-                       <p className="text-slate-600 font-bold max-w-xs mx-auto">Pulse check is currently {program.feedback_enabled ? 'awaiting entries' : 'suspended'}.</p>
-                    </div>
-                 ) : (
-                    <div className="space-y-6">
-                       {feedback.map((f, i) => (
-                          <div key={i} className="ios-card bg-white/[0.02] border-white/5 !p-8">
-                             <div className="flex justify-between items-start mb-6">
-                                <div className="flex items-center gap-4">
-                                   <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-black text-xs italic">FS</div>
-                                   <div>
-                                      <p className="text-xs font-black text-white uppercase tracking-tighter">{f.v2_groups?.name || f.v2_participants?.name}</p>
-                                      <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Origin Point</p>
+                                
+                                {/* WEEKLY PROGRESS BAR */}
+                                <div className="space-y-3 max-w-md">
+                                   <div className="flex justify-between items-end">
+                                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic">Phase Fulfillment</p>
+                                      <p className="text-[10px] font-black text-[#FF6600] italic">{weekProgress.toFixed(0)}%</p>
+                                   </div>
+                                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                      <motion.div 
+                                         initial={{ width: 0 }}
+                                         animate={{ width: `${weekProgress}%` }}
+                                         className={`h-full bg-gradient-to-r ${weekProgress === 100 ? 'from-emerald-500 to-emerald-400' : 'from-[#FF6600] to-[#FF9900]'}`}
+                                      />
                                    </div>
                                 </div>
-                                <span className="text-[8px] font-black text-slate-700 bg-white/5 px-2 py-0.5 rounded uppercase tracking-widest">{new Date(f.created_at).toLocaleDateString()}</span>
                              </div>
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <div className="space-y-2">
-                                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Learnings</p>
-                                   <p className="text-[11px] font-bold text-slate-400 leading-relaxed">{f.learnings}</p>
-                                </div>
-                                <div className="space-y-2">
-                                   <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest">Challenges</p>
-                                   <p className="text-[11px] font-bold text-slate-400 leading-relaxed">{f.challenges}</p>
-                                </div>
-                                <div className="space-y-2">
-                                   <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Suggestions</p>
-                                   <p className="text-[11px] font-bold text-slate-400 leading-relaxed">{f.suggestions}</p>
+
+                             <div className="flex flex-col lg:flex-row gap-4">
+                                <div className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border flex items-center gap-2 ${
+                                   weekReports.length > 0 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                }`}>
+                                   <BookOpen className="w-3 h-3" />
+                                   {weekReports.length > 0 ? 'Tactical Report Secured' : 'Awaiting Tactical Report'}
                                 </div>
                              </div>
                           </div>
-                       ))}
+
+                          {/* TACTICAL NODES & ASSETS GRID */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                             {/* NODES */}
+                             <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                   <Target className="w-3.5 h-3.5 text-slate-600" />
+                                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Tactical Nodes</p>
+                                </div>
+                                <div className="space-y-3">
+                                   {weekSessions.map(session => {
+                                      const sessionFollowups = followups.filter(f => f.session_id === session.id);
+                                      const materials = session.resource_links ? JSON.parse(session.resource_links) : [];
+                                      
+                                      return (
+                                         <div key={session.id} className="space-y-2">
+                                            <div 
+                                               onClick={() => setSelectedSession(selectedSession === session.id ? null : session.id)}
+                                               className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-[#FF6600]/30 cursor-pointer transition-all"
+                                            >
+                                               <div className="flex items-center gap-4 text-left">
+                                                  <div className={`w-2 h-2 rounded-full ${session.status === 'completed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : session.status === 'in progress' ? 'bg-amber-500' : 'bg-slate-800'}`} />
+                                                  <div className="flex flex-col">
+                                                     <p className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{session.title}</p>
+                                                     <p className="text-[7px] font-black text-[#FF6600] uppercase tracking-widest">{session.assignment_type || 'Workshop'} Mode</p>
+                                                  </div>
+                                               </div>
+                                               <div className="flex items-center gap-4">
+                                                  {sessionFollowups.length > 0 && <MessageSquare className="w-3 h-3 text-[#FF6600] animate-pulse" />}
+                                                  <ChevronRight className={`w-4 h-4 text-slate-700 transition-transform ${selectedSession === session.id ? 'rotate-90 text-[#FF6600]' : ''}`} />
+                                               </div>
+                                            </div>
+
+                                            <AnimatePresence>
+                                               {selectedSession === session.id && (
+                                                  <motion.div 
+                                                     initial={{ height: 0, opacity: 0 }}
+                                                     animate={{ height: 'auto', opacity: 1 }}
+                                                     exit={{ height: 0, opacity: 0 }}
+                                                     className="overflow-hidden"
+                                                  >
+                                                     <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 ml-4 mt-2 space-y-6 text-left">
+                                                        <div className="space-y-2">
+                                                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Node Objective</p>
+                                                           <p className="text-xs text-slate-300 font-bold leading-relaxed">{session.description || 'No detailed objective provided.'}</p>
+                                                        </div>
+
+                                                        {materials.length > 0 && (
+                                                           <div className="space-y-3">
+                                                              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Deployed Materials</p>
+                                                              <div className="flex flex-wrap gap-2">
+                                                                 {materials.map((m, idx) => (
+                                                                    <a key={idx} href={m.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-black/40 border border-white/10 rounded-xl text-[9px] font-black text-[#FF6600] uppercase tracking-widest hover:bg-[#FF6600] hover:text-black transition-all">
+                                                                       {m.title || 'Resource Link'}
+                                                                    </a>
+                                                                 ))}
+                                                              </div>
+                                                           </div>
+                                                        )}
+
+                                                        {/* SESSION FEEDBACK */}
+                                                        <div className="pt-4 border-t border-white/5 space-y-4">
+                                                           <div className="flex justify-between items-center">
+                                                              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Node Feedback (PM Visible Only)</p>
+                                                              <button 
+                                                                 onClick={() => setNewFollowup({ week: wn, session_id: session.id, comment: '' })}
+                                                                 className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest"
+                                                              >
+                                                                 + Leave Comment
+                                                              </button>
+                                                           </div>
+
+                                                           <div className="space-y-2">
+                                                              {sessionFollowups.map(f => (
+                                                                 <div key={f.id} className="p-3 rounded-xl bg-[#FF6600]/5 border border-[#FF6600]/10 flex gap-3">
+                                                                    <div className="w-6 h-6 rounded-lg bg-[#FF6600]/20 flex items-center justify-center text-[#FF6600] shrink-0">
+                                                                       <Target className="w-3 h-3" />
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                       <p className="text-[10px] text-white font-bold">{f.comment}</p>
+                                                                    </div>
+                                                                 </div>
+                                                              ))}
+                                                           </div>
+
+                                                           {newFollowup.session_id === session.id && (
+                                                              <div className="space-y-3 mt-4">
+                                                                 <textarea 
+                                                                    value={newFollowup.comment}
+                                                                    onChange={e => setNewFollowup({...newFollowup, comment: e.target.value})}
+                                                                    placeholder="Leave granular feedback on this node..."
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all resize-none"
+                                                                    rows={2}
+                                                                 />
+                                                                 <div className="flex justify-end gap-2">
+                                                                    <button onClick={() => setNewFollowup({ week: null, session_id: null, comment: '' })} className="px-4 py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest">Cancel</button>
+                                                                    <button 
+                                                                       disabled={isSubmitting || !newFollowup.comment.trim()}
+                                                                       onClick={() => handleAddFollowup(wn, session.id)}
+                                                                       className="px-4 py-1.5 bg-[#FF6600] text-black text-[8px] font-black uppercase tracking-widest rounded-lg hover:bg-white transition-all"
+                                                                    >
+                                                                       {isSubmitting ? '...' : 'Post'}
+                                                                    </button>
+                                                                 </div>
+                                                              </div>
+                                                           )}
+                                                        </div>
+                                                     </div>
+                                                  </motion.div>
+                                               )}
+                                            </AnimatePresence>
+                                         </div>
+                                      );
+                                   })}
+                                   {weekSessions.length === 0 && <p className="text-[9px] font-bold text-slate-700 uppercase italic">No tactical nodes deployed for this phase.</p>}
+                                </div>
+                             </div>
+
+                             {/* ASSETS */}
+                             <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                   <Layers className="w-3.5 h-3.5 text-slate-600" />
+                                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Required Assets</p>
+                                </div>
+                                <div className="space-y-3">
+                                   {weekDocs.map(doc => (
+                                      <div key={doc.id} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                                         <div className="flex items-center gap-4">
+                                            <CheckCircle2 className={`w-4 h-4 ${doc.is_completed ? 'text-emerald-500' : 'text-slate-800'}`} />
+                                            <p className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{doc.title}</p>
+                                         </div>
+                                         <span className={`text-[8px] font-black uppercase tracking-widest ${doc.is_completed ? 'text-emerald-500' : 'text-slate-600'}`}>{doc.is_completed ? 'Secured' : 'Pending'}</span>
+                                      </div>
+                                   ))}
+                                   {weekDocs.length === 0 && <p className="text-[9px] font-bold text-slate-700 uppercase italic">No asset requirements for this phase.</p>}
+                                </div>
+                             </div>
+                          </div>
+
+                          {/* REPORT CONTENT */}
+                          {weekReports.length > 0 && (
+                             <div className="mt-10 p-8 rounded-3xl bg-white/[0.03] border border-white/5 space-y-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                   <MessageSquare className="w-4 h-4 text-[#FF6600]" />
+                                   <p className="text-[10px] font-black text-white uppercase tracking-widest">Program Manager Insights</p>
+                                </div>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                   <div className="space-y-2">
+                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Operational Notes</p>
+                                      <p className="text-sm text-slate-200 font-bold leading-relaxed">{weekReports[0].progress_notes}</p>
+                                   </div>
+                                   <div className="space-y-2">
+                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Executive Summary</p>
+                                      <p className="text-sm text-slate-200 font-bold leading-relaxed">{weekReports[0].action_taken}</p>
+                                   </div>
+                                </div>
+                             </div>
+                          )}
+
+                          {/* FOLLOW-UPS (SUPER ADMIN COMMENTS) */}
+                          <div className="mt-10 pt-10 border-t border-white/5 space-y-6">
+                             <div className="flex items-center justify-between">
+                                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Executive Follow-ups</h5>
+                                <button 
+                                   onClick={() => setNewFollowup({ week: wn, comment: '' })}
+                                   className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest hover:text-white transition-colors"
+                                >
+                                   + Add Comment
+                                </button>
+                             </div>
+
+                             <div className="space-y-4">
+                                {weekFollowups.map(f => (
+                                   <div key={f.id} className="p-5 rounded-2xl bg-[#FF6600]/5 border border-[#FF6600]/10 flex gap-4">
+                                      <div className="w-8 h-8 rounded-lg bg-[#FF6600]/20 flex items-center justify-center text-[#FF6600] shrink-0">
+                                         <Users className="w-4 h-4" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                         <p className="text-xs text-white font-bold">{f.comment}</p>
+                                         <p className="text-[8px] font-black text-[#FF6600]/50 uppercase mt-2">{new Date(f.created_at).toLocaleString()}</p>
+                                      </div>
+                                   </div>
+                                ))}
+
+                                {newFollowup.week === wn && (
+                                   <motion.div 
+                                      initial={{ opacity: 0, y: 10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      className="space-y-4"
+                                   >
+                                      <textarea 
+                                         value={newFollowup.comment}
+                                         onChange={e => setNewFollowup({...newFollowup, comment: e.target.value})}
+                                         placeholder="Enter executive decision or follow-up comment..."
+                                         className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all resize-none"
+                                         rows={3}
+                                      />
+                                      <div className="flex justify-end gap-3">
+                                         <button 
+                                            onClick={() => setNewFollowup({ week: null, comment: '' })}
+                                            className="px-6 py-2 text-[9px] font-black text-slate-500 uppercase tracking-widest"
+                                         >
+                                            Cancel
+                                         </button>
+                                         <button 
+                                            disabled={isSubmitting || !newFollowup.comment.trim()}
+                                            onClick={() => handleAddFollowup(wn)}
+                                            className="px-6 py-2 bg-[#FF6600] text-black text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-white transition-all disabled:opacity-50"
+                                         >
+                                            {isSubmitting ? 'Syncing...' : 'Post Follow-up'}
+                                         </button>
+                                      </div>
+                                   </motion.div>
+                                )}
+
+                                {weekFollowups.length === 0 && !newFollowup.week && (
+                                   <div className="flex items-center gap-3 text-slate-700">
+                                      <AlertCircle className="w-3 h-3" />
+                                      <p className="text-[9px] font-black uppercase italic tracking-widest">No strategic follow-ups recorded for this phase.</p>
+                                   </div>
+                                )}
+                             </div>
+                          </div>
+                       </div>
                     </div>
-                 )}
-              </div>
-           )}
-        </motion.div>
+                 );
+              })}
+           </div>
+        </div>
       </div>
     </DashboardLayout>
   );

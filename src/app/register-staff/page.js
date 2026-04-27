@@ -46,13 +46,17 @@ export default function PublicStaffRegistration() {
     setStatus({ state: 'loading', message: '' });
  
     try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const groupParam = searchParams.get('group');
+
       const res = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
            ...formData, 
            status: 'pending',
-           role: 'unassigned'
+           role: 'unassigned',
+           group_name: groupParam || null
         })
       });
  

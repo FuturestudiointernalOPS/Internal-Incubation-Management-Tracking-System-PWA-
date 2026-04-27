@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Plus, CheckSquare, AlignLeft, CheckCircle, Search, Save, X, Link as LinkIcon, Loader2, Copy } from 'lucide-react';
+import { Plus, CheckSquare, AlignLeft, CheckCircle, Search, Save, X, Link as LinkIcon, Loader2, Copy, Edit3 } from 'lucide-react';
 import { IMPACT_CACHE } from '@/utils/impactCache';
 
 export default function FormsPage() {
@@ -9,14 +9,11 @@ export default function FormsPage() {
   const [loading, setLoading] = useState(true);
   
   // Modals & UI State
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [copiedLink, setCopiedLink] = useState('');
-  
-  // Builder State
-  const [formName, setFormName] = useState('');
-  const [schema, setSchema] = useState([]);
-  const [searchForms, setSearchForms] = useState('');
+  const [view, setView] = useState('list'); // list, builder, responses
+  const [selectedForm, setSelectedForm] = useState(null);
+  const [responses, setResponses] = useState([]);
+  const [selectedResponse, setSelectedResponse] = useState(null);
+  const [showResponseDetails, setShowResponseDetails] = useState(false);
 
   useEffect(() => { 
     // Instant-Load from cache
@@ -26,7 +23,16 @@ export default function FormsPage() {
       setLoading(false);
     }
     fetchForms(); 
+    fetchFamilies();
   }, []);
+
+  const fetchFamilies = async () => {
+    try {
+      const res = await fetch('/api/families');
+      const data = await res.json();
+      if (data.success) setFamilies(data.families || []);
+    } catch (e) { console.error(e); }
+  };
 
   const fetchForms = async () => {
     try {
@@ -79,18 +85,23 @@ export default function FormsPage() {
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/forms', {
-        method: 'POST',
+        method: editFormId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formName, schema })
+        body: JSON.stringify({ 
+           form_id: editFormId,
+           name: formName, 
+           schema
+        })
       });
       const data = await res.json();
       if (data.success) {
-        setShowBuilder(false);
+        setView('list');
+        setEditFormId(null);
         setFormName('');
         setSchema([]);
         fetchForms();
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-           detail: { type: 'success', message: 'Form saved successfully.' } 
+           detail: { type: 'success', message: `Form ${editFormId ? 'updated' : 'saved'} successfully.` } 
         }));
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
@@ -102,6 +113,35 @@ export default function FormsPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const fetchResponses = async (formId) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/responses?form_id=${formId}`);
+      const data = await res.json();
+      if (data.success) {
+        const filtered = data.detailedResponses.filter(r => r.form_id === formId);
+        setResponses(filtered);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openResponses = (f) => {
+    setSelectedForm(f);
+    fetchResponses(f.form_id);
+    setView('responses');
+  };
+
+  const handleEdit = (f) => {
+     setEditFormId(f.form_id);
+     setFormName(f.name);
+     setSchema(f.schema);
+     setView('builder');
   };
 
   const copyLink = (formId) => {
@@ -129,8 +169,8 @@ export default function FormsPage() {
           </div>
           <div className="flex gap-4">
             <button 
-              onClick={() => setShowBuilder(true)} 
-              className="btn-prime !py-4 shadow-indigo-600/10"
+              onClick={() => { setEditFormId(null); setFormName(''); setSchema([]); setView('builder'); }} 
+              className="btn-prime !py-4 shadow-[#FF6600]/10"
             >
               <Plus className="w-5 h-5 mr-2" /> New Form
             </button>
@@ -145,14 +185,14 @@ export default function FormsPage() {
               placeholder="Search forms..." 
               value={searchForms}
               onChange={(e) => setSearchForms(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-white outline-none focus:border-indigo-500/30 transition-colors font-bold placeholder:text-slate-600"
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-white outline-none focus:border-[#FF6600]/80/30 transition-colors font-bold placeholder:text-slate-600"
             />
           </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center p-20">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+            <Loader2 className="w-10 h-10 text-[#FF6600]/80 animate-spin" />
           </div>
         ) : forms.length === 0 ? (
           <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
@@ -163,25 +203,31 @@ export default function FormsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredForms.map(f => (
-              <div key={f.form_id} className="ios-card group hover:border-indigo-500/30 transition-all duration-500">
+              <div key={f.form_id} className="ios-card group hover:border-[#FF6600]/30 transition-all duration-500">
                 <div className="flex justify-between items-start mb-6">
-                  <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 h-fit">
-                    <CheckSquare className="w-6 h-6" />
+                  <div className="flex items-center gap-2">
+                     <button onClick={() => handleEdit(f)} className="p-2 rounded-lg bg-white/5 border border-white/5 text-slate-500 hover:text-[#FF6600] transition-all" title="Edit Structure">
+                        <Edit3 className="w-4 h-4" />
+                     </button>
+                     <span className="badge badge-glow-success uppercase text-[8px] font-black h-fit">ACTIVE</span>
                   </div>
-                  <span className="badge badge-glow-success uppercase text-[8px] font-black h-fit">ACTIVE</span>
                 </div>
                 
                 <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-1 truncate">{f.name}</h3>
                 <p className="text-xs text-slate-500 font-bold mb-6 italic">ID: {f.form_id}</p>
                 
-                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between mb-6">
-                   <div className="flex items-center gap-3">
-                     <AlignLeft className="w-5 h-5 text-slate-500" />
-                     <div>
-                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Questions</p>
-                       <p className="text-sm font-black text-white">{f.schema.length}</p>
-                     </div>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                   <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Questions</p>
+                      <p className="text-lg font-black text-white">{f.schema.length}</p>
                    </div>
+                   <button 
+                      onClick={() => openResponses(f)}
+                      className="bg-[#FF6600]/10 border border-[#FF6600]/20 rounded-2xl p-4 flex flex-col hover:bg-[#FF6600]/20 transition-all group/resp"
+                   >
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 group-hover/resp:text-[#FF6600]">Responses</p>
+                      <p className="text-lg font-black text-white">View List</p>
+                   </button>
                 </div>
 
                 <button 
@@ -196,16 +242,93 @@ export default function FormsPage() {
           </div>
         )}
 
-        {showBuilder && (
+        {view === 'responses' && selectedForm && (
+           <div className="ios-card !p-0 overflow-hidden border-white/5 shadow-2xl bg-white/[0.01] animation-reveal">
+              <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-[#0d0d18]/50">
+                 <div className="flex items-center gap-4">
+                    <button onClick={() => setView('list')} className="p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white transition-all"><X className="w-5 h-5" /></button>
+                    <div>
+                       <h3 className="text-xl font-black text-white uppercase tracking-tighter">{selectedForm.name} — Responses</h3>
+                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{responses.length} Submissions Found</p>
+                    </div>
+                 </div>
+              </header>
+              
+              <div className="overflow-x-auto custom-scrollbar">
+                 <table className="executive-table w-full">
+                    <thead>
+                       <tr className="border-b border-white/5 bg-white/[0.02]">
+                          <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Respondent</th>
+                          <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Submission Date</th>
+                          <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Action</th>
+                       </tr>
+                    </thead>
+                    <tbody>
+                       {responses.map(r => (
+                          <tr key={r.id} className="group hover:bg-white/[0.01] border-b border-white/[0.02]">
+                             <td className="px-8 py-6">
+                                <p className="font-black text-white uppercase italic">{r.name || 'Anonymous'}</p>
+                                <p className="text-[10px] font-bold text-slate-500 font-mono">{r.email || r.cid || 'N/A'}</p>
+                             </td>
+                             <td className="px-8 py-6">
+                                <p className="text-xs font-bold text-slate-400">{new Date(r.created_at).toLocaleString()}</p>
+                             </td>
+                             <td className="px-8 py-6 text-right">
+                                <button 
+                                   onClick={() => { setSelectedResponse(r); setShowResponseDetails(true); }}
+                                   className="px-4 py-2 bg-white/5 hover:bg-[#FF6600]/10 rounded-lg text-slate-400 hover:text-[#FF6600] transition-all border border-white/5 text-[10px] font-black uppercase tracking-widest"
+                                >
+                                   View Details
+                                </button>
+                             </td>
+                          </tr>
+                       ))}
+                       {responses.length === 0 && (
+                          <tr>
+                             <td colSpan="3" className="px-8 py-20 text-center text-slate-500 font-bold uppercase text-sm tracking-widest">No responses yet for this form.</td>
+                          </tr>
+                       )}
+                    </tbody>
+                 </table>
+              </div>
+           </div>
+        )}
+
+        {showResponseDetails && selectedResponse && (
+           <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
+              <div onClick={() => setShowResponseDetails(false)} className="absolute inset-0 bg-black/90 backdrop-blur-sm" />
+              <div className="relative w-full max-w-2xl bg-[#0d0d18] border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden animation-pop">
+                 <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
+                    <div>
+                       <h4 className="text-xl font-black text-white uppercase italic">Response Details</h4>
+                       <p className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest">{selectedResponse.name || 'Anonymous Respondent'}</p>
+                    </div>
+                    <button onClick={() => setShowResponseDetails(false)} className="text-slate-500 hover:text-white"><X className="w-6 h-6" /></button>
+                 </header>
+                 <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    {Object.entries(selectedResponse.answers).map(([key, val], idx) => (
+                       <div key={idx} className="space-y-2">
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Question {idx + 1}</p>
+                          <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
+                             <p className="text-sm font-bold text-white leading-relaxed">{val}</p>
+                          </div>
+                       </div>
+                    ))}
+                 </div>
+              </div>
+           </div>
+        )}
+
+        {view === 'builder' && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center pointer-events-auto">
-            <div onClick={() => setShowBuilder(false)} className="absolute inset-0 bg-black/80" />
+            <div onClick={() => setView('list')} className="absolute inset-0 bg-black/80" />
             <div className="relative w-full max-w-4xl h-[85vh] flex flex-col ios-card !p-0 shadow-2xl bg-[#080810] border border-white/10 m-4 overflow-hidden text-left">
               <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-[#0d0d18] flex-shrink-0">
                 <div>
-                  <h3 className="text-2xl font-black text-white uppercase tracking-tighter">New Form</h3>
-                  <p className="text-sm text-slate-400 font-bold">Add questions to your new form.</p>
+                  <h3 className="text-2xl font-black text-white uppercase tracking-tighter">{editFormId ? 'Modify Form' : 'New Form'}</h3>
+                  <p className="text-sm text-slate-400 font-bold">{editFormId ? 'Update question nodes and logic.' : 'Add questions to your new form.'}</p>
                 </div>
-                <button onClick={() => setShowBuilder(false)} className="text-slate-500 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
+                 <button onClick={() => setView('list')} className="text-slate-500 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
               </header>
 
               <div className="flex-1 overflow-auto p-8 custom-scrollbar">
@@ -217,7 +340,7 @@ export default function FormsPage() {
                       placeholder="e.g. Feedback Form..."
                       value={formName} 
                       onChange={e => setFormName(e.target.value)} 
-                      className="w-full bg-transparent border-b-2 border-white/10 py-2 text-3xl font-black text-white outline-none focus:border-indigo-500/50 transition-colors placeholder:text-slate-700" 
+                      className="w-full bg-transparent border-b-2 border-white/10 py-2 text-3xl font-black text-white outline-none focus:border-[#FF6600]/80/50 transition-colors placeholder:text-slate-700 mb-6" 
                     />
                   </div>
 
@@ -237,7 +360,7 @@ export default function FormsPage() {
                         <div key={field.id} className="ios-card bg-white/[0.02] border-white/5 p-6 space-y-4">
                            <div className="flex items-center justify-between gap-4">
                               <div className="flex items-center gap-3 flex-1">
-                                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-xs">
+                                 <div className="w-8 h-8 rounded-lg bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 flex items-center justify-center text-indigo-400 font-black text-xs">
                                     {index + 1}
                                  </div>
                                  <input 
@@ -260,7 +383,7 @@ export default function FormsPage() {
                                    type="checkbox" 
                                    checked={field.required}
                                    onChange={e => updateField(field.id, 'required', e.target.checked)} 
-                                   className="accent-indigo-500"
+                                   className="accent-[#FF6600]/80"
                                 />
                                 Required Field
                              </label>
@@ -270,7 +393,7 @@ export default function FormsPage() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
-                      <button onClick={() => addField('text')} className="flex items-center justify-center gap-2 py-4 bg-indigo-500/10 hover:bg-indigo-500 text-indigo-400 rounded-2xl font-black text-xs uppercase tracking-widest transition-colors border border-indigo-500/20">
+                      <button onClick={() => addField('text')} className="flex items-center justify-center gap-2 py-4 bg-[#FF6600]/80/10 hover:bg-[#FF6600]/80 text-indigo-400 rounded-2xl font-black text-xs uppercase tracking-widest transition-colors border border-[#FF6600]/80/20">
                          <AlignLeft className="w-4 h-4" /> Add Text Question
                       </button>
                       <button onClick={() => addField('yes_no')} className="flex items-center justify-center gap-2 py-4 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 rounded-2xl font-black text-xs uppercase tracking-widest transition-colors border border-emerald-500/20">
@@ -281,9 +404,9 @@ export default function FormsPage() {
                 </div>
               </div>
 
-              <div className="p-6 bg-[#0d0d18] border-t border-white/5 flex justify-end gap-3 flex-shrink-0">
-                 <button onClick={() => setShowBuilder(false)} className="btn-ghost !px-8 text-sm">Discard</button>
-                 <button onClick={submitForm} disabled={isSubmitting} className="btn-prime !px-8 text-sm shadow-indigo-600/20 disabled:opacity-50 flex items-center gap-2">
+               <div className="p-6 bg-[#0d0d18] border-t border-white/5 flex justify-end gap-3 flex-shrink-0">
+                  <button onClick={() => setView('list')} className="btn-ghost !px-8 text-sm">Discard</button>
+                 <button onClick={submitForm} disabled={isSubmitting} className="btn-prime !px-8 text-sm shadow-[#FF6600]/20 disabled:opacity-50 flex items-center gap-2">
                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                    {isSubmitting ? 'Saving...' : 'Save Form'}
                  </button>

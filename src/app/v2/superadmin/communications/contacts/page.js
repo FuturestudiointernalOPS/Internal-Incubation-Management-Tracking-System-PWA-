@@ -6,15 +6,15 @@ import {
   Upload, Plus, Users, Mail, Phone, Search, 
   AlertCircle, X, Loader2, CheckCircle, Download, 
   CreditCard, MapPin, Calendar as CalendarIcon, Edit3, Briefcase,
-  Key, MessageCircle, Send, Globe, Shield, User
+  Key, MessageCircle, Send, Globe, Shield, User, RefreshCw, Star
 } from 'lucide-react';
 import Papa from 'papaparse';
 import { IMPACT_CACHE } from '@/utils/impactCache';
 import { useSearchParams } from 'next/navigation';
 
 /**
- * CORPORATE REGISTRY (OUR TEAM)
- * Unified personnel management hub with tactical communication nodes.
+ * CORPORATE REGISTRY (FUTURE STUDIO)
+ * Specialized management of Staff and Project Managers.
  */
 export default function ContactsPage() {
   const searchParams = useSearchParams();
@@ -28,20 +28,32 @@ export default function ContactsPage() {
   const [showFamilyModal, setShowFamilyModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showCredsModal, setShowCredsModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkGroupName, setBulkGroupName] = useState('');
+  const [isBulkNew, setIsBulkNew] = useState(false);
   
+  const [showGroupCredsModal, setShowGroupCredsModal] = useState(false);
+  const [groupCredsForm, setGroupCredsForm] = useState({ id: '', name: '', email: '', password: '' });
+
   const [selectedGroup, setSelectedGroup] = useState('All Contacts');
   const [families, setFamilies] = useState([]);
 
   useEffect(() => {
-    if (roleParam) setSelectedGroup(roleParam.toUpperCase());
+    if (roleParam) {
+      // Map 'Staff' to 'Future Studio' if legacy links are used, else use raw param
+      const normalized = roleParam.toLowerCase() === 'staff' ? 'Future Studio' : roleParam;
+      setSelectedGroup(normalized);
+    }
   }, [roleParam]);
 
   const fileInputRef = useRef(null);
   
   // Forms
   const [familyForm, setFamilyForm] = useState({ name: '' });
-  const [form, setForm] = useState({ cid: '', name: '', email: '', phone: '', address: '', dob: '', group_name: '', gender: '', mother_name: '', password: '' });
-  const [credsForm, setCredsForm] = useState({ cid: '', name: '', password: '' });
+  const [form, setForm] = useState({ cid: '', name: '', email: '', phone: '', address: '', dob: '', group_name: '', role: 'staff', gender: '', mother_name: '', password: '' });
+  const [credsForm, setCredsForm] = useState({ cid: '', name: '', email: '', password: '', isDirty: false });
 
   useEffect(() => { 
     const cachedContacts = IMPACT_CACHE.get('contacts');
@@ -54,6 +66,15 @@ export default function ContactsPage() {
 
     fetchRegistryData();
   }, []);
+
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < 10; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
 
   const fetchRegistryData = async () => {
     try {
@@ -73,25 +94,10 @@ export default function ContactsPage() {
     }
   };
 
-  const submitFamily = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('/api/contacts/families', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(familyForm)
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowFamilyModal(false);
-        setFamilyForm({ name: '' });
-        fetchRegistryData();
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const handleCredsUpdate = async (e) => {
-    e.preventDefault();
+  const handleCredsUpdate = async (e = null) => {
+    if (e) e.preventDefault();
+    if (!credsForm.password) return;
+    
     try {
       const res = await fetch('/api/contacts', {
          method: 'PUT',
@@ -100,17 +106,24 @@ export default function ContactsPage() {
       });
       const data = await res.json();
       if (data.success) {
-         setShowCredsModal(false);
          fetchRegistryData();
+         setCredsForm(prev => ({ ...prev, isDirty: false }));
          window.dispatchEvent(new CustomEvent('impactos:notify', { 
              detail: { type: 'success', message: 'Credentials updated successfully.' } 
          }));
+         return true;
       }
     } catch (e) {
-       window.dispatchEvent(new CustomEvent('impactos:notify', { 
-           detail: { type: 'error', message: 'Failed to update credentials.' } 
-       }));
+       console.error(e);
     }
+    return false;
+  };
+
+  const handleCloseCredsModal = async () => {
+     if (credsForm.isDirty) {
+        await handleCredsUpdate();
+     }
+     setShowCredsModal(false);
   };
 
   const filtered = (Array.isArray(contacts) ? contacts : []).filter(c => {
@@ -124,26 +137,196 @@ export default function ContactsPage() {
     return matchesSearch && matchesGroup;
   });
 
+  const handleBulkSubmit = async () => {
+     if (!bulkFile) return;
+     if (!bulkGroupName && !isBulkNew) {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Select or name a group.' }}));
+        return;
+     }
+
+     const finalGroupName = bulkGroupName;
+
+     // If new group, create it first
+     if (isBulkNew) {
+        try {
+           await fetch('/api/families', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: finalGroupName })
+           });
+        } catch (e) { console.error(e); }
+     }
+
+     Papa.parse(bulkFile, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+           const payload = results.data.map(row => ({
+              name: row.name || row.Name || row.fullName || '',
+              email: row.email || row.Email || '',
+              phone: row.phone || row.Phone || '',
+              group_name: finalGroupName,
+              role: 'staff',
+              password: generatePassword()
+           })).filter(c => c.name && c.email);
+
+           if (payload.length === 0) {
+              window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                  detail: { type: 'error', message: 'No valid data. Headers must match: name, email, phone.' } 
+              }));
+              return;
+           }
+
+           try {
+              const res = await fetch('/api/contacts', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(payload)
+              });
+              
+              if ((await res.json()).success) {
+                 fetchRegistryData();
+                 setShowBulkModal(false);
+                 setBulkFile(null);
+                 setBulkGroupName('');
+                 window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                     detail: { type: 'success', message: `${payload.length} contacts assigned to ${finalGroupName}.` } 
+                 }));
+              }
+           } catch (err) { console.error(err); }
+        }
+     });
+  };
+
+  const onFileSelect = (e) => {
+     const file = e.target.files[0];
+     if (!file) return;
+     setBulkFile(file);
+     setShowBulkModal(true);
+  };
+
+  const getWhatsAppLink = (c, passwordOverride = null) => {
+     const phone = (c.phone || '').replace(/[^0-9]/g, '');
+     if (!phone) return '#';
+     
+     const password = passwordOverride || c.password || 'N/A';
+     const loginUrl = typeof window !== 'undefined' ? window.location.origin + '/login' : 'https://impactos.app/login';
+     
+     const message = `Hello ${c.name},\n\nYour ImpactOS account has been provisioned.\n\nURL: ${loginUrl}\nUsername: ${c.email}\nPassword: ${password}\n\nPlease login and secure your account.`;
+     
+     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  };
+
   return (
-    <DashboardLayout role="super_admin" activeTab="staff" modals={
-      <AnimatePresence>
+    <DashboardLayout role="super_admin" activeTab="Future Studio" modals={
+      <AnimatePresence mode="wait">
+        {showGroupCredsModal && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={() => setShowGroupCredsModal(false)}>
+             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-sm !p-12 space-y-8 border-white/10 text-center" onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-col items-center gap-4 mb-6">
+                   <div className="p-4 bg-emerald-500/10 rounded-2xl text-emerald-500">
+                      <Shield className="w-8 h-8" />
+                   </div>
+                   <div>
+                     <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Group Access</h3>
+                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Shared Credentials: {groupCredsForm.name}</p>
+                   </div>
+                </div>
+
+                <div className="space-y-4">
+                   <div className="space-y-1 text-left">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Shared Username (Email)</label>
+                      <input 
+                         value={groupCredsForm.email} 
+                         onChange={e => setGroupCredsForm({...groupCredsForm, email: e.target.value})} 
+                         placeholder="Group email or username..." 
+                         className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" 
+                      />
+                   </div>
+                   <div className="space-y-1 text-left">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Shared Password</label>
+                      <div className="relative">
+                         <input 
+                            type={showPassword ? "text" : "password"} 
+                            value={groupCredsForm.password} 
+                            onChange={e => setGroupCredsForm({...groupCredsForm, password: e.target.value})} 
+                            placeholder="Enter shared password..." 
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold pr-12" 
+                         />
+                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">
+                            {showPassword ? <Globe className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                         </button>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="space-y-4">
+                   <button 
+                      onClick={async () => {
+                         try {
+                            const res = await fetch('/api/families', {
+                               method: 'PUT',
+                               headers: { 'Content-Type': 'application/json' },
+                               body: JSON.stringify(groupCredsForm)
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                               setShowGroupCredsModal(false);
+                               fetchRegistryData();
+                               window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Group access updated.' }}));
+                            }
+                         } catch (err) { console.error(err); }
+                      }} 
+                      className="w-full py-5 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/20"
+                   >
+                      Update Group Access
+                   </button>
+                   <button onClick={() => setShowGroupCredsModal(false)} className="w-full py-4 bg-white/5 text-slate-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:text-white transition-all">Cancel</button>
+                </div>
+             </motion.div>
+          </div>
+        )}
         {showFamilyModal && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-sm !p-12 space-y-8 border-white/10 text-center">
-                <h3 className="text-2xl font-black text-white uppercase tracking-tighter">New Corporate Group</h3>
-                <input value={familyForm.name} onChange={e => setFamilyForm({name: e.target.value})} placeholder="Group Name..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#0066FF]/50 text-center uppercase font-black" />
-                <button onClick={submitFamily} className="w-full btn-strong !py-4 rounded-xl !text-sm">Register Group</button>
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={() => setShowFamilyModal(false)}>
+             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-sm !p-12 space-y-8 border-white/10 text-center" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-6">
+                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter">New Corporate Group</h3>
+                   <button onClick={() => setShowFamilyModal(false)} className="text-slate-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-xl">
+                      <X className="w-5 h-5" />
+                   </button>
+                </div>
+                <input value={familyForm.name} onChange={e => setFamilyForm({name: e.target.value})} placeholder="Group Name..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 text-center uppercase font-black" />
+                <button onClick={async (e) => {
+                   e.preventDefault();
+                   if (!familyForm.name) return;
+                   try {
+                     const res = await fetch('/api/families', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify(familyForm)
+                     });
+                     const data = await res.json();
+                     if (data.success) {
+                       setShowFamilyModal(false);
+                       setFamilyForm({ name: '' });
+                       fetchRegistryData();
+                       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: `Group "${familyForm.name}" registered.` }}));
+                     } else {
+                        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || 'Registration failed.' }}));
+                     }
+                   } catch (err) { console.error(err); }
+                }} className="w-full btn-prime !py-4 rounded-xl !text-xs font-black uppercase tracking-widest">Register Group</button>
              </motion.div>
           </div>
         )}
         
         {showManualModal && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-lg !p-12 space-y-10 border-white/10">
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={() => setShowManualModal(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-lg !p-12 space-y-10 border-white/10" onClick={(e) => e.stopPropagation()}>
                <div className="flex justify-between items-start">
                   <div>
-                     <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">{form.cid ? 'Update Entity' : 'New Entry'}</h3>
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Managing corporate identity data</p>
+                     <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">{form.cid ? 'Edit Member Profile' : 'Add New Member'}</h3>
+                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Complete the profile details to register a member into the registry</p>
                   </div>
                   <button onClick={() => setShowManualModal(false)} className="text-slate-600 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
                </div>
@@ -158,65 +341,187 @@ export default function ContactsPage() {
                   if ((await res.json()).success) {
                      setShowManualModal(false);
                      fetchRegistryData();
+                     window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                         detail: { type: 'success', message: 'Personnel identity deployed.' } 
+                     }));
                   }
                }}>
                   <div className="space-y-4">
                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-2">Full Identity</label>
-                        <input required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#0066FF]/50 font-bold" />
+                        <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Full Name</label>
+                        <input required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" />
                      </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                           <label className="text-[10px] font-black text-slate-500 uppercase ml-2">Email Address</label>
-                           <input required type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#0066FF]/50 font-bold" />
+                           <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Master Email</label>
+                           <input required type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" />
                         </div>
                         <div className="space-y-1">
-                           <label className="text-[10px] font-black text-slate-500 uppercase ml-2">Phone</label>
-                           <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#0066FF]/50 font-bold" />
+                           <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Phone</label>
+                           <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" />
                         </div>
                      </div>
-                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-2">Corporate Group</label>
-                        <select value={form.group_name} onChange={e => setForm({...form, group_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#0066FF]/50 appearance-none font-bold">
-                           <option value="" className="bg-[#080810]">Select Group...</option>
-                           <option value="Staff" className="bg-[#080810]">Staff (Project Managers)</option>
-                           {families.map(f => <option key={f.id} value={f.name} className="bg-[#080810]">{f.name}</option>)}
-                        </select>
-                     </div>
+                      <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Corporate Group</label>
+                         <select value={form.group_name} onChange={e => setForm({...form, group_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 appearance-none font-bold">
+                            <option value="" className="bg-[#080810]">Select Group...</option>
+                            {families.filter(f => f.name?.toLowerCase() !== 'staff' && f.name?.toLowerCase() !== 'future studio').map(f => (
+                               <option key={f.id} value={f.name} className="bg-[#080810]">{f.name}</option>
+                            ))}
+                         </select>
+                      </div>
+                     {( !form.cid && form.group_name?.toLowerCase() === 'future studio' ) && (
+                        <div className="p-6 bg-[#FF6600]/5 border border-[#FF6600]/20 rounded-2xl space-y-4">
+                           <div className="flex items-center justify-between">
+                            <h4 className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest italic">Access Credentials</h4>
+                            <button type="button" onClick={() => setForm({...form, password: generatePassword()})} className="text-[10px] font-black text-white bg-[#FF6600] px-6 py-2 rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-600/20">Generate Password</button>
+                           </div>
+                           <div className="relative">
+                              <input 
+                                 type={showPassword ? "text" : "password"} 
+                                 placeholder="Credentials Pending..." 
+                                 value={form.password} 
+                                 readOnly 
+                                 className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-4 text-white text-xs font-mono pr-12" 
+                              />
+                              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">
+                                 {showPassword ? <Globe className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                              </button>
+                           </div>
+                           {!form.password && <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center italic">Password will be redacted until generation</p>}
+                        </div>
+                     )}
                   </div>
-                  <button type="submit" className="w-full btn-strong !py-4 rounded-xl font-black uppercase text-xs tracking-widest">Save Entity</button>
+                  <button type="submit" className="w-full btn-strong !py-4 rounded-xl font-black uppercase text-xs tracking-widest">SAVE CHANGES</button>
                </form>
             </motion.div>
           </div>
         )}
 
+        {showBulkModal && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl">
+             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="ios-card w-full max-w-md !p-12 space-y-8 border-white/10 shadow-3xl bg-[#0d0d18]">
+                <div className="flex justify-between items-start">
+                   <div>
+                      <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Bulk Import Settings</h3>
+                      <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mt-2">Assign these contacts to a group</p>
+                   </div>
+                   <button onClick={() => setShowBulkModal(false)} className="text-slate-600 hover:text-white"><X className="w-6 h-6" /></button>
+                </div>
+
+                <div className="p-6 bg-white/5 rounded-2xl border border-white/5 space-y-4">
+                   <div className="flex items-center gap-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                      <FileSpreadsheet className="w-8 h-8 text-emerald-400" />
+                      <div>
+                         <p className="text-xs font-black text-white uppercase">{bulkFile?.name}</p>
+                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CSV Data Ready</p>
+                      </div>
+                   </div>
+                   <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic leading-relaxed">
+                      Pro Tip: Ensure your CSV has headers: <span className="text-white">name, email, phone</span> for optimal field mapping.
+                   </div>
+                </div>
+
+                <div className="space-y-4">
+                   <div className="flex items-center justify-between px-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Target Group</label>
+                      <button onClick={() => setIsBulkNew(!isBulkNew)} className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest underline underline-offset-4">
+                         {isBulkNew ? 'Select Existing' : 'Create New Group'}
+                      </button>
+                   </div>
+                   
+                   {isBulkNew ? (
+                      <input 
+                         autoFocus
+                         value={bulkGroupName}
+                         onChange={e => setBulkGroupName(e.target.value)}
+                         placeholder="New Group Name..."
+                         className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-black uppercase tracking-tighter"
+                      />
+                   ) : (
+                      <select 
+                         value={bulkGroupName}
+                         onChange={e => setBulkGroupName(e.target.value)}
+                         className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 appearance-none font-bold"
+                      >
+                         <option value="" className="bg-[#080810]">Select target segment...</option>
+                         {families.filter(f => f.name?.toLowerCase() !== 'staff' && f.name?.toLowerCase() !== 'future studio').map(f => (
+                            <option key={f.id} value={f.name} className="bg-[#080810] font-bold">{f.name}</option>
+                         ))}
+                      </select>
+                   )}
+                </div>
+
+                <button 
+                   onClick={handleBulkSubmit}
+                   className="w-full btn-prime !py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-[#FF6600]/20"
+                >
+                   CONFIRM UPLOAD
+                </button>
+             </motion.div>
+          </div>
+        )}
+
         {showCredsModal && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-sm !p-12 space-y-8 border-white/10 text-center">
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={handleCloseCredsModal}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-sm !p-12 space-y-8 border-white/10 text-center" onClick={e => e.stopPropagation()}>
                <div className="flex flex-col items-center gap-4 mb-6">
-                  <div className="p-4 bg-[#0066FF]/10 rounded-2xl text-[#0066FF]">
+                  <div className="p-4 bg-[#FF6600]/10 rounded-2xl text-[#FF6600]">
                      <Shield className="w-8 h-8" />
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Reset Credentials</h3>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Updating credentials for {credsForm.name}</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Personnel: {credsForm.name}</p>
                   </div>
                </div>
 
                <div className="space-y-4">
                   <div className="space-y-1 text-left">
-                     <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Username (CID)</label>
-                     <input readOnly value={credsForm.cid} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-slate-500 outline-none font-bold" />
+                     <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Username (Email)</label>
+                     <input readOnly value={credsForm.email} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-slate-400 outline-none font-bold" />
                   </div>
-                  <div className="space-y-1 text-left">
-                     <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">New Password</label>
-                     <input type="text" placeholder="Enter new password..." value={credsForm.password} onChange={e => setCredsForm({...credsForm, password: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#0066FF]/50 font-bold" />
-                  </div>
+                   <div className="space-y-1 text-left">
+                      <div className="flex justify-between items-center mb-1">
+                         <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Secure Password</label>
+                         <button 
+                            onClick={() => setCredsForm({...credsForm, password: generatePassword(), isDirty: true})} 
+                            className={`text-[10px] font-black transition-all flex items-center gap-1 uppercase tracking-widest ${credsForm.isDirty ? 'text-emerald-500 italic' : 'text-[#FF6600] hover:text-white'}`}
+                         >
+                            {credsForm.isDirty ? <CheckCircle className="w-3 h-3" /> : <RefreshCw className="w-3 h-3" />}
+                            {credsForm.isDirty ? 'Generated' : 'Auto-Gen'}
+                         </button>
+                      </div>
+                      <div className="relative">
+                         <input 
+                            type={showPassword ? "text" : "password"} 
+                            placeholder="Enter or generate password..." 
+                            value={credsForm.password} 
+                            onChange={e => setCredsForm({...credsForm, password: e.target.value, isDirty: true})} 
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold pr-12 font-mono" 
+                         />
+                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">
+                            {showPassword ? <Globe className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                         </button>
+                      </div>
+                   </div>
                </div>
 
-               <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setShowCredsModal(false)} className="py-4 bg-white/5 text-slate-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:text-white transition-all">Cancel</button>
-                  <button onClick={handleCredsUpdate} className="py-4 bg-[#0066FF] text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 transition-all">Reset Password</button>
+               <div className="space-y-4">
+                  <button onClick={handleCredsUpdate} className="w-full py-5 bg-[#FF6600] text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl shadow-blue-600/20">Update Master Access</button>
+                  <div className="grid grid-cols-2 gap-4">
+                     <button onClick={handleCloseCredsModal} className="py-4 bg-white/5 text-slate-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:text-white transition-all">Close</button>
+                     <button 
+                        onClick={async () => {
+                           await handleCredsUpdate();
+                           const phone = (contacts.find(c => c.cid === credsForm.cid)?.phone || '').replace(/[^0-9]/g, '');
+                           const link = getWhatsAppLink({ name: credsForm.name, email: credsForm.email, phone: phone }, credsForm.password);
+                           window.open(link, '_blank');
+                        }}
+                        className="py-4 bg-emerald-500/10 text-emerald-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                     >
+                        <MessageCircle className="w-3.5 h-3.5" /> Deploy WA
+                     </button>
+                  </div>
                </div>
             </motion.div>
           </div>
@@ -224,38 +529,81 @@ export default function ContactsPage() {
       </AnimatePresence>
     }>
       <div className="space-y-12 pb-20">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/5 pb-10">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/5 pb-10 font-sans">
           <div>
             <div className="flex items-center gap-4 mb-4 text-left">
-               <span className="text-[#0066FF] font-black text-[10px] uppercase tracking-[0.4em]">Corporate Registry</span>
-               <div className="h-px w-10 bg-[#0066FF]/30" />
-               <span className="badge badge-glow-blue uppercase text-[8px] font-black italic">Staff Control</span>
+               <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">Corporate Registry</span>
+               <div className="h-px w-10 bg-[#FF6600]/30" />
+               <span className="badge badge-glow-blue uppercase text-[8px] font-black italic">Team Operations</span>
             </div>
-            <h2 className="text-5xl font-black text-white tracking-tighter uppercase leading-none italic">Our Team</h2>
-            <p className="text-slate-500 font-bold mt-4 uppercase text-[10px] tracking-widest leading-none font-sans opacity-60">Management of staff and external collaborators</p>
+            <h2 className="text-5xl font-black text-white tracking-tighter uppercase leading-none italic">Future Studio</h2>
+            <p className="text-slate-500 font-bold mt-4 uppercase text-[10px] tracking-widest leading-none opacity-60">Management of central studio personnel and project managers</p>
           </div>
 
           <div className="flex gap-4">
-             <button onClick={() => setShowFamilyModal(true)} className="btn-ghost flex items-center gap-2 !px-6 text-[10px] font-black uppercase tracking-widest"><Plus className="w-4 h-4" /> Group</button>
-             <button onClick={() => setShowManualModal(true)} className="btn-prime flex items-center gap-2 !px-8 text-[10px] font-black uppercase tracking-widest"><Plus className="w-5 h-5" /> New Contact</button>
+             <input type="file" accept=".csv" id="csv-upload" className="hidden" onChange={onFileSelect} />
+             <label htmlFor="csv-upload" className="btn-ghost flex items-center gap-3 !px-6 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/5 cursor-pointer">
+                <Upload className="w-4 h-4" /> Bulk Upload
+             </label>
+             <button onClick={() => setShowFamilyModal(true)} className="btn-ghost flex items-center gap-3 !px-6 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/5"><Plus className="w-4 h-4" /> Group</button>
+             <button onClick={() => { setForm({ cid: '', name: '', email: '', phone: '', address: '', dob: '', group_name: (selectedGroup?.toLowerCase() === 'future studio' || selectedGroup === 'All Contacts') ? '' : selectedGroup, role: 'staff', gender: '', mother_name: '', password: '' }); setShowManualModal(true); }} className="btn-prime flex items-center gap-3 !px-8 text-[10px] font-black uppercase tracking-widest shadow-2xl shadow-[#FF6600]/40"><Plus className="w-5 h-5" /> New Member</button>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 font-sans">
            <div className="xl:col-span-1 space-y-6">
-              <div className="ios-card !p-8 border-white/5 space-y-8">
+              <div className="ios-card !p-8 border-white/5 space-y-8 shadow-2xl bg-white/[0.01]">
                  <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search identity..." className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-white outline-none focus:border-[#0066FF]/50 font-bold transition-all" />
+                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter search..." className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold transition-all placeholder:text-slate-700" />
                  </div>
 
                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2 font-sans opacity-60">Filter by Node</h4>
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2 opacity-60 italic">Registry Segments</h4>
                     <div className="space-y-1">
-                       <button onClick={() => setSelectedGroup('All Contacts')} className={`w-full text-left px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${selectedGroup === 'All Contacts' ? 'bg-[#0066FF] text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'}`}>All Territory</button>
-                       <button onClick={() => setSelectedGroup('Staff')} className={`w-full text-left px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${selectedGroup === 'Staff' ? 'bg-[#0066FF] text-white shadow-lg shadow-[#0066FF]/20' : 'text-slate-400 hover:bg-white/5'}`}>Corporate Team</button>
-                       {families.map(f => (
-                          <button key={f.id} onClick={() => setSelectedGroup(f.name)} className={`w-full text-left px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${selectedGroup === f.name ? 'bg-white/10 text-white border border-white/10' : 'text-slate-400 hover:bg-white/5'}`}>{f.name}</button>
+                       <button onClick={() => setSelectedGroup('All Contacts')} className={`w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedGroup === 'All Contacts' ? 'bg-[#FF6600] text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'}`}>Unified Registry</button>
+                       <div className={`flex items-center justify-between rounded-2xl transition-all ${selectedGroup?.toLowerCase() === 'future studio' ? 'bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/20' : 'hover:bg-white/5'}`}>
+                          <button onClick={() => setSelectedGroup('Future Studio')} className={`flex-1 text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest ${selectedGroup?.toLowerCase() === 'future studio' ? 'text-white' : 'text-slate-400'}`}>
+                             Future Studio
+                          </button>
+                       </div>
+                       <div className="h-px w-full bg-white/5 my-4" />
+                       {families.filter(f => f.name?.toLowerCase() !== 'staff').map(f => (
+                          <div key={f.id} className={`flex flex-col rounded-2xl transition-all border ${selectedGroup === f.name ? 'bg-white/10 border-white/10' : 'border-transparent hover:bg-white/5'}`}>
+                             <div className="flex items-center justify-between">
+                                <button onClick={() => setSelectedGroup(f.name)} className={`flex-1 text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest ${selectedGroup === f.name ? 'text-white' : 'text-slate-400'}`}>
+                                   {f.name}
+                                </button>
+                                 <div className="flex items-center gap-1">
+                                    <button 
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          setGroupCredsForm({ id: f.id, name: f.name, email: f.email || '', password: f.password || '' });
+                                          setShowGroupCredsModal(true);
+                                       }}
+                                       className="p-3 text-slate-500 hover:text-emerald-500 transition-colors bg-black/20 rounded-xl border border-white/5"
+                                       title="Group Credentials"
+                                    >
+                                       <Key className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          const link = `${window.location.origin}/register-staff?rid=${f.registration_id || encodeURIComponent(f.name)}`;
+                                          navigator.clipboard.writeText(link);
+                                          window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Registration link copied!' }}));
+                                       }}
+                                       className="p-3 mr-2 text-slate-500 hover:text-[#FF6600] transition-colors bg-black/20 rounded-xl border border-white/5"
+                                       title="Copy Registration Link"
+                                    >
+                                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                                    </button>
+                                 </div>
+                             </div>
+                             {f.registration_id && (
+                                <p className="px-5 pb-3 text-[8px] font-black text-slate-600 uppercase tracking-widest">ID: {f.registration_id}</p>
+                             )}
+                          </div>
                        ))}
                     </div>
                  </div>
@@ -264,79 +612,121 @@ export default function ContactsPage() {
 
            <div className="xl:col-span-3 space-y-6">
               {loading ? (
-                 <div className="p-20 text-center"><Loader2 className="w-12 h-12 text-[#0066FF] animate-spin mx-auto mb-6" /><p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Synchronizing Registry...</p></div>
+                 <div className="p-20 text-center"><Loader2 className="w-12 h-12 text-[#FF6600] animate-spin mx-auto mb-6" /><p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Synchronizing Team Data...</p></div>
               ) : filtered.length === 0 ? (
                  <div className="ios-card bg-white/[0.01] border-white/5 py-40 flex flex-col items-center justify-center text-center">
                     <Users className="w-20 h-20 text-slate-800 mb-6 opacity-10" />
-                    <h4 className="text-2xl font-black text-white uppercase mb-2">No Match Detected</h4>
-                    <p className="text-slate-500 font-bold text-xs max-w-sm uppercase tracking-widest leading-relaxed font-sans opacity-60">Adjust your filters or search query to locate contacts.</p>
+                    <h4 className="text-2xl font-black text-white uppercase mb-2 italic">Identity Deficit</h4>
+                    <p className="text-slate-500 font-bold text-xs max-w-sm uppercase tracking-widest leading-relaxed opacity-60">No matching personnel records found in the current segment.</p>
                  </div>
               ) : (
-                <div className="ios-card !p-0 overflow-hidden border-white/5 shadow-2xl">
-                 <table className="executive-table w-full">
-                   <thead>
-                     <tr className="border-b border-white/5 bg-white/[0.02]">
-                       <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Identity & Username</th>
-                       <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Communication Nodes</th>
-                       <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Protocol</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {filtered.map(c => (
-                       <tr key={c.cid} className="group hover:bg-white/[0.01] transition-colors border-b border-white/[0.02]">
-                         <td className="px-8 py-8">
-                           <p className="font-black text-white uppercase tracking-tighter text-xl leading-none mb-3 italic">{c.name}</p>
-                           <div className="flex items-center gap-3">
-                              <span className="text-[8px] font-black text-[#0066FF] uppercase tracking-widest bg-[#0066FF]/10 px-2 py-1 rounded-md border border-[#0066FF]/20 cursor-default">{c.group_name || 'Individual'}</span>
-                              <div className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-md border border-white/5">
-                                 <User className="w-2.5 h-2.5 text-slate-600" />
-                                 <span className="text-[9px] font-bold text-slate-400 font-mono tracking-tighter uppercase">{c.cid}</span>
-                              </div>
-                           </div>
-                         </td>
-                         <td className="px-8 py-8">
-                           <div className="flex flex-col gap-3">
-                               <a href={`mailto:${c.email}`} className="flex items-center gap-3 text-xs font-bold text-slate-400 font-sans hover:text-[#0066FF] transition-all group/mail">
-                                  <div className="p-1.5 bg-white/5 rounded-lg group-hover/mail:bg-[#0066FF]/10 transition-all">
-                                     <Mail className="w-3.5 h-3.5 text-slate-700 group-hover/mail:text-[#0066FF]" />
+                 <div className="space-y-4">
+                    {selectedGroup?.toLowerCase() === 'future studio' && (
+                       <div className="flex items-center justify-between bg-[#FF6600]/5 border border-[#FF6600]/10 p-4 rounded-2xl mb-4">
+                          <div className="flex items-center gap-3">
+                             <Shield className="w-5 h-5 text-[#FF6600]" />
+                             <div>
+                                <p className="text-[10px] font-black text-white uppercase tracking-widest">Internal Security Protocol</p>
+                                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Access to this registry segment is restricted to Super Admins.</p>
+                             </div>
+                          </div>
+                          <button 
+                             onClick={() => {
+                                const link = `${window.location.origin}/register-staff?group=Future Studio`;
+                                navigator.clipboard.writeText(link);
+                                window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Internal Registration Link Copied' }}));
+                             }}
+                             className="px-6 py-2 bg-[#FF6600] text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white transition-all shadow-lg shadow-[#FF6600]/20"
+                          >
+                             Copy Restricted Link
+                          </button>
+                       </div>
+                    )}
+                    <div className="ios-card !p-0 overflow-x-auto border-white/5 shadow-2xl bg-white/[0.01] custom-scrollbar">
+                  <table className="executive-table w-full border-collapse min-w-[900px]">
+                    <thead>
+                      <tr className="border-b border-white/5 bg-white/[0.02]">
+                        <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Identity & Operational Role</th>
+                        <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Communication Matrix</th>
+                        <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Clearance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(c => (
+                        <tr key={c.cid} className="group hover:bg-white/[0.01] transition-colors border-b border-white/[0.02]">
+                          <td className="px-8 py-8 min-w-[300px]">
+                            <div className="flex items-center gap-4 mb-3">
+                               <p className="font-black text-white uppercase tracking-tighter text-2xl leading-none italic whitespace-nowrap">{c.name}</p>
+                               <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border whitespace-nowrap ${c.role === 'project_manager' ? 'bg-[#FF6600]/10 text-indigo-400 border-[#FF6600]/20' : 'bg-[#FF6600]/10 text-[#FF6600] border-[#FF6600]/20'}`}>
+                                  {c.role === 'project_manager' ? 'PM' : 'STUDIO'}
+                               </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-2 py-1 rounded-md border border-white/5 cursor-default truncate max-w-[100px]">{c.group_name || 'Individual'}</span>
+                               <div className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-md border border-white/5">
+                                  <Mail className="w-2.5 h-2.5 text-slate-600" />
+                                  <span className="text-[9px] font-bold text-slate-400 font-mono tracking-tighter uppercase truncate max-w-[120px]">{c.email}</span>
+                               </div>
+                               {c.password && (
+                                  <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/5 rounded-md border border-emerald-500/10" title="Securely Hashed">
+                                     <Shield className="w-2.5 h-2.5 text-emerald-600" />
+                                     <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Active Access</span>
                                   </div>
-                                  {c.email}
-                               </a>
-                               {c.phone && (
-                                  <a href={`https://wa.me/${c.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-xs font-bold text-slate-400 font-sans hover:text-emerald-500 transition-all group/wa">
-                                     <div className="p-1.5 bg-white/5 rounded-lg group-hover/wa:bg-emerald-500/10 transition-all">
-                                        <MessageCircle className="w-3.5 h-3.5 text-slate-700 group-hover/wa:text-emerald-500" />
-                                     </div>
-                                     Whatsapp Direct
-                                  </a>
                                )}
-                           </div>
-                         </td>
-                         <td className="px-8 py-8 text-right">
-                           <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
-                              <button 
-                                 onClick={() => { setCredsForm({ cid: c.cid, name: c.name, password: '' }); setShowCredsModal(true); }}
-                                 className="p-3 bg-white/5 hover:bg-[#0066FF]/10 rounded-xl text-slate-400 hover:text-[#0066FF] transition-all border border-transparent hover:border-[#0066FF]/20 group/reset"
-                                 title="Reset Credentials"
-                              >
-                                 <Key className="w-5 h-5" />
-                              </button>
-                              <button 
-                                 onClick={() => { setForm({ ...c, password: '' }); setShowManualModal(true); }}
-                                 className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-all border border-transparent hover:border-white/10"
-                                 title="Edit Profile"
-                              >
-                                 <Edit3 className="w-5 h-5" />
-                              </button>
-                           </div>
-                         </td>
-                       </tr>
-                     ))}
-                   </tbody>
-                 </table>
+                            </div>
+                          </td>
+                          <td className="px-8 py-8">
+                            <div className="flex flex-col gap-3">
+                                <a href={`mailto:${c.email}`} className="flex items-center gap-4 text-xs font-bold text-slate-400 font-sans hover:text-[#FF6600] transition-all group/mail">
+                                   <div className="p-2 bg-white/5 rounded-xl group-hover/mail:bg-[#FF6600]/10 transition-all border border-white/5">
+                                      <Send className="w-4 h-4 text-slate-700 group-hover/mail:text-[#FF6600]" />
+                                   </div>
+                                   <div className="flex flex-col truncate">
+                                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">Email Dispatch</span>
+                                      <span className="font-mono truncate">{c.email}</span>
+                                   </div>
+                                </a>
+                                {c.phone && (
+                                   <a href={getWhatsAppLink(c)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 text-xs font-bold text-slate-400 font-sans hover:text-emerald-500 transition-all group/wa">
+                                      <div className="p-2 bg-white/5 rounded-xl group-hover/wa:bg-emerald-500/10 transition-all border border-white/5">
+                                         <MessageCircle className="w-4 h-4 text-slate-700 group-hover/wa:text-emerald-500" />
+                                      </div>
+                                      <div className="flex flex-col truncate">
+                                         <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">WhatsApp Deploy</span>
+                                         <span className="font-mono truncate">{c.phone}</span>
+                                      </div>
+                                   </a>
+                                )}
+                            </div>
+                          </td>
+                          <td className="px-8 py-8 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-3">
+                               {c.group_name?.toLowerCase() === 'future studio' && (
+                                  <button 
+                                     onClick={() => { setCredsForm({ cid: c.cid, name: c.name, email: c.email, password: generatePassword(), isDirty: true }); setShowCredsModal(true); }}
+                                     className="p-4 bg-white/5 hover:bg-[#FF6600]/10 rounded-2xl text-slate-400 hover:text-[#FF6600] transition-all border border-transparent hover:border-[#FF6600]/20 group/reset"
+                                     title="Provision Access"
+                                  >
+                                     <Key className="w-6 h-6" />
+                                  </button>
+                               )}
+                               <button 
+                                  onClick={() => { setForm({ ...c }); setShowManualModal(true); }}
+                                  className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl text-slate-400 hover:text-white transition-all border border-transparent hover:border-white/10"
+                                  title="Update Member"
+                               >
+                                  <Edit3 className="w-6 h-6" />
+                               </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-           </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </DashboardLayout>

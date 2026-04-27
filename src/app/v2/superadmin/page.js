@@ -15,14 +15,14 @@ import { IMPACT_CACHE } from '@/utils/impactCache';
 const StatCard = ({ title, value, icon: Icon, color, badge, onClick }) => (
   <div 
     onClick={onClick}
-    className={`ios-card group transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-[#0066FF]/50 hover:bg-white/[0.04] hover:-translate-y-1' : ''}`}
+    className={`ios-card group transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-[#FF6600]/50 hover:bg-white/[0.04] hover:-translate-y-1' : ''}`}
   >
     <div className="flex justify-between items-start mb-6">
       <div className={`p-3 rounded-xl bg-white/5 border border-white/5 ${color} group-hover:scale-110 transition-transform`}>
         <Icon className="w-6 h-6" />
       </div>
       {badge && <span className="badge badge-glow-success uppercase text-[8px] font-black">{badge}</span>}
-      {onClick && <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-[#0066FF] group-hover:translate-x-1 transition-all" />}
+      {onClick && <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-[#FF6600] group-hover:translate-x-1 transition-all" />}
     </div>
     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{title}</p>
     <h3 className="text-3xl font-black text-white uppercase tracking-tighter">{value}</h3>
@@ -38,7 +38,7 @@ export default function SuperAdminV2Dashboard() {
 
   useEffect(() => {
     const sa = localStorage.getItem('sa_session');
-    if (sa !== 'prime-2026-active') {
+    if (!sa || (!sa.startsWith('sa-session-') && sa !== 'prime-2026-active')) {
       router.replace('/terminal');
       return;
     }
@@ -85,7 +85,7 @@ export default function SuperAdminV2Dashboard() {
 
   if (!isLoaded) return (
     <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-[#0066FF]/20 border-t-[#0066FF] rounded-full animate-spin" />
+      <div className="w-12 h-12 border-4 border-[#FF6600]/20 border-t-[#FF6600] rounded-full animate-spin" />
     </div>
   );
 
@@ -95,8 +95,8 @@ export default function SuperAdminV2Dashboard() {
         <header className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div className="animation-reveal">
             <div className="flex items-center gap-4 mb-3">
-              <span className="text-[#0066FF] font-black text-[10px] uppercase tracking-[0.4em]">Internal Operations</span>
-              <div className="h-px w-10 bg-[#0066FF]/30" />
+              <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">Internal Operations</span>
+              <div className="h-px w-10 bg-[#FF6600]/30" />
             </div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Version 2 Command HQ</h2>
             <p className="text-slate-400 font-bold tracking-tight">
@@ -106,7 +106,7 @@ export default function SuperAdminV2Dashboard() {
           <div className="flex gap-4">
              <button 
                 onClick={() => router.push('/v2/superadmin/programs/new')}
-                className="btn-prime !py-4 shadow-indigo-600/10"
+                className="btn-prime !py-4 shadow-orange-600/10"
              >
                 <Plus className="w-5 h-5 mr-2" /> Design New Program
              </button>
@@ -118,7 +118,7 @@ export default function SuperAdminV2Dashboard() {
             title="Active v2 Cohorts" 
             value={stats.programs} 
             icon={Layers} 
-            color="text-[#0066FF]" 
+            color="text-[#FF6600]" 
             badge="V2-READY" 
             onClick={() => router.push('/v2/superadmin/programs')}
           />
@@ -152,17 +152,17 @@ export default function SuperAdminV2Dashboard() {
               <div className="ios-card overflow-hidden">
                  <div className="flex items-center justify-between mb-8">
                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-3">
-                       <Sparkles className="w-4 h-4 text-[#0066FF]" /> Recent Program Lifecycle Activity
+                       <Sparkles className="w-4 h-4 text-[#FF6600]" /> Recent Program Lifecycle Activity
                     </h4>
-                    <button className="text-[10px] font-black text-[#0066FF] uppercase tracking-widest hover:text-white transition-colors">View All Logs</button>
+                    <button className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest hover:text-white transition-colors">View All Logs</button>
                  </div>
                  
                  <div className="space-y-6">
                     {stats.activeLogs && stats.activeLogs.length > 0 ? (
                        stats.activeLogs.map((log, index) => (
                           <div key={index} className="flex items-center gap-4 group cursor-default">
-                             <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0 group-hover:border-[#0066FF]/30 transition-all">
-                                <Activity className="w-4 h-4 text-[#0066FF]" />
+                             <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0 group-hover:border-[#FF6600]/30 transition-all">
+                                <Activity className="w-4 h-4 text-[#FF6600]" />
                              </div>
                              <div className="flex-1 min-w-0">
                                 <p className="text-[11px] font-black text-white uppercase tracking-tighter truncate">{log.action}</p>
@@ -184,29 +184,29 @@ export default function SuperAdminV2Dashboard() {
            </div>
 
            <div className="space-y-8">
-              <div className="ios-card bg-[#0066FF]/5 border-[#0066FF]/10 text-left">
-                 <h4 className="text-[10px] font-black text-[#0066FF] uppercase tracking-widest mb-6">Quick Actions</h4>
+              <div className="ios-card bg-[#FF6600]/5 border-[#FF6600]/10 text-left">
+                 <h4 className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mb-6">Quick Actions</h4>
                  <div className="space-y-3">
                      <button 
                         onClick={() => router.push('/v2/superadmin/communications/contacts')}
-                        className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-indigo-500/30 hover:bg-white/10 transition-all group"
+                        className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-orange-500/30 hover:bg-white/10 transition-all group"
                      >
                         <span className="text-xs font-black text-white uppercase tracking-tighter">Bulk Import Participants</span>
-                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-orange-400 transition-colors" />
                      </button>
                      <button 
                         onClick={() => router.push('/v2/superadmin/communications/contacts')}
-                        className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-indigo-500/30 hover:bg-white/10 transition-all group"
+                        className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-orange-500/30 hover:bg-white/10 transition-all group"
                      >
                         <span className="text-xs font-black text-white uppercase tracking-tighter">Assign Program Managers</span>
-                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-orange-400 transition-colors" />
                      </button>
                      <button 
                         onClick={() => router.push('/v2/superadmin/settings')}
-                        className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-indigo-500/30 hover:bg-white/10 transition-all group"
+                        className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-orange-500/30 hover:bg-white/10 transition-all group"
                      >
                         <span className="text-xs font-black text-white uppercase tracking-tighter">Configure Group Schema</span>
-                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-[#0066FF] transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-[#FF6600] transition-colors" />
                      </button>
                  </div>
               </div>

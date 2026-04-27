@@ -1,9 +1,10 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
 /**
  * UNIFIED AUTH TERMINAL
- * Handles Super Admin & PM Authentication
+ * Hierarchical enforcement: One unique Super Admin, all others are Operational PMs.
  */
 export async function POST(req) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req) {
     const cleanID = useID.trim().toLowerCase();
     const cleanCode = accessCode.trim();
 
-    // 1. Check Super Admin Hard-Coded (as per existing logic in terminal/page.js)
+    // 1. HARDCODED SYSTEM MASTER (The ONLY Super Admin bypass)
     if (cleanID === 'superadmin' && accessCode === '147369') {
       return NextResponse.json({
         success: true,
@@ -25,35 +26,72 @@ export async function POST(req) {
         session: 'prime-2026-active',
         user: {
           id: 'sa-root-001',
-          name: 'Super Admin',
-          roleLabel: 'Internal Operations Director'
+          name: 'System Root',
+          roleLabel: 'Super Admin'
         }
       });
     }
 
-    // 2. Check Database for PM (Contacts table)
-    // PMs log in with Full Name (username) or Email and their assigned Password (as accessCode)
+    // 2. DATABASE REGISTRY CHECK (Fetch User First)
     const result = await db.execute({
-      sql: "SELECT * FROM contacts WHERE (LOWER(name) = ? OR LOWER(email) = ? OR cid = ?) AND password = ? LIMIT 1",
-      args: [cleanID, cleanID, cleanID.toUpperCase(), cleanCode]
+      sql: "SELECT * FROM contacts WHERE (LOWER(name) = ? OR LOWER(email) = ? OR cid = ?) AND deleted = 0 LIMIT 1",
+      args: [cleanID, cleanID, cleanID.toUpperCase()]
     });
 
-    if (result.rows.length > 0) {
-      const pm = result.rows[0];
-      return NextResponse.json({
-        success: true,
-        role: 'pm',
-        session: `pm-session-${pm.cid}`,
-        user: {
-          id: pm.cid,
-          name: pm.name,
-          roleLabel: 'Program Manager',
-          email: pm.email
-        }
-      });
+    if (result.rows.length === 0) {
+      return NextResponse.json({ success: false, error: "Authentication Failed: Identity or Access Code Mismatch." }, { status: 401 });
     }
 
-    return NextResponse.json({ success: false, error: "Authentication Failed: Identity or Access Code Mismatch." }, { status: 401 });
+    const user = result.rows[0];
+
+    // --- CRYPTOGRAPHIC VERIFICATION ---
+    const isHashed = user.password && user.password.startsWith('$2');
+    let isMatch = false;
+
+    if (isHashed) {
+      isMatch = await bcrypt.compare(cleanCode, user.password);
+    } else {
+      isMatch = (cleanCode === user.password);
+    }
+
+    if (!isMatch) {
+      return NextResponse.json({ success: false, error: "Authentication Failed: Identity or Access Code Mismatch." }, { status: 401 });
+    }
+
+    // --- DYNAMIC ROLE RESOLUTION ---
+    let finalRole = 'participant';
+    let label = 'Member';
+    let sessionPrefix = 'part';
+
+    // Staff / PM Differentiation
+    // We treat all STAFF and designated PROJECT_MANAGERS as PMs unless they are the system root.
+    const isAssignedPM = user.role === 'project_manager' || user.role === 'pm';
+    const isInternalStaff = user.group_name?.toUpperCase() === 'STAFF';
+
+    // Secondary check: assigned as PM in the programs registry
+    const pmCheck = await db.execute({
+       sql: "SELECT id FROM v2_programs WHERE assigned_pm_id = ? LIMIT 1",
+       args: [user.id || user.cid]
+    });
+    const hasAssignments = pmCheck.rows.length > 0;
+
+    if (isAssignedPM || isInternalStaff || hasAssignments) {
+       finalRole = 'program_manager';
+       sessionPrefix = 'pm';
+       label = (isAssignedPM || hasAssignments) ? 'Project Manager' : 'Operations Staff';
+    }
+
+    return NextResponse.json({
+      success: true,
+      role: finalRole,
+      session: `${sessionPrefix}-session-${user.cid}`,
+      user: {
+        id: user.cid,
+        name: user.name,
+        roleLabel: label,
+        email: user.email
+      }
+    });
 
   } catch (error) {
     console.error("Auth Error:", error);

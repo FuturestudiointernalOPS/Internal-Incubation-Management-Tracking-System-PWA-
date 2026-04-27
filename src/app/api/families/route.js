@@ -1,6 +1,8 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 
+import { v4 as uuidv4 } from 'uuid';
+
 export async function GET() {
   try {
     await initDb();
@@ -17,9 +19,28 @@ export async function POST(req) {
     const { name } = await req.json();
     if (!name) return NextResponse.json({ success: false, error: "Name is required" }, { status: 400 });
 
+    const registration_id = "R-" + uuidv4().split('-')[0].toUpperCase();
+
     await db.execute({
-      sql: "INSERT OR IGNORE INTO families (name) VALUES (?)",
-      args: [name]
+      sql: "INSERT OR IGNORE INTO families (name, registration_id) VALUES (?, ?)",
+      args: [name, registration_id]
+    });
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const { id, email, password } = await req.json();
+    if (!id) return NextResponse.json({ success: false, error: "ID is required" }, { status: 400 });
+
+    await db.execute({
+      sql: "UPDATE families SET email = ?, password = ? WHERE id = ?",
+      args: [email, password, id]
     });
     
     return NextResponse.json({ success: true });

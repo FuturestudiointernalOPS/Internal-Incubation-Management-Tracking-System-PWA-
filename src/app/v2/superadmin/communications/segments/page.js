@@ -167,7 +167,7 @@ export default function SegmentsPage() {
           </div>
           <button 
             onClick={() => { setShowBuilder(true); runPreview(filters); }} 
-            className="btn-prime !py-4 shadow-indigo-600/10"
+            className="btn-prime !py-4 shadow-[#FF6600]/10"
           >
             <Plus className="w-5 h-5 mr-2" /> Create New Segment
           </button>
@@ -175,7 +175,7 @@ export default function SegmentsPage() {
 
         {loading ? (
           <div className="flex items-center justify-center p-20">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+            <Loader2 className="w-10 h-10 text-[#FF6600]/80 animate-spin" />
           </div>
         ) : segments.length === 0 ? (
           <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
@@ -186,10 +186,10 @@ export default function SegmentsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {segments.map(s => (
-              <div key={s.id} className="ios-card group hover:border-indigo-500/30 transition-all duration-500 flex flex-col justify-between text-left">
+              <div key={s.id} className="ios-card group hover:border-[#FF6600]/80/30 transition-all duration-500 flex flex-col justify-between text-left">
                 <div>
                   <div className="flex justify-between items-start mb-6">
-                    <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                    <div className="p-3 rounded-xl bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 text-indigo-400">
                       <Filter className="w-6 h-6" />
                     </div>
                   </div>
@@ -203,7 +203,7 @@ export default function SegmentsPage() {
                 <div className="pt-4 border-t border-white/5 mt-auto">
                   <button 
                     onClick={() => openLauncher(s)}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-500/10 hover:bg-indigo-500 text-indigo-400 hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-indigo-500/20 group-hover:border-indigo-500/50"
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF6600]/80/10 hover:bg-[#FF6600]/80 text-indigo-400 hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-[#FF6600]/80/20 group-hover:border-[#FF6600]/80/50"
                   >
                     <Rocket className="w-4 h-4" /> Start Campaign
                   </button>
@@ -228,20 +228,20 @@ export default function SegmentsPage() {
                  <div className="w-full md:w-1/2 p-8 border-b md:border-b-0 md:border-r border-white/5 space-y-6">
                     <div>
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Segment Name</label>
-                      <input type="text" value={segmentName} onChange={e => setSegmentName(e.target.value)} placeholder="e.g. VIP List..." className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50 font-bold" />
+                      <input type="text" value={segmentName} onChange={e => setSegmentName(e.target.value)} placeholder="e.g. VIP List..." className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 font-bold" />
                     </div>
                     <div className="space-y-4">
                       <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] pt-4 border-t border-white/5">Filters</label>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 mb-1">From Campaign</label>
-                        <select value={filters.campaign_id} onChange={e => handleFilterChange('campaign_id', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50 appearance-none font-bold">
+                        <select value={filters.campaign_id} onChange={e => handleFilterChange('campaign_id', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold">
                            <option value="" className="bg-[#080810]">Any Campaign</option>
                            {campaigns.map(c => <option key={c.id} value={c.id} className="bg-[#080810]">{c.name}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 mb-1">Status</label>
-                        <select value={filters.status} onChange={e => handleFilterChange('status', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50 appearance-none font-bold">
+                        <select value={filters.status} onChange={e => handleFilterChange('status', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold">
                            <option value="" className="bg-[#080810]">Everyone</option>
                            <option value="yes" className="bg-[#080810]">Yes / Approved</option>
                            <option value="no" className="bg-[#080810]">No / Declined</option>
@@ -250,7 +250,7 @@ export default function SegmentsPage() {
                       </div>
                     </div>
                     <div className="pt-6 mt-auto">
-                      <button onClick={saveSegment} className="w-full btn-prime !py-4 shadow-indigo-600/20 text-sm flex items-center justify-center gap-2">
+                      <button onClick={saveSegment} className="w-full btn-prime !py-4 shadow-[#FF6600]/20 text-sm flex items-center justify-center gap-2">
                         <Save className="w-4 h-4" /> Save Segment
                       </button>
                     </div>
@@ -258,10 +258,10 @@ export default function SegmentsPage() {
                  <div className="w-full md:w-1/2 p-8 bg-white/[0.02]">
                     <div className="flex items-center justify-between mb-6">
                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Preview</h4>
-                       <span className="badge badge-glow-success bg-indigo-500/20 text-indigo-400">{previewContacts.length} People</span>
+                       <span className="badge badge-glow-success bg-[#FF6600]/80/20 text-indigo-400">{previewContacts.length} People</span>
                     </div>
                     {isPreviewing ? (
-                      <div className="flex items-center justify-center p-10"><Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /></div>
+                      <div className="flex items-center justify-center p-10"><Loader2 className="w-8 h-8 text-[#FF6600]/80 animate-spin" /></div>
                     ) : (
                       <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
                          {previewContacts.length === 0 ? (
@@ -293,17 +293,17 @@ export default function SegmentsPage() {
               <form onSubmit={launchCampaign} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Campaign Name</label>
-                  <input required autoFocus type="text" value={campaignConfig.name} onChange={e => setCampaignConfig({...campaignConfig, name: e.target.value})} placeholder="e.g. Follow-up List" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold" />
+                  <input required autoFocus type="text" value={campaignConfig.name} onChange={e => setCampaignConfig({...campaignConfig, name: e.target.value})} placeholder="e.g. Follow-up List" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Form (Optional)</label>
-                  <select value={campaignConfig.form_id} onChange={e => setCampaignConfig({...campaignConfig, form_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold appearance-none">
+                  <select value={campaignConfig.form_id} onChange={e => setCampaignConfig({...campaignConfig, form_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold appearance-none">
                      <option value="" className="bg-[#080810]">No Form</option>
                      {forms.map(f => <option key={f.form_id} value={f.form_id} className="bg-[#080810]">{f.name}</option>)}
                   </select>
                 </div>
                 <div className="pt-4">
-                  <button type="submit" disabled={isLaunching} className="w-full btn-prime !py-4 shadow-indigo-600/20 text-sm disabled:opacity-50 flex justify-center items-center">
+                  <button type="submit" disabled={isLaunching} className="w-full btn-prime !py-4 shadow-[#FF6600]/20 text-sm disabled:opacity-50 flex justify-center items-center">
                     {isLaunching ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
                     {isLaunching ? 'Starting...' : 'Start Now'}
                   </button>

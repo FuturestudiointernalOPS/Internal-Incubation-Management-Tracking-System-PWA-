@@ -20,7 +20,13 @@ export async function GET(req) {
               WHERE t.handler_id = ? AND s.status = 'pending'`, 
         args: [cid] 
       }),
-      db.execute({ sql: "SELECT * FROM v2_events WHERE created_by = ? OR location LIKE ?", args: [cid, `%${cid}%`] })
+      db.execute({ 
+        sql: `SELECT s.*, p.name as program_name 
+              FROM v2_sessions s
+              JOIN v2_programs p ON s.program_id = p.id
+              WHERE s.handler_id = ? AND s.scheduled_date IS NOT NULL`, 
+        args: [cid] 
+      })
     ]);
 
     return NextResponse.json({

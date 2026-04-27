@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, LayoutDashboard, Briefcase, Calendar, User,
+import { Sun, Moon, Users, LayoutDashboard, Briefcase, Calendar, User,
   MessageSquare, Settings, LogOut, Bell,
   Search, ChevronRight, ChevronDown, TrendingUp,
-  FileText, ShieldCheck, Activity, Menu, X, Zap, Rocket, Trash2, Send, Library } from 'lucide-react';
+  FileText, ShieldCheck, Activity, Menu, X, Zap, Rocket, Trash2, Send, Library, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -28,13 +28,13 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
     <>
       {/* BRAND LOGO */}
       <div className="flex items-center gap-4 px-2 mb-10">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0066FF] to-[#0052cc] flex items-center justify-center shadow-lg shadow-blue-500/10">
-          <Activity className="text-white w-6 h-6" />
+        <div className="w-10 h-10 rounded-xl bg-[#FF6600] flex items-center justify-center shadow-lg shadow-[#FF6600]/20">
+          <Activity className="text-black w-6 h-6" />
         </div>
         {!collapsed && (
           <div className="animation-reveal">
             <h1 className="text-lg font-black tracking-tighter text-white uppercase leading-none italic">ImpactOS</h1>
-            <p className="text-[10px] font-bold text-[#0066FF] uppercase tracking-widest mt-1 opacity-80 italic">{role?.replace(/_/g, ' ')}</p>
+            <p className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest mt-1 opacity-80 italic">{role?.replace(/_/g, ' ')}</p>
           </div>
         )}
       </div>
@@ -101,7 +101,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
                 href={item.href}
                 onMouseEnter={() => handleHover(item)}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 font-black text-[11px] uppercase tracking-[0.2em] select-none ${isActive ? 'bg-[#0066FF] text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 font-black text-[11px] uppercase tracking-[0.2em] select-none ${isActive ? 'bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
               >
                 <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
                 {!collapsed && <span className="truncate">{item.name}</span>}
@@ -118,15 +118,6 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
 
       {/* BOTTOM ACTIONS */}
       <div className="mt-auto pt-6 border-t border-white/5 space-y-4">
-        <Link 
-          href="/v2/superadmin/settings" 
-          onClick={() => setMobileMenuOpen(false)}
-          className="sidebar-link group text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-3 px-3 py-3 rounded-xl font-bold text-sm w-full"
-        >
-          <Settings className="w-5 h-5 flex-shrink-0 group-hover:rotate-45 transition-transform" />
-          {!collapsed && <span className="animation-reveal italic uppercase">System Config</span>}
-        </Link>
-
         
         {/* PROMINENT LOGOUT ACTION */}
         <button 
@@ -151,13 +142,14 @@ const NAVIGATION_MATRIX = {
         { id: 'list_programs', name: 'All Programs', href: '/v2/superadmin/programs' },
         { id: 'create_program', name: 'Create Program', href: '/v2/superadmin/programs/new' },
     ]},
+    { id: 'progress_hub', name: 'Progress Hub', icon: Activity, href: '/v2/superadmin/progress' },
     { id: 'communication', name: 'Communication', icon: Send, subItems: [
         { id: 'campaigns', name: 'Emails & Campaigns', href: '/v2/superadmin/communications/campaigns' },
         { id: 'forms', name: 'Forms', href: '/v2/superadmin/communications/forms' },
         { id: 'all_contacts', name: 'All Contacts', href: '/v2/superadmin/communications/contacts' },
     ]},
     { id: 'knowledge', name: 'Knowledge Bank', icon: Library, href: '/v2/superadmin/knowledge' },
-    { id: 'staff', name: 'Our Team', icon: Users, href: '/v2/superadmin/communications/contacts?role=Staff' },
+    { id: 'staff', name: 'Future Studio', icon: Users, href: '/v2/superadmin/communications/contacts?role=Future+Studio' },
     { id: 'profile', name: 'My Profile', icon: User, href: '/v2/superadmin/profile' },
   ],
   admin: [
@@ -167,10 +159,11 @@ const NAVIGATION_MATRIX = {
     { id: 'logs', name: 'Activity Logs', icon: FileText, href: '/admin/logs' },
   ],
   program_manager: [
-    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, href: '/v2/pm' },
-    { id: 'programs', name: 'Programs', icon: Briefcase, href: '/v2/pm' },
-    { id: 'analytics', name: 'Analytics', icon: TrendingUp, href: '#' },
-    { id: 'profile', name: 'My Profile', icon: User, href: '/v2/pm/profile' },
+    { id: 'dashboard', name: 'Operations HQ', icon: LayoutDashboard, href: '/v2/pm' },
+    { id: 'programs', name: 'Assigned Programs', icon: Briefcase, href: '/v2/pm/programs' },
+    { id: 'communication', name: 'Cohort Outreach', icon: MessageSquare, href: '/v2/pm/communications/contacts' },
+    { id: 'profile', name: 'Settings', icon: Settings, href: '/v2/pm/profile' },
+    { id: 'progress_hub', name: 'Progress Registry', icon: Activity, href: '/v2/pm/progress' },
   ],
   teacher: [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, href: '/v2/teacher' },
@@ -192,24 +185,90 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [openMenus, setOpenMenus] = useState({});
+  const [theme, setTheme] = useState('dark');
+  const [lang, setLang] = useState('en');
   const router = useRouter();
   const pathname = usePathname();
 
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('impactos-theme') || 'dark';
+    const savedLang = localStorage.getItem('impactos-lang') || 'en';
+    setTheme(savedTheme);
+    setLang(savedLang);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.documentElement.setAttribute('lang', savedLang);
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('impactos-theme', newTheme);
+  };
+
+  const toggleLang = () => {
+    const newLang = lang === 'en' ? 'fr' : 'en';
+    setLang(newLang);
+    document.documentElement.setAttribute('lang', newLang);
+    localStorage.setItem('impactos-lang', newLang);
+    window.dispatchEvent(new Event('impactos:languageChange')); // Signal children
+  };
+
   // Optimized State Hydration
   const [user, setUser] = React.useState({});
+  const [pmPrograms, setPmPrograms] = React.useState([]);
+
   React.useEffect(() => {
     const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
-  }, []);
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      
+      // If PM, fetch their specific programs to anchor in sidebar
+      if (role === 'program_manager') {
+         fetch('/api/v2/pm/programs?assigned_pm_id=' + (parsedUser.cid || parsedUser.id))
+           .then(res => res.json())
+           .then(data => {
+              if (data.success) setPmPrograms(data.programs || []);
+           })
+           .catch(e => console.error(e));
+      }
+    }
+  }, [role]);
 
   const toggleMenu = React.useCallback((id) => {
     setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
-  const navItems = React.useMemo(() => NAVIGATION_MATRIX[role] || NAVIGATION_MATRIX.admin, [role]);
+  const navItems = React.useMemo(() => {
+    const items = [...(NAVIGATION_MATRIX[role] || NAVIGATION_MATRIX.admin)];
+    
+    // Inject dynamic programs if PM
+    if (role === 'program_manager' && pmPrograms.length > 0) {
+       const progIndex = items.findIndex(i => i.id === 'programs');
+       if (progIndex !== -1) {
+          // Clone the item to avoid mutating the original matrix
+          items[progIndex] = {
+             ...items[progIndex],
+             subItems: [
+                { id: 'all_programs', name: 'Registry Overview', href: '/v2/pm/programs' },
+                ...pmPrograms.map(p => ({
+                   id: `prog_${p.id}`,
+                   name: p.name,
+                   href: `/v2/pm/programs/${p.id}`
+                }))
+             ]
+          };
+       }
+    }
+    
+    return items;
+  }, [role, pmPrograms]);
 
   const handleLogout = () => {
     localStorage.removeItem('sa_session');
+    localStorage.removeItem('pm_session');
+    localStorage.removeItem('part_session');
     localStorage.removeItem('user');
     router.replace('/terminal');
   };
@@ -273,11 +332,30 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
             <span className="opacity-40">ImpactOS</span>
             <ChevronRight className="w-3 h-3 opacity-20" />
             <span className="text-white animation-reveal lowercase">
-              {activeTab || String(pathname).split('/').pop().replace(/-/g, ' ')}
+              {activeTab || (pathname ? String(pathname).split('/').pop().replace(/-/g, ' ') : 'Dashboard')}
             </span>
           </div>
 
           <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+               <button 
+                 onClick={toggleTheme}
+                 className="p-3 rounded-xl bg-white/5 text-slate-500 hover:text-[#FF6600] transition-all border border-transparent hover:border-[#FF6600]/20"
+                 title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+               >
+                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+               </button>
+               
+               <button 
+                 onClick={toggleLang}
+                 className="px-4 py-3 rounded-xl bg-white/5 text-slate-500 hover:text-[#0066FF] transition-all border border-transparent hover:border-[#0066FF]/20 font-black text-xs uppercase tracking-widest flex items-center gap-2"
+                 title="Toggle Language"
+               >
+                 <Globe className="w-4 h-4" />
+                 {lang}
+               </button>
+            </div>
+
             <div className="hidden lg:flex items-center relative group">
               <Search className="absolute left-4 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
               <input 

@@ -1,19 +1,23 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Shield, Activity, Save, Rocket, Zap } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Shield, Activity, Save, Rocket, Zap, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 export default function ParticipantProfile() {
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const sessionUser = JSON.parse(localStorage.getItem('user') || 'null');
     setUser(sessionUser);
     if (sessionUser?.email) {
        fetchProfile(sessionUser.email);
+    } else {
+       setLoading(false);
     }
   }, []);
 
@@ -21,14 +25,41 @@ export default function ParticipantProfile() {
      try {
         const res = await fetch('/api/contacts');
         const data = await res.json();
-        const found = data.contacts.find(c => c.email === email);
-        setDbUser(found);
-     } catch(e) {}
+        if (data.success && data.contacts) {
+           const found = data.contacts.find(c => c.email === email);
+           if (found) {
+              setDbUser(found);
+           } else {
+              setDbUser({
+                 name: user?.name || 'Active Participant',
+                 email: email,
+                 role: 'participant',
+                 cid: user?.cid || 'PART-FALLBACK',
+                 password: 'UNSET'
+              });
+           }
+        }
+     } catch(e) {
+        console.error(e);
+     } finally {
+        setLoading(false);
+     }
   };
 
-  if (!user || !dbUser) return (
+  if (loading) return (
      <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-[#FF6600]/80/20 border-t-[#FF6600]/80 rounded-full animate-spin" />
+     </div>
+  );
+
+  if (!dbUser) return (
+     <div className="min-h-screen bg-[#080810] flex items-center justify-center p-8">
+        <div className="ios-card bg-rose-500/5 border-rose-500/20 p-12 text-center max-w-md">
+           <Rocket className="w-16 h-16 text-rose-500 mx-auto mb-6 opacity-50" />
+           <h2 className="text-2xl font-black text-white uppercase mb-4">Identity Sync Failure</h2>
+           <p className="text-slate-500 font-bold text-sm leading-relaxed mb-8">We could not synchronize your participant portal with the central registry. Please re-authenticate.</p>
+           <button onClick={() => window.location.href='/terminal'} className="btn-prime w-full">Re-Authenticate</button>
+        </div>
      </div>
   );
 
@@ -38,7 +69,7 @@ export default function ParticipantProfile() {
           <header className="border-b border-white/5 pb-10">
              <div className="flex items-center gap-4 mb-4">
                 <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Participant Identity</span>
-                <div className="h-px w-10 bg-indigo-500/30" />
+                <div className="h-px w-10 bg-[#FF6600]/80/30" />
              </div>
              <h1 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">Security Center</h1>
              <p className="text-slate-500 font-bold mt-4 opacity-70">Managing your lifecycle credentials and registry data.</p>
@@ -47,7 +78,7 @@ export default function ParticipantProfile() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
              <div className="md:col-span-1 space-y-6">
                 <div className="ios-card bg-mesh py-16 flex flex-col items-center text-center">
-                   <div className="w-24 h-24 rounded-[2rem] bg-indigo-500/10 border-2 border-indigo-500/20 flex items-center justify-center mb-6">
+                   <div className="w-24 h-24 rounded-[2rem] bg-[#FF6600]/80/10 border-2 border-[#FF6600]/80/20 flex items-center justify-center mb-6">
                       <Rocket className="w-12 h-12 text-indigo-400" />
                    </div>
                    <h3 className="text-xl font-black text-white uppercase tracking-tighter">{dbUser.name}</h3>
@@ -56,7 +87,7 @@ export default function ParticipantProfile() {
                 
                 <div className="ios-card bg-[#0d0d18] border-white/5 p-8 space-y-4">
                    <div className="flex items-center gap-4">
-                      <Zap className="w-5 h-5 text-indigo-500" />
+                      <Zap className="w-5 h-5 text-[#FF6600]/80" />
                       <div>
                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">PROGRAM NODE</p>
                          <p className="text-xs font-black text-white uppercase truncate">{dbUser.program_name || 'Active Cohort'}</p>
@@ -71,6 +102,14 @@ export default function ParticipantProfile() {
                    
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                       <div className="space-y-1">
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><User className="w-3 h-3" /> Identity Handle</p>
+                         <input 
+                            id="part_name_field"
+                            defaultValue={dbUser.name}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-black text-white outline-none focus:border-[#FF6600]/50 transition-all"
+                         />
+                      </div>
+                      <div className="space-y-1">
                          <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Mail className="w-3 h-3" /> Mail Index</p>
                          <p className="text-sm font-bold text-white bg-white/5 p-4 rounded-xl border border-white/5">{dbUser.email}</p>
                       </div>
@@ -81,42 +120,61 @@ export default function ParticipantProfile() {
                    </div>
                 </div>
 
-                <div className="ios-card bg-indigo-500/5 border-indigo-500/20 !p-12 space-y-8">
+                <div className="ios-card bg-[#FF6600]/80/5 border-[#FF6600]/80/20 !p-12 space-y-8">
                    <div>
                       <h4 className="text-xl font-black text-white uppercase tracking-tighter">Credential Rotation</h4>
                       <p className="text-xs text-slate-400 font-bold mt-2 italic">Update your Future Studio access key to secure your participant portal.</p>
                    </div>
                    
                    <div className="flex flex-col sm:flex-row items-end gap-6">
-                      <div className="flex-1 space-y-2 w-full">
+                      <div className="flex-1 space-y-2 w-full relative">
                          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest pl-2">New Access Key</label>
-                         <input 
-                            type="text" 
-                            defaultValue={dbUser.password}
-                            id="part_password_field"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-black text-white outline-none focus:border-indigo-500/50 transition-all font-mono"
-                         />
+                         <div className="relative group">
+                            <input 
+                               type={showPassword ? "text" : "password"} 
+                               defaultValue={dbUser.password}
+                               id="part_password_field"
+                               className="w-full bg-white/5 border border-white/10 rounded-xl p-4 pr-14 text-xs font-black text-white outline-none focus:border-[#FF6600]/80/50 transition-all font-mono"
+                            />
+                            <button 
+                               onClick={() => setShowPassword(!showPassword)}
+                               className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-[#FF6600]/80 transition-colors"
+                            >
+                               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                         </div>
                       </div>
                       <button 
                          onClick={async () => {
                             const newPass = document.getElementById('part_password_field').value;
-                            if(!newPass) return;
+                            const newName = document.getElementById('part_name_field').value;
+                            if(!newPass && !newName) return;
                             try {
                                const res = await fetch('/api/contacts', {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ cid: dbUser.cid, password: newPass })
+                                  body: JSON.stringify({ 
+                                     cid: dbUser.cid, 
+                                     password: newPass || dbUser.password,
+                                     name: newName || dbUser.name
+                                  })
                                });
                                const data = await res.json();
                                if(data.success) {
-                                  alert("Security Token Synchronized.");
+                                  window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                                     detail: { type: 'success', message: 'Settings Saved.' } 
+                                  }));
                                   fetchProfile(dbUser.email);
                                }
-                            } catch(e) { alert("Sync Failed."); }
+                            } catch(e) { 
+                               window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                                  detail: { type: 'error', message: 'Sync Failed.' } 
+                               }));
+                            }
                          }}
                          className="btn-prime !py-4 px-10 flex items-center justify-center gap-2 whitespace-nowrap"
                       >
-                         <Save className="w-5 h-5" /> Sync Node
+                         <Save className="w-5 h-5" /> Save Settings
                       </button>
                    </div>
                 </div>

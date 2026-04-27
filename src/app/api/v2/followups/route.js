@@ -19,10 +19,10 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const { program_id, week_number, comment } = await req.json();
+    const { program_id, week_number, session_id, comment } = await req.json();
     const result = await db.execute({
-      sql: "INSERT INTO v2_followups (program_id, week_number, comment) VALUES (?, ?, ?) RETURNING *",
-      args: [program_id, week_number, comment]
+      sql: "INSERT INTO v2_followups (program_id, week_number, session_id, comment) VALUES (?, ?, ?, ?) RETURNING *",
+      args: [program_id, week_number, session_id || null, comment]
     });
     return NextResponse.json({ success: true, followup: result.rows[0] });
   } catch (error) {
