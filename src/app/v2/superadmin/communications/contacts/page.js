@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -16,7 +16,7 @@ import { useSearchParams } from 'next/navigation';
  * CORPORATE REGISTRY (FUTURE STUDIO)
  * Specialized management of Staff and Project Managers.
  */
-export default function ContactsPage() {
+function ContactsPageContent() {
   const searchParams = useSearchParams();
   const roleParam = searchParams.get('role');
   
@@ -730,5 +730,13 @@ export default function ContactsPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function ContactsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#FF6600] border-t-transparent rounded-full animate-spin"></div></div>}>
+      <ContactsPageContent />
+    </Suspense>
   );
 }
