@@ -90,7 +90,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Ex. sarah@impactos.com" 
-                className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 px-6 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-[#FF6600]/20 focus:border-[#FF6600]/40 transition-all placeholder:text-slate-600"
+                className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 px-6 text-sm font-bold text-[#ffffff] outline-none focus:ring-2 focus:ring-[#FF6600]/20 focus:border-[#FF6600]/40 transition-all placeholder:text-slate-500"
               />
             </div>
 
@@ -105,7 +105,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••" 
-                  className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-6 pr-14 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-[#FF6600]/20 focus:border-[#FF6600]/40 transition-all placeholder:text-slate-600"
+                  className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-6 pr-14 text-sm font-bold text-[#ffffff] outline-none focus:ring-2 focus:ring-[#FF6600]/20 focus:border-[#FF6600]/40 transition-all placeholder:text-slate-500"
                 />
                 <button 
                   type="button" 

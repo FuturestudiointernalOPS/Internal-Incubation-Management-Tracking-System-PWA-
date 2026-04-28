@@ -6,7 +6,7 @@ import {
   Rocket, Users, Calendar, ArrowRight, Layers, Layout, ChevronRight, Briefcase, Search, Activity
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Plus, Globe, Mail, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Plus, Globe, Mail, CheckCircle2, RotateCcw } from 'lucide-react';
 
 /**
  * PM OPERATIONS REGISTRY
@@ -16,6 +16,7 @@ export default function PMProgramsRegistry() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeTab, setTab] = useState('active'); 
   const router = useRouter();
 
   const [schedule, setSchedule] = useState([]);
@@ -23,13 +24,13 @@ export default function PMProgramsRegistry() {
   useEffect(() => {
     fetchMyPrograms();
     fetchGlobalSchedule();
-  }, []);
+  }, [activeTab]);
 
   const fetchMyPrograms = async () => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const identifier = user.cid || user.id;
-      const res = await fetch('/api/v2/pm/programs?assigned_pm_id=' + identifier);
+      const res = await fetch(`/api/v2/pm/programs?assigned_pm_id=${identifier}&show_archived=${activeTab === 'archived'}`);
       const data = await res.json();
       if (data.success) {
         setPrograms(data.programs || []);
@@ -96,6 +97,21 @@ export default function PMProgramsRegistry() {
              />
           </div>
         </header>
+
+        <div className="flex gap-4">
+           <button 
+              onClick={() => setTab('active')}
+              className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'active' ? 'bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+           >
+              Active Missions
+           </button>
+           <button 
+              onClick={() => setTab('archived')}
+              className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'archived' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+           >
+              Archived Repository
+           </button>
+        </div>
 
         {/* TACTICAL CALENDAR VIEW */}
         <section className="ios-card bg-white/[0.01] border-white/5 !p-12 overflow-hidden shadow-2xl relative">
@@ -228,9 +244,33 @@ export default function PMProgramsRegistry() {
                                 <p className="text-lg font-black text-emerald-500 uppercase tracking-tighter flex items-center gap-2 italic">Optimal <Activity className="w-3.5 h-3.5 text-emerald-900" /></p>
                              </div>
                              <div className="flex items-center justify-end">
-                                <button className="btn-prime !py-3 !px-6 shadow-xl shadow-blue-600/10">
-                                   Launch Terminal <ArrowRight className="w-4 h-4 ml-2" />
-                                </button>
+                                {activeTab === 'archived' ? (
+                                   <button 
+                                      onClick={async (e) => {
+                                         e.stopPropagation();
+                                         try {
+                                            const res = await fetch('/api/v2/pm/programs', {
+                                               method: 'PATCH',
+                                               headers: { 'Content-Type': 'application/json' },
+                                               body: JSON.stringify({ id: program.id, is_archived: 0, action: 'archive' })
+                                            });
+                                            if ((await res.json()).success) {
+                                               fetchMyPrograms();
+                                               window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                                                  detail: { type: 'success', message: 'Mission Restored.' } 
+                                               }));
+                                            }
+                                         } catch(err) {}
+                                      }}
+                                      className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white hover:text-emerald-500 transition-all shadow-xl shadow-emerald-500/20 flex items-center gap-2"
+                                   >
+                                      <RotateCcw className="w-4 h-4" /> Restore Mission
+                                   </button>
+                                ) : (
+                                   <button className="btn-prime !py-3 !px-6 shadow-xl shadow-blue-600/10">
+                                      Launch Terminal <ArrowRight className="w-4 h-4 ml-2" />
+                                   </button>
+                                )}
                              </div>
                           </div>
                        </div>

@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { getPrefetchedData } from '@/utils/prefetch';
 import { IMPACT_CACHE } from '@/utils/impactCache';
+import { Copy, CheckCircle2, Link as LinkIcon } from 'lucide-react';
 
 const StatCard = ({ title, value, icon: Icon, color, badge, onClick }) => (
   <div 
@@ -98,9 +99,9 @@ export default function SuperAdminV2Dashboard() {
               <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">Internal Operations</span>
               <div className="h-px w-10 bg-[#FF6600]/30" />
             </div>
-            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Version 2 Command HQ</h2>
+            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Operational Dashboard</h2>
             <p className="text-slate-400 font-bold tracking-tight">
-              Lifecycle automation and program execution architecture.
+               Manage program lifecycles and operational tracking across the platform.
             </p>
           </div>
           <div className="flex gap-4">
@@ -108,26 +109,26 @@ export default function SuperAdminV2Dashboard() {
                 onClick={() => router.push('/v2/superadmin/programs/new')}
                 className="btn-prime !py-4 shadow-orange-600/10"
              >
-                <Plus className="w-5 h-5 mr-2" /> Design New Program
+                <Plus className="w-5 h-5 mr-2" /> Create New Program
              </button>
           </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard 
-            title="Active v2 Cohorts" 
+            title="Active Programs" 
             value={stats.programs} 
             icon={Layers} 
             color="text-[#FF6600]" 
-            badge="V2-READY" 
+            badge="ACTIVE" 
             onClick={() => router.push('/v2/superadmin/programs')}
           />
           <StatCard 
-            title="Team Personnel" 
+            title="Team Members" 
             value={stats.totalStaff || 0} 
             icon={Users} 
             color="text-emerald-400" 
-            badge="V1-SYNCED" 
+            badge="SYNCED" 
             onClick={() => router.push('/v2/superadmin/communications/contacts')}
           />
           <StatCard 
@@ -138,7 +139,7 @@ export default function SuperAdminV2Dashboard() {
             onClick={() => router.push('/v2/superadmin/communications/contacts')}
           />
           <StatCard 
-            title="Automation Health" 
+            title="Platform Health" 
             value="100%" 
             icon={Activity} 
             color="text-rose-400" 
@@ -152,7 +153,7 @@ export default function SuperAdminV2Dashboard() {
               <div className="ios-card overflow-hidden">
                  <div className="flex items-center justify-between mb-8">
                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-3">
-                       <Sparkles className="w-4 h-4 text-[#FF6600]" /> Recent Program Lifecycle Activity
+                       <Sparkles className="w-4 h-4 text-[#FF6600]" /> Recent Activity Log
                     </h4>
                     <button className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest hover:text-white transition-colors">View All Logs</button>
                  </div>
@@ -176,7 +177,7 @@ export default function SuperAdminV2Dashboard() {
                           <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-dashed border-white/10">
                              <Activity className="w-8 h-8 text-slate-700" />
                           </div>
-                          <p className="text-slate-500 font-bold max-w-xs">Connecting to the Turso pulse stream... No active events found yet.</p>
+                          <p className="text-slate-500 font-bold max-w-xs">Connecting to the database... No active events found yet.</p>
                        </div>
                     )}
                  </div>
@@ -208,6 +209,48 @@ export default function SuperAdminV2Dashboard() {
                         <span className="text-xs font-black text-white uppercase tracking-tighter">Configure Group Schema</span>
                         <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-[#FF6600] transition-colors" />
                      </button>
+                     
+                     <div className="pt-4 mt-4 border-t border-white/5">
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mb-3 ml-1">Temporary Access</p>
+                        <button 
+                           onClick={async () => {
+                              try {
+                                 // Fetch programs to get a valid ID if needed, or use a system-wide one
+                                 const progRes = await fetch('/api/v2/pm/programs');
+                                 const progData = await progRes.json();
+                                 const program_id = progData.programs?.[0]?.id || 'SYSTEM-GENERIC';
+
+                                 const res = await fetch('/api/v2/invites', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                       program_id,
+                                       group_name: 'Future Studio',
+                                       role: 'staff',
+                                       expiresInHours: 1,
+                                       created_by: 'super_admin'
+                                    })
+                                 });
+                                 const data = await res.json();
+                                 if (data.inviteUrl) {
+                                    navigator.clipboard.writeText(data.inviteUrl);
+                                    window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                                       detail: { type: 'success', message: 'Future Studio Invite copied (Expires in 1hr)' } 
+                                    }));
+                                 }
+                              } catch (e) {
+                                 console.error(e);
+                              }
+                           }}
+                           className="w-full flex items-center justify-between p-4 rounded-xl bg-[#FF6600]/10 border border-[#FF6600]/20 hover:bg-[#FF6600]/20 transition-all group"
+                        >
+                           <div className="flex items-center gap-3">
+                              <LinkIcon className="w-4 h-4 text-[#FF6600]" />
+                              <span className="text-xs font-black text-[#FF6600] uppercase tracking-tighter">Future Studio Link</span>
+                           </div>
+                           <Copy className="w-4 h-4 text-[#FF6600]/50 group-hover:text-[#FF6600]" />
+                        </button>
+                     </div>
                  </div>
               </div>
 
@@ -219,7 +262,7 @@ export default function SuperAdminV2Dashboard() {
                        <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">ONLINE</span>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">v2 Module Isolation</span>
+                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">V2 Core Systems</span>
                        <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">ACTIVE</span>
                     </div>
                  </div>

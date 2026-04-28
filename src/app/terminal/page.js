@@ -54,7 +54,7 @@ export default function SuperAdminLoginPage() {
         setLoading(false);
       }
     } catch (err) {
-      setError('System connection failure. Please try again.');
+      setError('Connection failure. Please try again.');
       setLoading(false);
     }
   };
@@ -75,7 +75,7 @@ export default function SuperAdminLoginPage() {
         <div className="flex justify-between items-center mb-6 px-4">
            <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-[#FF6600] animate-pulse shadow-[0_0_10px_rgba(255,102,0,0.5)]" />
-              <span className="text-[10px] font-black tracking-[0.3em] text-[#FF6600]/50 uppercase italic">Terminal Linked</span>
+              <span className="text-[10px] font-black tracking-[0.3em] text-[#FF6600]/50 uppercase italic">Secured</span>
            </div>
            <div className="text-right">
               <span className="text-[10px] font-mono text-slate-500 uppercase tracking-tighter block opacity-60 italic">System Time</span>
@@ -105,7 +105,7 @@ export default function SuperAdminLoginPage() {
                 <h1 className="text-4xl font-black text-white tracking-tighter uppercase mb-2 italic">
                    ImpactOS <span className="text-[#FF6600]">V2</span>
                 </h1>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.4em] mb-4 italic">Secure Terminal Login</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.4em] mb-4 italic">User Login</p>
                 <div className="flex items-center justify-center gap-2">
                    <div className="h-[1px] w-8 bg-white/5" />
                    <span className="text-[8px] font-black text-[#FF6600]/40 uppercase tracking-widest italic">FutureStudio Operations</span>
@@ -117,7 +117,7 @@ export default function SuperAdminLoginPage() {
               <form onSubmit={handleLogin} className="space-y-6 text-left">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest ml-1 italic">Identity Access</label>
+                    <label className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest ml-1 italic">Account Identification</label>
                     <div className="relative">
                       <Command className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
                       <input
@@ -125,14 +125,14 @@ export default function SuperAdminLoginPage() {
                         required
                         value={useID}
                         onChange={(e) => setUseID(e.target.value)}
-                        placeholder="ADMIN-ID"
-                        className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-sm font-black text-white placeholder:text-slate-700 focus:outline-none focus:border-[#FF6600]/50 transition-all focus:bg-white/[0.05]"
+                        placeholder="ACCOUNT-ID"
+                        className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-sm font-black text-[#ffffff] placeholder:text-slate-500 focus:outline-none focus:border-[#FF6600]/50 transition-all focus:bg-white/[0.05]"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest ml-1 italic">Secure Pin</label>
+                    <label className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest ml-1 italic">Password</label>
                     <div className="relative">
                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
                        <input
@@ -141,7 +141,7 @@ export default function SuperAdminLoginPage() {
                          value={accessCode}
                          onChange={(e) => setAccessCode(e.target.value)}
                          placeholder="Your Password"
-                         className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-4 px-12 text-sm font-black text-white placeholder:text-slate-700 focus:outline-none focus:border-[#FF6600]/50 transition-all focus:bg-white/[0.05]"
+                         className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-4 px-12 text-sm font-black text-[#ffffff] placeholder:text-slate-500 focus:outline-none focus:border-[#FF6600]/50 transition-all focus:bg-white/[0.05]"
                        />
                       <button
                         type="button"
@@ -184,7 +184,7 @@ export default function SuperAdminLoginPage() {
                     </motion.div>
                   )}
                   <span className={`text-[11px] font-black uppercase tracking-[0.3em] text-black flex items-center justify-center gap-2 ${loading && !success ? 'opacity-0' : 'opacity-100'}`}>
-                    {success ? 'ACCESS GRANTED' : 'LOGIN TO TERMINAL'} {!success && <ArrowRight className="w-3 h-3 text-black/60" />}
+                    {success ? 'ACCESS AUTHORIZED' : 'LOGIN TO DASHBOARD'} {!success && <ArrowRight className="w-3 h-3 text-black/60" />}
                   </span>
                 </button>
               </form>
@@ -201,7 +201,7 @@ export default function SuperAdminLoginPage() {
               </div>
            </div>
            <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.25em]">
-             High-Security Clearance Required · 2026-HQ
+             Authorized Access Only · 2026-HQ
            </p>
         </div>
       </motion.div>

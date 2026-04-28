@@ -4,12 +4,12 @@ import { Zap as SignalIcon } from 'lucide-react';
 import React, { useState, useEffect, use } from 'react';
 import { 
   ChevronLeft, Plus, Calendar, 
-  Users, Layers, Settings, MessageSquare, 
+  Users, Layers, Settings, MessageSquare, Mail, MessageCircle,
   Globe, LayoutDashboard, Search, Filter,
   ArrowRight, Activity, Shield, Zap, Target, CheckCircle2, AlertCircle, Clock, Send, Briefcase, ChevronDown, Trash2, Edit3, Link2, ChevronRight, X, FileText, Video, Image as ImageIcon, Link as LinkIcon, FileCheck, BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 /**
@@ -23,9 +23,24 @@ export default function PMProgramTerminalV2({ params }) {
   const [signalData, setSignalData] = useState({ subject: '', body: '', target_type: 'staff' });
   const router = useRouter();
   
+  const getWhatsAppLink = (c) => {
+    if (!c.phone) return '#';
+    const clean = c.phone.replace(/\D/g, '');
+    return `https://wa.me/${clean}`;
+  };
+  
   const [isLoaded, setIsLoaded] = useState(false);
   const [user, setUser] = useState({});
+  const isLeadPMForProject = (user?.role === 'superadmin') || (user?.isLeadPM && program?.assigned_pm_id === (user?.cid || user?.id));
   const [activeTab, setActiveTab] = useState('curriculum'); 
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['resources', 'curriculum', 'teams', 'participants', 'progress'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
   const [reports, setReports] = useState([]);
   const [followups, setFollowups] = useState([]);
   const [isReportsLoading, setIsReportsLoading] = useState(false);
@@ -94,6 +109,8 @@ export default function PMProgramTerminalV2({ params }) {
     customFormat: ''
   });
 
+  const [assignedStaff, setAssignedStaff] = useState([]);
+
 
   // Teams Management State
   const [showTeamModal, setShowTeamModal] = useState(false);
@@ -129,6 +146,7 @@ export default function PMProgramTerminalV2({ params }) {
         setSessions(data.sessions || []);
         setStaffList(data.staffList || []);
         setDocRequirements(data.documents || []);
+        setAssignedStaff(data.assignedStaff || []);
       }
 
       // Fetch Standard Types (Expanded Categories)
@@ -249,13 +267,26 @@ export default function PMProgramTerminalV2({ params }) {
   };
 
   const handleAddRequirements = async () => {
-      if (newReq.manifest.length === 0 || !selectedTask.id) return;
-      setIsProcessing(true);
-      try {
-         await deployManifestItems(selectedTask.id);
-         await fetchPMData();
-      } catch (e) { console.error(e); }
-      finally { setIsProcessing(false); }
+      if (newReq.manifest.length === 0) return;
+      
+      if (selectedTask.id) {
+         setIsProcessing(true);
+         try {
+            await deployManifestItems(selectedTask.id);
+            await fetchPMData();
+            window.dispatchEvent(new CustomEvent('impactos:notify', { 
+               detail: { type: 'success', message: 'Manifest Anchored.' } 
+            }));
+         } catch (e) { console.error(e); }
+         finally { setIsProcessing(false); }
+      } else {
+         // It's a new session, just close the staging area
+         // The manifest items are already in newReq.manifest state
+         setNewReq({ ...newReq, isAdding: false });
+         window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'success', message: 'Manifest Staged.' } 
+         }));
+      }
   };
 
    const handleSavePMReport = async (wn) => {
@@ -285,6 +316,7 @@ export default function PMProgramTerminalV2({ params }) {
                detail: { type: 'success', message: 'Report Synchronized' } 
             }));
             fetchReports();
+            fetchPMData();
             setPmReportInputs(prev => ({ ...prev, [wn]: { notes: '', saving: false } }));
          }
       } catch (e) { console.error(e); }
@@ -485,7 +517,7 @@ export default function PMProgramTerminalV2({ params }) {
            {[
               { id: 'resources', label: 'Knowledge Base', icon: BookOpen },
               { id: 'curriculum', label: 'Curriculum', icon: Layers },
-              { id: 'teams', label: 'Teams', icon: Target },
+              { id: 'teams', label: 'Cohort Registry', icon: Target },
               { id: 'participants', label: 'Participants', icon: Users },
               { id: 'progress', label: 'Progress', icon: Activity }
            ].map(tab => (
@@ -512,12 +544,14 @@ export default function PMProgramTerminalV2({ params }) {
                        <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Phase Overview</h3>
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Active Modules: {totalWeight}</p>
                     </div>
-                    <button 
-                       onClick={() => setSelectedTask({ week_number: maxWeek, title: '', description: '', status: 'pending' })}
-                       className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
-                    >
-                       + Add New Phase
-                    </button>
+                    {isLeadPMForProject && (
+                       <button 
+                          onClick={() => setSelectedTask({ week_number: maxWeek, title: '', description: '', status: 'pending' })}
+                          className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
+                       >
+                          + Add New Phase
+                       </button>
+                    )}
                  </div>
 
                  {weeks.map(wn => {
@@ -611,8 +645,13 @@ export default function PMProgramTerminalV2({ params }) {
                                                               {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                            </select>
 
-                                                           <span className="text-slate-800 font-black">•</span>
-                                                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{docRequirements.filter(dr => dr.session_id == session.id).length} Tracked Deliverables</p>
+                                                            <span className="text-slate-800 font-black">•</span>
+                                                            <p className="text-[10px] text-[#FF6600] font-black uppercase tracking-widest italic opacity-80">
+                                                               {session.handler_name || 'No Personnel Assigned'}
+                                                            </p>
+
+                                                            <span className="text-slate-800 font-black">•</span>
+                                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{docRequirements.filter(dr => dr.session_id == session.id).length} Tracked Deliverables</p>
                                                         </div>
                                                      </div>
                                                   </div>
@@ -796,95 +835,225 @@ export default function PMProgramTerminalV2({ params }) {
 
 
             {activeTab === 'progress' && (
-               <div className="max-w-5xl space-y-12">
-                  <div className="grid grid-cols-1 gap-8">
-                     {sessions.map(session => (
-                        <div key={session.id} className="ios-card bg-white/[0.01] border-white/5 !p-8 space-y-8 group hover:border-[#FF6600]/20 transition-all">
-                           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+               <div className="max-w-5xl space-y-16 pb-20">
+                  {weeks.map(wn => {
+                     const weekSessions = sessions.filter(s => s.week_number === wn);
+                     const weekDocs = docRequirements.filter(dr => dr.program_id === id && dr.session_id && weekSessions.some(s => s.id === dr.session_id));
+                     const weekReport = reports.find(r => r.week_number === wn && r.teacher_name?.includes('(PM)'));
+                     const stats = getWeekStats(wn);
+                     
+                     return (
+                        <div key={wn} className="space-y-8">
+                           {/* WEEK HEADER & STATS */}
+                           <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-white/5 pb-6">
                               <div className="flex items-center gap-6">
-                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${
-                                    session.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 
-                                    session.status === 'in progress' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 
-                                    'bg-white/5 border-white/10 text-slate-400'
-                                 }`}>
-                                    <Zap className="w-6 h-6" />
+                                 <div className="w-16 h-16 bg-[#FF6600]/10 rounded-3xl flex items-center justify-center text-[#FF6600] font-black text-2xl italic border border-[#FF6600]/20 shadow-xl shadow-[#FF6600]/5">
+                                    {String(wn).padStart(2, '0')}
                                  </div>
-                                 <div>
-                                    <h4 className="text-2xl font-black text-white uppercase italic tracking-tighter leading-none">{session.title}</h4>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Week {session.week_number} • {session.assignment_type || 'Module'}</p>
+                                 <div className="text-left">
+                                    <h4 className="text-3xl font-black text-white uppercase italic tracking-tighter leading-none">Week {wn} Audit</h4>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Mission Phase Velocity: {stats.percentage}%</p>
                                  </div>
                               </div>
-                              
-                               <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-2xl border border-white/5">
-                                 {['not started', 'in progress', 'completed'].map(st => (
-                                    <button 
-                                       key={st}
-                                       onClick={() => handleToggleSessionStatus(session.id, st)}
-                                       className={`px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-                                          session.status === st ? (
-                                             st === 'completed' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' :
-                                             st === 'in progress' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' :
-                                             'bg-white/10 text-white shadow-lg'
-                                          ) : 'text-slate-500 hover:text-white'
-                                       }`}
-                                    >
-                                       {st}
-                                    </button>
-                                 ))}
+                              <div className="flex items-center gap-4 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
+                                 <div className="text-right">
+                                    <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1 italic">Deliverable Fulfillment</p>
+                                    <p className="text-xs font-black text-white uppercase tracking-tighter">
+                                       <span className="text-[#FF6600]">{stats.completedDocs}</span> / {stats.totalDocs} Synchronized
+                                    </p>
+                                 </div>
                               </div>
                            </div>
 
-                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-8 border-t border-white/5">
-                              {docRequirements.filter(dr => dr.session_id == session.id).map(req => (
-                                 <div key={req.id} className={`flex items-center justify-between p-6 rounded-3xl border transition-all group/item ${req.is_completed ? 'bg-[#FF6600]/10 border-[#FF6600]/40 shadow-lg shadow-[#FF6600]/5' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
-                                    <div className="flex items-center gap-5">
-                                       <button 
-                                          onClick={() => handleToggleDeliverableStatus(req.id, !req.is_completed)}
-                                          className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-300 ${
-                                             req.is_completed 
-                                             ? 'bg-[#FF6600] border-[#FF6600] text-black scale-110 shadow-[0_0_20px_rgba(255,102,0,0.5)]' 
-                                             : 'bg-black/40 border-white/10 hover:border-[#FF6600] hover:scale-105'
-                                          }`}
-                                       >
-                                          {req.is_completed ? (
-                                             <CheckCircle2 className="w-5 h-5 stroke-[3px]" />
-                                          ) : (
-                                             <div className="w-2 h-2 rounded-full bg-white/10 group-hover/item:bg-[#FF6600]/50" />
-                                          )}
-                                       </button>
-                                       <div>
-                                          <span className={`text-xs font-black uppercase tracking-widest italic transition-colors ${req.is_completed ? 'text-white' : 'text-slate-400 group-hover/item:text-slate-300'}`}>{req.title}</span>
-                                          {req.is_completed && <p className="text-[7px] font-black text-[#FF6600] uppercase tracking-[0.2em] mt-1 animate-pulse">Requirement Validated</p>}
+                           <div className="grid grid-cols-1 gap-6">
+                              {/* SESSION NODES */}
+                              {weekSessions.map(session => (
+                                 <div key={session.id} className="ios-card bg-white/[0.01] border-white/5 !p-8 space-y-8 group hover:border-[#FF6600]/20 transition-all">
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                       <div className="flex items-center gap-6">
+                                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${
+                                             session.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 shadow-lg shadow-emerald-500/5' : 
+                                             session.status === 'in progress' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 
+                                             'bg-white/5 border-white/10 text-slate-400'
+                                          }`}>
+                                             <Zap className="w-6 h-6" />
+                                          </div>
+                                          <div className="text-left">
+                                             <h4 className="text-xl font-black text-white uppercase italic tracking-tighter leading-none">{session.title}</h4>
+                                             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-2">{session.assignment_type || 'Module'} Node • Priority Weight: {session.weight || 5}</p>
+                                          </div>
+                                       </div>
+                                       
+                                       <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-2xl border border-white/5 shadow-inner">
+                                          {['not started', 'in progress', 'completed'].map(st => (
+                                             <button 
+                                                key={st}
+                                                onClick={() => handleToggleSessionStatus(session.id, st)}
+                                                className={`px-5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
+                                                   session.status === st ? (
+                                                      st === 'completed' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' :
+                                                      st === 'in progress' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' :
+                                                      'bg-white/10 text-white shadow-lg'
+                                                   ) : 'text-slate-600 hover:text-white'
+                                                }`}
+                                             >
+                                                {st}
+                                             </button>
+                                          ))}
                                        </div>
                                     </div>
-                                    <div className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-tighter border ${req.is_completed ? 'bg-black/40 border-[#FF6600]/30 text-[#FF6600]' : 'bg-white/5 border-white/5 text-slate-600'}`}>
-                                       {req.is_completed ? 'Authenticated' : 'Pending'}
+
+                                    {/* DELIVERABLES GRID */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6 border-t border-white/5">
+                                       {docRequirements.filter(dr => dr.session_id == session.id).map(req => (
+                                          <div key={req.id} className={`flex items-center justify-between p-5 rounded-3xl border transition-all group/item ${req.is_completed ? 'bg-[#FF6600]/10 border-[#FF6600]/40 shadow-lg shadow-[#FF6600]/5' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
+                                             <div className="flex items-center gap-4">
+                                                <button 
+                                                   onClick={() => handleToggleDeliverableStatus(req.id, !req.is_completed)}
+                                                   className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-300 ${
+                                                      req.is_completed 
+                                                      ? 'bg-[#FF6600] border-[#FF6600] text-black scale-105' 
+                                                      : 'bg-black/40 border-white/10 hover:border-[#FF6600]'
+                                                   }`}
+                                                >
+                                                   {req.is_completed ? <CheckCircle2 className="w-4 h-4 stroke-[3px]" /> : <div className="w-1.5 h-1.5 rounded-full bg-white/10" />}
+                                                </button>
+                                                <span className={`text-[10px] font-black uppercase tracking-widest italic ${req.is_completed ? 'text-white' : 'text-slate-500'}`}>{req.title}</span>
+                                             </div>
+                                          </div>
+                                       ))}
                                     </div>
                                  </div>
                               ))}
-                              {docRequirements.filter(dr => dr.session_id == session.id).length === 0 && (
-                                 <p className="col-span-full text-[10px] font-black text-slate-600 uppercase italic">No active deliverables anchored to this node.</p>
-                              )}
+
+                              {/* WEEKLY REPORT ACTION */}
+                              <div className={`ios-card !p-10 border-dashed border-2 transition-all overflow-hidden relative ${weekReport ? 'bg-emerald-500/[0.02] border-emerald-500/20 shadow-2xl shadow-emerald-500/5' : 'bg-indigo-500/[0.02] border-indigo-500/10'}`}>
+                                 <div className="flex flex-col md:flex-row gap-10">
+                                    <div className="flex-[2] space-y-6">
+                                       <div className="flex items-center gap-4">
+                                          <div className={`p-3 rounded-2xl border ${weekReport ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'}`}>
+                                             <FileText className="w-6 h-6" />
+                                          </div>
+                                          <div className="text-left">
+                                             <h5 className="text-2xl font-black text-white uppercase tracking-tighter italic leading-none">PM Weekly Review</h5>
+                                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Mission Authority Strategic Feedback</p>
+                                          </div>
+                                       </div>
+                                       
+                                       {weekReport ? (
+                                          <div className="space-y-4">
+                                             <div className="p-6 bg-black/40 border border-white/5 rounded-3xl shadow-inner italic leading-relaxed text-slate-300 font-bold text-sm">
+                                                "{weekReport.progress_notes}"
+                                             </div>
+                                             <div className="flex items-center gap-4">
+                                                <div className="px-4 py-1.5 bg-emerald-500 text-black text-[8px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-emerald-500/20">
+                                                   Strategic Report Synchronized
+                                                </div>
+                                                <span className="text-[9px] font-black text-slate-600 uppercase italic">Logged by PM on {new Date(weekReport.created_at).toLocaleDateString()}</span>
+                                             </div>
+                                          </div>
+                                       ) : (
+                                          <div className="space-y-4">
+                                             <textarea 
+                                                rows={3}
+                                                placeholder="Enter tactical oversight for this week... (Required for 100% completion)"
+                                                className="w-full bg-black/40 border border-white/10 rounded-3xl p-6 text-slate-200 font-bold text-sm outline-none focus:border-[#FF6600]/50 transition-all resize-none shadow-inner"
+                                                value={pmReportInputs[wn]?.notes || ''}
+                                                onChange={e => setPmReportInputs(prev => ({ ...prev, [wn]: { ...prev[wn], notes: e.target.value } }))}
+                                             />
+                                             <button 
+                                                onClick={() => handleSavePMReport(wn)}
+                                                disabled={pmReportInputs[wn]?.saving || !pmReportInputs[wn]?.notes}
+                                                className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 disabled:opacity-20"
+                                             >
+                                                {pmReportInputs[wn]?.saving ? 'Transmitting...' : 'Synchronize Report'}
+                                             </button>
+                                          </div>
+                                       )}
+                                    </div>
+                                    
+                                    <div className="flex-1 flex flex-col items-center justify-center border-l border-white/5 pl-10">
+                                       <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center transition-all ${weekReport ? 'bg-emerald-500 border-emerald-500 text-black shadow-[0_0_30px_rgba(16,185,129,0.3)] scale-110' : 'bg-white/5 border-white/10 text-slate-800 opacity-40'}`}>
+                                          {weekReport ? <CheckCircle2 className="w-10 h-10 stroke-[3px]" /> : <Activity className="w-10 h-10" />}
+                                       </div>
+                                       <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-6 italic ${weekReport ? 'text-emerald-500' : 'text-slate-700'}`}>
+                                          {weekReport ? 'Audit Complete' : 'Report Required'}
+                                       </p>
+                                    </div>
+                                 </div>
+                              </div>
                            </div>
                         </div>
-                     ))}
-                  </div>
+                     );
+                  })}
                </div>
             )}
             {activeTab === 'teams' && (
-               <div className="space-y-10">
-                  <div className="flex justify-between items-end mb-12">
-                     <div>
-                        <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Squad Registry</h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Active Units: {teams.length}</p>
+               <div className="space-y-16">
+                  {/* SEGMENT 1: ASSIGNED OPERATIONS PERSONNEL (Future Studio) */}
+                  <div className="space-y-10">
+                     <div className="flex justify-between items-end">
+                        <div>
+                           <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Assigned Operations Personnel</h3>
+                           <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mt-2">Future Studio Support Team: {assignedStaff.length}</p>
+                        </div>
                      </div>
-                     <button 
-                        onClick={() => setShowTeamModal(true)}
-                        className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
-                     >
-                        + Deploy New Unit
-                     </button>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {assignedStaff.map(staff => (
+                           <div key={staff.cid} className="ios-card bg-indigo-500/[0.02] border-indigo-500/10 p-10 flex flex-col justify-between group hover:border-[#FF6600]/40 transition-all shadow-2xl relative overflow-hidden">
+                              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 blur-[60px]" />
+                              <div className="space-y-8 relative z-10">
+                                 <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                                    <Shield className="w-7 h-7" />
+                                 </div>
+                                 <div>
+                                    <h4 className="text-2xl font-black text-white uppercase tracking-tighter italic leading-none mb-3">{staff.name}</h4>
+                                    <div className="flex items-center gap-2">
+                                       <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-indigo-500/20">{staff.role || 'Personnel'}</span>
+                                       <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest opacity-60">ID: {staff.cid}</span>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center relative z-10">
+                                 <div className="flex items-center gap-3">
+                                    {staff.email && (
+                                       <a href={`mailto:${staff.email}`} className="p-3 bg-white/5 hover:bg-[#FF6600]/10 rounded-xl text-slate-500 hover:text-[#FF6600] transition-all border border-transparent hover:border-[#FF6600]/20">
+                                          <Mail className="w-4 h-4" />
+                                       </a>
+                                    )}
+                                    {staff.phone && (
+                                       <a href={getWhatsAppLink(staff)} target="_blank" rel="noopener noreferrer" className="p-3 bg-emerald-500/5 hover:bg-emerald-500 rounded-xl text-emerald-500 hover:text-white transition-all border border-emerald-500/10">
+                                          <MessageCircle className="w-4 h-4" />
+                                       </a>
+                                    )}
+                                 </div>
+                                 <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest italic bg-indigo-500/5 px-4 py-1.5 rounded-full border border-indigo-500/10">Active Support</span>
+                              </div>
+                           </div>
+                        ))}
+                        {assignedStaff.length === 0 && (
+                           <div className="col-span-full py-20 ios-card border-dashed flex flex-col items-center justify-center italic text-slate-700 text-[10px] uppercase tracking-widest">Awaiting Personnel Assignment...</div>
+                        )}
+                     </div>
                   </div>
+
+                  <div className="w-full h-px bg-white/5" />
+
+                  {/* SEGMENT 2: SQUAD REGISTRY (Participants) */}
+                  <div className="space-y-10">
+                     <div className="flex justify-between items-end">
+                        <div>
+                           <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Squad Registry</h3>
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Active Units: {teams.length}</p>
+                        </div>
+                        <button 
+                           onClick={() => setShowTeamModal(true)}
+                           className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
+                        >
+                           + Deploy New Unit
+                        </button>
+                     </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                      {teams.map(team => (
@@ -918,7 +1087,8 @@ export default function PMProgramTerminalV2({ params }) {
                      {teams.length === 0 && <div className="col-span-full py-60 ios-card border-dashed flex flex-col items-center justify-center italic text-slate-600 text-[11px] uppercase tracking-widest">Awaiting Unit Deployment...</div>}
                   </div>
                </div>
-            )}
+            </div>
+         )}
 
             {activeTab === 'participants' && (
                <div className="space-y-10">
@@ -983,7 +1153,29 @@ export default function PMProgramTerminalV2({ params }) {
                                     <span className="badge badge-glow-blue text-[8px] font-black uppercase italic">Operational</span>
                                  </td>
                                  <td className="p-8 text-right">
-                                    <button className="p-3 rounded-xl bg-white/5 text-slate-600 hover:text-[#FF6600] transition-all"><ArrowRight className="w-4 h-4"/></button>
+                                    <div className="flex items-center justify-end gap-3">
+                                       {p.email && (
+                                          <a 
+                                             href={`mailto:${p.email}`} 
+                                             className="p-3 bg-white/5 hover:bg-[#FF6600]/10 rounded-xl text-slate-500 hover:text-[#FF6600] transition-all border border-transparent hover:border-[#FF6600]/20"
+                                             title="Send Email"
+                                          >
+                                             <Mail className="w-4 h-4" />
+                                          </a>
+                                       )}
+                                       {p.phone && (
+                                          <a 
+                                             href={getWhatsAppLink(p)} 
+                                             target="_blank" 
+                                             rel="noopener noreferrer" 
+                                             className="p-3 bg-emerald-500/5 hover:bg-emerald-500 rounded-xl text-emerald-500 hover:text-white transition-all border border-emerald-500/10"
+                                             title="Open WhatsApp"
+                                          >
+                                             <MessageCircle className="w-4 h-4" />
+                                          </a>
+                                       )}
+                                       <button className="p-3 rounded-xl bg-white/5 text-slate-600 hover:text-white transition-all border border-white/5" title="View Profile"><ArrowRight className="w-4 h-4"/></button>
+                                    </div>
                                  </td>
                               </tr>
                            ))}
@@ -1031,32 +1223,48 @@ export default function PMProgramTerminalV2({ params }) {
                         <div className="space-y-3">
                            <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic opacity-60">Module Name</label>
                            <input 
+                              readOnly={!isLeadPMForProject}
                               placeholder="Define the primary module objective..." 
-                              className="w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none focus:border-[#FF6600] transition-all font-black text-xl shadow-inner" 
+                              className={`w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none transition-all font-black text-xl shadow-inner ${isLeadPMForProject ? 'focus:border-[#FF6600]' : 'opacity-60 cursor-default'}`} 
                               value={selectedTask.title || ''} 
-                              onChange={e => setSelectedTask({...selectedTask, title: e.target.value})} 
+                              onChange={e => isLeadPMForProject && setSelectedTask({...selectedTask, title: e.target.value})} 
                            />
                         </div>
 
                         <div className="space-y-3">
                            <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic opacity-60">Objective Description</label>
                            <textarea 
+                              readOnly={!isLeadPMForProject}
                               rows={4} 
                               placeholder="Architect operational requirements..." 
-                              className="w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none focus:border-[#FF6600] transition-all font-bold resize-none leading-relaxed text-md shadow-inner" 
+                              className={`w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none transition-all font-bold resize-none leading-relaxed text-md shadow-inner ${isLeadPMForProject ? 'focus:border-[#FF6600]' : 'opacity-60 cursor-default'}`} 
                               value={selectedTask.description || ''} 
-                              onChange={e => setSelectedTask({...selectedTask, description: e.target.value})} 
+                              onChange={e => isLeadPMForProject && setSelectedTask({...selectedTask, description: e.target.value})} 
                            />
                         </div>
 
                         <div className="space-y-3">
                            <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic opacity-60">Knowledge Resource URL</label>
-                           <input 
-                              placeholder="https://knowledge-node.com/..." 
-                              className="w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none focus:border-[#FF6600] transition-all font-bold text-md shadow-inner" 
-                              value={selectedTask.material_url || ''} 
-                              onChange={e => setSelectedTask({...selectedTask, material_url: e.target.value})} 
-                           />
+                           <div className="flex gap-4">
+                              <input 
+                                 readOnly={!isLeadPMForProject}
+                                 placeholder="https://knowledge-node.com/..." 
+                                 className={`flex-1 bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none transition-all font-bold text-md shadow-inner ${isLeadPMForProject ? 'focus:border-[#FF6600]' : 'opacity-60 cursor-default'}`} 
+                                 value={selectedTask.material_url || ''} 
+                                 onChange={e => isLeadPMForProject && setSelectedTask({...selectedTask, material_url: e.target.value})} 
+                              />
+                              {selectedTask.material_url && (
+                                 <a 
+                                    href={selectedTask.material_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="px-8 bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20 rounded-3xl flex items-center justify-center hover:bg-[#FF6600] hover:text-black transition-all group"
+                                    title="Open Resource Material"
+                                 >
+                                    <Link2 className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                                 </a>
+                              )}
+                           </div>
                         </div>
 
                         <div className="space-y-6 bg-white/5 p-6 md:p-8 rounded-3xl border border-white/5">
@@ -1109,9 +1317,10 @@ export default function PMProgramTerminalV2({ params }) {
                                <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic opacity-60">Deployment Status</label>
                                <div className="relative">
                                   <select 
-                                     className="w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none font-black appearance-none cursor-pointer focus:border-[#FF6600] shadow-inner"
+                                     disabled={!isLeadPMForProject}
+                                     className={`w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none font-black appearance-none shadow-inner ${isLeadPMForProject ? 'cursor-pointer focus:border-[#FF6600]' : 'opacity-60 cursor-default'}`}
                                      value={selectedTask.status}
-                                     onChange={e => setSelectedTask({...selectedTask, status: e.target.value})}
+                                     onChange={e => isLeadPMForProject && setSelectedTask({...selectedTask, status: e.target.value})}
                                   >
                                      <option value="pending" className="bg-[#080810]">PENDING</option>
                                      <option value="active" className="bg-[#080810]">ACTIVE</option>
@@ -1121,22 +1330,34 @@ export default function PMProgramTerminalV2({ params }) {
                                </div>
                             </div>
                             <div className="space-y-3 text-left">
-                               <label className="text-[12px] font-black text-[#FF6600] uppercase tracking-[0.3em] ml-2 italic">Assigned Personnel (Teacher)</label>
-                               <div className="relative">
-                                  <select 
-                                     className="w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none font-black appearance-none cursor-pointer focus:border-[#FF6600] shadow-inner"
-                                     value={selectedTask.handler_id || ''}
-                                     onChange={e => {
-                                        const s = staffList.find(x => x.cid === e.target.value);
-                                        setSelectedTask({...selectedTask, handler_id: e.target.value, handler_name: s ? s.name : ''});
-                                     }}
-                                  >
-                                     <option value="" className="bg-[#080810]">Awaiting Assignment...</option>
-                                     {staffList.map(s => <option key={s.cid} value={s.cid} className="bg-[#080810]">{(s.name || 'Unknown').toUpperCase()}</option>)}
-                                  </select>
-                                  <ChevronDown className="absolute right-7 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-500 pointer-events-none" />
-                               </div>
-                            </div>
+                                <label className="text-[12px] font-black text-[#FF6600] uppercase tracking-[0.3em] ml-2 italic">Assigned Personnel (Teacher)</label>
+                                <div className="flex flex-wrap gap-3 p-6 bg-[#0d0d18] border border-white/5 rounded-3xl min-h-[100px] shadow-inner">
+                                   {staffList.map(s => {
+                                      const currentIds = (selectedTask.handler_id || '').split(',').filter(x => x);
+                                      const isSelected = currentIds.includes(s.cid);
+                                      return (
+                                         <button
+                                            key={s.cid}
+                                            type="button"
+                                            onClick={() => {
+                                               if (!isLeadPMForProject) return;
+                                               const nextIds = isSelected ? currentIds.filter(x => x !== s.cid) : [...currentIds, s.cid];
+                                               const nextNames = staffList.filter(x => nextIds.includes(x.cid)).map(x => x.name);
+                                               setSelectedTask({
+                                                  ...selectedTask, 
+                                                  handler_id: nextIds.join(','), 
+                                                  handler_name: nextNames.join(', ')
+                                               });
+                                            }}
+                                            className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${isSelected ? 'bg-[#FF6600] text-black border-[#FF6600] shadow-lg shadow-[#FF6600]/10' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                                         >
+                                            {s.name}
+                                         </button>
+                                      );
+                                   })}
+                                   {staffList.length === 0 && <p className="text-[10px] font-black text-slate-600 uppercase italic p-4 opacity-40">No personnel anchored to workspace.</p>}
+                                </div>
+                             </div>
                         </div>
                         <div className="space-y-3 text-left">
                          {/* UNIFIED TASK MULTI-SELECT ARCHITECTURE */}
@@ -1176,7 +1397,7 @@ export default function PMProgramTerminalV2({ params }) {
 
                            <div className="space-y-6">
                                {/* THE MANIFEST GRID (Deployed Items) */}
-                               {selectedTask.id && (
+                               {selectedTask.id ? (
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {docRequirements.filter(dr => String(dr.session_id) === String(selectedTask.id)).map(req => (
                                        <div key={req.id} className="p-5 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-between group hover:border-[#FF6600]/30 transition-all shadow-lg">
@@ -1220,14 +1441,39 @@ export default function PMProgramTerminalV2({ params }) {
                                                 )}
                                              </div>
                                           </div>
-                                          <div className="flex items-center gap-2">
-                                             <button onClick={() => setEditingReq(req)} className="p-2 text-slate-800 hover:text-[#FF6600] opacity-0 group-hover:opacity-100 transition-all">
-                                                <Edit3 className="w-4 h-4" />
-                                             </button>
-                                             <button onClick={() => handleDeleteRequirement(req.id)} className="p-2 text-slate-800 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110">
-                                                <Trash2 className="w-4 h-4" />
-                                             </button>
+                                          {isLeadPMForProject && (
+                                             <div className="flex items-center gap-2">
+                                                <button onClick={() => setEditingReq(req)} className="p-2 text-slate-800 hover:text-[#FF6600] opacity-0 group-hover:opacity-100 transition-all">
+                                                   <Edit3 className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={() => handleDeleteRequirement(req.id)} className="p-2 text-slate-800 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110">
+                                                   <Trash2 className="w-4 h-4" />
+                                                </button>
+                                             </div>
+                                          )}
+                                       </div>
+                                    ))}
+                                 </div>
+                               ) : newReq.manifest.length > 0 && !newReq.isAdding && (
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {newReq.manifest.map((item, idx) => (
+                                       <div key={idx} className="p-5 bg-[#FF6600]/5 border border-[#FF6600]/20 rounded-2xl flex items-center justify-between group shadow-lg">
+                                          <div className="flex items-center gap-4 text-left">
+                                             <div className="w-10 h-10 rounded-xl bg-[#FF6600]/10 flex items-center justify-center text-[#FF6600]">
+                                                {getFormatIcon(item.format)}
+                                             </div>
+                                             <div>
+                                                <p className="text-xs font-black text-white uppercase tracking-tighter italic leading-none">{item.title}</p>
+                                                <p className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest mt-1">Staged for Deployment</p>
+                                             </div>
                                           </div>
+                                          <button 
+                                             type="button"
+                                             onClick={() => setNewReq({...newReq, manifest: newReq.manifest.filter((_, i) => i !== idx)})}
+                                             className="p-2 text-rose-500 hover:scale-110 transition-transform"
+                                          >
+                                             <Trash2 className="w-4 h-4" />
+                                          </button>
                                        </div>
                                     ))}
                                  </div>
@@ -1357,14 +1603,16 @@ export default function PMProgramTerminalV2({ params }) {
 
                         {/* ACTION BUTTONS (Moved to the bottom) */}
                         <div className="flex gap-8 pt-8 border-t border-white/5">
-                            <button onClick={() => { setSelectedTask(null); setNewReq({...newReq, isAdding: false}); }} className="flex-1 py-6 rounded-3xl bg-white/5 text-slate-600 font-black uppercase text-[11px] tracking-widest hover:text-white transition-all italic border border-transparent">Cancel</button>
-                            <button 
-                               onClick={() => handleSaveTaskConfig(selectedTask)} 
-                               disabled={isProcessing}
-                               className="flex-[2] py-6 rounded-3xl bg-[#FF6600] text-black font-black uppercase text-[11px] tracking-widest hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 italic"
-                            >
-                               {isProcessing ? 'Saving...' : 'Save Configuration'}
-                            </button>
+                            <button onClick={() => { setSelectedTask(null); setNewReq({...newReq, isAdding: false}); }} className="flex-1 py-6 rounded-3xl bg-white/5 text-slate-600 font-black uppercase text-[11px] tracking-widest hover:text-white transition-all italic border border-transparent">{isLeadPMForProject ? 'Cancel' : 'Close Viewport'}</button>
+                            {isLeadPMForProject && (
+                               <button 
+                                  onClick={() => handleSaveTaskConfig(selectedTask)} 
+                                  disabled={isProcessing}
+                                  className="flex-[2] py-6 rounded-3xl bg-[#FF6600] text-black font-black uppercase text-[11px] tracking-widest hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 italic"
+                               >
+                                  {isProcessing ? 'Saving...' : 'Save Configuration'}
+                               </button>
+                            )}
                          </div>
                      </div>
                   </div>
@@ -1400,20 +1648,31 @@ export default function PMProgramTerminalV2({ params }) {
                      </div>
 
                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 italic">Mission Handler (Staff)</label>
-                        <div className="relative">
-                           <select 
-                              className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-white outline-none font-black appearance-none cursor-pointer focus:border-[#FF6600] shadow-inner"
-                              value={newTeam.handler_id}
-                              onChange={e => {
-                                 const s = staffList.find(x => x.cid === e.target.value);
-                                 setNewTeam({...newTeam, handler_id: e.target.value, handler_name: s ? s.name : ''});
-                              }}
-                           >
-                              <option value="">Awaiting Assignment...</option>
-                              {staffList.map(s => <option key={s.cid} value={s.cid} className="bg-[#080810]">{s.name.toUpperCase()}</option>)}
-                           </select>
-                           <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-500 pointer-events-none" />
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 italic">Mission Handlers (Staff)</label>
+                        <div className="flex flex-wrap gap-2 p-4 bg-white/5 border border-white/10 rounded-2xl min-h-[80px] shadow-inner">
+                           {staffList.map(s => {
+                              const currentIds = (newTeam.handler_id || '').split(',').filter(x => x);
+                              const isSelected = currentIds.includes(s.cid);
+                              return (
+                                 <button
+                                    key={s.cid}
+                                    type="button"
+                                    onClick={() => {
+                                       const nextIds = isSelected ? currentIds.filter(x => x !== s.cid) : [...currentIds, s.cid];
+                                       const nextNames = staffList.filter(x => nextIds.includes(x.cid)).map(x => x.name);
+                                       setNewTeam({
+                                          ...newTeam, 
+                                          handler_id: nextIds.join(','), 
+                                          handler_name: nextNames.join(', ')
+                                       });
+                                    }}
+                                    className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all border ${isSelected ? 'bg-[#FF6600] text-black border-[#FF6600]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                                 >
+                                    {s.name}
+                                 </button>
+                              );
+                           })}
+                           {staffList.length === 0 && <p className="text-[9px] font-black text-slate-700 uppercase italic p-2">No handlers available.</p>}
                         </div>
                      </div>
 

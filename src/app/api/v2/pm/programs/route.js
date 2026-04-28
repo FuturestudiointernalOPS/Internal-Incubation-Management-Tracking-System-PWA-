@@ -7,6 +7,7 @@ export async function GET(req) {
     await initDb();
     const url = new URL(req.url);
     const assignedPmId = url.searchParams.get('assigned_pm_id');
+    const showArchived = url.searchParams.get('show_archived') === 'true';
 
     let query = `
       SELECT p.*, 
@@ -31,13 +32,13 @@ export async function GET(req) {
       LEFT JOIN contacts c1 ON p.assigned_pm_id = c1.cid
       LEFT JOIN contacts c2 ON p.assigned_assistant_id = c2.cid
       LEFT JOIN v2_knowledge_bank k ON p.note_id = k.id
-      WHERE p.is_archived = 0
+      WHERE p.is_archived = ?
     `;
     
-    const args = [];
+    const args = [showArchived ? 1 : 0];
     if (assignedPmId) {
-       query += " AND p.assigned_pm_id = ?";
-       args.push(assignedPmId);
+       query += " AND (p.assigned_pm_id = ? OR p.assigned_assistant_id LIKE ? OR p.id IN (SELECT program_id FROM v2_program_staff WHERE staff_id = ?))";
+       args.push(assignedPmId, `%${assignedPmId}%`, assignedPmId);
     }
 
     query += " ORDER BY p.created_at DESC";
@@ -57,12 +58,12 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const { name, description, note_id, assigned_pm_id, assigned_assistant_id, materials } = await req.json();
+    const { name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, materials } = await req.json();
     const id = "P-" + new Date().getFullYear() + "-" + uuidv4().split('-')[0].toUpperCase();
 
     await db.execute({
-      sql: `INSERT INTO v2_programs (id, name, description, note_id, assigned_pm_id, assigned_assistant_id, status, is_archived, materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, 'active', 0, JSON.stringify(materials || [])]
+      sql: `INSERT INTO v2_programs (id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [id, name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, 'active', 0, JSON.stringify(materials || [])]
     });
 
     return NextResponse.json({ success: true, id });
@@ -74,15 +75,15 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const { id, name, description, note_id, assigned_pm_id, assigned_assistant_id, status, materials } = await req.json();
+    const { id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, materials } = await req.json();
 
     if (!id) return NextResponse.json({ success: false, error: "ID required" }, { status: 400 });
 
     await db.execute({
       sql: `UPDATE v2_programs 
-            SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, status = ?, materials = ?
+            SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, materials = ?
             WHERE id = ?`,
-      args: [name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, status, JSON.stringify(materials || []), id]
+      args: [name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, status, JSON.stringify(materials || []), id]
     });
 
     return NextResponse.json({ success: true });

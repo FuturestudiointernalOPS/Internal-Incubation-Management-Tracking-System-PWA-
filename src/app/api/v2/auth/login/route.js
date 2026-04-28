@@ -66,7 +66,7 @@ export async function POST(req) {
     // Staff / PM Differentiation
     // We treat all STAFF and designated PROJECT_MANAGERS as PMs unless they are the system root.
     const isAssignedPM = user.role === 'project_manager' || user.role === 'pm';
-    const isInternalStaff = user.group_name?.toUpperCase() === 'STAFF';
+    const isInternalStaff = user.group_name?.toUpperCase() === 'STAFF' || user.group_name?.toUpperCase() === 'FUTURE STUDIO';
 
     // Secondary check: assigned as PM in the programs registry
     const pmCheck = await db.execute({
@@ -78,7 +78,13 @@ export async function POST(req) {
     if (isAssignedPM || isInternalStaff || hasAssignments) {
        finalRole = 'program_manager';
        sessionPrefix = 'pm';
-       label = (isAssignedPM || hasAssignments) ? 'Project Manager' : 'Operations Staff';
+       label = (isAssignedPM || hasAssignments) ? 'Project Manager' : 'Future Studio';
+    } else {
+       // All others are participants and must use /login
+       return NextResponse.json({ 
+         success: false, 
+         error: "Participant credentials detected. Please use the /login portal." 
+       }, { status: 403 });
     }
 
     return NextResponse.json({
@@ -89,7 +95,8 @@ export async function POST(req) {
         id: user.cid,
         name: user.name,
         roleLabel: label,
-        email: user.email
+        email: user.email,
+        isLeadPM: isAssignedPM || hasAssignments
       }
     });
 

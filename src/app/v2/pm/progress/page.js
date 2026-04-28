@@ -80,7 +80,7 @@ export default function PMProgressHub() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    onClick={() => router.push(`/v2/pm/programs/${prog.id}`)}
+                    onClick={() => router.push(`/v2/pm/programs/${prog.id}?tab=progress`)}
                     className="ios-card bg-white/[0.01] border-white/5 !p-10 group hover:border-[#FF6600]/30 hover:bg-white/[0.02] cursor-pointer transition-all flex flex-col lg:flex-row items-center gap-12"
                  >
                     <div className="flex-1 space-y-6 w-full text-left">

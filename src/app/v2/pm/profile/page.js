@@ -35,7 +35,7 @@ export default function PMProfile() {
             } else {
                // Fallback for session users not in DB yet
                setDbUser({
-                  name: user?.name || 'Authorized Agent',
+                  name: user?.name || 'User',
                   email: user?.email || 'agent@impactos.com',
                   role: user?.role || 'program_manager',
                   cid: identifier,
@@ -61,8 +61,8 @@ export default function PMProfile() {
      <div className="min-h-screen bg-[#080810] flex items-center justify-center p-8">
         <div className="ios-card bg-rose-500/5 border-rose-500/20 p-12 text-center max-w-md">
            <Shield className="w-16 h-16 text-rose-500 mx-auto mb-6 opacity-50" />
-           <h2 className="text-2xl font-black text-white uppercase mb-4">Identity Sync Failure</h2>
-           <p className="text-slate-500 font-bold text-sm leading-relaxed mb-8">We could not synchronize your security credentials with the central registry. Please re-authenticate.</p>
+           <h2 className="text-2xl font-black text-white uppercase mb-4">Profile Sync Error</h2>
+           <p className="text-slate-500 font-bold text-sm leading-relaxed mb-8">We could not synchronize your security credentials with the database. Please re-authenticate.</p>
            <button onClick={() => window.location.href='/terminal'} className="btn-prime w-full">Re-Authenticate</button>
         </div>
      </div>
@@ -73,11 +73,11 @@ export default function PMProfile() {
        <div className="max-w-4xl mx-auto space-y-12">
           <header className="border-b border-white/5 pb-10">
              <div className="flex items-center gap-4 mb-4">
-                <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Personal Node</span>
-                <div className="h-px w-10 bg-[#FF6600]/80/30" />
+                <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">Account Settings</span>
+                <div className="h-px w-10 bg-white/10" />
              </div>
-             <h1 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">Security Profile</h1>
-             <p className="text-slate-500 font-bold mt-4 opacity-70">Managing your platform identity and operational credentials.</p>
+             <h1 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">My Profile</h1>
+             <p className="text-slate-500 font-bold mt-4 opacity-70">Manage your platform identity and account credentials.</p>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -94,8 +94,8 @@ export default function PMProfile() {
                    <div className="flex items-center gap-4">
                       <Shield className="w-5 h-5 text-[#FF6600]/80" />
                       <div>
-                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Access Level</p>
-                         <p className="text-xs font-black text-white uppercase">Operational Authority</p>
+                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Account Type</p>
+                         <p className="text-xs font-black text-white uppercase">System Access</p>
                       </div>
                    </div>
                    <div className="flex items-center gap-4">
@@ -110,11 +110,11 @@ export default function PMProfile() {
 
              <div className="md:col-span-2 space-y-8">
                 <div className="ios-card bg-[#0d0d18] border-white/5 !p-12">
-                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-10">Contact Matrix</h3>
+                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-10">Personal Information</h3>
                    
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><User className="w-3 h-3" /> Identity Handle</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><User className="w-3 h-3" /> Full Name</p>
                          <input 
                             id="edit_name_field"
                             defaultValue={dbUser.name}
@@ -122,19 +122,19 @@ export default function PMProfile() {
                          />
                       </div>
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Mail className="w-3 h-3" /> Mail Index</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Mail className="w-3 h-3" /> Email Address</p>
                          <p className="text-sm font-bold text-white bg-white/5 p-4 rounded-xl border border-white/5">{dbUser.email}</p>
                       </div>
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Phone className="w-3 h-3" /> Comm Line</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Phone className="w-3 h-3" /> Phone Number</p>
                          <p className="text-sm font-bold text-white bg-white/5 p-4 rounded-xl border border-white/5">{dbUser.phone || 'Not Integrated'}</p>
                       </div>
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Calendar className="w-3 h-3" /> Temporal Node (DOB)</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Calendar className="w-3 h-3" /> Date of Birth</p>
                          <p className="text-sm font-bold text-white bg-white/5 p-4 rounded-xl border border-white/5">{dbUser.dob || 'Not Assigned'}</p>
                       </div>
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><MapPin className="w-3 h-3" /> Physical Location</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><MapPin className="w-3 h-3" /> Home Address</p>
                          <p className="text-sm font-bold text-white bg-white/5 p-4 rounded-xl border border-white/5">{dbUser.address || 'Confidential'}</p>
                       </div>
                       <div className="space-y-1 sm:col-span-2">
@@ -146,13 +146,13 @@ export default function PMProfile() {
 
                 <div className="ios-card bg-[#FF6600]/80/5 border-[#FF6600]/80/20 !p-12 space-y-8">
                    <div>
-                      <h4 className="text-xl font-black text-white uppercase tracking-tighter">Credential Rotation</h4>
+                      <h4 className="text-xl font-black text-white uppercase tracking-tighter">Security Settings</h4>
                       <p className="text-xs text-slate-400 font-bold mt-2 italic">Synchronize a new security token to secure your terminal access.</p>
                    </div>
                    
                    <div className="flex flex-col sm:flex-row items-end gap-6">
                       <div className="flex-1 space-y-2 w-full relative">
-                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest pl-2">New Access Key</label>
+                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest pl-2">New Password</label>
                          <div className="relative group">
                             <input 
                                type={showPassword ? "text" : "password"} 

@@ -14,7 +14,7 @@ export async function GET(req) {
 
       // Fetch all participants for this program
       const participants = await db.execute({
-         sql: "SELECT id, name, cid FROM v2_participants WHERE program_id = ?",
+         sql: "SELECT id, name, cid, email, phone FROM v2_participants WHERE program_id = ?",
          args: [program_id]
       });
 

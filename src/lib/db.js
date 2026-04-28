@@ -18,6 +18,7 @@ export async function initDb() {
     // Core Contacts & Personnel
     await db.execute(`UPDATE contacts SET group_name = 'Future Studio' WHERE group_name = 'Staff'`);
     await db.execute(`DELETE FROM families WHERE name = 'Staff'`);
+    await db.execute(`UPDATE v2_programs SET duration_weeks = 4 WHERE duration_weeks = 13`);
     
     await db.execute(`
       CREATE TABLE IF NOT EXISTS contacts (
@@ -69,7 +70,7 @@ export async function initDb() {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
-        duration_weeks INTEGER DEFAULT 13,
+        duration_weeks INTEGER DEFAULT 4,
         duration_days INTEGER DEFAULT 0,
         topics TEXT, outcomes TEXT, deliverables TEXT, resources TEXT,
         assigned_pm_id TEXT,

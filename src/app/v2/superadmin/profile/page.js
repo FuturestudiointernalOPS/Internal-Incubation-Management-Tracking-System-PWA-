@@ -12,7 +12,7 @@ export default function SuperAdminProfile() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const sessionUser = { id: 'prime-2026-active', role: 'super_admin', name: 'Master Admin', email: 'admin@impactos.com' };
+    const sessionUser = { id: 'prime-2026-active', role: 'super_admin', name: 'Administrator', email: 'admin@impactos.com' };
     setUser(sessionUser);
     fetchProfile();
   }, []);
@@ -28,7 +28,7 @@ export default function SuperAdminProfile() {
               setDbUser(found);
            } else {
               setDbUser({ 
-                 name: 'Master Admin', 
+                 name: 'Administrator', 
                  email: 'admin@impactos.com', 
                  role: 'super_admin', 
                  cid: 'ADM-001', 
@@ -56,11 +56,11 @@ export default function SuperAdminProfile() {
        <div className="max-w-4xl mx-auto space-y-12">
           <header className="border-b border-white/5 pb-10">
              <div className="flex items-center gap-4 mb-4">
-                <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Executive Node</span>
-                <div className="h-px w-10 bg-[#FF6600]/80/30" />
+                <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">Account Settings</span>
+                <div className="h-px w-10 bg-white/10" />
              </div>
-             <h1 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">Command Profile</h1>
-             <p className="text-slate-500 font-bold mt-4 opacity-70">Managing root authority and structural credentials.</p>
+             <h1 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">My Profile</h1>
+             <p className="text-slate-500 font-bold mt-4 opacity-70">Manage your administrative identity and account credentials.</p>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -70,16 +70,16 @@ export default function SuperAdminProfile() {
                       <Shield className="w-12 h-12 text-indigo-400" />
                    </div>
                    <h3 className="text-xl font-black text-white uppercase tracking-tighter">{dbUser.name}</h3>
-                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">ROOT AUTHORITY</p>
+                   <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mt-1">Super Admin</p>
                 </div>
              </div>
 
              <div className="md:col-span-2 space-y-8">
                 <div className="ios-card bg-[#0d0d18] border-white/5 !p-12">
-                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-10">Core Identity</h3>
+                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-10">General Information</h3>
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><User className="w-3 h-3" /> Identity Handle</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><User className="w-3 h-3" /> Full Name</p>
                          <input 
                             id="sa_name_field"
                             defaultValue={dbUser.name}
@@ -87,7 +87,7 @@ export default function SuperAdminProfile() {
                          />
                       </div>
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Mail className="w-3 h-3" /> Root Email</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Mail className="w-3 h-3" /> Email Address</p>
                          <p className="text-sm font-bold text-white bg-white/5 p-4 rounded-xl border border-white/5">{dbUser.email}</p>
                       </div>
                    </div>
@@ -95,13 +95,13 @@ export default function SuperAdminProfile() {
 
                 <div className="ios-card bg-[#FF6600]/80/5 border-[#FF6600]/80/20 !p-12 space-y-8">
                    <div>
-                      <h4 className="text-xl font-black text-white uppercase tracking-tighter">Root Token Rotation</h4>
-                      <p className="text-xs text-slate-400 font-bold mt-2 italic">Update your master access key to secure the command HQ.</p>
+                      <h4 className="text-xl font-black text-white uppercase tracking-tighter">Security Settings</h4>
+                      <p className="text-xs text-slate-400 font-bold mt-2 italic">Update your account password to ensure platform security.</p>
                    </div>
                    
                    <div className="flex flex-col sm:flex-row items-end gap-6">
                       <div className="flex-1 space-y-2 w-full relative">
-                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest pl-2">Master Access Key</label>
+                         <label className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest pl-2">New Password</label>
                          <div className="relative group">
                             <input 
                                type={showPassword ? "text" : "password"} 
@@ -140,7 +140,7 @@ export default function SuperAdminProfile() {
                                }
                             } catch(e) { 
                                window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                                  detail: { type: 'error', message: 'Sync Failed.' } 
+                                  detail: { type: 'error', message: 'Update Failed.' } 
                                }));
                             }
                          }}

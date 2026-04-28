@@ -5,7 +5,7 @@ import {
   CheckCircle2, XCircle, Clock, MessageSquare, 
   ExternalLink, Layers, Users, Zap, Calendar,
   Activity, Shield, ChevronRight, LayoutDashboard,
-  Rocket, Filter, Search, Target, FileText
+  Rocket, Filter, Search, Target, FileText, Mail, MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -79,6 +79,12 @@ export default function TeacherV2Dashboard() {
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [participantsFulfillment, setParticipantsFulfillment] = useState([]);
   const [isFulfillmentLoading, setIsFulfillmentLoading] = useState(false);
+  
+  const getWhatsAppLink = (c) => {
+    if (!c.phone) return '#';
+    const clean = c.phone.replace(/\D/g, '');
+    return `https://wa.me/${clean}`;
+  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -382,6 +388,28 @@ export default function TeacherV2Dashboard() {
                                    <p className="text-xs font-black text-white uppercase tracking-tighter italic">{p.name}</p>
                                 </div>
                                 <div className="flex items-center gap-6">
+                                   <div className="flex items-center gap-2">
+                                      {p.email && (
+                                         <a 
+                                            href={`mailto:${p.email}`} 
+                                            className="p-2 bg-white/5 hover:bg-[#FF6600]/10 rounded-lg text-slate-500 hover:text-[#FF6600] transition-all border border-transparent hover:border-[#FF6600]/20"
+                                            title="Send Email"
+                                         >
+                                            <Mail className="w-3 h-3" />
+                                         </a>
+                                      )}
+                                      {p.phone && (
+                                         <a 
+                                            href={getWhatsAppLink(p)} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="p-2 bg-emerald-500/5 hover:bg-emerald-500 rounded-lg text-emerald-500 hover:text-white transition-all border border-emerald-500/10"
+                                            title="Open WhatsApp"
+                                         >
+                                            <MessageCircle className="w-3 h-3" />
+                                         </a>
+                                      )}
+                                   </div>
                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{p.submitted_reqs}/{p.total_reqs} Done</p>
                                    <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full border ${p.status === 'complete' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : p.status === 'partial' ? 'bg-[#FF6600]/10 border-[#FF6600]/20 text-[#FF6600]' : 'bg-white/5 border-white/5 text-slate-500'}`}>
                                       {p.status}

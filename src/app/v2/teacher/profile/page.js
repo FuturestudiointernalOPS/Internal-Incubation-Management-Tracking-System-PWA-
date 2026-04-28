@@ -50,8 +50,8 @@ export default function TeacherProfile() {
      <div className="min-h-screen bg-[#080810] flex items-center justify-center p-8">
         <div className="ios-card bg-rose-500/5 border-rose-500/20 p-12 text-center max-w-md">
            <Shield className="w-16 h-16 text-rose-500 mx-auto mb-6 opacity-50" />
-           <h2 className="text-2xl font-black text-white uppercase mb-4">Identity Sync Failure</h2>
-           <p className="text-slate-500 font-bold text-sm leading-relaxed mb-8">We could not synchronize your reviewer credentials with the central registry. Please re-authenticate.</p>
+           <h2 className="text-2xl font-black text-white uppercase mb-4">Profile Sync Error</h2>
+           <p className="text-slate-500 font-bold text-sm leading-relaxed mb-8">We could not synchronize your reviewer credentials with the database. Please re-authenticate.</p>
            <button onClick={() => window.location.href='/terminal'} className="btn-prime w-full">Re-Authenticate</button>
         </div>
      </div>
@@ -65,7 +65,7 @@ export default function TeacherProfile() {
                 <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Reviewer Node</span>
                 <div className="h-px w-10 bg-[#FF6600]/80/30" />
              </div>
-             <h1 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">Security Profile</h1>
+             <h1 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">My Profile</h1>
              <p className="text-slate-500 font-bold mt-4 opacity-70">Managing your evaluation authority and access credentials.</p>
           </header>
 
@@ -85,7 +85,7 @@ export default function TeacherProfile() {
                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-10">Identity Data</h3>
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><User className="w-3 h-3" /> Identity Handle</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><User className="w-3 h-3" /> Full Name</p>
                          <input 
                             id="teacher_name_field"
                             defaultValue={dbUser.name}
@@ -101,7 +101,7 @@ export default function TeacherProfile() {
 
                 <div className="ios-card bg-[#FF6600]/80/5 border-[#FF6600]/80/20 !p-12 space-y-8">
                    <div>
-                      <h4 className="text-xl font-black text-white uppercase tracking-tighter">Credential Rotation</h4>
+                      <h4 className="text-xl font-black text-white uppercase tracking-tighter">Security Settings</h4>
                       <p className="text-xs text-slate-400 font-bold mt-2 italic">Update your review terminal access key.</p>
                    </div>
                    

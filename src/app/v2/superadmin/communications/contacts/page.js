@@ -6,7 +6,7 @@ import {
   Upload, Plus, Users, Mail, Phone, Search, 
   AlertCircle, X, Loader2, CheckCircle, Download, 
   CreditCard, MapPin, Calendar as CalendarIcon, Edit3, Briefcase,
-  Key, MessageCircle, Send, Globe, Shield, User, RefreshCw, Star
+  Key, MessageCircle, Send, Globe, Shield, User, RefreshCw, Star, Link as LinkIcon, Trash2, Archive
 } from 'lucide-react';
 import Papa from 'papaparse';
 import { IMPACT_CACHE } from '@/utils/impactCache';
@@ -39,6 +39,7 @@ function ContactsPageContent() {
 
   const [selectedGroup, setSelectedGroup] = useState('All Contacts');
   const [families, setFamilies] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     if (roleParam) {
@@ -134,7 +135,8 @@ function ContactsPageContent() {
     const matchesSearch = nameMatch || emailMatch || cidMatch;
     
     const matchesGroup = selectedGroup === 'All Contacts' || c.group_name?.toUpperCase() === selectedGroup.toUpperCase();
-    return matchesSearch && matchesGroup;
+    const matchesArchive = showArchived ? !!c.deleted : !c.deleted;
+    return matchesSearch && matchesGroup && matchesArchive;
   });
 
   const handleBulkSubmit = async () => {
@@ -537,7 +539,17 @@ function ContactsPageContent() {
                <span className="badge badge-glow-blue uppercase text-[8px] font-black italic">Team Operations</span>
             </div>
             <h2 className="text-5xl font-black text-white tracking-tighter uppercase leading-none italic">Future Studio</h2>
-            <p className="text-slate-500 font-bold mt-4 uppercase text-[10px] tracking-widest leading-none opacity-60">Management of central studio personnel and project managers</p>
+            <div className="flex items-center gap-4 mt-4">
+               <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest leading-none opacity-60">Management of central studio personnel and project managers</p>
+               <div className="h-4 w-px bg-white/10 mx-2" />
+               <button 
+                  onClick={() => setShowArchived(!showArchived)}
+                  className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${showArchived ? 'bg-orange-500 text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+               >
+                  <Archive className="w-3.5 h-3.5" />
+                  {showArchived ? 'Viewing Archived' : 'View Archive'}
+               </button>
+            </div>
           </div>
 
           <div className="flex gap-4">
@@ -568,7 +580,7 @@ function ContactsPageContent() {
                           </button>
                        </div>
                        <div className="h-px w-full bg-white/5 my-4" />
-                       {families.filter(f => f.name?.toLowerCase() !== 'staff').map(f => (
+                        {families.filter(f => f.name?.toLowerCase() !== 'staff' && f.name?.toLowerCase() !== 'future studio').map(f => (
                           <div key={f.id} className={`flex flex-col rounded-2xl transition-all border ${selectedGroup === f.name ? 'bg-white/10 border-white/10' : 'border-transparent hover:bg-white/5'}`}>
                              <div className="flex items-center justify-between">
                                 <button onClick={() => setSelectedGroup(f.name)} className={`flex-1 text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest ${selectedGroup === f.name ? 'text-white' : 'text-slate-400'}`}>
@@ -611,6 +623,50 @@ function ContactsPageContent() {
            </div>
 
            <div className="xl:col-span-3 space-y-6">
+              {selectedGroup?.toLowerCase() === 'future studio' && (
+                 <div className="flex items-center justify-between bg-[#FF6600]/5 border border-[#FF6600]/10 p-4 rounded-2xl mb-4">
+                    <div className="flex items-center gap-3">
+                       <Shield className="w-5 h-5 text-[#FF6600]" />
+                       <div>
+                          <p className="text-[10px] font-black text-white uppercase tracking-widest">Internal Security Protocol</p>
+                          <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Access to this registry segment is restricted to Super Admins.</p>
+                       </div>
+                    </div>
+                    <button 
+                       onClick={async () => {
+                          try {
+                             const progRes = await fetch('/api/v2/pm/programs');
+                             const progData = await progRes.json();
+                             const program_id = progData.programs?.[0]?.id || 'SYSTEM-GENERIC';
+
+                             const res = await fetch('/api/v2/invites', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                   program_id,
+                                   group_name: 'Future Studio',
+                                   role: 'staff',
+                                   expiresInHours: 1,
+                                   created_by: 'super_admin'
+                                })
+                             });
+                             const data = await res.json();
+                             if (data.inviteUrl) {
+                                navigator.clipboard.writeText(data.inviteUrl);
+                                window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                                   detail: { type: 'success', message: 'Future Studio Invite Copied (1hr Expiry)' } 
+                                }));
+                             }
+                          } catch (e) {
+                             console.error(e);
+                          }
+                       }}
+                       className="px-6 py-2 bg-[#FF6600] text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white transition-all shadow-lg shadow-[#FF6600]/20 flex items-center gap-2"
+                    >
+                       <LinkIcon className="w-3.5 h-3.5" /> Invite via Link
+                    </button>
+                 </div>
+              )}
               {loading ? (
                  <div className="p-20 text-center"><Loader2 className="w-12 h-12 text-[#FF6600] animate-spin mx-auto mb-6" /><p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Synchronizing Team Data...</p></div>
               ) : filtered.length === 0 ? (
@@ -621,27 +677,6 @@ function ContactsPageContent() {
                  </div>
               ) : (
                  <div className="space-y-4">
-                    {selectedGroup?.toLowerCase() === 'future studio' && (
-                       <div className="flex items-center justify-between bg-[#FF6600]/5 border border-[#FF6600]/10 p-4 rounded-2xl mb-4">
-                          <div className="flex items-center gap-3">
-                             <Shield className="w-5 h-5 text-[#FF6600]" />
-                             <div>
-                                <p className="text-[10px] font-black text-white uppercase tracking-widest">Internal Security Protocol</p>
-                                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Access to this registry segment is restricted to Super Admins.</p>
-                             </div>
-                          </div>
-                          <button 
-                             onClick={() => {
-                                const link = `${window.location.origin}/register-staff?group=Future Studio`;
-                                navigator.clipboard.writeText(link);
-                                window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Internal Registration Link Copied' }}));
-                             }}
-                             className="px-6 py-2 bg-[#FF6600] text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white transition-all shadow-lg shadow-[#FF6600]/20"
-                          >
-                             Copy Restricted Link
-                          </button>
-                       </div>
-                    )}
                     <div className="ios-card !p-0 overflow-x-auto border-white/5 shadow-2xl bg-white/[0.01] custom-scrollbar">
                   <table className="executive-table w-full border-collapse min-w-[900px]">
                     <thead>
@@ -677,22 +712,27 @@ function ContactsPageContent() {
                           </td>
                           <td className="px-8 py-8">
                             <div className="flex flex-col gap-3">
-                                <a href={`mailto:${c.email}`} className="flex items-center gap-4 text-xs font-bold text-slate-400 font-sans hover:text-[#FF6600] transition-all group/mail">
-                                   <div className="p-2 bg-white/5 rounded-xl group-hover/mail:bg-[#FF6600]/10 transition-all border border-white/5">
-                                      <Send className="w-4 h-4 text-slate-700 group-hover/mail:text-[#FF6600]" />
+                                <a href={`mailto:${c.email}`} className="flex items-center gap-4 text-xs font-bold text-slate-400 font-sans hover:text-white transition-all group/mail p-3 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10">
+                                   <div className="p-2 bg-white/10 rounded-xl group-hover/mail:bg-[#FF6600]/20 transition-all">
+                                      <Send className="w-4 h-4 text-[#FF6600]" />
                                    </div>
                                    <div className="flex flex-col truncate">
-                                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">Email Dispatch</span>
+                                      <span className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest mb-0.5">Direct Email</span>
                                       <span className="font-mono truncate">{c.email}</span>
                                    </div>
                                 </a>
                                 {c.phone && (
-                                   <a href={getWhatsAppLink(c)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 text-xs font-bold text-slate-400 font-sans hover:text-emerald-500 transition-all group/wa">
-                                      <div className="p-2 bg-white/5 rounded-xl group-hover/wa:bg-emerald-500/10 transition-all border border-white/5">
-                                         <MessageCircle className="w-4 h-4 text-slate-700 group-hover/wa:text-emerald-500" />
+                                   <a 
+                                      href={getWhatsAppLink(c)} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="flex items-center gap-4 text-xs font-bold text-slate-400 font-sans hover:text-white transition-all group/wa p-3 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 hover:bg-emerald-500/20"
+                                   >
+                                      <div className="p-2 bg-emerald-500/10 rounded-xl group-hover/wa:bg-emerald-500/20 transition-all">
+                                         <MessageCircle className="w-4 h-4 text-emerald-500" />
                                       </div>
                                       <div className="flex flex-col truncate">
-                                         <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">WhatsApp Deploy</span>
+                                         <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">WhatsApp Protocol</span>
                                          <span className="font-mono truncate">{c.phone}</span>
                                       </div>
                                    </a>
@@ -708,6 +748,45 @@ function ContactsPageContent() {
                                      title="Provision Access"
                                   >
                                      <Key className="w-6 h-6" />
+                                  </button>
+                               )}
+                               {showArchived ? (
+                                  <button 
+                                     onClick={async () => {
+                                        const res = await fetch('/api/contacts', {
+                                           method: 'PUT',
+                                           headers: { 'Content-Type': 'application/json' },
+                                           body: JSON.stringify({ cid: c.cid, deleted: 0 })
+                                        });
+                                        if (res.ok) {
+                                           window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Member restored.' }}));
+                                           fetchRegistryData();
+                                        }
+                                     }}
+                                     className="p-4 bg-emerald-500/10 hover:bg-emerald-500 rounded-2xl text-emerald-500 hover:text-white transition-all border border-emerald-500/20"
+                                     title="Restore Member"
+                                  >
+                                     <RefreshCw className="w-6 h-6" />
+                                  </button>
+                               ) : (
+                                  <button 
+                                     onClick={async () => {
+                                        if (confirm('Archive this member? They will lose access immediately.')) {
+                                           const res = await fetch('/api/contacts', {
+                                              method: 'PUT',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ cid: c.cid, deleted: 1 })
+                                           });
+                                           if (res.ok) {
+                                              window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Member archived.' }}));
+                                              fetchRegistryData();
+                                           }
+                                        }
+                                     }}
+                                     className="p-4 bg-white/5 hover:bg-rose-500/10 rounded-2xl text-slate-400 hover:text-rose-500 transition-all border border-transparent hover:border-rose-500/20"
+                                     title="Archive Member"
+                                  >
+                                     <Trash2 className="w-6 h-6" />
                                   </button>
                                )}
                                <button 

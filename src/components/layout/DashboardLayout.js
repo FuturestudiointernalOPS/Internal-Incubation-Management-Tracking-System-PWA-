@@ -6,7 +6,7 @@ import { Sun, Moon, Users, LayoutDashboard, Briefcase, Calendar, User,
   Search, ChevronRight, ChevronDown, TrendingUp,
   FileText, ShieldCheck, Activity, Menu, X, Zap, Rocket, Trash2, Send, Library, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import GlobalToast from '@/components/ui/GlobalToast';
 import { prefetchData } from '@/utils/prefetch';
@@ -33,8 +33,8 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
         </div>
         {!collapsed && (
           <div className="animation-reveal">
-            <h1 className="text-lg font-black tracking-tighter text-white uppercase leading-none italic">ImpactOS</h1>
-            <p className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest mt-1 opacity-80 italic">{role?.replace(/_/g, ' ')}</p>
+            <h1 className="text-xl font-black tracking-tighter text-white uppercase leading-none italic">ImpactOS</h1>
+            <p className="text-[12px] font-bold text-[#FF6600] uppercase tracking-widest mt-1 opacity-80 italic">{role?.replace(/_/g, ' ')}</p>
           </div>
         )}
       </div>
@@ -54,15 +54,15 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
                 <button
                   onClick={() => toggleMenu(item.id)}
                   onMouseEnter={() => handleHover(item)}
-                  className={`w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all font-bold text-sm select-none ${isChildActive ? 'text-white bg-white/5' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-black text-[14px] uppercase tracking-wider select-none ${isChildActive ? 'text-[#0066FF] bg-[#0066FF]/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                   title={collapsed ? item.name : undefined}
                 >
                   <div className="flex items-center gap-3">
-                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isChildActive ? 'text-[#0066FF]' : 'text-slate-500'}`} />
+                    <item.icon className={`w-4 h-4 flex-shrink-0 ${isChildActive ? 'text-[#0066FF]' : 'text-slate-500'}`} />
                     {!collapsed && <span className="truncate text-left">{item.name}</span>}
                   </div>
                   {!collapsed && (
-                    <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180 text-[#0066FF]' : 'text-slate-500'}`} />
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                   )}
                 </button>
                 {isOpen && !collapsed && (
@@ -81,7 +81,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
                             }
                             setMobileMenuOpen(false); 
                           }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-black text-[13px] text-left select-none uppercase tracking-tighter ${isSubActive ? 'bg-[#0066FF]/10 text-white border border-[#0066FF]/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-black text-[15px] text-left select-none uppercase tracking-tighter ${isSubActive ? 'bg-[#0066FF]/10 text-white border border-[#0066FF]/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
                         >
                           <span className="truncate">{subItem.name}</span>
                           {isSubActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0066FF] shadow-[0_0_10px_rgba(0,102,255,0.5)]" />}
@@ -101,12 +101,12 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
                 href={item.href}
                 onMouseEnter={() => handleHover(item)}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 font-black text-[11px] uppercase tracking-[0.2em] select-none ${isActive ? 'bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-black text-[14px] uppercase tracking-wider select-none ${isActive ? 'bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
               >
-                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
                 {!collapsed && <span className="truncate">{item.name}</span>}
                 {isActive && !collapsed && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0066FF] shadow-[0_0_10px_rgba(0,102,255,1)]" />
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,1)]" />
                 )}
                 {item.glow && !isActive && !collapsed && (
                    <span className="ml-auto px-2 py-0.5 rounded-md bg-[#0066FF] text-[8px] font-black uppercase text-white shadow-[0_0_15px_rgba(0,102,255,0.5)] animate-pulse">New</span>
@@ -119,6 +119,15 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
       {/* BOTTOM ACTIONS */}
       <div className="mt-auto pt-6 border-t border-white/5 space-y-4">
         
+        {/* PROFILE ACTION */}
+        <Link 
+          href={role === 'super_admin' ? '/v2/superadmin/profile' : role === 'program_manager' ? '/v2/pm/profile' : role === 'teacher' ? '/v2/teacher/profile' : '/v2/participant/profile'}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 font-black uppercase tracking-widest text-[11px] ${activeTab === 'profile' || pathname?.includes('profile') ? 'bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/20' : 'bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-white/10'}`}
+        >
+          <User className="w-5 h-5 flex-shrink-0" />
+          {!collapsed && <span className="animation-reveal">My Profile</span>}
+        </Link>
+
         {/* PROMINENT LOGOUT ACTION */}
         <button 
           onClick={handleLogout}
@@ -137,45 +146,41 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
  */
 const NAVIGATION_MATRIX = {
   super_admin: [
-    { id: 'dashboard', name: 'Dashboard', icon: ShieldCheck, href: '/v2/superadmin' },
-    { id: 'programs', name: 'Program Management', icon: Briefcase, subItems: [
-        { id: 'list_programs', name: 'All Programs', href: '/v2/superadmin/programs' },
-        { id: 'create_program', name: 'Create Program', href: '/v2/superadmin/programs/new' },
+    { id: 'dashboard', name: 'DASHBOARD', icon: ShieldCheck, href: '/v2/superadmin' },
+    { id: 'programs', name: 'PROGRAM MANAGEMENT', icon: Briefcase, subItems: [
+        { id: 'list_programs', name: 'ALL PROGRAMS', href: '/v2/superadmin/programs' },
+        { id: 'create_program', name: 'CREATE PROGRAM', href: '/v2/superadmin/programs/new' },
     ]},
-    { id: 'progress_hub', name: 'Progress Hub', icon: Activity, href: '/v2/superadmin/progress' },
-    { id: 'communication', name: 'Communication', icon: Send, subItems: [
-        { id: 'campaigns', name: 'Emails & Campaigns', href: '/v2/superadmin/communications/campaigns' },
-        { id: 'forms', name: 'Forms', href: '/v2/superadmin/communications/forms' },
-        { id: 'all_contacts', name: 'All Contacts', href: '/v2/superadmin/communications/contacts' },
+    { id: 'progress_hub', name: 'PROGRESS HUB', icon: Activity, href: '/v2/superadmin/progress' },
+    { id: 'communication', name: 'COMMUNICATION', icon: Send, subItems: [
+        { id: 'campaigns', name: 'EMAILS & CAMPAIGNS', href: '/v2/superadmin/communications/campaigns' },
+        { id: 'forms', name: 'FORMS', href: '/v2/superadmin/communications/forms' },
+        { id: 'all_contacts', name: 'ALL CONTACTS', href: '/v2/superadmin/communications/contacts' },
     ]},
-    { id: 'knowledge', name: 'Knowledge Bank', icon: Library, href: '/v2/superadmin/knowledge' },
-    { id: 'staff', name: 'Future Studio', icon: Users, href: '/v2/superadmin/communications/contacts?role=Future+Studio' },
-    { id: 'profile', name: 'My Profile', icon: User, href: '/v2/superadmin/profile' },
+    { id: 'knowledge', name: 'KNOWLEDGE BANK', icon: Library, href: '/v2/superadmin/knowledge' },
+    { id: 'staff', name: 'FUTURE STUDIO', icon: Users, href: '/v2/superadmin/communications/contacts?role=Future+Studio' },
   ],
   admin: [
-    { id: 'dashboard', name: 'Dashboard', icon: ShieldCheck, href: '/v2/superadmin' },
-    { id: 'personnel', name: 'Team Settings', icon: Users, href: '/admin/personnel' },
-    { id: 'projects', name: 'Projects', icon: Briefcase, href: '/admin/projects' },
-    { id: 'logs', name: 'Activity Logs', icon: FileText, href: '/admin/logs' },
+    { id: 'dashboard', name: 'DASHBOARD', icon: ShieldCheck, href: '/v2/superadmin' },
+    { id: 'personnel', name: 'TEAM SETTINGS', icon: Users, href: '/admin/personnel' },
+    { id: 'projects', name: 'PROJECTS', icon: Briefcase, href: '/admin/projects' },
+    { id: 'logs', name: 'ACTIVITY LOGS', icon: FileText, href: '/admin/logs' },
   ],
   program_manager: [
-    { id: 'dashboard', name: 'Operations HQ', icon: LayoutDashboard, href: '/v2/pm' },
-    { id: 'programs', name: 'Assigned Programs', icon: Briefcase, href: '/v2/pm/programs' },
-    { id: 'communication', name: 'Cohort Outreach', icon: MessageSquare, href: '/v2/pm/communications/contacts' },
-    { id: 'profile', name: 'Settings', icon: Settings, href: '/v2/pm/profile' },
-    { id: 'progress_hub', name: 'Progress Registry', icon: Activity, href: '/v2/pm/progress' },
+    { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/v2/pm' },
+    { id: 'programs', name: 'ASSIGNED PROGRAMS', icon: Briefcase, href: '/v2/pm/programs' },
+    { id: 'communication', name: 'COMMUNICATION', icon: MessageSquare, href: '/v2/pm/communications/contacts' },
+    { id: 'progress_hub', name: 'PROGRESS TRACKING', icon: Activity, href: '/v2/pm/progress' },
   ],
   teacher: [
-    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, href: '/v2/teacher' },
-    { id: 'sessions', name: 'My Sessions', icon: Calendar, href: '/v2/teacher/sessions' },
-    { id: 'reviews', name: 'Submissions', icon: FileText, href: '/v2/teacher/reviews' },
-    { id: 'profile', name: 'My Profile', icon: User, href: '/v2/teacher/profile' },
+    { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/v2/teacher' },
+    { id: 'sessions', name: 'MY SESSIONS', icon: Calendar, href: '/v2/teacher/sessions' },
+    { id: 'reviews', name: 'SUBMISSIONS', icon: FileText, href: '/v2/teacher/reviews' },
   ],
   participant: [
-    { id: 'dashboard', name: 'Dashboard', icon: Briefcase, href: '/v2/participant' },
-    { id: 'tasks', name: 'Tasks', icon: FileText, href: '#' },
-    { id: 'feedback', name: 'Feedback', icon: MessageSquare, href: '#' },
-    { id: 'profile', name: 'My Profile', icon: User, href: '/v2/participant/profile' },
+    { id: 'dashboard', name: 'DASHBOARD', icon: Briefcase, href: '/v2/participant' },
+    { id: 'tasks', name: 'TASKS', icon: FileText, href: '#' },
+    { id: 'feedback', name: 'FEEDBACK', icon: MessageSquare, href: '#' },
   ],
 };
 
@@ -184,14 +189,37 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [openMenus, setOpenMenus] = useState({});
+
+  const fetchNotifications = React.useCallback(async () => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (!savedUser) return;
+      const parsedUser = JSON.parse(savedUser);
+      const res = await fetch(`/api/v2/notifications?recipient_id=${parsedUser.cid || parsedUser.id}`);
+      const data = await res.json();
+      if (data.success) {
+        setNotifications(data.notifications || []);
+        setUnreadCount((data.notifications || []).filter(n => !n.read).length);
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Pulse every 30s
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
   const [theme, setTheme] = useState('dark');
   const [lang, setLang] = useState('en');
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('impactos-theme') || 'dark';
+    // Default to light theme if none saved, aligning with UI requirement
+    const savedTheme = localStorage.getItem('impactos-theme') || 'light';
     const savedLang = localStorage.getItem('impactos-lang') || 'en';
     setTheme(savedTheme);
     setLang(savedLang);
@@ -242,28 +270,49 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
 
   const navItems = React.useMemo(() => {
     const items = [...(NAVIGATION_MATRIX[role] || NAVIGATION_MATRIX.admin)];
+    const isLeadPM = user?.isLeadPM;
     
     // Inject dynamic programs if PM
-    if (role === 'program_manager' && pmPrograms.length > 0) {
-       const progIndex = items.findIndex(i => i.id === 'programs');
-       if (progIndex !== -1) {
-          // Clone the item to avoid mutating the original matrix
-          items[progIndex] = {
-             ...items[progIndex],
-             subItems: [
-                { id: 'all_programs', name: 'Registry Overview', href: '/v2/pm/programs' },
-                ...pmPrograms.map(p => ({
-                   id: `prog_${p.id}`,
-                   name: p.name,
-                   href: `/v2/pm/programs/${p.id}`
-                }))
-             ]
-          };
+    if (role === 'program_manager') {
+       let filteredItems = items;
+       
+       if (!isLeadPM) {
+          filteredItems = items.filter(i => i.id !== 'communication');
        }
-    }
+
+       if (pmPrograms.length > 0) {
+          const progIndex = filteredItems.findIndex(i => i.id === 'programs');
+          if (progIndex !== -1) {
+             filteredItems[progIndex] = {
+                ...filteredItems[progIndex],
+                subItems: [
+                   { id: 'all_programs', name: 'Registry Overview', href: '/v2/pm/programs' },
+                   ...pmPrograms.map(p => ({
+                      id: `prog_${p.id}`,
+                      name: p.name,
+                      href: `/v2/pm/programs/${p.id}`
+                   }))
+                ]
+             };
+          }
+       }
+
+        const match = pathname?.match(/\/v2\/pm\/programs\/(P-[^/]+)/);
+        if (match) {
+           const currentProgId = match[1];
+           const progressHubIndex = filteredItems.findIndex(i => i.id === 'progress_hub');
+           if (progressHubIndex !== -1) {
+              filteredItems[progressHubIndex] = {
+                 ...filteredItems[progressHubIndex],
+                 href: `/v2/pm/programs/${currentProgId}?tab=progress`
+              };
+           }
+        }
+        return filteredItems;
+     }
     
     return items;
-  }, [role, pmPrograms]);
+  }, [role, pmPrograms, pathname, user]);
 
   const handleLogout = () => {
     localStorage.removeItem('sa_session');
@@ -372,7 +421,11 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
                 className="relative p-2 text-slate-400 hover:text-white transition-colors group"
               >
                 <Bell className="w-5 h-5 group-hover:animate-bounce" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,1)]" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#FF6600] text-black text-[9px] font-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(255,102,0,0.5)] animate-pulse border border-black">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
 
               {/* NOTIFICATION BOX DROPDOWN */}
@@ -385,21 +438,48 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
                     className="absolute right-0 top-12 w-80 bg-[#0d0d18] border border-white/10 shadow-2xl shadow-black rounded-2xl overflow-hidden z-[200]"
                   >
                     <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                      <h4 className="text-xs font-black text-white uppercase tracking-widest">Notifications</h4>
-                      <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded cursor-pointer hover:bg-indigo-500/20">Mark All Read</span>
+                      <h4 className="text-xs font-black text-white uppercase tracking-widest">Live Signals</h4>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const unread = notifications.filter(n => !n.read);
+                            for (const n of unread) {
+                              await fetch('/api/v2/notifications', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: n.id, read: true })
+                              });
+                            }
+                            fetchNotifications();
+                          } catch (e) {}
+                        }}
+                        className="text-[10px] font-bold text-[#FF6600] bg-[#FF6600]/10 px-2 py-0.5 rounded cursor-pointer hover:bg-[#FF6600]/20"
+                      >
+                        Clear All
+                      </button>
                     </div>
                     <div className="max-h-64 overflow-y-auto custom-scrollbar p-2 space-y-1">
-                      <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-white/10">
-                        <p className="text-[11px] font-bold text-white mb-1"><span className="text-indigo-400">System</span>: Database Engine Sync Complete</p>
-                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Just now</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-transparent hover:bg-white/5 transition-colors cursor-pointer border border-transparent hover:border-white/10">
-                        <p className="text-[11px] font-bold text-slate-300 mb-1"><span className="text-slate-400">Security</span>: New login detected from HQ.</p>
-                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">2 hours ago</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-transparent border border-dashed border-white/5 text-center my-2">
-                        <p className="text-[10px] font-bold text-slate-500">No further alerts.</p>
-                      </div>
+                      {notifications.length > 0 ? (
+                        notifications.map(n => (
+                          <div 
+                            key={n.id}
+                            className={`p-3 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-white/10 ${n.read ? 'opacity-60 bg-transparent' : 'bg-white/5 hover:bg-white/10'}`}
+                          >
+                            <p className="text-[11px] font-bold text-white mb-1">
+                              <span className={n.type === 'security' ? 'text-rose-500' : 'text-[#0066FF]'}>
+                                {n.title}
+                              </span>: {n.message}
+                            </p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                              {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-3 rounded-xl bg-transparent border border-dashed border-white/5 text-center my-2">
+                          <p className="text-[10px] font-bold text-slate-500 italic">Awaiting Incoming Signals...</p>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -408,7 +488,7 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
 
             <div className="flex items-center gap-4 pl-6 border-l border-white/5">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-black text-white leading-none mb-1 uppercase tracking-tight italic">Active Session</p>
+                <p className="text-sm font-black text-white leading-none mb-1 uppercase tracking-tight italic">User Account</p>
                 <p className="text-[10px] font-bold text-[#0066FF] uppercase tracking-tighter opacity-80 italic">{role}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[#FF6B00] flex items-center justify-center font-black text-xs shadow-lg shadow-orange-500/5">

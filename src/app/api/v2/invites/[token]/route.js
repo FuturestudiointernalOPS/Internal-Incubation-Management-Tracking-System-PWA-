@@ -68,7 +68,13 @@ export async function POST(req, { params }) {
     });
 
     if (existingUser.rows.length > 0) {
-      // User exists, just proceed with this user
+      // User exists, update their profile with the new invite credentials and group
+      await db.execute({
+        sql: `UPDATE contacts 
+              SET name = ?, phone = ?, password = ?, role = ?, group_name = ? 
+              WHERE email = ?`,
+        args: [name, phone || null, hashedPassword, invite.role, invite.group_name, email]
+      });
       contactId = existingUser.rows[0].cid;
     } else {
       // Create new user

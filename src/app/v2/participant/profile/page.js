@@ -56,8 +56,8 @@ export default function ParticipantProfile() {
      <div className="min-h-screen bg-[#080810] flex items-center justify-center p-8">
         <div className="ios-card bg-rose-500/5 border-rose-500/20 p-12 text-center max-w-md">
            <Rocket className="w-16 h-16 text-rose-500 mx-auto mb-6 opacity-50" />
-           <h2 className="text-2xl font-black text-white uppercase mb-4">Identity Sync Failure</h2>
-           <p className="text-slate-500 font-bold text-sm leading-relaxed mb-8">We could not synchronize your participant portal with the central registry. Please re-authenticate.</p>
+           <h2 className="text-2xl font-black text-white uppercase mb-4">Profile Sync Error</h2>
+           <p className="text-slate-500 font-bold text-sm leading-relaxed mb-8">We could not synchronize your participant portal with the database. Please re-authenticate.</p>
            <button onClick={() => window.location.href='/terminal'} className="btn-prime w-full">Re-Authenticate</button>
         </div>
      </div>
@@ -102,7 +102,7 @@ export default function ParticipantProfile() {
                    
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><User className="w-3 h-3" /> Identity Handle</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><User className="w-3 h-3" /> Full Name</p>
                          <input 
                             id="part_name_field"
                             defaultValue={dbUser.name}
@@ -110,11 +110,11 @@ export default function ParticipantProfile() {
                          />
                       </div>
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Mail className="w-3 h-3" /> Mail Index</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Mail className="w-3 h-3" /> Email Address</p>
                          <p className="text-sm font-bold text-white bg-white/5 p-4 rounded-xl border border-white/5">{dbUser.email}</p>
                       </div>
                       <div className="space-y-1">
-                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Phone className="w-3 h-3" /> Comm Line</p>
+                         <p className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2"><Phone className="w-3 h-3" /> Phone Number</p>
                          <p className="text-sm font-bold text-white bg-white/5 p-4 rounded-xl border border-white/5">{dbUser.phone || 'Not Integrated'}</p>
                       </div>
                    </div>
@@ -122,13 +122,13 @@ export default function ParticipantProfile() {
 
                 <div className="ios-card bg-[#FF6600]/80/5 border-[#FF6600]/80/20 !p-12 space-y-8">
                    <div>
-                      <h4 className="text-xl font-black text-white uppercase tracking-tighter">Credential Rotation</h4>
+                      <h4 className="text-xl font-black text-white uppercase tracking-tighter">Security Settings</h4>
                       <p className="text-xs text-slate-400 font-bold mt-2 italic">Update your Future Studio access key to secure your participant portal.</p>
                    </div>
                    
                    <div className="flex flex-col sm:flex-row items-end gap-6">
                       <div className="flex-1 space-y-2 w-full relative">
-                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest pl-2">New Access Key</label>
+                         <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest pl-2">New Password</label>
                          <div className="relative group">
                             <input 
                                type={showPassword ? "text" : "password"} 
@@ -168,7 +168,7 @@ export default function ParticipantProfile() {
                                }
                             } catch(e) { 
                                window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                                  detail: { type: 'error', message: 'Sync Failed.' } 
+                                  detail: { type: 'error', message: 'Update Failed.' } 
                                }));
                             }
                          }}

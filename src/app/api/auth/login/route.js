@@ -68,7 +68,7 @@ export async function POST(req) {
       finalRole = 'super_admin';
     } 
     // 2. Project Leadership Detection
-    else if (pmAssignment.rows.length > 0 || user.role === 'project_manager' || user.group_name?.toUpperCase() === 'STAFF') {
+    else if (pmAssignment.rows.length > 0 || user.role === 'project_manager' || user.group_name?.toUpperCase() === 'STAFF' || user.group_name?.toUpperCase() === 'FUTURE STUDIO') {
       // All other staff are manifest as Program Managers
       finalRole = 'program_manager';
     } 
@@ -78,6 +78,13 @@ export async function POST(req) {
     }
 
     // --- ACCESS CONTROL GATE ---
+    if (finalRole === 'super_admin' || finalRole === 'program_manager') {
+       return NextResponse.json({ 
+         success: false, 
+         error: "Administrative access detected. Please use the secure /terminal for login." 
+       }, { status: 403 });
+    }
+
     if (finalRole === 'participant') {
       if (!user.group_name || user.group_name === 'unassigned') {
         return NextResponse.json({ 

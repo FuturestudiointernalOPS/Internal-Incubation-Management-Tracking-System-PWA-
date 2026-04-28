@@ -13,11 +13,11 @@ export async function GET(req) {
       // FULL CALENDAR for Super Admin
       sessions = await db.execute({
         sql: `
-          SELECT s.*, p.name as program_name 
-          FROM v2_sessions s
-          JOIN v2_programs p ON s.program_id = p.id
-          WHERE s.scheduled_date IS NOT NULL
-          ORDER BY s.scheduled_date ASC
+           SELECT s.*, p.name as program_name 
+           FROM v2_sessions s
+           JOIN v2_programs p ON s.program_id = p.id
+           WHERE s.scheduled_date IS NOT NULL AND p.is_archived = 0
+           ORDER BY s.scheduled_date ASC
         `,
         args: []
       });
@@ -25,29 +25,47 @@ export async function GET(req) {
       // TEACHER SPECIFIC schedule
       sessions = await db.execute({
         sql: `
-          SELECT s.*, p.name as program_name 
-          FROM v2_sessions s
-          JOIN v2_programs p ON s.program_id = p.id
-          WHERE s.handler_id = ? AND s.scheduled_date IS NOT NULL
-          ORDER BY s.scheduled_date ASC
+           SELECT s.*, p.name as program_name 
+           FROM v2_sessions s
+           JOIN v2_programs p ON s.program_id = p.id
+           WHERE s.handler_id = ? AND s.scheduled_date IS NOT NULL AND p.is_archived = 0
+           ORDER BY s.scheduled_date ASC
         `,
         args: [searchParams.get('teacher_id')]
       });
     } else {
-      // PM SPECIFIC schedule
+      // PM / TEAM MEMBER schedule
       if (!pmId) {
         return NextResponse.json({ success: false, error: "Identity required." }, { status: 400 });
       }
-      sessions = await db.execute({
-        sql: `
-          SELECT s.*, p.name as program_name 
-          FROM v2_sessions s
-          JOIN v2_programs p ON s.program_id = p.id
-          WHERE p.assigned_pm_id = ? AND s.scheduled_date IS NOT NULL
-          ORDER BY s.scheduled_date ASC
-        `,
-        args: [pmId]
-      });
+
+      const isLeadPM = searchParams.get('is_lead_pm') === 'true';
+
+      if (isLeadPM) {
+        // FULL OVERSIGHT for Lead PMs
+        sessions = await db.execute({
+          sql: `
+             SELECT s.*, p.name as program_name 
+             FROM v2_sessions s
+             JOIN v2_programs p ON s.program_id = p.id
+             WHERE p.assigned_pm_id = ? AND s.scheduled_date IS NOT NULL AND p.is_archived = 0
+             ORDER BY s.scheduled_date ASC
+          `,
+          args: [pmId]
+        });
+      } else {
+        // PERSONAL TIMELINE for Team Members
+        sessions = await db.execute({
+          sql: `
+             SELECT s.*, p.name as program_name 
+             FROM v2_sessions s
+             JOIN v2_programs p ON s.program_id = p.id
+             WHERE s.handler_id = ? AND s.scheduled_date IS NOT NULL AND p.is_archived = 0
+             ORDER BY s.scheduled_date ASC
+          `,
+          args: [pmId]
+        });
+      }
     }
 
     return NextResponse.json({

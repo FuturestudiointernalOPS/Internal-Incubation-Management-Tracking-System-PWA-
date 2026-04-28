@@ -22,6 +22,7 @@ export default function ProgramManagement() {
   const [staff, setStaff] = useState([]);
   const [uploadedMaterials, setUploadedMaterials] = useState([]); 
   const [extraMaterials, setExtraMaterials] = useState([]); 
+  const [tempAssistants, setTempAssistants] = useState([]); 
 
   const router = useRouter();
 
@@ -33,7 +34,7 @@ export default function ProgramManagement() {
     fetchPrograms();
     fetchMetadata();
     fetchGlobalSchedule();
-  }, []);
+  }, [activeTab]); // Refetch on tab change
 
   const fetchGlobalSchedule = async () => {
     try {
@@ -48,7 +49,7 @@ export default function ProgramManagement() {
   const fetchPrograms = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/v2/pm/programs');
+      const res = await fetch(`/api/v2/pm/programs?show_archived=${activeTab === 'archived'}`);
       const data = await res.json();
       if (data.success) {
         setPrograms(data.programs || []);
@@ -71,7 +72,7 @@ export default function ProgramManagement() {
       const staffRes = await fetch('/api/v2/contacts/full-state');
       const staffData = await staffRes.json();
       if (staffData.success) {
-        setStaff((staffData.contacts || []).filter(c => c.group_name?.toUpperCase() === 'STAFF'));
+        setStaff((staffData.contacts || []).filter(c => c.group_name?.toUpperCase() === 'FUTURE STUDIO'));
       }
     } catch (e) {}
   };
@@ -80,7 +81,11 @@ export default function ProgramManagement() {
     e.preventDefault();
     setIsUpdating(true);
     try {
-      const payload = { ...editingProgram, materials: [...uploadedMaterials, ...extraMaterials] };
+      const payload = { 
+        ...editingProgram, 
+        materials: [...uploadedMaterials, ...extraMaterials],
+        assigned_assistant_id: JSON.stringify(tempAssistants.map(a => a.cid))
+      };
       const res = await fetch('/api/v2/pm/programs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -188,7 +193,7 @@ export default function ProgramManagement() {
         <AnimatePresence>
           {editingProgram && (
             <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-xl !p-12 space-y-10 border-white/10">
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-xl !p-12 space-y-10 border-white/10 max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Edit Program</h3>
@@ -312,10 +317,29 @@ export default function ProgramManagement() {
                          </div>
                          <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans">Assign Team Members</label>
-                            <select value={editingProgram.assigned_assistant_id || ''} onChange={e => setEditingProgram({...editingProgram, assigned_assistant_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none appearance-none font-bold">
-                               <option value="" className="bg-[#080810]">Unassigned</option>
+                            <select 
+                               value="" 
+                               onChange={e => {
+                                  const selected = staff.find(s => s.cid === e.target.value);
+                                  if (selected && !tempAssistants.find(a => a.cid === selected.cid)) {
+                                     setTempAssistants([...tempAssistants, selected]);
+                                  }
+                               }} 
+                               className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none appearance-none font-bold"
+                            >
+                               <option value="" className="bg-[#080810]">Add Team Member...</option>
                                {staff.map(s => <option key={s.cid} value={s.cid} className="bg-[#080810]">{s.name}</option>)}
                             </select>
+                            <div className="flex flex-wrap gap-2 mt-4">
+                               {tempAssistants.map(a => (
+                                  <div key={a.cid} className="flex items-center gap-2 px-3 py-1.5 bg-[#FF6600]/10 border border-[#FF6600]/20 rounded-xl">
+                                     <span className="text-[10px] font-black text-white uppercase">{a.name}</span>
+                                     <button type="button" onClick={() => setTempAssistants(tempAssistants.filter(x => x.cid !== a.cid))} className="text-white hover:text-rose-500 transition-colors">
+                                        <X className="w-3.5 h-3.5" />
+                                     </button>
+                                  </div>
+                               ))}
+                            </div>
                             <p className="text-[9px] font-bold text-slate-600 mt-2 ml-2 italic">These are team members that will teach during the course of this program or team members that will oversee during the course of this program.</p>
                          </div>
                       </div>
@@ -359,7 +383,7 @@ export default function ProgramManagement() {
                             <div className="w-10 h-10 bg-[#FF6600]/10 rounded-xl flex items-center justify-center text-[#FF6600] font-black text-[10px]">TO</div>
                             <div className="text-left">
                                <p className="text-[11px] font-black text-white uppercase tracking-widest">{messagingProgram.name}</p>
-                               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Lead: {messagingProgram.pm_name || 'All Staff'}</p>
+                               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Project Manager: {messagingProgram.pm_name || 'All Members'}</p>
                             </div>
                          </div>
                       </div>
@@ -438,6 +462,21 @@ export default function ProgramManagement() {
                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search repository..." className="w-full bg-transparent border-none text-white outline-none font-bold placeholder:text-slate-600" />
             </div>
 
+            <div className="flex gap-4">
+               <button 
+                  onClick={() => setTab('active')}
+                  className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'active' ? 'bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+               >
+                  Active Missions
+               </button>
+               <button 
+                  onClick={() => setTab('archived')}
+                  className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'archived' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+               >
+                  Archived Repository
+               </button>
+            </div>
+
             {/* TACTICAL CALENDAR VIEW - Master Oversight */}
             <section className="ios-card bg-white/[0.01] border-white/5 !p-12 overflow-hidden shadow-2xl relative">
                <div className="absolute top-0 right-0 w-80 h-80 bg-[#FF6600]/5 rounded-full blur-[100px] -mr-40 -mt-40" />
@@ -512,14 +551,33 @@ export default function ProgramManagement() {
                           <div className="flex justify-between items-start mb-6">
                              <span className={`px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest ${p.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-500'}`}>{p.status}</span>
                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                 <button onClick={() => {
-                                    let mats = [];
-                                    try { mats = JSON.parse(p.materials || '[]'); } catch(e) {}
-                                    setEditingProgram(p);
-                                    setUploadedMaterials(mats.filter(m => !m.isExtra));
-                                    setExtraMaterials(mats.filter(m => m.isExtra));
-                                 }} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-[#FF6600] transition-all"><Edit3 className="w-5 h-5" /></button>
-                                 <button onClick={(e) => handleArchiveAction(p.id, true, e)} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-orange-500 transition-all"><Archive className="w-5 h-5" /></button>
+                                {activeTab === 'archived' ? (
+                                   <>
+                                      <button onClick={(e) => handleArchiveAction(p.id, false, e)} className="p-3 bg-white/5 rounded-2xl text-emerald-500 hover:text-white hover:bg-emerald-500 transition-all" title="Restore Mission"><RotateCcw className="w-5 h-5" /></button>
+                                      <button onClick={(e) => handlePermanentDelete(p.id, e)} className="p-3 bg-white/5 rounded-2xl text-rose-500 hover:text-white hover:bg-rose-500 transition-all" title="Delete Permanently"><Trash2 className="w-5 h-5" /></button>
+                                   </>
+                                ) : (
+                                   <>
+                                      <button onClick={() => {
+                                         let mats = [];
+                                         try { mats = JSON.parse(p.materials || '[]'); } catch(e) {}
+                                         
+                                         let asstIds = [];
+                                         try { 
+                                            const parsed = JSON.parse(p.assigned_assistant_id || '[]');
+                                            asstIds = Array.isArray(parsed) ? parsed : (p.assigned_assistant_id ? [p.assigned_assistant_id] : []);
+                                         } catch(e) {
+                                            asstIds = p.assigned_assistant_id ? [p.assigned_assistant_id] : [];
+                                         }
+
+                                         setEditingProgram(p);
+                                         setUploadedMaterials(mats.filter(m => !m.isExtra));
+                                         setExtraMaterials(mats.filter(m => m.isExtra));
+                                         setTempAssistants(staff.filter(s => asstIds.includes(s.cid)));
+                                      }} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-[#FF6600] transition-all"><Edit3 className="w-5 h-5" /></button>
+                                      <button onClick={(e) => handleArchiveAction(p.id, true, e)} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-orange-500 transition-all" title="Archive Mission"><Archive className="w-5 h-5" /></button>
+                                   </>
+                                )}
                              </div>
                           </div>
                           <h3 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-4 italic italic">{p.name}</h3>
@@ -541,7 +599,21 @@ export default function ProgramManagement() {
                              </div>
                              <div className="bg-white/5 p-4 rounded-xl space-y-1 border border-transparent hover:border-white/5 transition-all">
                                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Team Members</p>
-                                <p className="text-white font-black text-xs uppercase tracking-tighter truncate">{p.assistant_name || 'Unassigned'}</p>
+                                <div className="flex flex-wrap gap-1">
+                                   {(() => {
+                                      let asstIds = [];
+                                      try { 
+                                         const parsed = JSON.parse(p.assigned_assistant_id || '[]');
+                                         asstIds = Array.isArray(parsed) ? parsed : (p.assigned_assistant_id ? [p.assigned_assistant_id] : []);
+                                      } catch(e) {
+                                         asstIds = p.assigned_assistant_id ? [p.assigned_assistant_id] : [];
+                                      }
+                                      const names = staff.filter(s => asstIds.includes(s.cid)).map(s => s.name);
+                                      return names.length > 0 ? names.map((n, idx) => (
+                                         <span key={idx} className="text-white font-black text-[9px] uppercase tracking-tighter bg-white/10 px-2 py-0.5 rounded">{n}</span>
+                                      )) : <span className="text-slate-700 font-black text-xs uppercase tracking-tighter">Unassigned</span>;
+                                   })()}
+                                </div>
                              </div>
                           </div>
                        </div>
