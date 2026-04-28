@@ -52,8 +52,8 @@ export async function initDb() {
       )
     `);
 
-    await db.execute("ALTER TABLE families ADD COLUMN registration_id TEXT UNIQUE").catch(() => {});
-    await db.execute("ALTER TABLE families ADD COLUMN email TEXT UNIQUE").catch(() => {});
+    await db.execute("ALTER TABLE families ADD COLUMN registration_id TEXT").catch(() => {});
+    await db.execute("ALTER TABLE families ADD COLUMN email TEXT").catch(() => {});
     await db.execute("ALTER TABLE families ADD COLUMN password TEXT").catch(() => {});
 
     // Campaign & Forms Infrastructure
@@ -112,6 +112,7 @@ export async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    await db.execute("ALTER TABLE v2_teams ADD COLUMN password TEXT").catch(() => {});
 
     // 2. Events & Calendar (Meetings, Classes)
     await db.execute(`
