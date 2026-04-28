@@ -13,11 +13,10 @@ const CARD = 'rgba(255,255,255,0.03)';
 const BORDER = 'rgba(99,102,241,0.2)';
 const ACCENT = '#818cf8';
 
-export default function PublicStaffRegistration() {
+export default function PublicApplicationRegistration() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    dob: '',
     phone: '',
     gender: 'Male',
     homeAddress: '',
@@ -103,10 +102,10 @@ export default function PublicStaffRegistration() {
         <header style={{ textAlign: 'center', marginBottom: '4rem' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(99,102,241,0.1)', padding: '0.5rem 1.25rem', borderRadius: '999px', border: `1px solid ${BORDER}`, marginBottom: '1.5rem' }}>
             <UserPlus style={{ color: ACCENT, width: '16px' }} />
-            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: ACCENT, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Staff Application</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: ACCENT, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Application Profile</span>
           </div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '1rem', letterSpacing: '-0.02em' }}>Join The Company</h1>
-          <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>Please fill in your details below to set up your staff profile.</p>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '1rem', letterSpacing: '-0.02em' }}>Application Terminal</h1>
+          <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>Please fill in your details below to set up your profile.</p>
         </header>
 
         <form onSubmit={handleSubmit} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: '2.5rem', padding: '3rem', backdropFilter: 'blur(20px)' }}>
@@ -118,7 +117,6 @@ export default function PublicStaffRegistration() {
             <InputGroup label="Your Full Name" icon={Users} placeholder="e.g. Samuel Adebayo" value={formData.fullName} onChange={v => setFormData({...formData, fullName: v})} required />
             <InputGroup label="Email Address" icon={Mail} placeholder="name@email.com" type="email" value={formData.email} onChange={v => setFormData({...formData, email: v})} required />
             
-            <InputGroup label="Birth Date" icon={Calendar} type="date" value={formData.dob} onChange={v => setFormData({...formData, dob: v})} required />
             <InputGroup label="Phone Number" icon={Phone} placeholder="080XXXXXXXX" value={formData.phone} onChange={v => setFormData({...formData, phone: v})} required />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
