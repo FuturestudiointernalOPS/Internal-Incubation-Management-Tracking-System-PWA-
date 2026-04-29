@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   try {
     await initDb();
-    const { cid, form_id, answers, publicData } = await req.json();
+    const { cid, form_id, answers, publicData, group_name } = await req.json();
 
     if (!form_id || (!answers && !publicData)) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
@@ -13,6 +13,17 @@ export async function POST(req) {
     let resolvedCid = cid;
     let confidence_score = 100;
     let match_status = 'auto';
+    let resolvedGroupName = group_name;
+
+    if (!resolvedGroupName) {
+      const formRes = await db.execute({
+        sql: "SELECT group_name FROM forms WHERE form_id = ?",
+        args: [form_id]
+      });
+      if (formRes.rows.length > 0) {
+        resolvedGroupName = formRes.rows[0].group_name;
+      }
+    }
 
     if (!resolvedCid && publicData) {
       const emailMatch = await db.execute({
@@ -48,8 +59,8 @@ export async function POST(req) {
       if (!resolvedCid && publicData.email) {
          resolvedCid = "USER_" + Math.random().toString(36).substring(2, 8).toUpperCase();
          await db.execute({
-           sql: "INSERT INTO contacts (cid, name, email, phone) VALUES (?, ?, ?, ?)",
-           args: [resolvedCid, publicData.name || 'Anonymous', publicData.email, publicData.phone || null]
+           sql: "INSERT INTO contacts (cid, name, email, phone, group_name) VALUES (?, ?, ?, ?, ?)",
+           args: [resolvedCid, publicData.name || 'Anonymous', publicData.email, publicData.phone || null, resolvedGroupName || null]
          });
          confidence_score = 100;
       }
@@ -58,9 +69,10 @@ export async function POST(req) {
     if (confidence_score < 90) match_status = 'flagged';
 
     await db.execute({
-      sql: "INSERT INTO form_responses (form_id, cid, answers, confidence_score, match_status) VALUES (?, ?, ?, ?, ?)",
-      args: [form_id, resolvedCid || null, JSON.stringify({...answers, ...publicData}), confidence_score, match_status]
+      sql: "INSERT INTO form_responses (form_id, cid, answers, confidence_score, match_status, group_name) VALUES (?, ?, ?, ?, ?, ?)",
+      args: [form_id, resolvedCid || null, JSON.stringify({...answers, ...publicData}), confidence_score, match_status, resolvedGroupName || null]
     });
+
 
     if (resolvedCid) {
       const hasYes = Object.values(answers || {}).some(v => v === 'Yes' || String(v).toLowerCase() === 'yes' || v === true);

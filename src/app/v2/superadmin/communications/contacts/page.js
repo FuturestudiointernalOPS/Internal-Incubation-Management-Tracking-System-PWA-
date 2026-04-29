@@ -21,7 +21,9 @@ function ContactsPageContent() {
   const roleParam = searchParams.get('role');
   
   const [contacts, setContacts] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmittingTeam, setIsSubmittingTeam] = useState(false);
   const [search, setSearch] = useState('');
   
   // Modals & UI State
@@ -38,6 +40,9 @@ function ContactsPageContent() {
   const [groupCredsForm, setGroupCredsForm] = useState({ id: '', name: '', email: '', password: '' });
 
   const [selectedGroup, setSelectedGroup] = useState('All Contacts');
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [teamForm, setTeamForm] = useState({ name: '', program_id: '', group_name: '', member_ids: [] });
+  const [programs, setPrograms] = useState([]);
   const [families, setFamilies] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
 
@@ -52,7 +57,7 @@ function ContactsPageContent() {
   const fileInputRef = useRef(null);
   
   // Forms
-  const [familyForm, setFamilyForm] = useState({ name: '' });
+  const [familyForm, setFamilyForm] = useState({ name: '', program_id: '' });
   const [form, setForm] = useState({ cid: '', name: '', email: '', phone: '', address: '', dob: '', group_name: '', role: 'staff', gender: '', mother_name: '', password: '' });
   const [credsForm, setCredsForm] = useState({ cid: '', name: '', email: '', password: '', isDirty: false });
 
@@ -80,16 +85,28 @@ function ContactsPageContent() {
   const fetchRegistryData = async () => {
     try {
       if (!IMPACT_CACHE.get('contacts')) setLoading(true);
-      const res = await fetch('/api/v2/contacts/full-state');
+      const [res, teamRes, progRes] = await Promise.all([
+         fetch('/api/v2/contacts/full-state'),
+         fetch('/api/v2/pm/teams'),
+         fetch('/api/v2/pm/programs')
+      ]);
       const data = await res.json();
+      const tData = await teamRes.json();
+      const pData = await progRes.json();
+
       if (data.success) {
         setContacts(data.contacts || []);
         setFamilies(data.families || []);
         IMPACT_CACHE.set('contacts', data.contacts || []);
         IMPACT_CACHE.set('families', data.families || []);
       }
+      if (tData.success) setTeams(tData.teams || []);
+      if (pData.success) setPrograms(pData.programs || []);
     } catch (err) {
       console.error(err);
+      window.dispatchEvent(new CustomEvent('impactos:notify', { 
+          detail: { type: 'error', message: 'Registry Synchronization Failure.' } 
+      }));
     } finally {
       setLoading(false);
     }
@@ -186,13 +203,19 @@ function ContactsPageContent() {
                  body: JSON.stringify(payload)
               });
               
-              if ((await res.json()).success) {
+              const data = await res.json();
+              if (data.success && data.inserted > 0) {
                  fetchRegistryData();
                  setShowBulkModal(false);
                  setBulkFile(null);
                  setBulkGroupName('');
                  window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                     detail: { type: 'success', message: `${payload.length} contacts assigned to ${finalGroupName}.` } 
+                     detail: { type: 'success', message: `${data.inserted} contacts assigned to ${finalGroupName}.` } 
+                 }));
+              } else {
+                 const errorMsg = data.errors?.[0]?.error || 'No records were saved (Duplicate Email?).';
+                 window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                     detail: { type: 'error', message: errorMsg } 
                  }));
               }
            } catch (err) { console.error(err); }
@@ -222,6 +245,92 @@ function ContactsPageContent() {
   return (
     <DashboardLayout role="super_admin" activeTab="Future Studio" modals={
       <AnimatePresence mode="wait">
+        {showTeamModal && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={() => setShowTeamModal(false)}>
+             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-lg !p-12 space-y-8 border-white/10" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-6">
+                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Deploy New Unit ({selectedGroup})</h3>
+                   <button onClick={() => setShowTeamModal(false)} className="text-slate-500 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-xl transition-all">
+                      <X className="w-5 h-5" />
+                   </button>
+                </div>
+                <div className="space-y-6">
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Unit Name</label>
+                      <input value={teamForm.name} onChange={e => setTeamForm({...teamForm, name: e.target.value})} placeholder="e.g. Alpha Squad..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" />
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Assigned Program</label>
+                      <select value={teamForm.program_id} onChange={e => setTeamForm({...teamForm, program_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold appearance-none">
+                         <option value="" className="bg-[#0f0f1a]">Select Program...</option>
+                         {programs.map(p => <option key={p.id} value={p.id} className="bg-[#0f0f1a]">{p.name}</option>)}
+                      </select>
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest italic">Member Assignment Pool ({filtered.length})</label>
+                      <div className="max-h-48 overflow-y-auto space-y-2 p-4 bg-black/40 rounded-2xl border border-white/5 custom-scrollbar">
+                         {filtered.map(c => (
+                            <label key={c.cid} className={`flex items-center gap-4 p-3 rounded-xl cursor-pointer transition-all border ${teamForm.member_ids.includes(c.cid) ? 'bg-[#FF6600]/10 border-[#FF6600]/20' : 'bg-white/5 border-transparent hover:bg-white/10'}`}>
+                               <input 
+                                  type="checkbox" 
+                                  checked={teamForm.member_ids.includes(c.cid)}
+                                  onChange={e => {
+                                     const ids = e.target.checked 
+                                        ? [...teamForm.member_ids, c.cid]
+                                        : teamForm.member_ids.filter(id => id !== c.cid);
+                                     setTeamForm({...teamForm, member_ids: ids});
+                                  }}
+                                  className="w-5 h-5 accent-[#FF6600] rounded-lg"
+                               />
+                               <div className="flex flex-col">
+                                  <span className="text-[11px] font-black text-white uppercase tracking-tighter">{c.name}</span>
+                                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{c.email}</span>
+                               </div>
+                            </label>
+                         ))}
+                      </div>
+                   </div>
+                </div>
+                <div className="pt-4">
+                   <button 
+                      disabled={isSubmittingTeam}
+                      onClick={async () => {
+                         if (!teamForm.name || !teamForm.program_id) {
+                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Name and Program required.' }}));
+                            return;
+                         }
+                         setIsSubmittingTeam(true);
+                         try {
+                            const res = await fetch('/api/v2/pm/teams', {
+                               method: 'POST',
+                               headers: { 'Content-Type': 'application/json' },
+                               body: JSON.stringify({ ...teamForm, group_name: selectedGroup })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                               setShowTeamModal(false);
+                               setTeamForm({ name: '', program_id: '', group_name: '', member_ids: [] });
+                               fetchRegistryData();
+                               window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: `Unit ${teamForm.name} deployed successfully.` }}));
+                            }
+                         } catch (e) {
+                            console.error(e);
+                         } finally {
+                            setIsSubmittingTeam(false);
+                         }
+                      }} 
+                      className={`w-full py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl transition-all ${isSubmittingTeam ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-[#FF6600] text-white shadow-orange-600/20 hover:scale-[1.02]'}`}
+                   >
+                      {isSubmittingTeam ? (
+                         <div className="flex items-center justify-center gap-3">
+                            <Loader2 className="w-4 h-4 animate-spin" /> Deploying System...
+                         </div>
+                      ) : 'DEPLOY OPERATIONAL UNIT'}
+                   </button>
+                </div>
+             </motion.div>
+          </div>
+        )}
         {showGroupCredsModal && (
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={() => setShowGroupCredsModal(false)}>
              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-sm !p-12 space-y-8 border-white/10 text-center" onClick={(e) => e.stopPropagation()}>
@@ -297,7 +406,19 @@ function ContactsPageContent() {
                       <X className="w-5 h-5" />
                    </button>
                 </div>
-                <input value={familyForm.name} onChange={e => setFamilyForm({name: e.target.value})} placeholder="Group Name..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 text-center uppercase font-black" />
+                <div className="space-y-4">
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Group Identity</label>
+                      <input value={familyForm.name} onChange={e => setFamilyForm({...familyForm, name: e.target.value})} placeholder="e.g. Interns 2026..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-black uppercase" />
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Assign to Program</label>
+                      <select value={familyForm.program_id} onChange={e => setFamilyForm({...familyForm, program_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 appearance-none font-bold">
+                         <option value="" className="bg-[#080810]">Select Program (Optional)...</option>
+                         {programs.map(p => <option key={p.id} value={p.id} className="bg-[#080810]">{p.name}</option>)}
+                      </select>
+                   </div>
+                </div>
                 <button onClick={async (e) => {
                    e.preventDefault();
                    if (!familyForm.name) return;
@@ -310,7 +431,7 @@ function ContactsPageContent() {
                      const data = await res.json();
                      if (data.success) {
                        setShowFamilyModal(false);
-                       setFamilyForm({ name: '' });
+                       setFamilyForm({ name: '', program_id: '' });
                        fetchRegistryData();
                        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: `Group "${familyForm.name}" registered.` }}));
                      } else {
@@ -340,14 +461,20 @@ function ContactsPageContent() {
                      headers: { 'Content-Type': 'application/json' },
                      body: JSON.stringify(isEdit ? form : [form])
                   });
-                  if ((await res.json()).success) {
-                     setShowManualModal(false);
-                     fetchRegistryData();
-                     window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                         detail: { type: 'success', message: 'Personnel identity deployed.' } 
-                     }));
-                  }
-               }}>
+                   const data = await res.json();
+                   if (data.success && (data.inserted > 0 || data.rowsAffected > 0)) {
+                      setShowManualModal(false);
+                      fetchRegistryData();
+                      window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                          detail: { type: 'success', message: 'Personnel identity deployed.' } 
+                      }));
+                   } else {
+                      const errorMsg = data.error || (data.errors?.[0]?.error) || 'Submission failed (Possible Duplicate).';
+                      window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                          detail: { type: 'error', message: errorMsg } 
+                      }));
+                   }
+                }}>
                   <div className="space-y-4">
                      <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Full Name</label>
@@ -581,11 +708,14 @@ function ContactsPageContent() {
                        </div>
                        <div className="h-px w-full bg-white/5 my-4" />
                         {families.filter(f => f.name?.toLowerCase() !== 'staff' && f.name?.toLowerCase() !== 'future studio').map(f => (
-                          <div key={f.id} className={`flex flex-col rounded-2xl transition-all border ${selectedGroup === f.name ? 'bg-white/10 border-white/10' : 'border-transparent hover:bg-white/5'}`}>
-                             <div className="flex items-center justify-between">
-                                <button onClick={() => setSelectedGroup(f.name)} className={`flex-1 text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest ${selectedGroup === f.name ? 'text-white' : 'text-slate-400'}`}>
-                                   {f.name}
-                                </button>
+                           <div key={f.id} className={`flex flex-col rounded-2xl transition-all border ${selectedGroup === f.name ? 'bg-white/10 border-white/10' : 'border-transparent hover:bg-white/5'}`}>
+                              <div className="flex items-center justify-between">
+                                 <button onClick={() => setSelectedGroup(f.name)} className={`flex-1 text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest ${selectedGroup === f.name ? 'text-white' : 'text-slate-400'}`}>
+                                    {f.name}
+                                    {f.program_id && (
+                                       <span className="block text-[7px] text-[#FF6600] mt-1 opacity-60">Linked to: {programs.find(p => p.id === f.program_id)?.name || 'Active Program'}</span>
+                                    )}
+                                 </button>
                                  <div className="flex items-center gap-1">
                                     <button 
                                        onClick={(e) => {
@@ -619,6 +749,106 @@ function ContactsPageContent() {
                        ))}
                     </div>
                  </div>
+
+                 {selectedGroup !== 'All Contacts' && selectedGroup !== 'Future Studio' && (
+                    <div className="ios-card !p-8 border-white/5 space-y-6 shadow-2xl bg-white/[0.01]">
+                       <div className="flex items-center justify-between">
+                          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic flex items-center gap-2">
+                             <Shield className="w-3.5 h-3.5 text-[#FF6600]" /> Unit Command
+                          </h4>
+                          <button onClick={() => { 
+                             const currentFamily = families.find(f => f.name === selectedGroup);
+                             setTeamForm({ 
+                                name: '', 
+                                program_id: currentFamily?.program_id || programs[0]?.id || '', 
+                                group_name: selectedGroup, 
+                                member_ids: [] 
+                             }); 
+                             setShowTeamModal(true); 
+                          }} className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest hover:text-white transition-colors flex items-center gap-2 bg-[#FF6600]/5 px-3 py-1.5 rounded-lg border border-[#FF6600]/10 hover:bg-[#FF6600]/10">
+                             <Plus className="w-3 h-3" /> New Unit
+                          </button>
+                       </div>
+                       <div className="space-y-3">
+                          {teams.filter(t => t.group_name === selectedGroup).length === 0 ? (
+                             <div className="flex flex-col items-center justify-center py-10 text-center space-y-3 bg-black/20 rounded-2xl border border-dashed border-white/5">
+                                <Users className="w-8 h-8 text-slate-800 opacity-20" />
+                                <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] italic">No units deployed in this segment</p>
+                             </div>
+                          ) : (
+                             teams.filter(t => t.group_name === selectedGroup).map(t => (
+                                <div key={t.id} className="p-5 bg-white/5 rounded-2xl border border-white/5 space-y-3 group/team hover:border-[#FF6600]/20 transition-all">
+                                   <div className="flex items-center justify-between">
+                                      <span className="text-sm font-black text-white uppercase italic tracking-tighter">{t.name}</span>
+                                      <div className="flex items-center gap-1">
+                                         <button 
+                                            onClick={async () => {
+                                               try {
+                                                  const res = await fetch('/api/v2/invites', {
+                                                     method: 'POST',
+                                                     headers: { 'Content-Type': 'application/json' },
+                                                     body: JSON.stringify({
+                                                        program_id: t.program_id,
+                                                        group_name: t.group_name,
+                                                        role: 'participant',
+                                                        team_id: t.id,
+                                                        expiresInHours: 24,
+                                                        created_by: 'super_admin'
+                                                     })
+                                                  });
+                                                  const data = await res.json();
+                                                  if (data.inviteUrl) {
+                                                     navigator.clipboard.writeText(data.inviteUrl);
+                                                     window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                                                        detail: { type: 'success', message: `Invite Link for ${t.name} copied!` } 
+                                                     }));
+                                                  }
+                                               } catch (e) { console.error(e); }
+                                            }}
+                                            className="p-2 text-[#FF6600] hover:bg-[#FF6600]/10 rounded-lg transition-all"
+                                            title="Copy Team Invite Link"
+                                         >
+                                            <LinkIcon className="w-3.5 h-3.5" />
+                                         </button>
+                                         <button 
+                                            onClick={async () => {
+                                               if (confirm(`Decommission unit ${t.name}? Members will be unassigned.`)) {
+                                                  await fetch('/api/v2/pm/teams', { 
+                                                     method: 'DELETE', 
+                                                     headers: { 'Content-Type': 'application/json' },
+                                                     body: JSON.stringify({ id: t.id }) 
+                                                  });
+                                                  fetchRegistryData();
+                                               }
+                                            }}
+                                            className="opacity-0 group-hover/team:opacity-100 transition-all p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg"
+                                         >
+                                            <Trash2 className="w-4 h-4" />
+                                         </button>
+                                      </div>
+                                   </div>
+                                   <div className="flex flex-col gap-1.5 pt-2 border-t border-white/5">
+                                      <div className="flex items-center justify-between">
+                                         <div className="flex items-center gap-2">
+                                            <Shield className="w-3 h-3 text-emerald-500" />
+                                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Username:</span>
+                                         </div>
+                                         <span className="text-[9px] font-mono text-white font-bold">{t.team_username}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                         <div className="flex items-center gap-2">
+                                            <Key className="w-3 h-3 text-amber-500" />
+                                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Access Key:</span>
+                                         </div>
+                                         <span className="text-[9px] font-mono text-white font-bold opacity-20 group-hover/team:opacity-100 transition-all select-all">{t.password}</span>
+                                      </div>
+                                   </div>
+                                </div>
+                             ))
+                          )}
+                       </div>
+                    </div>
+                 )}
               </div>
            </div>
 

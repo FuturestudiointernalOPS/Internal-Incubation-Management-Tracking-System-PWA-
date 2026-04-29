@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
   try {
@@ -7,7 +8,7 @@ export async function GET(req) {
 
     // High-Bandwidth CRM Sync
     const [contactsRes, familiesRes] = await Promise.all([
-      db.execute("SELECT * FROM contacts WHERE deleted = 0 ORDER BY created_at DESC"),
+      db.execute("SELECT * FROM contacts ORDER BY created_at DESC"),
       db.execute("SELECT * FROM families ORDER BY created_at DESC")
     ]);
 

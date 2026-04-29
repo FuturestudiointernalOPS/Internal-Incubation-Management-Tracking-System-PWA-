@@ -23,6 +23,13 @@ export default function ProgramManagement() {
   const [uploadedMaterials, setUploadedMaterials] = useState([]); 
   const [extraMaterials, setExtraMaterials] = useState([]); 
   const [tempAssistants, setTempAssistants] = useState([]); 
+  const [teams, setTeams] = useState([]);
+  const [families, setFamilies] = useState([]);
+  const [allParticipants, setAllParticipants] = useState([]);
+  const [selectedGroupForProgram, setSelectedGroupForProgram] = useState({ group: '', program_id: '' });
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [newTeam, setNewTeam] = useState({ name: '', program_id: '', member_ids: [] });
+  const [isDeployingTeam, setIsDeployingTeam] = useState(false);
 
   const router = useRouter();
 
@@ -34,7 +41,29 @@ export default function ProgramManagement() {
     fetchPrograms();
     fetchMetadata();
     fetchGlobalSchedule();
+    fetchTeams();
+    fetchGroups();
   }, [activeTab]); // Refetch on tab change
+
+  const fetchTeams = async () => {
+    try {
+      const res = await fetch('/api/v2/pm/teams');
+      const data = await res.json();
+      if (data.success) setTeams(data.teams || []);
+    } catch (e) {}
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const res = await fetch('/api/families');
+      const data = await res.json();
+      if (data.success) setFamilies(data.families || []);
+
+      const partRes = await fetch('/api/contacts');
+      const partData = await partRes.json();
+      if (partData.success) setAllParticipants(partData.contacts || []);
+    } catch (e) {}
+  };
 
   const fetchGlobalSchedule = async () => {
     try {
@@ -180,6 +209,64 @@ export default function ProgramManagement() {
        }));
     }
  };
+
+  const handleAssignGroup = async () => {
+    if (!selectedGroupForProgram.group || !selectedGroupForProgram.program_id) return;
+    setIsUpdating(true);
+    try {
+      const program = programs.find(p => p.id === selectedGroupForProgram.program_id);
+      const res = await fetch('/api/v2/superadmin/groups/assignment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          group_name: selectedGroupForProgram.group,
+          program_id: selectedGroupForProgram.program_id,
+          program_name: program?.name
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'success', message: `Assigned ${selectedGroupForProgram.group} to ${program?.name}.` } 
+        }));
+        fetchGroups();
+        fetchPrograms();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeployTeam = async () => {
+    if (!newTeam.name || !newTeam.program_id) return;
+    setIsDeployingTeam(true);
+    try {
+      const res = await fetch('/api/v2/pm/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newTeam,
+          handler_id: editingProgram?.assigned_pm_id || '', // Default to program's PM
+          handler_name: editingProgram?.pm_name || ''
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+           detail: { type: 'success', message: 'Unit Deployed. Credentials dispatched.' } 
+        }));
+        setShowTeamModal(false);
+        setNewTeam({ name: '', program_id: '', member_ids: [] });
+        fetchTeams();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeployingTeam(false);
+    }
+  };
 
   const filtered = programs.filter(p => {
     return p.name.toLowerCase().includes(search.toLowerCase());
@@ -419,6 +506,80 @@ export default function ProgramManagement() {
                 </motion.div>
              </div>
           )}
+          {showTeamModal && (
+              <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
+                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="ios-card w-full max-w-2xl !p-16 space-y-12 border-white/10 relative overflow-hidden bg-[#0d0d18]">
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-[#FF6600]/5 rounded-full -mr-40 -mt-40 blur-[100px]" />
+                    <button onClick={() => setShowTeamModal(false)} className="absolute top-10 right-10 p-4 bg-white/5 rounded-2xl text-slate-600 hover:text-white transition-all transform hover:rotate-90"><X className="w-8 h-8"/></button>
+                    
+                    <div className="space-y-4">
+                       <div className="flex items-center gap-4 text-left">
+                          <Users className="w-5 h-5 text-indigo-400" />
+                          <span className="text-[11px] font-black text-indigo-400 uppercase tracking-[0.5em] italic">Operational Deployment</span>
+                       </div>
+                       <h3 className="text-5xl font-black text-white uppercase italic tracking-tighter leading-none text-left italic">Deploy Unit</h3>
+                       <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest font-sans opacity-60 italic text-left">Initialize squad parameters and anchor members</p>
+                    </div>
+
+                    <div className="space-y-8">
+                       <div className="space-y-3 text-left">
+                          <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-2 italic">Unit Identity (Name)</label>
+                          <input 
+                             placeholder="Squad Alpha / Team Zero..." 
+                             className="w-full bg-white/5 border border-white/10 p-7 rounded-3xl text-white outline-none focus:border-indigo-500 transition-all font-black text-xl italic" 
+                             value={newTeam.name}
+                             onChange={e => setNewTeam({...newTeam, name: e.target.value})}
+                          />
+                       </div>
+
+                       <div className="space-y-3 text-left">
+                          <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-2 italic">Mission Anchor (Target Program)</label>
+                          <select 
+                             className="w-full bg-white/5 border border-white/10 p-7 rounded-3xl text-white outline-none focus:border-indigo-500 transition-all font-black uppercase text-sm tracking-widest"
+                             value={newTeam.program_id}
+                             onChange={e => setNewTeam({...newTeam, program_id: e.target.value})}
+                          >
+                             <option value="" className="bg-[#0f0f1a]">Choose Program...</option>
+                             {programs.map(p => <option key={p.id} value={p.id} className="bg-[#0f0f1a]">{p.name.toUpperCase()}</option>)}
+                          </select>
+                       </div>
+
+                       <div className="space-y-4 text-left">
+                          <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-2 italic">Unit Personnel (Members)</label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto custom-scrollbar p-2">
+                             {allParticipants.map(p => (
+                                <button 
+                                   key={p.cid}
+                                   onClick={() => {
+                                      const next = newTeam.member_ids.includes(p.cid) ? newTeam.member_ids.filter(id => id !== p.cid) : [...newTeam.member_ids, p.cid];
+                                      setNewTeam({...newTeam, member_ids: next});
+                                   }}
+                                   className={`p-5 rounded-2xl border text-left transition-all ${newTeam.member_ids.includes(p.cid) ? 'bg-indigo-500/10 border-indigo-500 shadow-lg shadow-indigo-500/10' : 'bg-white/5 border-white/5 hover:border-white/10'}`}
+                                >
+                                   <div className="flex items-center gap-3">
+                                      <div className={`w-2 h-2 rounded-full ${newTeam.member_ids.includes(p.cid) ? 'bg-indigo-500 animate-pulse' : 'bg-slate-700'}`} />
+                                      <div>
+                                         <p className="text-[10px] font-black text-white uppercase italic">{p.name}</p>
+                                         <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{p.email}</p>
+                                      </div>
+                                   </div>
+                                </button>
+                             ))}
+                          </div>
+                       </div>
+
+                       <button 
+                          onClick={handleDeployTeam}
+                          disabled={isDeployingTeam || !newTeam.name || !newTeam.program_id}
+                          className="w-full py-8 bg-indigo-500 text-white font-black uppercase text-[12px] tracking-[0.4em] rounded-[2.5rem] hover:bg-white hover:text-black transition-all shadow-2xl shadow-indigo-500/30 italic disabled:opacity-20"
+                       >
+                          {isDeployingTeam ? 'Initializing...' : 'Deploy Unit Hub'}
+                       </button>
+                    </div>
+                 </motion.div>
+              </div>
+           )}
+
         </AnimatePresence>
       }
     >
@@ -475,6 +636,19 @@ export default function ProgramManagement() {
                >
                   Archived Repository
                </button>
+               <button 
+                  onClick={() => setTab('cohorts')}
+                  className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'cohorts' ? 'bg-indigo-500 text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+               >
+                  Cohort Registry
+               </button>
+               <button 
+                  onClick={() => setTab('assignments')}
+                  className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'assignments' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+               >
+                  Group Assignments
+               </button>
+
             </div>
 
             {/* TACTICAL CALENDAR VIEW - Master Oversight */}
@@ -535,92 +709,215 @@ export default function ProgramManagement() {
                </div>
             </section>
 
-            {loading ? (
-              <div className="py-40 text-center"><Loader2 className="w-12 h-12 text-[#FF6600] animate-spin mx-auto mb-6" /><p className="text-slate-500 font-black uppercase tracking-[0.25em]">Synchronizing...</p></div>
-            ) : filtered.length === 0 ? (
-              <div className="ios-card bg-white/[0.01] border-white/5 py-32 flex flex-col items-center justify-center text-center">
-                 <Briefcase className="w-20 h-20 text-slate-800 mb-6" />
-                 <h4 className="text-2xl font-black text-white uppercase mb-2">Registry is Empty</h4>
-                 <p className="text-slate-500 font-bold text-xs max-w-sm uppercase tracking-widest leading-relaxed font-sans">No programs found matching the selected criteria.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                 {filtered.map(p => (
-                    <div key={p.id} className="ios-card group border-white/5 hover:border-[#FF6600]/30 transition-all relative overflow-hidden bg-white/[0.02] !p-8 flex flex-col justify-between min-h-[350px]">
-                       <div>
-                          <div className="flex justify-between items-start mb-6">
-                             <span className={`px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest ${p.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-500'}`}>{p.status}</span>
-                             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                {activeTab === 'archived' ? (
-                                   <>
-                                      <button onClick={(e) => handleArchiveAction(p.id, false, e)} className="p-3 bg-white/5 rounded-2xl text-emerald-500 hover:text-white hover:bg-emerald-500 transition-all" title="Restore Mission"><RotateCcw className="w-5 h-5" /></button>
-                                      <button onClick={(e) => handlePermanentDelete(p.id, e)} className="p-3 bg-white/5 rounded-2xl text-rose-500 hover:text-white hover:bg-rose-500 transition-all" title="Delete Permanently"><Trash2 className="w-5 h-5" /></button>
-                                   </>
-                                ) : (
-                                   <>
-                                      <button onClick={() => {
-                                         let mats = [];
-                                         try { mats = JSON.parse(p.materials || '[]'); } catch(e) {}
-                                         
-                                         let asstIds = [];
-                                         try { 
-                                            const parsed = JSON.parse(p.assigned_assistant_id || '[]');
-                                            asstIds = Array.isArray(parsed) ? parsed : (p.assigned_assistant_id ? [p.assigned_assistant_id] : []);
-                                         } catch(e) {
-                                            asstIds = p.assigned_assistant_id ? [p.assigned_assistant_id] : [];
-                                         }
+            {(activeTab === 'active' || activeTab === 'archived') && (
+               <>
+                  {loading ? (
+                    <div className="py-40 text-center"><Loader2 className="w-12 h-12 text-[#FF6600] animate-spin mx-auto mb-6" /><p className="text-slate-500 font-black uppercase tracking-[0.25em]">Synchronizing...</p></div>
+                  ) : filtered.length === 0 ? (
+                    <div className="ios-card bg-white/[0.01] border-white/5 py-32 flex flex-col items-center justify-center text-center w-full">
+                       <Briefcase className="w-20 h-20 text-slate-800 mb-6" />
+                       <h4 className="text-2xl font-black text-white uppercase mb-2">Registry is Empty</h4>
+                       <p className="text-slate-500 font-bold text-xs max-w-sm uppercase tracking-widest leading-relaxed font-sans">No programs found matching the selected criteria.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
+                       {filtered.map(p => (
+                          <div key={p.id} className="ios-card group border-white/5 hover:border-[#FF6600]/30 transition-all relative overflow-hidden bg-white/[0.02] !p-8 flex flex-col justify-between min-h-[350px]">
+                             <div>
+                                <div className="flex justify-between items-start mb-6">
+                                   <span className={`px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest ${p.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-500'}`}>{p.status}</span>
+                                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                      {activeTab === 'archived' ? (
+                                         <>
+                                            <button onClick={(e) => handleArchiveAction(p.id, false, e)} className="p-3 bg-white/5 rounded-2xl text-emerald-500 hover:text-white hover:bg-emerald-500 transition-all" title="Restore Mission"><RotateCcw className="w-5 h-5" /></button>
+                                            <button onClick={(e) => handlePermanentDelete(p.id, e)} className="p-3 bg-white/5 rounded-2xl text-rose-500 hover:text-white hover:bg-rose-500 transition-all" title="Delete Permanently"><Trash2 className="w-5 h-5" /></button>
+                                         </>
+                                      ) : (
+                                         <>
+                                            <button onClick={() => {
+                                               let mats = [];
+                                               try { mats = JSON.parse(p.materials || '[]'); } catch(e) {}
+                                               
+                                               let asstIds = [];
+                                               try { 
+                                                  const parsed = JSON.parse(p.assigned_assistant_id || '[]');
+                                                  asstIds = Array.isArray(parsed) ? parsed : (p.assigned_assistant_id ? [p.assigned_assistant_id] : []);
+                                               } catch(e) {
+                                                  asstIds = p.assigned_assistant_id ? [p.assigned_assistant_id] : [];
+                                               }
 
-                                         setEditingProgram(p);
-                                         setUploadedMaterials(mats.filter(m => !m.isExtra));
-                                         setExtraMaterials(mats.filter(m => m.isExtra));
-                                         setTempAssistants(staff.filter(s => asstIds.includes(s.cid)));
-                                      }} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-[#FF6600] transition-all"><Edit3 className="w-5 h-5" /></button>
-                                      <button onClick={(e) => handleArchiveAction(p.id, true, e)} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-orange-500 transition-all" title="Archive Mission"><Archive className="w-5 h-5" /></button>
-                                   </>
+                                               setEditingProgram(p);
+                                               setUploadedMaterials(mats.filter(m => !m.isExtra));
+                                               setExtraMaterials(mats.filter(m => m.isExtra));
+                                               setTempAssistants(staff.filter(s => asstIds.includes(s.cid)));
+                                            }} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-[#FF6600] transition-all"><Edit3 className="w-5 h-5" /></button>
+                                            <button onClick={(e) => handleArchiveAction(p.id, true, e)} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-orange-500 transition-all" title="Archive Mission"><Archive className="w-5 h-5" /></button>
+                                         </>
+                                      )}
+                                   </div>
+                                </div>
+                                <h3 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-4 italic italic">{p.name}</h3>
+                                <p className="text-slate-500 font-bold text-xs uppercase tracking-widest line-clamp-2 leading-relaxed font-sans opacity-80">{p.description}</p>
+                                
+                                {p.note_title && (
+                                   <div className="mt-4 flex items-center gap-2 text-[#FF6600] bg-[#FF6600]/10 w-fit px-3 py-1.5 rounded-lg border border-[#FF6600]/20">
+                                      <BookOpen className="w-3.5 h-3.5" />
+                                      <span className="text-[9px] font-black uppercase tracking-widest truncate max-w-[200px]">{p.note_title}</span>
+                                   </div>
                                 )}
                              </div>
-                          </div>
-                          <h3 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-4 italic italic">{p.name}</h3>
-                          <p className="text-slate-500 font-bold text-xs uppercase tracking-widest line-clamp-2 leading-relaxed font-sans opacity-80">{p.description}</p>
-                          
-                          {p.note_title && (
-                             <div className="mt-4 flex items-center gap-2 text-[#FF6600] bg-[#FF6600]/10 w-fit px-3 py-1.5 rounded-lg border border-[#FF6600]/20">
-                                <BookOpen className="w-3.5 h-3.5" />
-                                <span className="text-[9px] font-black uppercase tracking-widest truncate max-w-[200px]">{p.note_title}</span>
-                             </div>
-                          )}
-                       </div>
 
-                       <div className="mt-8 space-y-4 pt-8 border-t border-white/5">
-                          <div className="grid grid-cols-2 gap-4">
-                             <div className="bg-white/5 p-4 rounded-xl space-y-1 border border-transparent hover:border-white/5 transition-all">
-                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Project Manager</p>
-                                <p className="text-white font-black text-xs uppercase tracking-tighter truncate">{p.pm_name || 'Unassigned'}</p>
-                             </div>
-                             <div className="bg-white/5 p-4 rounded-xl space-y-1 border border-transparent hover:border-white/5 transition-all">
-                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Team Members</p>
-                                <div className="flex flex-wrap gap-1">
-                                   {(() => {
-                                      let asstIds = [];
-                                      try { 
-                                         const parsed = JSON.parse(p.assigned_assistant_id || '[]');
-                                         asstIds = Array.isArray(parsed) ? parsed : (p.assigned_assistant_id ? [p.assigned_assistant_id] : []);
-                                      } catch(e) {
-                                         asstIds = p.assigned_assistant_id ? [p.assigned_assistant_id] : [];
-                                      }
-                                      const names = staff.filter(s => asstIds.includes(s.cid)).map(s => s.name);
-                                      return names.length > 0 ? names.map((n, idx) => (
-                                         <span key={idx} className="text-white font-black text-[9px] uppercase tracking-tighter bg-white/10 px-2 py-0.5 rounded">{n}</span>
-                                      )) : <span className="text-slate-700 font-black text-xs uppercase tracking-tighter">Unassigned</span>;
-                                   })()}
+                             <div className="mt-8 space-y-4 pt-8 border-t border-white/5">
+                                <div className="grid grid-cols-2 gap-4">
+                                   <div className="bg-white/5 p-4 rounded-xl space-y-1 border border-transparent hover:border-white/5 transition-all text-left">
+                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Project Manager</p>
+                                      <p className="text-white font-black text-xs uppercase tracking-tighter truncate">{p.pm_name || 'Unassigned'}</p>
+                                   </div>
+                                   <div className="bg-white/5 p-4 rounded-xl space-y-1 border border-transparent hover:border-white/5 transition-all text-left">
+                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Team Members</p>
+                                      <div className="flex flex-wrap gap-1">
+                                         {(() => {
+                                            let asstIds = [];
+                                            try { 
+                                               const parsed = JSON.parse(p.assigned_assistant_id || '[]');
+                                               asstIds = Array.isArray(parsed) ? parsed : (p.assigned_assistant_id ? [p.assigned_assistant_id] : []);
+                                            } catch(e) {
+                                               asstIds = p.assigned_assistant_id ? [p.assigned_assistant_id] : [];
+                                            }
+                                            const names = staff.filter(s => asstIds.includes(s.cid)).map(s => s.name);
+                                            return names.length > 0 ? names.map((n, idx) => (
+                                               <span key={idx} className="text-white font-black text-[9px] uppercase tracking-tighter bg-white/10 px-2 py-0.5 rounded">{n}</span>
+                                            )) : <span className="text-slate-700 font-black text-xs uppercase tracking-tighter">Unassigned</span>;
+                                         })()}
+                                      </div>
+                                   </div>
                                 </div>
                              </div>
                           </div>
-                       </div>
+                       ))}
                     </div>
-                 ))}
-              </div>
+                  )}
+               </>
             )}
+
+            {activeTab === 'cohorts' && (
+               <div className="space-y-12">
+                  <div className="flex justify-between items-end">
+                     <div className="text-left">
+                        <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Unit Command (Teams)</h3>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Manage unit deployment and shared credentials</p>
+                     </div>
+                     <button onClick={() => setShowTeamModal(true)} className="px-8 py-4 bg-indigo-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-white hover:text-black transition-all shadow-lg shadow-indigo-500/20 italic">+ Deploy New Unit</button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                     {teams.map(t => (
+                        <div key={t.id} className="ios-card bg-white/[0.02] border-white/5 !p-8 space-y-6 group hover:border-indigo-500/30 transition-all text-left">
+                           <div className="flex justify-between items-start">
+                              <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
+                                 <Users className="w-5 h-5" />
+                              </div>
+                              <span className="badge badge-glow-indigo text-[8px] font-black uppercase italic">Unit Deployed</span>
+                           </div>
+                           <div>
+                              <h4 className="text-xl font-black text-white uppercase tracking-tighter italic">{t.name}</h4>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Username: <span className="text-indigo-400 font-mono">{t.team_username}</span></p>
+                           </div>
+                           <div className="pt-6 border-t border-white/5 flex items-center justify-between">
+                              <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic">Mission Handler: {t.handler_name || 'N/A'}</p>
+                              <button 
+                                 onClick={() => {
+                                    const details = `Unit: ${t.name}\nUsername: ${t.team_username}\nPassword: ${t.password}\nLink: ${window.location.origin}/login`;
+                                    navigator.clipboard.writeText(details);
+                                    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Credentials copied.' } }));
+                                 }}
+                                 className="text-slate-500 hover:text-indigo-400 transition-colors"
+                              >
+                                 <Copy className="w-4 h-4" />
+                              </button>
+                           </div>
+                        </div>
+                     ))}
+                     {teams.length === 0 && (
+                        <div className="col-span-full py-20 text-center bg-white/[0.01] border border-dashed border-white/5 rounded-[2rem]">
+                           <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em] italic">No active unit deployments found.</p>
+                        </div>
+                     )}
+                  </div>
+               </div>
+            )}
+
+            {activeTab === 'assignments' && (
+               <div className="space-y-12">
+                  <div className="flex justify-between items-end">
+                     <div className="text-left">
+                        <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Group Assignment Protocol</h3>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Bulk enroll groups into operational programs</p>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                     <div className="ios-card bg-white/[0.02] border-white/5 !p-12 space-y-8 text-left">
+                        <h4 className="text-xl font-black text-white uppercase tracking-tighter italic">Execute Assignment</h4>
+                        <div className="space-y-6">
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 italic">Select Target Group</label>
+                              <select 
+                                 className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-white outline-none font-black uppercase text-sm"
+                                 value={selectedGroupForProgram.group}
+                                 onChange={e => setSelectedGroupForProgram({...selectedGroupForProgram, group: e.target.value})}
+                              >
+                                 <option value="">Choose Group...</option>
+                                 {families.map(f => <option key={f.id} value={f.name}>{f.name.toUpperCase()}</option>)}
+                              </select>
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 italic">Select Program Node</label>
+                              <select 
+                                 className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-white outline-none font-black uppercase text-sm"
+                                 value={selectedGroupForProgram.program_id}
+                                 onChange={e => setSelectedGroupForProgram({...selectedGroupForProgram, program_id: e.target.value})}
+                              >
+                                 <option value="">Choose Program...</option>
+                                 {programs.map(p => <option key={p.id} value={p.id}>{p.name.toUpperCase()}</option>)}
+                              </select>
+                           </div>
+                           <button 
+                              onClick={handleAssignGroup}
+                              disabled={isUpdating || !selectedGroupForProgram.group || !selectedGroupForProgram.program_id}
+                              className="w-full py-7 bg-emerald-500 text-black font-black uppercase text-[12px] tracking-[0.4em] rounded-3xl hover:bg-white transition-all shadow-xl shadow-emerald-500/20 italic disabled:opacity-30"
+                           >
+                              {isUpdating ? 'Transmitting...' : 'Link Group to Program'}
+                           </button>
+                        </div>
+                     </div>
+
+                     <div className="space-y-6 text-left">
+                        <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] italic ml-4">Current Group Status</h4>
+                        <div className="space-y-4">
+                           {families.map(f => {
+                              const groupContacts = allParticipants.filter(p => p.group_name === f.name);
+                              const assignedPrograms = [...new Set(groupContacts.map(p => p.program_name).filter(x => x))];
+                              return (
+                                 <div key={f.id} className="ios-card bg-white/[0.01] border-white/5 !p-6 flex items-center justify-between group hover:border-[#FF6600]/20 transition-all">
+                                    <div>
+                                       <h5 className="text-sm font-black text-white uppercase italic">{f.name}</h5>
+                                       <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">{groupContacts.length} Personnel Anchored</p>
+                                    </div>
+                                    <div className="text-right">
+                                       {assignedPrograms.length > 0 ? assignedPrograms.map((p, idx) => (
+                                          <span key={idx} className="badge badge-glow-success text-[7px] font-black uppercase ml-2">{p}</span>
+                                       )) : <span className="text-[8px] font-black text-slate-700 uppercase italic tracking-widest">Unassigned</span>}
+                                    </div>
+                                 </div>
+                              );
+                           })}
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            )}
+
         </div>
       </div>
     </DashboardLayout>

@@ -262,8 +262,12 @@ export async function initDb() {
     await db.execute("ALTER TABLE v2_programs ADD COLUMN assigned_assistant_id TEXT").catch(() => {});
     await db.execute("ALTER TABLE v2_programs ADD COLUMN note_id TEXT").catch(() => {});
     await db.execute("ALTER TABLE v2_programs ADD COLUMN materials TEXT").catch(() => {});
-    await db.execute("ALTER TABLE forms ADD COLUMN group_name TEXT").catch(() => {});
     await db.execute("ALTER TABLE v2_participants ADD COLUMN team_id INTEGER").catch(() => {});
+    await db.execute("ALTER TABLE contacts ADD COLUMN team_id INTEGER").catch(() => {});
+    await db.execute("ALTER TABLE v2_teams ADD COLUMN group_name TEXT").catch(() => {});
+    await db.execute("ALTER TABLE v2_teams ADD COLUMN team_username TEXT").catch(() => {});
+    await db.execute("ALTER TABLE v2_invitations ADD COLUMN team_id INTEGER").catch(() => {});
+    await db.execute("ALTER TABLE families ADD COLUMN program_id TEXT").catch(() => {});
     
     // Speed Optimization Indices
     await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_projects_pid ON v2_projects(program_id)");

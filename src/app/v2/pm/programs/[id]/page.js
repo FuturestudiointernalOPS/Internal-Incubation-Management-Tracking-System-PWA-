@@ -71,6 +71,7 @@ export default function PMProgramTerminalV2({ params }) {
   const [program, setProgram] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [docRequirements, setDocRequirements] = useState([]);
   const [staffList, setStaffList] = useState([]);
@@ -114,7 +115,7 @@ export default function PMProgramTerminalV2({ params }) {
 
   // Teams Management State
   const [showTeamModal, setShowTeamModal] = useState(false);
-  const [newTeam, setNewTeam] = useState({ name: '', handler_id: '', handler_name: '' });
+  const [newTeam, setNewTeam] = useState({ name: '', handler_id: '', handler_name: '', member_ids: [] });
 
   // Requirement Edit State
   const [editingReq, setEditingReq] = useState(null);
@@ -143,6 +144,7 @@ export default function PMProgramTerminalV2({ params }) {
         setProgram(data.program);
         setParticipants(data.participants || []);
         setTeams(data.teams || []);
+        setSubmissions(data.submissions || []);
         setSessions(data.sessions || []);
         setStaffList(data.staffList || []);
         setDocRequirements(data.documents || []);
@@ -519,6 +521,7 @@ export default function PMProgramTerminalV2({ params }) {
               { id: 'curriculum', label: 'Curriculum', icon: Layers },
               { id: 'teams', label: 'Cohort Registry', icon: Target },
               { id: 'participants', label: 'Participants', icon: Users },
+              { id: 'submissions', label: 'Unit Submissions', icon: FileText },
               { id: 'progress', label: 'Progress', icon: Activity }
            ].map(tab => (
               <button 
@@ -1190,6 +1193,82 @@ export default function PMProgramTerminalV2({ params }) {
                </div>
             )}
 
+            {activeTab === 'submissions' && (
+               <div className="space-y-12 pb-20">
+                  <div className="flex justify-between items-end mb-10">
+                     <div>
+                        <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Unit Submission Audit</h3>
+                        <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mt-2">Active Performance Nodes: {submissions.length}</p>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-12">
+                     {weeks.map(wn => {
+                        const weekSessions = sessions.filter(s => s.week_number === wn);
+                        const weekSubmissions = submissions.filter(sub => {
+                           const session = sessions.find(s => s.id === sub.requirement_id.split('_')[0]); // Rough mapping
+                           return session?.week_number === wn;
+                        });
+
+                        if (weekSessions.length === 0) return null;
+
+                        return (
+                           <div key={wn} className="space-y-6">
+                              <div className="flex items-center gap-4">
+                                 <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-slate-400 font-black italic">
+                                    {String(wn).padStart(2, '0')}
+                                 </div>
+                                 <h4 className="text-xl font-black text-white uppercase tracking-tighter italic">Week {wn} Submissions</h4>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                 {weekSessions.map(session => {
+                                    const sessionSubmissions = submissions.filter(s => s.requirement_id.startsWith(session.id));
+                                    
+                                    return (
+                                       <div key={session.id} className="ios-card bg-white/[0.01] border-white/5 !p-8 space-y-6 group hover:border-[#FF6600]/20 transition-all">
+                                          <div className="flex justify-between items-start">
+                                             <div>
+                                                <h5 className="text-sm font-black text-white uppercase tracking-widest italic group-hover:text-[#FF6600] transition-colors">{session.title}</h5>
+                                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Status: {session.status}</p>
+                                             </div>
+                                             <div className="px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+                                                <span className="text-[10px] font-black text-white">{sessionSubmissions.length} / {teams.length || 1}</span>
+                                             </div>
+                                          </div>
+
+                                          <div className="space-y-3">
+                                             {teams.map(team => {
+                                                const teamSub = sessionSubmissions.find(s => s.team_id === team.id);
+                                                return (
+                                                   <div key={team.id} className={`flex items-center justify-between p-4 rounded-xl border ${teamSub ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-white/[0.01] border-white/5'}`}>
+                                                      <div className="flex items-center gap-3">
+                                                         <div className={`w-2 h-2 rounded-full ${teamSub ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/5'}`} />
+                                                         <span className={`text-[10px] font-black uppercase tracking-widest ${teamSub ? 'text-white' : 'text-slate-600'}`}>{team.name}</span>
+                                                      </div>
+                                                      {teamSub && (
+                                                         <button 
+                                                            onClick={() => window.open(teamSub.file_url, '_blank')}
+                                                            className="p-2 text-slate-400 hover:text-[#FF6600] transition-colors"
+                                                         >
+                                                            <ExternalLink className="w-3.5 h-3.5" />
+                                                         </button>
+                                                      )}
+                                                   </div>
+                                                );
+                                             })}
+                                          </div>
+                                       </div>
+                                    );
+                                 })}
+                              </div>
+                           </div>
+                        );
+                     })}
+                  </div>
+               </div>
+            )}
+
 
         </div>
       </div>
@@ -1675,6 +1754,31 @@ export default function PMProgramTerminalV2({ params }) {
                            {staffList.length === 0 && <p className="text-[9px] font-black text-slate-700 uppercase italic p-2">No handlers available.</p>}
                         </div>
                      </div>
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest ml-2 italic">Assigned Members (Participants)</label>
+                        <div className="flex flex-wrap gap-2 p-4 bg-white/5 border border-white/10 rounded-2xl min-h-[120px] max-h-[200px] overflow-y-auto shadow-inner custom-scrollbar">
+                           {participants.map(p => {
+                              const isSelected = newTeam.member_ids.includes(p.cid);
+                              return (
+                                 <button
+                                    key={p.cid}
+                                    type="button"
+                                    onClick={() => {
+                                       const nextIds = isSelected 
+                                          ? newTeam.member_ids.filter(id => id !== p.cid) 
+                                          : [...newTeam.member_ids, p.cid];
+                                       setNewTeam({ ...newTeam, member_ids: nextIds });
+                                    }}
+                                    className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all border ${isSelected ? 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                                 >
+                                    {p.name}
+                                 </button>
+                               );
+                           })}
+                           {participants.length === 0 && <p className="text-[9px] font-black text-slate-700 uppercase italic p-2">No registered contacts found.</p>}
+                        </div>
+                        <p className="text-[8px] font-bold text-slate-600 mt-2 ml-2 italic">Select the contacts to be grouped into this operational unit.</p>
+                     </div>
 
                      <div className="flex gap-6 pt-6">
                         <button onClick={() => setShowTeamModal(false)} className="flex-1 py-5 rounded-2xl bg-white/5 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-white transition-all italic">Abort</button>
@@ -1690,7 +1794,7 @@ export default function PMProgramTerminalV2({ params }) {
                               if ((await res.json()).success) {
                                  await fetchPMData();
                                  setShowTeamModal(false);
-                                 setNewTeam({ name: '', handler_id: '', handler_name: '' });
+                                 setNewTeam({ name: '', handler_id: '', handler_name: '', member_ids: [] });
                               }
                               setIsProcessing(false);
                            }}

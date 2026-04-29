@@ -6,10 +6,19 @@ export async function GET(req) {
     await initDb();
     const { searchParams } = new URL(req.url);
     const participantId = searchParams.get('participant_id');
+    const teamId = searchParams.get('team_id');
     const programId = searchParams.get('program_id');
 
-    let query = "SELECT * FROM v2_submissions WHERE participant_id = ?";
-    let args = [participantId];
+    let query = "SELECT * FROM v2_submissions WHERE ";
+    let args = [];
+
+    if (teamId) {
+      query += "team_id = ?";
+      args.push(teamId);
+    } else {
+      query += "participant_id = ?";
+      args.push(participantId);
+    }
 
     if (programId) {
       query += " AND program_id = ?";
@@ -26,11 +35,11 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const { participant_id, program_id, requirement_id, file_url, report_body } = await req.json();
+    const { participant_id, team_id, program_id, requirement_id, file_url, report_body } = await req.json();
     
     await db.execute({
-      sql: "INSERT INTO v2_submissions (participant_id, program_id, requirement_id, file_url, report_body) VALUES (?, ?, ?, ?, ?)",
-      args: [participant_id, program_id, requirement_id, file_url || null, report_body || null]
+      sql: "INSERT INTO v2_submissions (participant_id, team_id, program_id, requirement_id, file_url, report_body) VALUES (?, ?, ?, ?, ?, ?)",
+      args: [participant_id || null, team_id || null, program_id, requirement_id, file_url || null, report_body || null]
     });
 
     return NextResponse.json({ success: true });
@@ -38,3 +47,4 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+

@@ -16,14 +16,14 @@ export async function GET() {
 export async function POST(req) {
   try {
     await initDb();
-    const { name } = await req.json();
+    const { name, program_id } = await req.json();
     if (!name) return NextResponse.json({ success: false, error: "Name is required" }, { status: 400 });
 
     const registration_id = "R-" + uuidv4().split('-')[0].toUpperCase();
 
     await db.execute({
-      sql: "INSERT OR IGNORE INTO families (name, registration_id) VALUES (?, ?)",
-      args: [name, registration_id]
+      sql: "INSERT OR IGNORE INTO families (name, registration_id, program_id) VALUES (?, ?, ?)",
+      args: [name, registration_id, program_id || null]
     });
     
     return NextResponse.json({ success: true });

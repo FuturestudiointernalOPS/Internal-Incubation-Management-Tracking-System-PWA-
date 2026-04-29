@@ -27,11 +27,25 @@ export async function POST(req) {
       args: [cleanEmail]
     });
 
-    if (result.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Invalid credentials or unauthorized access." }, { status: 401 });
+    let user = result.rows[0];
+    let isTeamLogin = false;
+
+    if (!user) {
+      // Check for Team Login
+      const teamResult = await db.execute({
+        sql: "SELECT * FROM v2_teams WHERE team_username = ? LIMIT 1",
+        args: [email] // Using the same input as "email" for username
+      });
+      
+      if (teamResult.rows.length > 0) {
+        user = teamResult.rows[0];
+        isTeamLogin = true;
+      }
     }
 
-    const user = result.rows[0];
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Invalid credentials or unauthorized access." }, { status: 401 });
+    }
 
     // --- CRYPTOGRAPHIC VERIFICATION ---
     // If the stored password is not hashed (legacy), we do a plain compare. 
@@ -63,8 +77,11 @@ export async function POST(req) {
     // --- STRATEGIC ROLE RESOLUTION (SINGLE-ADMIN HIERARCHY) ---
     let finalRole = 'participant';
 
+    if (isTeamLogin) {
+      finalRole = 'team';
+    } 
     // 1. Unique Super Admin Validation
-    if (user.email?.toLowerCase() === 'gwyn.ukoha@gmail.com') {
+    else if (user.email?.toLowerCase() === 'gwyn.ukoha@gmail.com') {
       finalRole = 'super_admin';
     } 
     // 2. Project Leadership Detection
@@ -92,6 +109,11 @@ export async function POST(req) {
           error: "Access Denied: You must be assigned to an active Program to log in." 
         }, { status: 403 });
       }
+    }
+
+    if (finalRole === 'team') {
+       // Teams are always authorized if they exist
+       return NextResponse.json({ success: true, user: { ...user, role: finalRole, team_id: user.id } });
     }
 
     return NextResponse.json({ success: true, user: { ...user, role: finalRole } });

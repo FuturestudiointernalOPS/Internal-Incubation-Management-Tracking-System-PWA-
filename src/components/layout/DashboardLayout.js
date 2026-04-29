@@ -182,6 +182,11 @@ const NAVIGATION_MATRIX = {
     { id: 'tasks', name: 'TASKS', icon: FileText, href: '#' },
     { id: 'feedback', name: 'FEEDBACK', icon: MessageSquare, href: '#' },
   ],
+  team: [
+    { id: 'dashboard', name: 'UNIT DASHBOARD', icon: Briefcase, href: '/v2/participant' },
+    { id: 'tasks', name: 'UNIT TASKS', icon: FileText, href: '#' },
+    { id: 'feedback', name: 'UNIT FEEDBACK', icon: MessageSquare, href: '#' },
+  ],
 };
 
 

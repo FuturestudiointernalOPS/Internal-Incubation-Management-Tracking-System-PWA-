@@ -8,6 +8,7 @@ export default function PublicFormView() {
   const searchParams = useSearchParams();
   const form_id = params.form_id;
   const cid = searchParams.get('cid');
+  const group_name = searchParams.get('group_name');
 
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,8 +54,9 @@ export default function PublicFormView() {
       const res = await fetch('/api/respond', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ form_id, cid: cid || null, answers, publicData: cid ? null : publicData })
+        body: JSON.stringify({ form_id, cid: cid || null, group_name, answers, publicData: cid ? null : publicData })
       });
+
       const data = await res.json();
       if (data.success) {
         setSubmitted(true);

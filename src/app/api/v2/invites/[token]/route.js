@@ -71,17 +71,17 @@ export async function POST(req, { params }) {
       // User exists, update their profile with the new invite credentials and group
       await db.execute({
         sql: `UPDATE contacts 
-              SET name = ?, phone = ?, password = ?, role = ?, group_name = ? 
+              SET name = ?, phone = ?, password = ?, role = ?, group_name = ?, team_id = ? 
               WHERE email = ?`,
-        args: [name, phone || null, hashedPassword, invite.role, invite.group_name, email]
+        args: [name, phone || null, hashedPassword, invite.role, invite.group_name, invite.team_id || null, email]
       });
       contactId = existingUser.rows[0].cid;
     } else {
       // Create new user
       await db.execute({
-        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, group_name) 
-              VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        args: [cid, name, email, phone || null, hashedPassword, invite.role, invite.group_name]
+        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, group_name, team_id) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [cid, name, email, phone || null, hashedPassword, invite.role, invite.group_name, invite.team_id || null]
       });
       contactId = cid;
     }
@@ -93,14 +93,18 @@ export async function POST(req, { params }) {
     });
 
     if (participantCheck.rows.length > 0) {
-      return NextResponse.json({ error: "You have already joined this program." }, { status: 409 });
+      // Update existing participant record if they are re-joining with a team
+      await db.execute({
+        sql: "UPDATE v2_participants SET team_id = ? WHERE email = ? AND program_id = ?",
+        args: [invite.team_id || null, email, invite.program_id]
+      });
+    } else {
+      await db.execute({
+        sql: `INSERT INTO v2_participants (program_id, name, email, phone, status, team_id) 
+              VALUES (?, ?, ?, ?, 'Active', ?)`,
+        args: [invite.program_id, name, email, phone || null, invite.team_id || null]
+      });
     }
-
-    await db.execute({
-      sql: `INSERT INTO v2_participants (program_id, name, email, phone, status) 
-            VALUES (?, ?, ?, ?, 'Active')`,
-      args: [invite.program_id, name, email, phone || null]
-    });
 
     return NextResponse.json({ 
       message: "Successfully joined the team!", 

@@ -21,6 +21,9 @@ export default function FormsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editFormId, setEditFormId] = useState(null);
   const [copiedLink, setCopiedLink] = useState('');
+  const [selectedGroupName, setSelectedGroupName] = useState('');
+  const [newGroupName, setNewGroupName] = useState('');
+  const [showNewGroupInput, setShowNewGroupInput] = useState(false);
 
   useEffect(() => { 
     // Instant-Load from cache
@@ -91,13 +94,26 @@ export default function FormsPage() {
     
     setIsSubmitting(true);
     try {
+      let finalGroupName = selectedGroupName;
+      if (showNewGroupInput && newGroupName) {
+         // Create new family/group
+         await fetch('/api/families', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newGroupName })
+         });
+         finalGroupName = newGroupName;
+         fetchFamilies();
+      }
+
       const res = await fetch('/api/forms', {
         method: editFormId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
            form_id: editFormId,
            name: formName, 
-           schema
+           schema,
+           group_name: finalGroupName || null
         })
       });
       const data = await res.json();
@@ -106,6 +122,9 @@ export default function FormsPage() {
         setEditFormId(null);
         setFormName('');
         setSchema([]);
+        setSelectedGroupName('');
+        setNewGroupName('');
+        setShowNewGroupInput(false);
         fetchForms();
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
            detail: { type: 'success', message: `Form ${editFormId ? 'updated' : 'saved'} successfully.` } 
@@ -148,6 +167,7 @@ export default function FormsPage() {
      setEditFormId(f.form_id);
      setFormName(f.name);
      setSchema(f.schema);
+     setSelectedGroupName(f.group_name || '');
      setView('builder');
   };
 
@@ -266,6 +286,7 @@ export default function FormsPage() {
                     <thead>
                        <tr className="border-b border-white/5 bg-white/[0.02]">
                           <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Respondent</th>
+                          <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Origin Group</th>
                           <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Submission Date</th>
                           <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Action</th>
                        </tr>
@@ -276,6 +297,9 @@ export default function FormsPage() {
                              <td className="px-8 py-6">
                                 <p className="font-black text-white uppercase italic">{r.name || 'Anonymous'}</p>
                                 <p className="text-[10px] font-bold text-slate-500 font-mono">{r.email || r.cid || 'N/A'}</p>
+                             </td>
+                             <td className="px-8 py-6">
+                                <p className="text-[10px] font-black text-white uppercase italic">{r.group_name || 'Individual'}</p>
                              </td>
                              <td className="px-8 py-6">
                                 <p className="text-xs font-bold text-slate-400">{new Date(r.created_at).toLocaleString()}</p>
@@ -349,6 +373,39 @@ export default function FormsPage() {
                       onChange={e => setFormName(e.target.value)} 
                       className="w-full bg-transparent border-b-2 border-white/10 py-2 text-3xl font-black text-white outline-none focus:border-[#FF6600]/80/50 transition-colors placeholder:text-slate-700 mb-6" 
                     />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Deployment Context (Target Group)</label>
+                    <div className="flex gap-4">
+                       <select 
+                          className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold appearance-none cursor-pointer"
+                          value={showNewGroupInput ? 'NEW' : selectedGroupName}
+                          onChange={e => {
+                             if (e.target.value === 'NEW') {
+                                setShowNewGroupInput(true);
+                             } else {
+                                setShowNewGroupInput(false);
+                                setSelectedGroupName(e.target.value);
+                             }
+                          }}
+                       >
+                          <option value="" className="bg-[#0f0f1a]">General / No Specific Group</option>
+                          {families.map(f => <option key={f.id} value={f.name} className="bg-[#0f0f1a]">{f.name.toUpperCase()}</option>)}
+                          <option value="NEW" className="bg-[#0f0f1a] text-[#FF6600] font-black">+ Create New Group</option>
+                       </select>
+                       
+                       {showNewGroupInput && (
+                          <input 
+                             placeholder="Enter new group name..."
+                             className="flex-1 bg-[#FF6600]/5 border border-[#FF6600]/20 rounded-2xl px-6 py-4 text-white outline-none font-bold"
+                             value={newGroupName}
+                             onChange={e => setNewGroupName(e.target.value)}
+                             autoFocus
+                          />
+                       )}
+                    </div>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic opacity-60">Linking a form to a group will automatically tag all submissions from that group.</p>
                   </div>
 
                   <div className="space-y-6">

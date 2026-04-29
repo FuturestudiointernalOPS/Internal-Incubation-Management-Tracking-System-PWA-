@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(req) {
   try {
-    const { program_id, group_name, role = 'participant', expiresInDays = 7, expiresInHours, created_by } = await req.json();
+    const { program_id, group_name, team_id, role = 'participant', expiresInDays = 7, expiresInHours, created_by } = await req.json();
 
     if (!program_id) {
       return NextResponse.json({ error: "Program ID is required" }, { status: 400 });
@@ -20,9 +20,9 @@ export async function POST(req) {
     }
 
     await db.execute({
-      sql: `INSERT INTO v2_invitations (token, program_id, group_name, role, expires_at, created_by)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [token, program_id, group_name || null, role, expiresAt.toISOString(), created_by || 'admin']
+      sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, expires_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [token, program_id, group_name || null, team_id || null, role, expiresAt.toISOString(), created_by || 'admin']
     });
 
     // In a real environment, you'd pull the BASE_URL from env

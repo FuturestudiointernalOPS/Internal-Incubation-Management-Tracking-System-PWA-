@@ -59,19 +59,27 @@ export default function ParticipantDashboard() {
   useEffect(() => {
     const sessionUser = JSON.parse(localStorage.getItem('user') || '{}');
     setUser(sessionUser);
-    fetchData(sessionUser.id);
+    fetchData(sessionUser);
   }, []);
 
-  const fetchData = async (uid) => {
+  const fetchData = async (userData) => {
     try {
-      // Mocking program discovery for now, in a real app we'd fetch based on participant enrollment
+      const isTeam = userData.role === 'team';
+      const teamId = userData.team_id || userData.id; // team_id is set in login for team role
+      
+      // Mocking program discovery for now
       const res = await fetch(`/api/v2/pm/full-state`); 
       const data = await res.json();
       if (data.success) {
         setCurriculum(data.sessions || []);
       }
 
-      const subRes = await fetch(`/api/v2/participant/submissions?participant_id=${uid}`);
+      let subUrl = `/api/v2/participant/submissions?participant_id=${userData.id}`;
+      if (isTeam) {
+        subUrl = `/api/v2/participant/submissions?team_id=${teamId}`;
+      }
+
+      const subRes = await fetch(subUrl);
       const subData = await subRes.json();
       if (subData.success) setSubmissions(subData.submissions);
 
@@ -106,6 +114,7 @@ export default function ParticipantDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           participant_id: user.id,
+          team_id: user.role === 'team' ? user.id : null,
           program_id: progId,
           requirement_id: reqId,
           report_body: report,
@@ -154,7 +163,7 @@ export default function ParticipantDashboard() {
   };
 
   return (
-    <DashboardLayout role="participant">
+    <DashboardLayout role={user.role || "participant"}>
       <div className="space-y-12">
         
         {/* PROGRESS HUD */}
@@ -162,9 +171,9 @@ export default function ParticipantDashboard() {
            <div className="space-y-4">
               <div className="flex items-center gap-4">
                  <Target className="w-5 h-5 text-[#FF6600]" />
-                 <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.4em]">Individual Progress</span>
+                 <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.4em]">{user.role === 'team' ? 'Unit Mission Progress' : 'Individual Progress'}</span>
               </div>
-              <h2 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">{t[lang].progress}</h2>
+              <h2 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">{user.role === 'team' ? user.name : t[lang].progress}</h2>
               <p className="text-slate-400 font-bold max-w-xl opacity-70">Complete requirements to increase your progress and unlock the next phase.</p>
            </div>
             <div className="flex flex-col gap-4">
