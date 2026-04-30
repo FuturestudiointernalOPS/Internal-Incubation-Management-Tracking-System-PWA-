@@ -40,7 +40,10 @@ export async function POST(req) {
         let finalUrl = "";
         if (process.env.BLOB_READ_WRITE_TOKEN) {
            const { put } = require('@vercel/blob');
-           const blob = await put(`knowledge/${Date.now()}-${value.name}`, value, { access: 'public' });
+           const blob = await put(`knowledge/${Date.now()}-${value.name}`, value, { 
+              access: 'public',
+              token: process.env.BLOB_READ_WRITE_TOKEN
+           });
            finalUrl = blob.url;
         } else {
            const buffer = Buffer.from(await value.arrayBuffer());
@@ -108,7 +111,10 @@ export async function PATCH(req) {
       let finalUrl = "";
       if (process.env.BLOB_READ_WRITE_TOKEN) {
          const { put } = require('@vercel/blob');
-         const blob = await put(`knowledge/${Date.now()}-${file.name}`, file, { access: 'public' });
+         const blob = await put(`knowledge/${Date.now()}-${file.name}`, file, { 
+             access: 'public',
+             token: process.env.BLOB_READ_WRITE_TOKEN
+         });
          finalUrl = blob.url;
       } else {
          const buffer = Buffer.from(await file.arrayBuffer());
