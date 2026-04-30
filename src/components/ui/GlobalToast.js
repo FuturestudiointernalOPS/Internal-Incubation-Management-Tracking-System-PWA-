@@ -40,18 +40,18 @@ export default function GlobalToast() {
   };
 
   return (
-    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-4 pointer-events-none w-full max-w-sm">
+    <div className="fixed bottom-10 right-10 z-[2000] flex flex-col gap-4 pointer-events-none w-full max-w-sm">
       <AnimatePresence>
         {notifications.map((n) => {
           const style = getTypeStyle(n.type);
           return (
             <motion.div 
               key={n.id}
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95, transition: { duration: 0.2 } }}
+              exit={{ opacity: 0, y: 20, scale: 0.95, transition: { duration: 0.2 } }}
               layout
-              className={`pointer-events-auto flex items-center gap-4 px-6 py-5 rounded-[2rem] bg-[#0d0d18]/90 border ${style.border} shadow-[0_30px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl`}
+              className={`pointer-events-auto flex items-center gap-4 px-6 py-5 rounded-[2rem] bg-white dark:bg-[#0d0d18]/90 border border-slate-200 dark:border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl`}
             >
               <div className={`p-3 rounded-2xl ${style.bg} ${style.text}`}>
                 <style.icon className="w-5 h-5" />
@@ -60,11 +60,11 @@ export default function GlobalToast() {
                  <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 opacity-60 ${style.text}`}>
                    {style.label}
                  </p>
-                 <p className="text-xs font-black text-white tracking-tight leading-tight uppercase truncate">{n.message}</p>
+                 <p className="text-xs font-black text-slate-800 dark:text-white tracking-tight leading-tight uppercase truncate">{n.message}</p>
               </div>
               <button 
                 onClick={() => setNotifications(prev => prev.filter(nt => nt.id !== n.id))}
-                className="text-slate-600 hover:text-white transition-colors p-2"
+                className="text-slate-400 hover:text-slate-800 dark:text-slate-600 dark:hover:text-white transition-colors p-2"
               >
                 <X className="w-4 h-4" />
               </button>
