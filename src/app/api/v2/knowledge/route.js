@@ -12,9 +12,24 @@ export const config = {
 export async function POST(req) {
   try {
     await initDb();
-    const { title, description, files } = await req.json();
+    const formData = await req.formData();
+    const title = formData.get("title");
+    const description = formData.get("description");
+    
+    const files = [];
+    // Extract all file fields
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith("file_") && value instanceof File) {
+        const buffer = Buffer.from(await value.arrayBuffer());
+        const base64 = buffer.toString('base64');
+        files.push({
+          name: value.name,
+          url: `data:${value.type};base64,${base64}`
+        });
+      }
+    }
 
-    if (!title || !files || files.length === 0) {
+    if (!title || files.length === 0) {
       return NextResponse.json({ success: false, error: "Title and at least one PDF are required." }, { status: 400 });
     }
 
@@ -27,6 +42,7 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, id: lastInsertRowid.toString() });
   } catch (error) {
+    console.error("Knowledge POST Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
@@ -36,12 +52,10 @@ export async function GET() {
     await initDb();
     const { rows } = await db.execute("SELECT * FROM v2_knowledge_bank ORDER BY timestamp DESC");
     
-    // Parse the files JSON for each note
     const processed = rows.map(r => {
       try {
         return { ...r, files: JSON.parse(r.url || '[]') };
       } catch (e) {
-        // Fallback for legacy items that just had a raw URL string
         return { ...r, files: [{ name: r.fileName || 'Document', url: r.url }] };
       }
     });
@@ -55,18 +69,37 @@ export async function GET() {
 export async function PATCH(req) {
   try {
     await initDb();
-    const { id, title, description, files, is_archived, action } = await req.json();
+    const formData = await req.formData();
+    const id = formData.get("id");
+    const title = formData.get("title");
+    const description = formData.get("description");
+    const action = formData.get("action");
+    const is_archived = formData.get("is_archived");
 
     if (action === 'archive') {
       await db.execute({
         sql: "UPDATE v2_knowledge_bank SET is_archived = ? WHERE id = ?",
-        args: [is_archived ? 1 : 0, id]
+        args: [is_archived === '1' ? 1 : 0, id]
       });
       return NextResponse.json({ success: true });
     }
 
     if (action === 'edit') {
-      const filesJson = JSON.stringify(files || []);
+      const existingFiles = JSON.parse(formData.get("existingFiles") || '[]');
+      const newFiles = [];
+      
+      for (const [key, value] of formData.entries()) {
+        if (key.startsWith("file_") && value instanceof File) {
+          const buffer = Buffer.from(await value.arrayBuffer());
+          const base64 = buffer.toString('base64');
+          newFiles.push({
+            name: value.name,
+            url: `data:${value.type};base64,${base64}`
+          });
+        }
+      }
+
+      const filesJson = JSON.stringify([...existingFiles, ...newFiles]);
       await db.execute({
         sql: "UPDATE v2_knowledge_bank SET title = ?, description = ?, url = ? WHERE id = ?",
         args: [title, description, filesJson, id]
@@ -76,6 +109,7 @@ export async function PATCH(req) {
 
     return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
   } catch (error) {
+    console.error("Knowledge PATCH Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

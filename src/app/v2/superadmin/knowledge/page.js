@@ -88,9 +88,9 @@ export default function KnowledgeBank() {
     const files = Array.from(e.target.files);
     files.forEach(file => {
        if (file.type === 'application/pdf') {
-          if (file.size > 4 * 1024 * 1024) {
+          if (file.size > 8 * 1024 * 1024) { // Individual file limit 8MB
              window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                 detail: { type: 'error', message: `File '${file.name}' is too large (>4MB).` } 
+                 detail: { type: 'error', message: `File '${file.name}' is too large (>8MB).` } 
              }));
              return;
           }
@@ -99,7 +99,8 @@ export default function KnowledgeBank() {
           reader.onload = (event) => {
              const fileObj = { 
                 name: file.name, 
-                url: event.target.result,
+                url: event.target.result, // Keep for preview
+                file: file, // Keep raw file for upload
                 size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
              };
              if (isEditing) {
@@ -127,25 +128,25 @@ export default function KnowledgeBank() {
         return;
      }
 
-     // Calculate total payload size (approximate)
-     const payloadSize = JSON.stringify(newNote).length;
-     if (payloadSize > 8 * 1024 * 1024) { // 8MB limit for total request
-        window.dispatchEvent(new CustomEvent('impactos:notify', { 
-            detail: { type: 'error', message: 'Combined file size is too large for the server. Please use fewer or smaller files.' } 
-        }));
-        return;
-     }
-
      setIsSaving(true);
      try {
+        const formData = new FormData();
+        formData.append('title', newNote.title);
+        formData.append('description', newNote.description);
+        
+        newNote.files.forEach((f, i) => {
+           if (f.file) {
+              formData.append(`file_${i}`, f.file);
+           }
+        });
+
         const res = await fetch('/api/v2/knowledge', {
            method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify(newNote)
+           body: formData
         });
         
         if (res.status === 413) {
-           throw new Error("Payload too large. The combined size of your files exceeds the server limit.");
+           throw new Error("The combined size of your files exceeds the Vercel server limit (4.5MB - 10MB). Please use fewer or smaller files.");
         }
 
         const data = await res.json();
@@ -154,7 +155,7 @@ export default function KnowledgeBank() {
            setShowUploadModal(false);
            setNewNote({ title: '', description: '', files: [] });
            window.dispatchEvent(new CustomEvent('impactos:notify', { 
-               detail: { type: 'success', message: 'Created successfully.' } 
+               detail: { type: 'success', message: 'Saved successfully.' } 
            }));
         } else {
            throw new Error(data.error || "Failed to create.");
@@ -171,25 +172,31 @@ export default function KnowledgeBank() {
   const handleSaveUpdate = async () => {
      if (!editingNote.title) return;
 
-     // Calculate total payload size (approximate)
-     const payloadSize = JSON.stringify(editingNote).length;
-     if (payloadSize > 8 * 1024 * 1024) {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { 
-            detail: { type: 'error', message: 'Combined file size is too large for the server.' } 
-        }));
-        return;
-     }
-
      setIsSaving(true);
      try {
+        const formData = new FormData();
+        formData.append('id', editingNote.id);
+        formData.append('title', editingNote.title);
+        formData.append('description', editingNote.description);
+        formData.append('action', 'edit');
+        
+        // Pass existing files (that aren't new File objects)
+        const existingFiles = editingNote.files.filter(f => !f.file);
+        formData.append('existingFiles', JSON.stringify(existingFiles));
+
+        editingNote.files.forEach((f, i) => {
+           if (f.file) {
+              formData.append(`file_${i}`, f.file);
+           }
+        });
+
         const res = await fetch('/api/v2/knowledge', {
            method: 'PATCH',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ ...editingNote, action: 'edit' })
+           body: formData
         });
 
         if (res.status === 413) {
-           throw new Error("Payload too large. The combined size of your files exceeds the server limit.");
+           throw new Error("The combined size of your files exceeds the Vercel server limit.");
         }
 
         const data = await res.json();
