@@ -63,7 +63,8 @@ export default function InvitePage({ params }) {
       } else {
         setSuccess(true);
         setTimeout(() => {
-          router.push("/login"); // Redirect to existing login flow
+          const isStaff = inviteData?.group_name?.toUpperCase() === 'FUTURE STUDIO' || inviteData?.group_name?.toUpperCase() === 'STAFF';
+          router.push(isStaff ? "/terminal" : "/login");
         }, 2000);
       }
     } catch (err) {
