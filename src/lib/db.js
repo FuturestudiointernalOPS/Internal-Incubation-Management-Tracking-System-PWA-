@@ -80,10 +80,19 @@ export async function initDb() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         description TEXT,
-        url TEXT NOT NULL,
-        fileName TEXT,
         is_archived BOOLEAN DEFAULT 0,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS v2_knowledge_attachments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        note_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (note_id) REFERENCES v2_knowledge_bank(id) ON DELETE CASCADE
       )
     `);
 

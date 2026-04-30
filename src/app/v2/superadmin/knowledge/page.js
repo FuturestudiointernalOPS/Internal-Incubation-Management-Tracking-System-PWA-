@@ -114,12 +114,27 @@ export default function KnowledgeBank() {
     });
   };
 
-  const removeFile = (index, isEditing = false) => {
-     if (isEditing) {
-        setEditingNote(prev => ({ ...prev, files: prev.files.filter((_, i) => i !== index) }));
-     } else {
-        setNewNote(prev => ({ ...prev, files: prev.files.filter((_, i) => i !== index) }));
-     }
+  const removeFile = async (idx, isEditing = false) => {
+    if (isEditing) {
+       const fileToRemove = editingNote.files[idx];
+       if (!fileToRemove.file && fileToRemove.id) {
+          // It's an existing file on the server
+          const formData = new FormData();
+          formData.append('id', editingNote.id);
+          formData.append('fileId', fileToRemove.id);
+          formData.append('action', 'delete_file');
+          await fetch('/api/v2/knowledge', { method: 'PATCH', body: formData });
+       }
+       setEditingNote(prev => ({
+          ...prev,
+          files: prev.files.filter((_, i) => i !== idx)
+       }));
+    } else {
+       setNewNote(prev => ({
+          ...prev,
+          files: prev.files.filter((_, i) => i !== idx)
+       }));
+    }
   };
 
   const handleCreateNote = async () => {
