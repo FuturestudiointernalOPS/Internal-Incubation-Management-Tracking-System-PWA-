@@ -244,20 +244,28 @@ export default function KnowledgeBank() {
   const handleArchiveAction = async (id, isArchiving, e) => {
      e.stopPropagation();
      try {
+        const formData = new FormData();
+        formData.append('id', id);
+        formData.append('is_archived', isArchiving ? '1' : '0');
+        formData.append('action', 'archive');
+
         const res = await fetch('/api/v2/knowledge', {
            method: 'PATCH',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ id, is_archived: isArchiving ? 1 : 0, action: 'archive' })
+           body: formData
         });
         const data = await res.json();
-        if (data.success) {
-           fetchNotes();
-           if (isArchiving && viewingNote?.id === id) setViewingNote(null);
-           window.dispatchEvent(new CustomEvent('impactos:notify', { 
-               detail: { type: 'info', message: isArchiving ? 'Archived.' : 'Restored.' } 
-           }));
-        }
-     } catch (e) {}
+        if (!data.success) throw new Error(data.error);
+
+        await fetchNotes();
+        if (isArchiving && viewingNote?.id === id) setViewingNote(null);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'success', message: isArchiving ? 'Archived successfully.' : 'Restored successfully.' } 
+        }));
+     } catch (e) {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'error', message: 'Failed to archive: ' + e.message } 
+        }));
+     }
   };
 
   const handlePermanentDelete = async (id, e) => {
@@ -271,14 +279,18 @@ export default function KnowledgeBank() {
            body: JSON.stringify({ id })
         });
         const data = await res.json();
-        if (data.success) {
-           fetchNotes();
-           if (viewingNote?.id === id) setViewingNote(null);
-           window.dispatchEvent(new CustomEvent('impactos:notify', { 
-               detail: { type: 'success', message: 'Deleted permanently.' } 
-           }));
-        }
-     } catch (e) {}
+        if (!data.success) throw new Error(data.error);
+        
+        await fetchNotes();
+        if (viewingNote?.id === id) setViewingNote(null);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'success', message: 'Deleted permanently.' } 
+        }));
+     } catch (e) {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'error', message: 'Failed to delete: ' + e.message } 
+        }));
+     }
   };
 
   const filteredNotes = allNotes.filter(n => activeTab === 'archive' ? n.is_archived : !n.is_archived);
