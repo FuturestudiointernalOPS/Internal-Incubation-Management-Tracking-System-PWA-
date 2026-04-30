@@ -130,36 +130,42 @@ export default function KnowledgeBank() {
 
      setIsSaving(true);
      try {
-        const formData = new FormData();
-        formData.append('title', newNote.title);
-        formData.append('description', newNote.description);
-        
-        newNote.files.forEach((f, i) => {
-           if (f.file) {
-              formData.append(`file_${i}`, f.file);
-           }
-        });
-
+        // 1. Create the Note (Metadata Only)
         const res = await fetch('/api/v2/knowledge', {
            method: 'POST',
-           body: formData
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ 
+              title: newNote.title, 
+              description: newNote.description,
+              files: [] // Start empty
+           })
         });
-        
-        if (res.status === 413) {
-           throw new Error("The combined size of your files exceeds the Vercel server limit (4.5MB - 10MB). Please use fewer or smaller files.");
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        const noteId = data.id;
+
+        // 2. Upload each file sequentially to avoid payload limits
+        for (const f of newNote.files) {
+           if (f.file) {
+              const formData = new FormData();
+              formData.append('id', noteId);
+              formData.append('file', f.file);
+              formData.append('action', 'attach');
+
+              const attachRes = await fetch('/api/v2/knowledge', {
+                 method: 'PATCH',
+                 body: formData
+              });
+              if (!attachRes.ok) console.warn(`Failed to attach ${f.name}`);
+           }
         }
 
-        const data = await res.json();
-        if (data.success) {
-           await fetchNotes();
-           setShowUploadModal(false);
-           setNewNote({ title: '', description: '', files: [] });
-           window.dispatchEvent(new CustomEvent('impactos:notify', { 
-               detail: { type: 'success', message: 'Saved successfully.' } 
-           }));
-        } else {
-           throw new Error(data.error || "Failed to create.");
-        }
+        await fetchNotes();
+        setShowUploadModal(false);
+        setNewNote({ title: '', description: '', files: [] });
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'success', message: 'Saved successfully.' } 
+        }));
      } catch (e) {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
             detail: { type: 'error', message: e.message } 
@@ -174,42 +180,43 @@ export default function KnowledgeBank() {
 
      setIsSaving(true);
      try {
+        // 1. Update Metadata and Existing Files
         const formData = new FormData();
         formData.append('id', editingNote.id);
         formData.append('title', editingNote.title);
         formData.append('description', editingNote.description);
         formData.append('action', 'edit');
         
-        // Pass existing files (that aren't new File objects)
         const existingFiles = editingNote.files.filter(f => !f.file);
         formData.append('existingFiles', JSON.stringify(existingFiles));
-
-        editingNote.files.forEach((f, i) => {
-           if (f.file) {
-              formData.append(`file_${i}`, f.file);
-           }
-        });
 
         const res = await fetch('/api/v2/knowledge', {
            method: 'PATCH',
            body: formData
         });
-
-        if (res.status === 413) {
-           throw new Error("The combined size of your files exceeds the Vercel server limit.");
-        }
-
         const data = await res.json();
-        if (data.success) {
-           await fetchNotes();
-           setShowEditModal(false);
-           setViewingNote(prev => prev?.id === editingNote.id ? { ...prev, ...editingNote } : prev);
-           window.dispatchEvent(new CustomEvent('impactos:notify', { 
-               detail: { type: 'success', message: 'Saved successfully.' } 
-           }));
-        } else {
-           throw new Error(data.error || "Failed to save.");
+        if (!data.success) throw new Error(data.error);
+
+        // 2. Attach new files
+        const newFiles = editingNote.files.filter(f => f.file);
+        for (const f of newFiles) {
+           const attachData = new FormData();
+           attachData.append('id', editingNote.id);
+           attachData.append('file', f.file);
+           attachData.append('action', 'attach');
+
+           await fetch('/api/v2/knowledge', {
+              method: 'PATCH',
+              body: attachData
+           });
         }
+
+        await fetchNotes();
+        setShowEditModal(false);
+        setViewingNote(prev => prev?.id === editingNote.id ? { ...prev, ...editingNote } : prev);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'success', message: 'Saved successfully.' } 
+        }));
      } catch (e) {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
             detail: { type: 'error', message: e.message } 

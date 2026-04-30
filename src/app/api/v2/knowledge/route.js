@@ -12,12 +12,24 @@ export const config = {
 export async function POST(req) {
   try {
     await initDb();
+    
+    // Check if it's JSON (Metadata only) or FormData (Legacy/Bulk)
+    const contentType = req.headers.get("content-type") || "";
+    
+    if (contentType.includes("application/json")) {
+      const { title, description } = await req.json();
+      const { lastInsertRowid } = await db.execute({
+        sql: "INSERT INTO v2_knowledge_bank (title, description, url) VALUES (?, ?, ?)",
+        args: [title, description, '[]']
+      });
+      return NextResponse.json({ success: true, id: lastInsertRowid.toString() });
+    }
+
     const formData = await req.formData();
     const title = formData.get("title");
     const description = formData.get("description");
     
     const files = [];
-    // Extract all file fields
     for (const [key, value] of formData.entries()) {
       if (key.startsWith("file_") && value instanceof File) {
         const buffer = Buffer.from(await value.arrayBuffer());
@@ -29,15 +41,9 @@ export async function POST(req) {
       }
     }
 
-    if (!title || files.length === 0) {
-      return NextResponse.json({ success: false, error: "Title and at least one PDF are required." }, { status: 400 });
-    }
-
-    const filesJson = JSON.stringify(files);
-
     const { lastInsertRowid } = await db.execute({
       sql: "INSERT INTO v2_knowledge_bank (title, description, url) VALUES (?, ?, ?)",
-      args: [title, description, filesJson]
+      args: [title, description, JSON.stringify(files)]
     });
 
     return NextResponse.json({ success: true, id: lastInsertRowid.toString() });
@@ -71,12 +77,10 @@ export async function PATCH(req) {
     await initDb();
     const formData = await req.formData();
     const id = formData.get("id");
-    const title = formData.get("title");
-    const description = formData.get("description");
     const action = formData.get("action");
-    const is_archived = formData.get("is_archived");
 
     if (action === 'archive') {
+      const is_archived = formData.get("is_archived");
       await db.execute({
         sql: "UPDATE v2_knowledge_bank SET is_archived = ? WHERE id = ?",
         args: [is_archived === '1' ? 1 : 0, id]
@@ -84,10 +88,48 @@ export async function PATCH(req) {
       return NextResponse.json({ success: true });
     }
 
-    if (action === 'edit') {
-      const existingFiles = JSON.parse(formData.get("existingFiles") || '[]');
-      const newFiles = [];
+    if (action === 'attach') {
+      const file = formData.get("file");
+      if (!file || !(file instanceof File)) {
+        return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const base64 = buffer.toString('base64');
+      const newFile = {
+        name: file.name,
+        url: `data:${file.type};base64,${base64}`
+      };
+
+      // Get existing
+      const { rows } = await db.execute({
+        sql: "SELECT url FROM v2_knowledge_bank WHERE id = ?",
+        args: [id]
+      });
       
+      const currentFiles = JSON.parse(rows[0]?.url || '[]');
+      const updatedFiles = [...currentFiles, newFile];
+
+      await db.execute({
+        sql: "UPDATE v2_knowledge_bank SET url = ? WHERE id = ?",
+        args: [JSON.stringify(updatedFiles), id]
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'edit') {
+      const title = formData.get("title");
+      const description = formData.get("description");
+      const existingFiles = JSON.parse(formData.get("existingFiles") || '[]');
+      
+      await db.execute({
+        sql: "UPDATE v2_knowledge_bank SET title = ?, description = ? WHERE id = ?",
+        args: [title, description, id]
+      });
+
+      // If we provided new files in the same request (bulk fallback)
+      const newFiles = [];
       for (const [key, value] of formData.entries()) {
         if (key.startsWith("file_") && value instanceof File) {
           const buffer = Buffer.from(await value.arrayBuffer());
@@ -99,11 +141,14 @@ export async function PATCH(req) {
         }
       }
 
-      const filesJson = JSON.stringify([...existingFiles, ...newFiles]);
-      await db.execute({
-        sql: "UPDATE v2_knowledge_bank SET title = ?, description = ?, url = ? WHERE id = ?",
-        args: [title, description, filesJson, id]
-      });
+      if (newFiles.length > 0 || formData.has("existingFiles")) {
+         const finalFiles = [...existingFiles, ...newFiles];
+         await db.execute({
+            sql: "UPDATE v2_knowledge_bank SET url = ? WHERE id = ?",
+            args: [JSON.stringify(finalFiles), id]
+         });
+      }
+
       return NextResponse.json({ success: true });
     }
 
