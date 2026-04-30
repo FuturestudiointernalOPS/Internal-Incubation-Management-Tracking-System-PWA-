@@ -34,14 +34,23 @@ export async function POST(req) {
     });
     const noteId = lastInsertRowid.toString();
 
-    // Attach files sequentially
+    // Attach files sequentially (Legacy fallback or fast batch)
     for (const [key, value] of formData.entries()) {
       if (key.startsWith("file_") && value instanceof File) {
-        const buffer = Buffer.from(await value.arrayBuffer());
-        const base64 = buffer.toString('base64');
+        let finalUrl = "";
+        if (process.env.BLOB_READ_WRITE_TOKEN) {
+           const { put } = require('@vercel/blob');
+           const blob = await put(`knowledge/${Date.now()}-${value.name}`, value, { access: 'public' });
+           finalUrl = blob.url;
+        } else {
+           const buffer = Buffer.from(await value.arrayBuffer());
+           const base64 = buffer.toString('base64');
+           finalUrl = `data:${value.type};base64,${base64}`;
+        }
+        
         await db.execute({
           sql: "INSERT INTO v2_knowledge_attachments (note_id, name, url) VALUES (?, ?, ?)",
-          args: [Number(noteId), value.name, `data:${value.type};base64,${base64}`]
+          args: [Number(noteId), value.name, finalUrl]
         });
       }
     }
@@ -96,12 +105,20 @@ export async function PATCH(req) {
         return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
       }
 
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const base64 = buffer.toString('base64');
+      let finalUrl = "";
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+         const { put } = require('@vercel/blob');
+         const blob = await put(`knowledge/${Date.now()}-${file.name}`, file, { access: 'public' });
+         finalUrl = blob.url;
+      } else {
+         const buffer = Buffer.from(await file.arrayBuffer());
+         const base64 = buffer.toString('base64');
+         finalUrl = `data:${file.type};base64,${base64}`;
+      }
       
       await db.execute({
         sql: "INSERT INTO v2_knowledge_attachments (note_id, name, url) VALUES (?, ?, ?)",
-        args: [Number(id), file.name, `data:${file.type};base64,${base64}`]
+        args: [Number(id), file.name, finalUrl]
       });
 
       return NextResponse.json({ success: true });
