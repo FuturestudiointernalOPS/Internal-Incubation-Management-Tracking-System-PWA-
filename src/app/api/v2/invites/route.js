@@ -25,8 +25,11 @@ export async function POST(req) {
       args: [token, program_id, group_name || null, team_id || null, role, expiresAt.toISOString().replace('T', ' ').replace('Z', ''), created_by || 'admin']
     });
 
-    // In a real environment, you'd pull the BASE_URL from env
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/${token}`;
+    // Detect the base URL dynamically from the request headers
+    const protocol = req.headers.get('x-forwarded-proto') || 'http';
+    const host = req.headers.get('host');
+    const baseUrl = `${protocol}://${host}`;
+    const inviteUrl = `${baseUrl}/invite/${token}`;
 
     return NextResponse.json({ 
       message: "Invite generated successfully", 
