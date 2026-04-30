@@ -45,7 +45,7 @@ export default function CreateProgram() {
       const staffRes = await fetch('/api/v2/contacts/full-state');
       const staffData = await staffRes.json();
       if (staffData.success) {
-        setStaff((staffData.contacts || []).filter(c => c.group_name?.toUpperCase() === 'FUTURE STUDIO'));
+        setStaff(staffData.contacts || []);
       }
     } catch (e) {}
   };
