@@ -18,8 +18,8 @@ export async function POST(req) {
     if (contentType.includes("application/json")) {
       const { title, description } = await req.json();
       const { lastInsertRowid } = await db.execute({
-        sql: "INSERT INTO v2_knowledge_bank (title, description) VALUES (?, ?)",
-        args: [title, description]
+        sql: "INSERT INTO v2_knowledge_bank (title, description, url) VALUES (?, ?, ?)",
+        args: [title, description, '[]']
       });
       return NextResponse.json({ success: true, id: lastInsertRowid.toString() });
     }
@@ -29,8 +29,8 @@ export async function POST(req) {
     const description = formData.get("description");
     
     const { lastInsertRowid } = await db.execute({
-      sql: "INSERT INTO v2_knowledge_bank (title, description) VALUES (?, ?)",
-      args: [title, description]
+      sql: "INSERT INTO v2_knowledge_bank (title, description, url) VALUES (?, ?, ?)",
+      args: [title, description, '[]']
     });
     const noteId = lastInsertRowid.toString();
 
