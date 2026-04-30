@@ -24,6 +24,8 @@ export default function KnowledgeBank() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [archivingId, setArchivingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   
   // Forms
   const [newNote, setNewNote] = useState({ title: '', description: '', files: [] });
@@ -243,6 +245,7 @@ export default function KnowledgeBank() {
 
   const handleArchiveAction = async (id, isArchiving, e) => {
      e.stopPropagation();
+     setArchivingId(id);
      try {
         const formData = new FormData();
         formData.append('id', id);
@@ -265,6 +268,8 @@ export default function KnowledgeBank() {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
             detail: { type: 'error', message: 'Failed to archive: ' + e.message } 
         }));
+     } finally {
+        setArchivingId(null);
      }
   };
 
@@ -272,6 +277,7 @@ export default function KnowledgeBank() {
      e.stopPropagation();
      if (!confirm("Are you sure? This delete is permanent.")) return;
 
+     setDeletingId(id);
      try {
         const res = await fetch('/api/v2/knowledge', {
            method: 'DELETE',
@@ -290,6 +296,8 @@ export default function KnowledgeBank() {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
             detail: { type: 'error', message: 'Failed to delete: ' + e.message } 
         }));
+     } finally {
+        setDeletingId(null);
      }
   };
 
@@ -538,16 +546,28 @@ export default function KnowledgeBank() {
                                   <Clock className="w-3 h-3 text-slate-700" />
                                   <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">{note.timestamp?.split(',')[0]}</p>
                                </div>
-                               <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2">
                                   {activeTab === 'active' ? (
                                      <>
                                         <button onClick={(e) => { e.stopPropagation(); setEditingNote(note); setShowEditModal(true); }} className="hover:text-[#FF6600] transition-all opacity-0 group-hover:opacity-100 font-black text-[9px] uppercase tracking-tighter underline-none">Edit</button>
-                                        <button onClick={(e) => handleArchiveAction(note.id, true, e)} className="hover:text-orange-500 transition-all opacity-0 group-hover:opacity-100 font-black text-[9px] uppercase tracking-tighter underline-none">Archive</button>
+                                        {archivingId === note.id ? (
+                                           <Loader2 className="w-3 h-3 animate-spin text-orange-500" />
+                                        ) : (
+                                           <button onClick={(e) => handleArchiveAction(note.id, true, e)} className="hover:text-orange-500 transition-all opacity-0 group-hover:opacity-100 font-black text-[9px] uppercase tracking-tighter underline-none">Archive</button>
+                                        )}
                                      </>
                                   ) : (
                                      <>
-                                        <button onClick={(e) => handleArchiveAction(note.id, false, e)} className="hover:text-emerald-500 transition-all font-black text-[9px] uppercase tracking-tighter underline-none">Restore</button>
-                                        <button onClick={(e) => handlePermanentDelete(note.id, e)} className="hover:text-rose-500 transition-all font-black text-[9px] uppercase tracking-tighter underline-none">Delete</button>
+                                        {archivingId === note.id ? (
+                                           <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
+                                        ) : (
+                                           <button onClick={(e) => handleArchiveAction(note.id, false, e)} className="hover:text-emerald-500 transition-all font-black text-[9px] uppercase tracking-tighter underline-none">Restore</button>
+                                        )}
+                                        {deletingId === note.id ? (
+                                           <Loader2 className="w-3 h-3 animate-spin text-rose-500" />
+                                        ) : (
+                                           <button onClick={(e) => handlePermanentDelete(note.id, e)} className="hover:text-rose-500 transition-all font-black text-[9px] uppercase tracking-tighter underline-none">Delete</button>
+                                        )}
                                      </>
                                   )}
                                   <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-[#FF6600] group-hover:translate-x-1 transition-all" />
