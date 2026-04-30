@@ -340,12 +340,33 @@
   }
 
   /* Rapid Interface Revelation */
-  .animation-reveal { animation: fadeIn 0.15s cubic-bezier(0.2, 0, 0, 1) forwards; }
-  .animation-reveal-fast { animation: fadeIn 0.1s cubic-bezier(0.2, 0, 0, 1) forwards; }
+  .animation-reveal { animation: fadeIn 0.3s cubic-bezier(0.2, 0, 0, 1) forwards; }
+  .animation-reveal-fast { animation: fadeIn 0.2s cubic-bezier(0.2, 0, 0, 1) forwards; }
   
   @keyframes pulse-fast {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
+  }
+
+  /* Global Animation/Transition Capping */
+  * {
+    transition-duration: 0.3s !important;
+  }
+
+  .h-full.transition-all, 
+  [class*="duration-1000"], 
+  [class*="duration-700"],
+  [class*="duration-500"] {
+    transition-duration: 0.7s !important;
+  }
+
+  [class*="animate-"], [class*="animation-"] {
+    animation-duration: 0.3s !important;
+  }
+
+  .animate-spin {
+    animation-duration: 0.8s !important; /* Keep spin reasonable */
+    animation-iteration-count: infinite !important;
   }
 }
 

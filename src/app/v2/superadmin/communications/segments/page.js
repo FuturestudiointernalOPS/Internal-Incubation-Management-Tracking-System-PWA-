@@ -186,7 +186,7 @@ export default function SegmentsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {segments.map(s => (
-              <div key={s.id} className="ios-card group hover:border-[#FF6600]/80/30 transition-all duration-500 flex flex-col justify-between text-left">
+              <div key={s.id} className="ios-card group hover:border-[#FF6600]/80/30 transition-all duration-300 flex flex-col justify-between text-left">
                 <div>
                   <div className="flex justify-between items-start mb-6">
                     <div className="p-3 rounded-xl bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 text-indigo-400">

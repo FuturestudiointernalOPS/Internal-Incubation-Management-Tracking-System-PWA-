@@ -72,9 +72,16 @@ export default function CreateProgram() {
            detail: { type: 'success', message: 'Program deployed successfully.' } 
         }));
         setTimeout(() => router.push('/v2/superadmin/programs'), 1000);
+      } else {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+           detail: { type: 'error', message: data.error || 'Failed to deploy mission node.' } 
+        }));
       }
     } catch (e) {
       console.error(e);
+      window.dispatchEvent(new CustomEvent('impactos:notify', { 
+         detail: { type: 'error', message: 'Network or System Security Exception during deployment.' } 
+      }));
     } finally {
       setIsProcessing(false);
     }

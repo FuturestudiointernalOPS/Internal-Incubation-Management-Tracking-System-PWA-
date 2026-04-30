@@ -297,7 +297,7 @@ export default function CampaignsPage() {
             {filteredCampsList.map(c => {
                const p = Math.round((c.sent_contacts / c.total_contacts) * 100) || 0;
                return (
-                <div key={c.id} onClick={() => openDetails(c)} className="ios-card group hover:border-[#FF6600]/80/30 transition-all duration-500 cursor-pointer text-left flex flex-col h-full relative z-10 pointer-events-auto">
+                <div key={c.id} onClick={() => openDetails(c)} className="ios-card group hover:border-[#FF6600]/80/30 transition-all duration-300 cursor-pointer text-left flex flex-col h-full relative z-10 pointer-events-auto">
                    <div className="flex justify-between items-start mb-6">
                       <div className="flex items-center gap-3">
                          <div className="p-3 rounded-xl bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 text-indigo-400 group-hover:scale-110 transition-transform">
@@ -340,7 +340,7 @@ export default function CampaignsPage() {
                          <p className="text-xs font-black text-white">{p}%</p>
                       </div>
                       <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                         <div className="h-full bg-[#FF6600]/80 transition-all duration-1000" style={{ width: `${p}%` }} />
+                         <div className="h-full bg-[#FF6600]/80 transition-all duration-700" style={{ width: `${p}%` }} />
                       </div>
                       <div className="grid grid-cols-2 gap-4 pt-2">
                          <div className="bg-white/5 p-3 rounded-xl border border-white/5">

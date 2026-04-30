@@ -180,7 +180,7 @@ export default function ParticipantV2Dashboard() {
                 <div className="space-y-1">
                    <p className="text-3xl font-black text-white italic">{metrics.percentComplete}%</p>
                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#FF6600]/80 transition-all duration-1000" style={{ width: `${metrics.percentComplete}%` }} />
+                      <div className="h-full bg-[#FF6600]/80 transition-all duration-700" style={{ width: `${metrics.percentComplete}%` }} />
                    </div>
                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest pt-2">Topics Sync'd: {sessions.filter(s => s.status === 'completed').length} / {sessions.length}</p>
                 </div>

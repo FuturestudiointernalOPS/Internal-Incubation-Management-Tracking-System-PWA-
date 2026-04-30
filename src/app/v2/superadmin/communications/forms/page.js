@@ -230,7 +230,7 @@ export default function FormsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredForms.map(f => (
-              <div key={f.form_id} className="ios-card group hover:border-[#FF6600]/30 transition-all duration-500">
+              <div key={f.form_id} className="ios-card group hover:border-[#FF6600]/30 transition-all duration-300">
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-2">
                      <button onClick={() => handleEdit(f)} className="p-2 rounded-lg bg-white/5 border border-white/5 text-slate-500 hover:text-[#FF6600] transition-all" title="Edit Structure">

@@ -130,6 +130,10 @@ export default function ProgramManagement() {
           await fetchPrograms();
           setEditingProgram(null);
         }, 800);
+      } else {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+           detail: { type: 'error', message: data.error || 'Update synchronization failed.' } 
+        }));
       }
     } catch (e) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { 

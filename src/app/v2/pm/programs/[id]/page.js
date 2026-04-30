@@ -31,7 +31,7 @@ export default function PMProgramTerminalV2({ params }) {
   
   const [isLoaded, setIsLoaded] = useState(false);
   const [user, setUser] = useState({});
-  const isLeadPMForProject = (user?.role === 'superadmin') || (user?.isLeadPM && program?.assigned_pm_id === (user?.cid || user?.id));
+  const isLeadPMForProject = (user?.role === 'super_admin') || (user?.isLeadPM && program?.assigned_pm_id?.toLowerCase() === (user?.cid || user?.id)?.toLowerCase());
   const [activeTab, setActiveTab] = useState('curriculum'); 
   const searchParams = useSearchParams();
 

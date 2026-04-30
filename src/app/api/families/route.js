@@ -22,7 +22,7 @@ export async function POST(req) {
     const registration_id = "R-" + uuidv4().split('-')[0].toUpperCase();
 
     await db.execute({
-      sql: "INSERT OR IGNORE INTO families (name, registration_id, program_id) VALUES (?, ?, ?)",
+      sql: "INSERT INTO families (name, registration_id, program_id) VALUES (?, ?, ?)",
       args: [name, registration_id, program_id || null]
     });
     
