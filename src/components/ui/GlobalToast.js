@@ -40,7 +40,7 @@ export default function GlobalToast() {
   };
 
   return (
-    <div className="fixed bottom-10 right-10 z-[2000] flex flex-col gap-4 pointer-events-none w-full max-w-sm">
+    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-4 pointer-events-none w-full max-w-sm">
       <AnimatePresence>
         {notifications.map((n) => {
           const style = getTypeStyle(n.type);

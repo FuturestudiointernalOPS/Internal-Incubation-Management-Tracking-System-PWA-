@@ -792,7 +792,7 @@ function ContactsPageContent() {
                                                         group_name: t.group_name,
                                                         role: 'participant',
                                                         team_id: t.id,
-                                                        expiresInHours: 24,
+                                                        expiresInHours: 6,
                                                         created_by: 'super_admin'
                                                      })
                                                   });

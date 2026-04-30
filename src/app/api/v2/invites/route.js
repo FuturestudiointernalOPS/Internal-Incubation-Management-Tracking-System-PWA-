@@ -22,7 +22,7 @@ export async function POST(req) {
     await db.execute({
       sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, expires_at, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [token, program_id, group_name || null, team_id || null, role, expiresAt.toISOString(), created_by || 'admin']
+      args: [token, program_id, group_name || null, team_id || null, role, expiresAt.toISOString().replace('T', ' ').replace('Z', ''), created_by || 'admin']
     });
 
     // In a real environment, you'd pull the BASE_URL from env
