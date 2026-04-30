@@ -1,6 +1,14 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export async function POST(req) {
   try {
     await initDb();

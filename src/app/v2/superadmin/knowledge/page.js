@@ -88,9 +88,20 @@ export default function KnowledgeBank() {
     const files = Array.from(e.target.files);
     files.forEach(file => {
        if (file.type === 'application/pdf') {
+          if (file.size > 4 * 1024 * 1024) {
+             window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                 detail: { type: 'error', message: `File '${file.name}' is too large (>4MB).` } 
+             }));
+             return;
+          }
+
           const reader = new FileReader();
           reader.onload = (event) => {
-             const fileObj = { name: file.name, url: event.target.result };
+             const fileObj = { 
+                name: file.name, 
+                url: event.target.result,
+                size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
+             };
              if (isEditing) {
                 setEditingNote(prev => ({ ...prev, files: [...prev.files, fileObj] }));
              } else {
@@ -116,6 +127,15 @@ export default function KnowledgeBank() {
         return;
      }
 
+     // Calculate total payload size (approximate)
+     const payloadSize = JSON.stringify(newNote).length;
+     if (payloadSize > 8 * 1024 * 1024) { // 8MB limit for total request
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'error', message: 'Combined file size is too large for the server. Please use fewer or smaller files.' } 
+        }));
+        return;
+     }
+
      setIsSaving(true);
      try {
         const res = await fetch('/api/v2/knowledge', {
@@ -123,6 +143,11 @@ export default function KnowledgeBank() {
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify(newNote)
         });
+        
+        if (res.status === 413) {
+           throw new Error("Payload too large. The combined size of your files exceeds the server limit.");
+        }
+
         const data = await res.json();
         if (data.success) {
            await fetchNotes();
@@ -131,10 +156,12 @@ export default function KnowledgeBank() {
            window.dispatchEvent(new CustomEvent('impactos:notify', { 
                detail: { type: 'success', message: 'Created successfully.' } 
            }));
+        } else {
+           throw new Error(data.error || "Failed to create.");
         }
      } catch (e) {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-            detail: { type: 'error', message: 'Failed to create.' } 
+            detail: { type: 'error', message: e.message } 
         }));
      } finally {
         setIsSaving(false);
@@ -144,6 +171,15 @@ export default function KnowledgeBank() {
   const handleSaveUpdate = async () => {
      if (!editingNote.title) return;
 
+     // Calculate total payload size (approximate)
+     const payloadSize = JSON.stringify(editingNote).length;
+     if (payloadSize > 8 * 1024 * 1024) {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { 
+            detail: { type: 'error', message: 'Combined file size is too large for the server.' } 
+        }));
+        return;
+     }
+
      setIsSaving(true);
      try {
         const res = await fetch('/api/v2/knowledge', {
@@ -151,6 +187,11 @@ export default function KnowledgeBank() {
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ ...editingNote, action: 'edit' })
         });
+
+        if (res.status === 413) {
+           throw new Error("Payload too large. The combined size of your files exceeds the server limit.");
+        }
+
         const data = await res.json();
         if (data.success) {
            await fetchNotes();
@@ -159,10 +200,12 @@ export default function KnowledgeBank() {
            window.dispatchEvent(new CustomEvent('impactos:notify', { 
                detail: { type: 'success', message: 'Saved successfully.' } 
            }));
+        } else {
+           throw new Error(data.error || "Failed to save.");
         }
      } catch (e) {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-            detail: { type: 'error', message: 'Failed to save.' } 
+            detail: { type: 'error', message: e.message } 
         }));
      } finally {
         setIsSaving(false);
@@ -243,7 +286,10 @@ export default function KnowledgeBank() {
                                   <div key={idx} className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl">
                                      <div className="flex items-center gap-3">
                                         <FileText className="w-4 h-4 text-[#FF6600]" />
-                                        <span className="text-xs font-bold text-white truncate max-w-[300px]">{f.name}</span>
+                                        <div className="flex flex-col">
+                                           <span className="text-xs font-bold text-white truncate max-w-[200px]">{f.name}</span>
+                                           {f.size && <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{f.size}</span>}
+                                        </div>
                                      </div>
                                      <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-white transition-colors underline-none"><X className="w-4 h-4" /></button>
                                   </div>
@@ -306,7 +352,10 @@ export default function KnowledgeBank() {
                                   <div key={idx} className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl">
                                      <div className="flex items-center gap-3">
                                         <FileText className="w-4 h-4 text-[#FF6600]" />
-                                        <span className="text-xs font-bold text-white truncate max-w-[280px]">{f.name}</span>
+                                        <div className="flex flex-col">
+                                           <span className="text-xs font-bold text-white truncate max-w-[280px]">{f.name}</span>
+                                           {f.size && <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{f.size}</span>}
+                                        </div>
                                      </div>
                                      <button onClick={() => removeFile(idx, true)} className="text-rose-500 hover:text-white transition-colors underline-none"><X className="w-4 h-4" /></button>
                                   </div>
