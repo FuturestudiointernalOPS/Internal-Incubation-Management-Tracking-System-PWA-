@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
+import { upload } from '@vercel/blob/client';
 
 /**
  * KNOWLEDGE BANK
@@ -161,19 +162,41 @@ export default function KnowledgeBank() {
         if (!data.success) throw new Error(data.error);
         const noteId = data.id;
 
-        // 2. Upload each file sequentially to avoid payload limits
+        // 2. Upload each file securely from the client directly to Vercel Blob
         for (const f of newNote.files) {
            if (f.file) {
-              const formData = new FormData();
-              formData.append('id', noteId);
-              formData.append('file', f.file);
-              formData.append('action', 'attach');
+              try {
+                 // Upload directly from browser to cloud (bypasses 4.5MB limit)
+                 const newBlob = await upload(`knowledge/${Date.now()}-${f.file.name}`, f.file, {
+                    access: 'public',
+                    handleUploadUrl: '/api/upload',
+                 });
 
-              const attachRes = await fetch('/api/v2/knowledge', {
-                 method: 'PATCH',
-                 body: formData
-              });
-              if (!attachRes.ok) console.warn(`Failed to attach ${f.name}`);
+                 // Tell backend to attach the URL
+                 const formData = new FormData();
+                 formData.append('id', noteId);
+                 formData.append('url', newBlob.url);
+                 formData.append('name', f.file.name);
+                 formData.append('action', 'attach_url');
+
+                 const attachRes = await fetch('/api/v2/knowledge', {
+                    method: 'PATCH',
+                    body: formData
+                 });
+                 if (!attachRes.ok) console.warn(`Failed to attach ${f.name}`);
+              } catch (err) {
+                 console.error("Direct upload failed", err);
+                 // Fallback to legacy server upload if Vercel Blob token is missing
+                 const formData = new FormData();
+                 formData.append('id', noteId);
+                 formData.append('file', f.file);
+                 formData.append('action', 'attach');
+
+                 await fetch('/api/v2/knowledge', {
+                    method: 'PATCH',
+                    body: formData
+                 });
+              }
            }
         }
 
@@ -214,18 +237,38 @@ export default function KnowledgeBank() {
         const data = await res.json();
         if (!data.success) throw new Error(data.error);
 
-        // 2. Attach new files
+        // 2. Attach new files using Client-Side direct upload
         const newFiles = editingNote.files.filter(f => f.file);
         for (const f of newFiles) {
-           const attachData = new FormData();
-           attachData.append('id', editingNote.id);
-           attachData.append('file', f.file);
-           attachData.append('action', 'attach');
+           try {
+              const newBlob = await upload(`knowledge/${Date.now()}-${f.file.name}`, f.file, {
+                 access: 'public',
+                 handleUploadUrl: '/api/upload',
+              });
 
-           await fetch('/api/v2/knowledge', {
-              method: 'PATCH',
-              body: attachData
-           });
+              const attachData = new FormData();
+              attachData.append('id', editingNote.id);
+              attachData.append('url', newBlob.url);
+              attachData.append('name', f.file.name);
+              attachData.append('action', 'attach_url');
+
+              await fetch('/api/v2/knowledge', {
+                 method: 'PATCH',
+                 body: attachData
+              });
+           } catch (err) {
+              console.error("Direct upload failed", err);
+              // Legacy fallback
+              const attachData = new FormData();
+              attachData.append('id', editingNote.id);
+              attachData.append('file', f.file);
+              attachData.append('action', 'attach');
+
+              await fetch('/api/v2/knowledge', {
+                 method: 'PATCH',
+                 body: attachData
+              });
+           }
         }
 
         await fetchNotes();

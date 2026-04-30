@@ -102,6 +102,18 @@ export async function PATCH(req) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'attach_url') {
+      const url = formData.get("url");
+      const name = formData.get("name");
+      
+      await db.execute({
+        sql: "INSERT INTO v2_knowledge_attachments (note_id, name, url) VALUES (?, ?, ?)",
+        args: [Number(id), name, url]
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
     if (action === 'attach') {
       const file = formData.get("file");
       if (!file || !(file instanceof File)) {
