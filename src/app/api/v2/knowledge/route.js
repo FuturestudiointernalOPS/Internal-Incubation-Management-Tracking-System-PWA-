@@ -32,8 +32,9 @@ export async function POST(req) {
       sql: "INSERT INTO v2_knowledge_bank (title, description) VALUES (?, ?)",
       args: [title, description]
     });
-    const noteId = lastInsertRowid;
+    const noteId = lastInsertRowid.toString();
 
+    // Attach files sequentially
     for (const [key, value] of formData.entries()) {
       if (key.startsWith("file_") && value instanceof File) {
         const buffer = Buffer.from(await value.arrayBuffer());
