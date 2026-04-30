@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { put } from '@vercel/blob';
 
 export const config = {
   api: {
@@ -39,7 +40,6 @@ export async function POST(req) {
       if (key.startsWith("file_") && value instanceof File) {
         let finalUrl = "";
         if (process.env.BLOB_READ_WRITE_TOKEN) {
-           const { put } = require('@vercel/blob');
            const blob = await put(`knowledge/${Date.now()}-${value.name}`, value, { 
               access: 'public',
               token: process.env.BLOB_READ_WRITE_TOKEN
@@ -110,7 +110,6 @@ export async function PATCH(req) {
 
       let finalUrl = "";
       if (process.env.BLOB_READ_WRITE_TOKEN) {
-         const { put } = require('@vercel/blob');
          const blob = await put(`knowledge/${Date.now()}-${file.name}`, file, { 
              access: 'public',
              token: process.env.BLOB_READ_WRITE_TOKEN
