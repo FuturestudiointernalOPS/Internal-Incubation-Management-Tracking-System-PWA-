@@ -98,7 +98,7 @@ export async function POST(req) {
     if (finalRole === 'super_admin' || finalRole === 'program_manager') {
        return NextResponse.json({ 
          success: false, 
-         error: "Administrative access detected. Please use the secure /terminal for login." 
+         error: "Staff account detected. Please use the secure Future Studio Terminal at /terminal to log in." 
        }, { status: 403 });
     }
 
