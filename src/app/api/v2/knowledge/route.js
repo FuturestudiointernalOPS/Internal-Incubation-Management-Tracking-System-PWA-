@@ -41,7 +41,7 @@ export async function POST(req) {
         const base64 = buffer.toString('base64');
         await db.execute({
           sql: "INSERT INTO v2_knowledge_attachments (note_id, name, url) VALUES (?, ?, ?)",
-          args: [noteId, value.name, `data:${value.type};base64,${base64}`]
+          args: [Number(noteId), value.name, `data:${value.type};base64,${base64}`]
         });
       }
     }
@@ -101,7 +101,7 @@ export async function PATCH(req) {
       
       await db.execute({
         sql: "INSERT INTO v2_knowledge_attachments (note_id, name, url) VALUES (?, ?, ?)",
-        args: [id, file.name, `data:${file.type};base64,${base64}`]
+        args: [Number(id), file.name, `data:${file.type};base64,${base64}`]
       });
 
       return NextResponse.json({ success: true });
