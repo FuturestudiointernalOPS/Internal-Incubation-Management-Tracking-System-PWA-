@@ -23,11 +23,17 @@ export default function ProgramWorkspace() {
   const [loading, setLoading] = useState(true);
   
   // State Modules
+  const [user, setUser] = useState({});
   const [program, setProgram] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [teams, setTeams] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [submissions, setSubmissions] = useState([]);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) setUser(JSON.parse(savedUser));
+  }, []);
 
   const fetchProgramData = useCallback(async () => {
     setLoading(true);
@@ -59,7 +65,7 @@ export default function ProgramWorkspace() {
 
   if (loading) {
     return (
-      <DashboardLayout role="program_manager">
+      <DashboardLayout role={user.role || "program_manager"}>
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
           <div className="w-12 h-12 border-4 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">{t('loading')}</p>
@@ -77,7 +83,7 @@ export default function ProgramWorkspace() {
   ];
 
   return (
-    <DashboardLayout role="program_manager">
+    <DashboardLayout role={user.role || "program_manager"}>
       <div className="space-y-8 animate-in">
         
         {/* HEADER SECTION */}
@@ -91,16 +97,18 @@ export default function ProgramWorkspace() {
             <p className="text-[var(--text-secondary)] text-sm max-w-2xl">{program?.description}</p>
           </div>
           
-          <div className="flex gap-3">
-            <button className="btn btn-secondary gap-2">
-              <Shield className="w-4 h-4" />
-              Settings
-            </button>
-            <button className="btn btn-primary gap-2">
-              <Plus className="w-4 h-4" />
-              Deploy Node
-            </button>
-          </div>
+          {(user.role === 'super_admin' || user.role === 'program_manager') && (
+            <div className="flex gap-3">
+              <button className="btn btn-secondary gap-2">
+                <Shield className="w-4 h-4" />
+                Settings
+              </button>
+              <button className="btn btn-primary gap-2">
+                <Plus className="w-4 h-4" />
+                Deploy Node
+              </button>
+            </div>
+          )}
         </header>
 
         {/* TAB NAVIGATION */}
@@ -215,7 +223,9 @@ export default function ProgramWorkspace() {
                     <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
                       <Target className="w-6 h-6" />
                     </div>
-                    <button className="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                    {(user.role === 'super_admin' || user.role === 'program_manager') && (
+                      <button className="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                    )}
                   </div>
                   <h3 className="text-xl font-bold mb-2">{team.name}</h3>
                   <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider font-bold mb-6">Handler: {team.handler_name || 'Unassigned'}</p>
@@ -227,10 +237,12 @@ export default function ProgramWorkspace() {
                   </div>
                 </div>
               ))}
-              <button className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-60 hover:opacity-100 transition-all min-h-[200px]">
-                <Plus className="w-8 h-8 text-[var(--text-secondary)]" />
-                <span className="text-xs font-bold uppercase tracking-widest">Deploy New Squad</span>
-              </button>
+              {(user.role === 'super_admin' || user.role === 'program_manager') && (
+                <button className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-60 hover:opacity-100 transition-all min-h-[200px]">
+                  <Plus className="w-8 h-8 text-[var(--text-secondary)]" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Deploy New Squad</span>
+                </button>
+              )}
             </div>
           )}
 

@@ -120,7 +120,10 @@ const NAVIGATION_MATRIX = {
         { id: 'all_contacts', name: 'CONTACTS', href: '/admin/communications/contacts' },
     ]},
     { id: 'knowledge', name: 'KNOWLEDGE', icon: Library, href: '/admin/knowledge' },
-    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, subItems: [
+        { id: 'report_hub', name: 'REPORTS HUB', href: '/admin/reports' },
+        { id: 'report_responses', name: 'REPORT RESPONSES', href: '/admin/reports/responses' },
+    ]},
   ],
   admin: [
     { id: 'dashboard', name: 'DASHBOARD', icon: ShieldCheck, href: '/admin' },
@@ -144,6 +147,7 @@ const NAVIGATION_MATRIX = {
   ],
   teacher: [
     { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/teacher' },
+    { id: 'programs', name: 'PROGRAMS', icon: Briefcase, href: '/pm/programs' },
     { id: 'sessions', name: 'SESSIONS', icon: Calendar, href: '/teacher/sessions' },
     { id: 'reviews', name: 'SUBMISSIONS', icon: FileText, href: '/teacher/reviews' },
     { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },

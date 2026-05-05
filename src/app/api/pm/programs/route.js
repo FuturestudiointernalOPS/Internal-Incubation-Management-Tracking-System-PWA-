@@ -44,7 +44,7 @@ export async function GET(req) {
     
     const args = [showArchived ? 1 : 0];
     if (assignedPmId) {
-       query += " AND (p.assigned_pm_id = ? OR p.assigned_assistant_id LIKE ? OR p.id IN (SELECT program_id FROM v2_program_staff WHERE staff_id = ?))";
+       query += " AND (p.assigned_pm_id = ? OR p.assigned_assistant_id LIKE ? OR p.id IN (SELECT program_id FROM v2_teams WHERE handler_id = ?))";
        args.push(assignedPmId, `%${assignedPmId}%`, assignedPmId);
     }
 

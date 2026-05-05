@@ -13,14 +13,6 @@ export async function POST(req) {
 
     const cleanEmail = email.trim().toLowerCase();
     
-    // Check Super Admin hardcoded (Gwyn is the only Master)
-    if ((cleanEmail === 'superadmin' || cleanEmail === 'superadmin@impactos.com' || cleanEmail === 'gwyn.ukoha@gmail.com') && password === 'access-2026') {
-        return NextResponse.json({ 
-            success: true, 
-            user: { id: 'sa', name: 'Gwyn Ukoha', email: cleanEmail, role: 'super_admin' } 
-        });
-    }
-
     // Search Database for User
     const result = await db.execute({
       sql: "SELECT * FROM contacts WHERE (email = ? OR id = ?) AND deleted = 0 LIMIT 1",
@@ -72,14 +64,17 @@ export async function POST(req) {
     }
 
     // Check Assignments
-    const pmAssignment = await db.execute({
+    const pmLeadAssignment = await db.execute({
       sql: "SELECT id FROM v2_programs WHERE assigned_pm_id = ? LIMIT 1",
       args: [user.id || user.cid]
     });
 
-    const handlerAssignment = await db.execute({
-      sql: "SELECT id FROM v2_teams WHERE handler_id = ? LIMIT 1",
-      args: [user.id || user.cid]
+    const activeTeammateAssignment = await db.execute({
+      sql: `SELECT id FROM v2_programs WHERE assigned_assistant_id = ? 
+            UNION 
+            SELECT id FROM v2_teams WHERE handler_id = ? 
+            LIMIT 1`,
+      args: [user.id || user.cid, user.id || user.cid]
     });
 
     // --- STRATEGIC ROLE RESOLUTION (SINGLE-ADMIN HIERARCHY) ---
@@ -88,22 +83,22 @@ export async function POST(req) {
     if (isTeamLogin) {
       finalRole = 'team';
     } 
-    else if (user.email?.toLowerCase() === 'gwyn.ukoha@gmail.com' || user.id === 'sa') {
+    else if (user.role === 'super_admin' || user.id === 'sa') {
       finalRole = 'super_admin';
     } 
-    else if (pmAssignment.rows.length > 0) {
-      finalRole = 'program_manager';
+    else if (pmLeadAssignment.rows.length > 0) {
+      finalRole = 'program_manager'; // Project Manager (Head)
     } 
-    else if (user.role === 'project_manager' || user.group_name?.toUpperCase() === 'STAFF' || user.group_name?.toUpperCase() === 'FUTURE STUDIO') {
-      finalRole = 'staff'; // Staff without specific program assignments
-    } 
-    else if (handlerAssignment.rows.length > 0) {
-      finalRole = 'teacher'; 
+    else if (activeTeammateAssignment.rows.length > 0) {
+      finalRole = 'teacher'; // Active Teammate
     }
+    else if (user.role === 'project_manager' || user.group_name?.toUpperCase() === 'STAFF' || user.group_name?.toUpperCase() === 'FUTURE STUDIO') {
+      finalRole = 'staff'; // Ordinary Teammate / Operations Staff (Unassigned)
+    } 
 
     // --- ACCESS CONTROL GATE ---
     // If user is Staff/Admin and NOT logging in via Terminal, block them.
-    if ((finalRole === 'super_admin' || finalRole === 'program_manager' || finalRole === 'staff') && !isTerminal) {
+    if ((finalRole === 'super_admin' || finalRole === 'program_manager' || finalRole === 'staff' || finalRole === 'teacher') && !isTerminal) {
        return NextResponse.json({ 
          success: false, 
          error: "Staff account detected. Please use the secure Future Studio Terminal at /terminal to log in." 
