@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
   Users, Briefcase, Activity, CheckCircle2, ChevronRight, 
   ExternalLink, FileText, Mail, MessageCircle, MoreVertical, 
-  Plus, Search, Shield, Target, Zap, Clock, AlertCircle, Trash2, LayoutDashboard, X, Save
+  Plus, Search, Shield, Target, Zap, Clock, AlertCircle, Trash2, LayoutDashboard, X, Save, BarChart3
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
@@ -30,6 +30,7 @@ export default function ProgramWorkspace() {
   const [participants, setParticipants] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [requirements, setRequirements] = useState([]);
+  const [reports, setReports] = useState([]);
   const [kpis, setKpis] = useState([]);
   const [events, setEvents] = useState([]);
   const [assignedStaff, setAssignedStaff] = useState([]);
@@ -39,8 +40,11 @@ export default function ProgramWorkspace() {
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [showKPIModal, setShowKPIModal] = useState(false);
+  const [showRequirementModal, setShowRequirementModal] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [newTeam, setNewTeam] = useState({ name: '', handler_name: '' });
   const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending' });
+  const [newRequirement, setNewRequirement] = useState({ title: '', description: '', allowed_format: 'pdf' });
   const [newStaff, setNewStaff] = useState({ staff_id: '', role: 'teacher' });
   const [newKPI, setNewKPI] = useState({ title: '', target_value: 80 });
   const [toast, setToast] = useState(null);
@@ -113,6 +117,33 @@ export default function ProgramWorkspace() {
       const data = await res.json();
       if (data.success) { notify('Session added.'); setShowSessionModal(false); setNewSession({ title: '', week_number: 1, status: 'pending' }); fetchProgramData(); }
       else notify(data.error || 'Add failed.', 'error');
+    } catch (e) { notify('Network error.', 'error'); }
+    finally { setIsSaving(false); }
+  };
+
+  const addRequirement = async () => {
+    if (!newRequirement.title.trim()) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/pm/curriculum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_requirement',
+          program_id: id,
+          session_id: selectedSessionId,
+          title: newRequirement.title,
+          description: newRequirement.description,
+          allowed_format: newRequirement.allowed_format,
+        })
+      });
+      const data = await res.json();
+      if (data.success) { 
+        notify('Requirement anchored.'); 
+        setShowRequirementModal(false); 
+        setNewRequirement({ title: '', description: '', allowed_format: 'pdf' }); 
+        fetchProgramData(); 
+      } else notify(data.error || 'Failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
   };
@@ -204,6 +235,7 @@ export default function ProgramWorkspace() {
         setEvents(res.events || []);
         setAssignedStaff(res.assignedStaff || []);
         setStaffList(res.staffList || []);
+        setReports(res.reports || []);
       }
     } catch (error) {
       console.error("Operational Fetch Failure:", error);
@@ -229,11 +261,14 @@ export default function ProgramWorkspace() {
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: LayoutDashboard },
+    { id: 'config', name: 'Configuration', icon: Shield },
     { id: 'curriculum', name: 'Curriculum', icon: FileText },
+    { id: 'reports', name: 'Reports', icon: BarChart3 },
+
     { id: 'teams', name: 'Teams', icon: Target },
     { id: 'participants', name: 'Participants', icon: Users },
     { id: 'submissions', name: 'Submissions', icon: Activity },
-    { id: 'config', name: 'Configuration', icon: Shield },
+
   ];
 
   return (
@@ -433,7 +468,10 @@ export default function ProgramWorkspace() {
                     <div className="p-6 space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Associated Deliverables</span>
-                        <button className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline">+ Requirement</button>
+                        <button 
+                          onClick={() => { setSelectedSessionId(session.id); setShowRequirementModal(true); }}
+                          className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+                        >+ Requirement</button>
                       </div>
                       <div className="space-y-2">
                         {requirements.filter(r => r.session_id === session.id).map(req => (
@@ -545,6 +583,72 @@ export default function ProgramWorkspace() {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'reports' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black uppercase tracking-tighter">Weekly Intelligence Feed</h3>
+                <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Total Signals:</span>
+                   <span className="text-sm font-black">{reports.length}</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {reports.map((report, i) => (
+                  <div key={report.id || i} className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all">
+                    <div className="p-4 bg-[var(--bg-tertiary)] flex justify-between items-center border-b border-[var(--border-primary)]">
+                       <div className="flex items-center gap-4">
+                          <div className="px-3 py-1 bg-[var(--brand-orange)] text-white text-[10px] font-black rounded uppercase">
+                             Week {report.week_number}
+                          </div>
+                          <span className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
+                             Submission by {report.teacher_name || 'Teacher'}
+                          </span>
+                       </div>
+                       <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+                          {new Date(report.created_at).toLocaleDateString()}
+                       </span>
+                    </div>
+                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                       <div className="space-y-4">
+                          <div>
+                             <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] mb-1">Challenges & Blockers</p>
+                             <p className="text-xs text-[var(--text-primary)] leading-relaxed">{report.challenges || 'No data reported.'}</p>
+                          </div>
+                          <div>
+                             <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-1">Highlights & Successes</p>
+                             <p className="text-xs text-[var(--text-primary)] leading-relaxed">{report.highlights || 'No data reported.'}</p>
+                          </div>
+                       </div>
+                       <div className="space-y-4">
+                          <div>
+                             <p className="text-[9px] font-black uppercase tracking-widest text-blue-500 mb-1">Strategic Next Steps</p>
+                             <p className="text-xs text-[var(--text-primary)] leading-relaxed">{report.next_steps || 'No data reported.'}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 pt-2">
+                             <div className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
+                                <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase">Attendance</p>
+                                <p className="text-sm font-black">{report.attendance_count || 0}</p>
+                             </div>
+                             <div className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
+                                <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase">Sessions</p>
+                                <p className="text-sm font-black">{report.sessions_completed || 0}</p>
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+                  </div>
+                ))}
+                {reports.length === 0 && (
+                   <div className="py-20 text-center card border-dashed opacity-40">
+                      <BarChart3 className="w-10 h-10 mx-auto mb-4 opacity-20" />
+                      <p className="text-xs font-bold uppercase tracking-widest">Awaiting initial intelligence reports...</p>
+                   </div>
+                )}
               </div>
             </div>
           )}
@@ -707,6 +811,37 @@ export default function ProgramWorkspace() {
             <div className="flex gap-3">
               <button onClick={() => setShowKPIModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
               <button onClick={addKPI} disabled={isSaving || !newKPI.title.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Defining...' : 'Define'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ANCHOR REQUIREMENT MODAL */}
+      {showRequirementModal && (
+        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowRequirementModal(false)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Anchor Requirement</h3>
+              <button onClick={() => setShowRequirementModal(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Requirement Title</label>
+                <input value={newRequirement.title} onChange={e => setNewRequirement(p => ({...p, title: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Project Proposal PDF" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Allowed Format</label>
+                <select value={newRequirement.allowed_format} onChange={e => setNewRequirement(p => ({...p, allowed_format: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+                   <option value="pdf">PDF Document</option>
+                   <option value="image">Image File</option>
+                   <option value="link">External Link</option>
+                   <option value="video">Video Upload</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowRequirementModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={addRequirement} disabled={isSaving || !newRequirement.title.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Anchoring...' : 'Anchor'}</button>
             </div>
           </div>
         </div>

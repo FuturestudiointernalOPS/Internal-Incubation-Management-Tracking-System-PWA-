@@ -10,7 +10,7 @@ export async function GET(req) {
     if (!id) return NextResponse.json({ success: false, error: "ID required" });
 
     // Parallel Database Execution on the EDGE/Cloud
-    const [progRes, parRes, teamRes, sesRes, staffRes, eventRes, kpiRes, docRes, folRes, assignedStaffRes, subRes] = await Promise.all([
+    const [progRes, parRes, teamRes, sesRes, staffRes, eventRes, kpiRes, docRes, folRes, assignedStaffRes, subRes, repRes] = await Promise.all([
       db.execute({ 
         sql: `SELECT p.*, 
                      k.title as note_title, k.url as note_files, k.description as note_description,
@@ -45,7 +45,8 @@ export async function GET(req) {
               WHERE ps.program_id = ?`, 
         args: [id] 
       }),
-      db.execute({ sql: "SELECT * FROM v2_submissions WHERE program_id = ?", args: [id] })
+      db.execute({ sql: "SELECT * FROM v2_submissions WHERE program_id = ?", args: [id] }),
+      db.execute({ sql: "SELECT * FROM v2_weekly_reports WHERE program_id = ? ORDER BY week_number DESC", args: [id] })
     ]);
 
     const program = progRes.rows[0];
@@ -90,7 +91,8 @@ export async function GET(req) {
       documents: docRes.rows,
       followups: folRes.rows,
       assignedStaff: assignedStaff,
-      submissions: subRes.rows
+      submissions: subRes.rows,
+      reports: repRes.rows
     });
 
   } catch (error) {
