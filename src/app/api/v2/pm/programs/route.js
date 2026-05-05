@@ -21,10 +21,10 @@ export async function GET(req) {
              (SELECT COUNT(*) FROM v2_weekly_reports WHERE program_id = p.id) as reports_count,
              (SELECT 
                 ( (COUNT(CASE WHEN s.status = 'completed' THEN 1 END) * 5.0) + 
-                  (IFNULL((SELECT SUM(is_completed) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) +
-                  (IFNULL((SELECT COUNT(DISTINCT week_number) * 10.0 FROM v2_weekly_reports WHERE program_id = p.id), 0))
+                  (COALESCE((SELECT SUM(is_completed) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) +
+                  (COALESCE((SELECT COUNT(DISTINCT week_number) * 10.0 FROM v2_weekly_reports WHERE program_id = p.id), 0))
                 ) / 
-                ( (COUNT(s.id) * 5.0 + IFNULL((SELECT COUNT(*) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) + (p.duration_weeks * 10.0) + 0.0001
+                ( (COUNT(s.id) * 5.0 + COALESCE((SELECT COUNT(*) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) + (p.duration_weeks * 10.0) + 0.0001
                 ) * 100.0
               FROM v2_sessions s WHERE s.program_id = p.id
              ) as completion_index

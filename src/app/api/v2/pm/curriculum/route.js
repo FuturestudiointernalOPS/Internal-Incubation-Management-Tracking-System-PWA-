@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server';
-import { initDb } from '@/lib/db';
+import db, { initDb } from '@/lib/db';
 
 export async function POST(req) {
    try {
-      const db = await initDb();
+    await initDb();
       const payload = await req.json();
       const { program_id, action } = payload;
 
@@ -64,7 +63,7 @@ export async function POST(req) {
 
 export async function PUT(req) {
    try {
-      const db = await initDb();
+    await initDb();
       const { id, title, description, status, week_number, type, allowed_format, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name } = await req.json();
       
       if (type === 'session') {
@@ -88,7 +87,7 @@ export async function PUT(req) {
 
 export async function DELETE(req) {
    try {
-      const db = await initDb();
+    await initDb();
       const { id, type } = await req.json();
 
       if (type === 'session') {
