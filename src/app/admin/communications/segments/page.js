@@ -146,7 +146,7 @@ export default function SegmentsPage() {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
            detail: { type: 'success', message: 'Campaign started.' } 
         }));
-        router.push('/superadmin/communications/campaigns');
+        router.push('/admin/communications/campaigns');
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
            detail: { type: 'error', message: data.error } 
