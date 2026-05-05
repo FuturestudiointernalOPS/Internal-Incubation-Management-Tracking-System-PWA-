@@ -54,6 +54,17 @@ export async function POST(req) {
          return NextResponse.json({ success: true });
       }
 
+      if (action === 'submit_pm_report') {
+         const { session_id, week_number, summary, status, pm_id } = payload;
+         await db.execute({
+            sql: `INSERT INTO v2_weekly_reports 
+                  (program_id, week_number, teacher_id, teacher_name, report_type, summary, status) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: [program_id, week_number, pm_id, 'Program Manager', 'pm', summary, status]
+         });
+         return NextResponse.json({ success: true });
+      }
+
       return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
 
    } catch (e) {

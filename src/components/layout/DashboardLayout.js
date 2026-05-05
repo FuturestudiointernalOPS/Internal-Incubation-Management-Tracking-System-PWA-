@@ -216,8 +216,9 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      if (role === 'program_manager') {
-         fetch('/api/pm/programs?assigned_pm_id=' + (parsedUser.cid || parsedUser.id))
+      if (parsedUser.role === 'program_manager' || parsedUser.role === 'super_admin') {
+         const url = parsedUser.role === 'super_admin' ? '/api/pm/programs' : '/api/pm/programs?assigned_pm_id=' + (parsedUser.cid || parsedUser.id);
+         fetch(url)
            .then(res => res.json())
            .then(data => {
               if (data.success) setPmPrograms(data.programs || []);
@@ -236,14 +237,25 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
     const activeRole = user.role || role || 'admin';
     const items = [...(NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin)];
     
-    if (activeRole === 'program_manager' && pmPrograms.length > 0) {
+    if ((activeRole === 'program_manager' || activeRole === 'super_admin') && pmPrograms.length > 0) {
       const progIndex = items.findIndex(i => i.id === 'programs');
       if (progIndex !== -1) {
+        const baseSubItems = activeRole === 'super_admin' ? [
+          { id: 'list_programs', name: 'ALL PROGRAMS', href: '/admin/programs' },
+          { id: 'create_program', name: 'CREATE PROGRAM', href: '/admin/programs/new' }
+        ] : [
+          { id: 'all_programs', name: 'OVERVIEW', href: '/pm/programs' }
+        ];
+
         items[progIndex] = {
           ...items[progIndex],
           subItems: [
-            { id: 'all_programs', name: 'OVERVIEW', href: '/pm/programs' },
-            ...pmPrograms.map(p => ({ id: `prog_${p.id}`, name: p.name, href: `/pm/programs/${p.id}` }))
+            ...baseSubItems,
+            ...pmPrograms.map(p => ({ 
+              id: `prog_${p.id}`, 
+              name: p.name, 
+              href: activeRole === 'super_admin' ? `/admin/programs/${p.id}` : `/pm/programs/${p.id}` 
+            }))
           ]
         };
       }

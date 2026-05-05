@@ -11,7 +11,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
 
 /**
- * IMPACTOS OPERATIONAL CONTROL ÔÇö PROGRAM WORKSPACE
+ * IMPACTOS OPERATIONAL CONTROL — PROGRAM WORKSPACE
  * Performance-first, modular data loading, and clean data-first UI.
  */
 
@@ -36,18 +36,23 @@ export default function ProgramWorkspace() {
   const [assignedStaff, setAssignedStaff] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [showKPIModal, setShowKPIModal] = useState(false);
   const [showRequirementModal, setShowRequirementModal] = useState(false);
+  const [showPMReportModal, setShowPMReportModal] = useState(false);
+  
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [newTeam, setNewTeam] = useState({ name: '', handler_name: '' });
   const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending' });
   const [newRequirement, setNewRequirement] = useState({ title: '', description: '', allowed_format: 'pdf' });
+  const [newPMReport, setNewPMReport] = useState({ summary: '', status: 'optimal' });
   const [newStaff, setNewStaff] = useState({ staff_id: '', role: 'teacher' });
   const [newKPI, setNewKPI] = useState({ title: '', target_value: 80 });
   const [toast, setToast] = useState(null);
+  
   const configNameRef = useRef(null);
   const configDescRef = useRef(null);
   const configWeeksRef = useRef(null);
@@ -93,7 +98,12 @@ export default function ProgramWorkspace() {
         body: JSON.stringify({ ...newTeam, program_id: id })
       });
       const data = await res.json();
-      if (data.success) { notify('Squad deployed.'); setShowTeamModal(false); setNewTeam({ name: '', handler_name: '' }); fetchProgramData(); }
+      if (data.success) { 
+        notify('Squad deployed.'); 
+        setShowTeamModal(false); 
+        setNewTeam({ name: '', handler_name: '' }); 
+        fetchProgramData(); 
+      }
       else notify(data.error || 'Deploy failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -142,6 +152,34 @@ export default function ProgramWorkspace() {
         notify('Requirement anchored.'); 
         setShowRequirementModal(false); 
         setNewRequirement({ title: '', description: '', allowed_format: 'pdf' }); 
+        fetchProgramData(); 
+      } else notify(data.error || 'Failed.', 'error');
+    } catch (e) { notify('Network error.', 'error'); }
+    finally { setIsSaving(false); }
+  };
+
+  const submitPMReport = async () => {
+    if (!newPMReport.summary.trim()) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/pm/curriculum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'submit_pm_report',
+          program_id: id,
+          session_id: selectedSessionId,
+          week_number: sessions.find(s => s.id === selectedSessionId)?.week_number,
+          summary: newPMReport.summary,
+          status: newPMReport.status,
+          pm_id: user.cid || user.id
+        })
+      });
+      const data = await res.json();
+      if (data.success) { 
+        notify('Weekly report transmitted.'); 
+        setShowPMReportModal(false); 
+        setNewPMReport({ summary: '', status: 'optimal' }); 
         fetchProgramData(); 
       } else notify(data.error || 'Failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
@@ -264,11 +302,9 @@ export default function ProgramWorkspace() {
     { id: 'config', name: 'Configuration', icon: Shield },
     { id: 'curriculum', name: 'Curriculum', icon: FileText },
     { id: 'reports', name: 'Reports', icon: BarChart3 },
-
     { id: 'teams', name: 'Teams', icon: Target },
     { id: 'participants', name: 'Participants', icon: Users },
     { id: 'submissions', name: 'Submissions', icon: Activity },
-
   ];
 
   return (
@@ -468,10 +504,16 @@ export default function ProgramWorkspace() {
                     <div className="p-6 space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Associated Deliverables</span>
-                        <button 
-                          onClick={() => { setSelectedSessionId(session.id); setShowRequirementModal(true); }}
-                          className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline"
-                        >+ Requirement</button>
+                        <div className="flex gap-4">
+                          <button 
+                            onClick={() => { setSelectedSessionId(session.id); setShowPMReportModal(true); }}
+                            className="text-[10px] font-black text-emerald-500 uppercase hover:underline"
+                          >PM Report</button>
+                          <button 
+                            onClick={() => { setSelectedSessionId(session.id); setShowRequirementModal(true); }}
+                            className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+                          >+ Requirement</button>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         {requirements.filter(r => r.session_id === session.id).map(req => (
@@ -716,8 +758,13 @@ export default function ProgramWorkspace() {
                 <input value={newTeam.name} onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Alpha Squad" />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Handler Name</label>
-                <input value={newTeam.handler_name} onChange={e => setNewTeam(p => ({...p, handler_name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Jane Doe" />
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assigned Handler</label>
+                <select value={newTeam.handler_name} onChange={e => setNewTeam(p => ({...p, handler_name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+                   <option value="">Select Staff...</option>
+                   {assignedStaff.map(s => (
+                     <option key={s.cid} value={s.name}>{s.name} ({s.role})</option>
+                   ))}
+                </select>
               </div>
             </div>
             <div className="flex gap-3">
@@ -842,6 +889,37 @@ export default function ProgramWorkspace() {
             <div className="flex gap-3">
               <button onClick={() => setShowRequirementModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
               <button onClick={addRequirement} disabled={isSaving || !newRequirement.title.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Anchoring...' : 'Anchor'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PM WEEKLY REPORT MODAL */}
+      {showPMReportModal && (
+        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowPMReportModal(false)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Weekly PM Intelligence</h3>
+              <button onClick={() => setShowPMReportModal(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Project Status Summary</label>
+                <textarea value={newPMReport.summary} onChange={e => setNewPMReport(p => ({...p, summary: e.target.value}))} rows="5" className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]" placeholder="How did this week's topic go? Any tactical successes or blockers?" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Strategic Health</label>
+                <select value={newPMReport.status} onChange={e => setNewPMReport(p => ({...p, status: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+                   <option value="optimal">OPTIMAL</option>
+                   <option value="stable">STABLE</option>
+                   <option value="at_risk">AT RISK</option>
+                   <option value="critical">CRITICAL</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowPMReportModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={submitPMReport} disabled={isSaving || !newPMReport.summary.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Transmitting...' : 'Submit to Super Admin'}</button>
             </div>
           </div>
         </div>

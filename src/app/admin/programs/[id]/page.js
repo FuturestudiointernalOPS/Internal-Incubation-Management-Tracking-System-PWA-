@@ -356,22 +356,45 @@ export default function SuperAdminExecutiveView({ params }) {
                           </div>
 
                           {/* REPORT CONTENT */}
-                          {weekReports.length > 0 && (
-                             <div className="mt-10 p-8 rounded-3xl bg-white/[0.03] border border-white/5 space-y-6">
-                                <div className="flex items-center gap-3 mb-2">
-                                   <MessageSquare className="w-4 h-4 text-[#FF6600]" />
-                                   <p className="text-[10px] font-black text-white uppercase tracking-widest">Weekly Summary</p>
-                                </div>
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                   <div className="space-y-2">
-                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Progress Notes</p>
-                                      <p className="text-sm text-slate-200 font-bold leading-relaxed">{weekReports[0].progress_notes}</p>
+                          {(weekReports.length > 0) && (
+                             <div className="mt-10 space-y-6">
+                                {weekReports.map((report, rIdx) => (
+                                   <div key={`report-${report.id || rIdx}`} className="p-8 rounded-3xl bg-white/[0.03] border border-white/5 space-y-6">
+                                      <div className="flex items-center justify-between">
+                                         <div className="flex items-center gap-3">
+                                            <MessageSquare className={`w-4 h-4 ${report.report_type === 'pm' ? 'text-[var(--brand-orange)]' : 'text-emerald-500'}`} />
+                                            <p className="text-[10px] font-black text-white uppercase tracking-widest">
+                                               {report.report_type === 'pm' ? 'PM Intelligence Report' : 'Teacher Progress Report'}
+                                            </p>
+                                         </div>
+                                         <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">
+                                            Submitted by {report.teacher_name}
+                                         </span>
+                                      </div>
+                                      
+                                      {report.report_type === 'pm' ? (
+                                         <div className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                               <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${report.status === 'on-track' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                                  {report.status}
+                                               </span>
+                                            </div>
+                                            <p className="text-sm text-slate-200 font-bold leading-relaxed">{report.summary}</p>
+                                         </div>
+                                      ) : (
+                                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                            <div className="space-y-2">
+                                               <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Progress Notes</p>
+                                               <p className="text-sm text-slate-200 font-bold leading-relaxed">{report.progress_notes}</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                               <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Action Plan</p>
+                                               <p className="text-sm text-slate-200 font-bold leading-relaxed">{report.action_taken}</p>
+                                            </div>
+                                         </div>
+                                      )}
                                    </div>
-                                   <div className="space-y-2">
-                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Action Plan</p>
-                                      <p className="text-sm text-slate-200 font-bold leading-relaxed">{weekReports[0].action_taken}</p>
-                                   </div>
-                                </div>
+                                ))}
                              </div>
                           )}
 
