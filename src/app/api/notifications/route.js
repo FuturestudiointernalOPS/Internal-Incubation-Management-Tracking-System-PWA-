@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
@@ -9,38 +9,50 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req) {
   try {
-    await initDb();
     const { searchParams } = new URL(req.url);
     const recipientId = searchParams.get('recipient_id') || 'sa';
 
-    // Fetch unread notifications for the admin
-    const result = await db.execute({
-      sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? AND is_read = FALSE ORDER BY created_at DESC",
-      args: [recipientId]
-    });
+    // Fetch unread notifications using the Supabase SDK (more reliable on Vercel)
+    const { data, error } = await supabaseAdmin
+      .from('v2_notifications')
+      .select('*')
+      .eq('recipient_id', recipientId)
+      .eq('is_read', false)
+      .order('created_at', { ascending: false });
 
-    return NextResponse.json({ success: true, notifications: result.rows });
+    if (error) {
+      console.error("Supabase Query Error:", error);
+      throw new Error(error.message);
+    }
+
+    return NextResponse.json({ success: true, notifications: data || [] });
   } catch (error) {
     console.error("GET Notifications Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message,
+      hint: "Check if the v2_notifications table and is_read column exist in Supabase." 
+    }, { status: 500 });
   }
 }
 
 export async function PATCH(req) {
   try {
-    await initDb();
     const { id, action } = await req.json();
 
     if (action === 'read') {
-      await db.execute({
-        sql: "UPDATE v2_notifications SET is_read = TRUE WHERE id = ?",
-        args: [id]
-      });
+      const { error } = await supabaseAdmin
+        .from('v2_notifications')
+        .update({ is_read: true })
+        .eq('id', id);
+
+      if (error) throw error;
       return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
   } catch (error) {
+    console.error("PATCH Notifications Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
