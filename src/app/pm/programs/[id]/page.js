@@ -41,10 +41,10 @@ export default function ProgramWorkspace() {
       // Parallel Modular Fetching (< 1.5s Load Target)
       const [progRes, sessionRes, teamRes, partRes, subRes] = await Promise.all([
         fetch(`/api/pm/programs/${id}`).then(res => res.json()),
-        fetch(`/api/pm/sessions?program_id=${id}`).then(res => res.json()),
+        fetch(`/api/sessions?program_id=${id}`).then(res => res.json()),
         fetch(`/api/pm/teams?program_id=${id}`).then(res => res.json()),
         fetch(`/api/participants?program_id=${id}`).then(res => res.json()),
-        fetch(`/api/pm/submissions?program_id=${id}`).then(res => res.json())
+        fetch(`/api/submissions?program_id=${id}`).then(res => res.json())
       ]);
 
       if (progRes.success) setProgram(progRes.program);
