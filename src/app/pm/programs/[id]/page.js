@@ -508,17 +508,19 @@ export default function ProgramWorkspace() {
 
       {/* TOAST */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-[500] px-6 py-4 rounded-2xl shadow-2xl text-sm font-black uppercase tracking-widest transition-all ${
-          toast.type === 'error' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+        <div className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${
+          toast.type === 'error'
+            ? 'bg-rose-50 text-rose-700 border-rose-200'
+            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
         }`}>{toast.msg}</div>
       )}
 
       {/* DEPLOY SQUAD MODAL */}
       {showTeamModal && (
-        <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-6" onClick={() => setShowTeamModal(false)}>
-          <div className="w-full max-w-sm rounded-2xl p-8 space-y-6 shadow-2xl" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowTeamModal(false)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Deploy New Squad</h3>
+              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Deploy New Squad</h3>
               <button onClick={() => setShowTeamModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
@@ -541,10 +543,10 @@ export default function ProgramWorkspace() {
 
       {/* ADD SESSION MODAL */}
       {showSessionModal && (
-        <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-6" onClick={() => setShowSessionModal(false)}>
-          <div className="w-full max-w-sm rounded-2xl p-8 space-y-6 shadow-2xl" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowSessionModal(false)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Add Session</h3>
+              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Add Session</h3>
               <button onClick={() => setShowSessionModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
