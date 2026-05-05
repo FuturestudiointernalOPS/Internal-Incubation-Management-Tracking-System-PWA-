@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+export const dynamic = "force-dynamic";
 
 /**
  * CONTACTS API — PERSONNEL REGISTRY
