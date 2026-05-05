@@ -1,91 +1,67 @@
-import { createClient } from "@libsql/client";
 import { Pool } from 'pg';
 
 /**
- * IMPACTOS DATA ARCHITECTURE — UNIFIED DB ENGINE
- * Hardened for Supabase/PostgreSQL with explicit parameter mapping.
+ * IMPACTOS DATA ARCHITECTURE — UNIFIED DB ENGINE (SUPABASE EDITION)
+ * Optimized exclusively for Supabase/PostgreSQL.
  */
 
-const isPostgres = !!process.env.DATABASE_URL;
-
 // SECURE PARAMETER EXTRACTION
-// We manually parse the URL to extract parts, bypassing the sensitive URL parser that crashes on special characters.
 let pgConfig = null;
-if (isPostgres) {
-  try {
-    const dbUrl = process.env.DATABASE_URL;
-    
-    // Regex to extract: user, password, host, port, database
-    // postgresql://user:password@host:port/database
-    const regex = /postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/;
-    const match = dbUrl.match(regex);
+const dbUrl = process.env.DATABASE_URL;
 
-    if (match) {
-      pgConfig = {
-        user: match[1],
-        password: decodeURIComponent(match[2]), // Handle both encoded and raw
-        host: match[3],
-        port: parseInt(match[4]),
-        database: match[5],
-        ssl: { rejectUnauthorized: false },
-        max: 20,
-      };
-    } else {
-      // Fallback to connection string if regex fails (should not happen with standard Supabase URLs)
-      pgConfig = {
-        connectionString: dbUrl,
-        ssl: { rejectUnauthorized: false },
-      };
-    }
+if (!dbUrl) {
+  console.warn("CRITICAL: DATABASE_URL is missing. The system will fail to connect to Supabase.");
+} else {
+  try {
+    // We use a simplified configuration for Supabase
+    pgConfig = {
+      connectionString: dbUrl,
+      ssl: { rejectUnauthorized: false },
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    };
   } catch (e) {
-    console.error("DB Initialization Error:", e.message);
+    console.error("DB Configuration Error:", e.message);
   }
 }
 
 const pgPool = pgConfig ? new Pool(pgConfig) : null;
 
-const libsqlClient = !isPostgres ? createClient({
-  url: process.env.TURSO_DATABASE_URL || "file:local.db",
-  authToken: process.env.TURSO_AUTH_TOKEN
-}) : null;
-
 export const initDb = async () => {
+  if (!pgPool) throw new Error("Database not initialized. Check DATABASE_URL.");
   return true;
 };
 
 const db = {
   execute: async (queryObj) => {
+    if (!pgPool) throw new Error("Database connection pool is offline.");
+
     const sql = typeof queryObj === 'string' ? queryObj : queryObj.sql;
     const args = queryObj.args || [];
 
-    if (isPostgres && pgPool) {
-      try {
-        let count = 0;
-        const pgSql = sql.replace(/\?/g, () => {
-          count++;
-          return `$${count}`;
-        });
-        
-        const result = await pgPool.query(pgSql, args);
-        
-        return {
-          rows: result.rows,
-          columns: result.fields ? result.fields.map(f => f.name) : [],
-          rowsAffected: result.rowCount,
-          lastInsertRowid: result.rows[0]?.id || null
-        };
-      } catch (err) {
-        console.error("Supabase PG Error:", err.message);
-        throw err;
-      }
-    } else {
-      const res = await libsqlClient.execute({ sql, args });
+    try {
+      // Standardize parameter markers from ? (SQLite) to $1, $2 (PostgreSQL)
+      let count = 0;
+      const pgSql = sql.replace(/\?/g, () => {
+        count++;
+        return `$${count}`;
+      });
+      
+      const result = await pgPool.query(pgSql, args);
+      
       return {
-        ...res,
-        lastInsertRowid: res.lastInsertRowid
+        rows: result.rows,
+        columns: result.fields ? result.fields.map(f => f.name) : [],
+        rowsAffected: result.rowCount,
+        lastInsertRowid: result.rows[0]?.id || null
       };
+    } catch (err) {
+      console.error("Supabase DB Error:", err.message);
+      throw err;
     }
   }
 };
 
 export default db;
+

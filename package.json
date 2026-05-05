@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.2",
     "@supabase/supabase-js": "^2.48.1",
     "@vercel/blob": "^2.3.3",
     "axios": "^1.7.9",
