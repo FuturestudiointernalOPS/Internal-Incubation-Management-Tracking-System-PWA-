@@ -67,7 +67,9 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
                           onClick={() => setMobileMenuOpen(false)}
                           className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide ${isSubActive ? 'text-[var(--brand-orange)] bg-[var(--bg-tertiary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
                         >
-                          <span className="truncate">{t(subItem.id) || subItem.name}</span>
+                          <span className="truncate">
+                            {subItem.id?.startsWith('prog_') ? subItem.name : (t(subItem.id) || subItem.name)}
+                          </span>
                         </Link>
                       );
                     })}
