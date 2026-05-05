@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 export async function GET() {
   try {
     await initDb();
-    const result = await db.execute("SELECT * FROM forms ORDER BY created_at DESC");
+    const result = await db.execute("SELECT * FROM forms WHERE deleted = 0 OR deleted IS NULL ORDER BY created_at DESC");
     
     // Parse JSON schemas if needed. In client it's better to stay clean.
     const formsWithParsedSchemas = result.rows.map(row => ({
@@ -51,6 +51,25 @@ export async function PUT(req) {
     await db.execute({
       sql: "UPDATE forms SET name = ?, schema = ?, group_name = ? WHERE form_id = ?",
       args: [name, JSON.stringify(schema), group_name || null, form_id]
+    });
+    
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req) {
+  try {
+    await initDb();
+    const data = await req.json();
+    const { form_id } = data;
+    
+    if (!form_id) return NextResponse.json({ success: false, error: "Form ID required" }, { status: 400 });
+
+    await db.execute({
+      sql: "UPDATE forms SET deleted = 1 WHERE form_id = ?",
+      args: [form_id]
     });
     
     return NextResponse.json({ success: true });

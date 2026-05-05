@@ -3,57 +3,69 @@ import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
+/**
+ * CONTACTS API — PERSONNEL REGISTRY
+ * Hardened for Gated Onboarding and Real-time Alerts.
+ */
+
 export async function POST(req) {
   try {
     await initDb();
-    const data = await req.json();
-    const contacts = Array.isArray(data) ? data : [data];
+    const body = await req.json();
+    const contacts = Array.isArray(body) ? body : [body];
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    console.log("--- CONTACT REGISTRATION START ---", { count: contacts.length });
+
     const validContacts = [];
     const errors = [];
     
     for (const c of contacts) {
-      if (!c.email || !emailRegex.test(c.email)) {
-        errors.push({ email: c.email, error: 'Invalid email format' });
-        continue;
-      }
-      if (!c.name) {
-        errors.push({ email: c.email, error: 'Name is required' });
+      // Mapping for Public Application Form
+      const rawName = c.name || c.fullName || 'Unknown Applicant';
+      const rawEmail = (c.email || '').toLowerCase().trim();
+      
+      if (!rawEmail) {
+        errors.push({ name: rawName, error: 'Email is required' });
         continue;
       }
       
       const cid = "USER_" + uuidv4().split('-')[0].toUpperCase() + Math.floor(Math.random() * 10000);
 
-      // --- AUTONOMOUS CREDENTIAL PROVISIONING ---
-      // Staff (Future Studio Staff) -> FSSXXXXX
-      // Participant (Future Studio Participant) -> FSPXXXXX
-      // General -> FSXXXXX
-      
+      // Credential Provisioning
       let finalPassword = c.password;
       if (!finalPassword) {
          const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
          const prefix = c.role === 'staff' ? 'FSS' : (c.role === 'participant' ? 'FSP' : 'FS');
          finalPassword = `${prefix}${randomStr}`;
       }
-
       const hashedPassword = await bcrypt.hash(finalPassword, 10);
+
+      // Gated Status Logic
+      const groupName = c.group_name || 'unassigned';
+      const isInternal = groupName.toUpperCase() === 'FUTURE STUDIO';
+      const initialStatus = isInternal ? 'pending' : 'approved';
+      
+      // Strict Role Normalization
+      let finalRole = c.role;
+      if (!finalRole || finalRole === 'unassigned') {
+         finalRole = isInternal ? 'staff' : 'unassigned';
+      }
 
       validContacts.push({
         cid,
-        name: (c.name || c.fullName || '').trim(),
-        email: (c.email || '').toLowerCase().trim(),
+        name: rawName.trim(),
+        email: rawEmail,
         phone: c.phone || null,
-        address: c.address || null,
+        address: c.address || c.homeAddress || null,
         dob: c.dob || null,
-        group_name: c.group_name || null,
-        role: c.role || 'unassigned',
+        group_name: groupName,
+        role: finalRole,
         password: hashedPassword,
         program_id: c.program_id || null,
         program_name: c.program_name || null,
         image: c.image || null,
-        status: c.status || 'approved',
-        deleted: !!c.deleted,
+        status: initialStatus,
+        deleted: 0,
         gender: c.gender || null,
         mother_name: c.mother_name || null
       });
@@ -62,40 +74,55 @@ export async function POST(req) {
     let inserted = 0;
     for (const vc of validContacts) {
       try {
+        console.log(`Saving contact: ${vc.email} as ${vc.status}`);
+        
         await db.execute({
           sql: `INSERT INTO contacts (
                   cid, name, email, phone, address, dob, group_name, 
                   role, password, program_id, program_name, image, status, deleted, gender, mother_name
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
                 ON CONFLICT(email) DO UPDATE SET 
-                  name = excluded.name, 
-                  phone = excluded.phone, 
-                  address = excluded.address,
-                  dob = excluded.dob,
-                  group_name = excluded.group_name,
-                  role = excluded.role,
-                  password = excluded.password,
-                  program_id = excluded.program_id,
-                  program_name = excluded.program_name,
-                  image = excluded.image,
-                  status = excluded.status,
-                  deleted = excluded.deleted,
-                  gender = excluded.gender,
-                  mother_name = excluded.mother_name`,
+                  name = EXCLUDED.name, 
+                  phone = EXCLUDED.phone, 
+                  address = EXCLUDED.address,
+                  status = EXCLUDED.status,
+                  role = EXCLUDED.role,
+                  group_name = EXCLUDED.group_name`,
           args: [
             vc.cid, vc.name, vc.email, vc.phone, vc.address, vc.dob, vc.group_name,
-            vc.role, vc.password, vc.program_id, vc.program_name, vc.image, vc.status, vc.deleted ? 1 : 0, vc.gender, vc.mother_name
+            vc.role, vc.password, vc.program_id, vc.program_name, vc.image, vc.status, vc.deleted, vc.gender, vc.mother_name
           ]
         });
+
+        if (vc.status === 'pending') {
+           console.log("Triggering Admin Notification for:", vc.name);
+           await db.execute({
+              sql: `INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)`,
+              args: [
+                 'sa', 
+                 'NEW ACCESS REQUEST',
+                 `${vc.name} has applied to join the FUTURE STUDIO group. Verification required.`,
+                 'verification'
+              ]
+           });
+        }
+
         inserted++;
       } catch (err) {
+        console.error(`SQL Save Error for ${vc.email}:`, err.message);
         errors.push({ email: vc.email, error: err.message });
       }
+    }
+    
+    if (inserted === 0 && errors.length > 0) {
+      console.error("All registrations failed:", errors[0].error);
+      return NextResponse.json({ success: false, error: `Database Error: ${errors[0].error}` }, { status: 400 });
     }
     
     return NextResponse.json({ success: true, inserted, errors });
     
   } catch (error) {
+    console.error("CRITICAL CONTACTS ERROR:", error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
@@ -109,7 +136,6 @@ export async function PUT(req) {
        return NextResponse.json({ success: false, error: "Contact ID (cid) is required for update." }, { status: 400 });
     }
 
-    // Build dynamic update query
     const fieldsToUpdate = [];
     const args = [];
     
@@ -120,7 +146,6 @@ export async function PUT(req) {
 
     for (const col of updatableColumns) {
        if (data[col] !== undefined) {
-          // Prevention: Do not overwrite with empty password on update
           if (col === 'password' && data[col] === '') continue;
           
           if (col === 'password') {
@@ -138,7 +163,6 @@ export async function PUT(req) {
        return NextResponse.json({ success: true, message: "No fields to update." });
     }
 
-    // Add CID for the WHERE clause
     args.push(data.cid);
 
     const match = await db.execute({

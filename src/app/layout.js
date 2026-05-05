@@ -1,10 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import './globals.css';
+import { I18nProvider } from '@/lib/i18n';
 
 export default function RootLayout({ children }) {
+  const [theme, setTheme] = useState('dark');
+
   useEffect(() => {
+    const savedTheme = localStorage.getItem('impactos_theme') || 'dark';
+    setTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
     // This script helps clear old PWA cache once if it's stuck
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then((registrations) => {
@@ -16,15 +23,14 @@ export default function RootLayout({ children }) {
   }, []);
 
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="en" data-theme={theme}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </head>
-      <body className="antialiased bg-[#080810] text-white selection:bg-[#0066FF]/30 min-h-screen">
-        {children}
+      <body className="antialiased min-h-screen">
+        <I18nProvider>
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

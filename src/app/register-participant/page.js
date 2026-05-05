@@ -33,7 +33,7 @@ export default function PublicParticipantRegistration() {
 
     const fetchProgramRegistry = async () => {
        try {
-          const res = await fetch('/api/v2/programs');
+          const res = await fetch('/api/programs');
           const data = await res.json();
           const active = (data.programs || []).filter(x => x.status === 'Active');
           setPrograms(active);

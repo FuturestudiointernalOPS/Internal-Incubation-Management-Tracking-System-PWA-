@@ -1,338 +1,285 @@
 'use client';
-
 import React, { useState, useEffect } from 'react';
-import {
-  Users, Briefcase, Plus, CheckCircle2, Clock, 
-  TrendingUp, Calendar, Shield, Zap, 
-  Filter, Download, MoreVertical, ArrowUpRight,
-  Activity, Settings, UserCheck, ChevronRight,
-  Target, ChartBar, ChevronLeft, LinkIcon, FileText, Layers, FolderRoot
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { motion } from 'framer-motion';
+import { 
+  Rocket, Users, Calendar, ArrowRight, Layers, Layout, ChevronRight, Briefcase, Search, Activity
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Plus, Globe, Mail, CheckCircle2, RotateCcw } from 'lucide-react';
 
-const ProgramCard = ({ title, subtitle, icon: Icon, onClick }) => (
-  <button 
-    onClick={onClick}
-    className="ios-card group text-left w-full hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
-  >
-     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 to-indigo-500/0 group-hover:from-indigo-500/5 group-hover:to-transparent transition-colors duration-500" />
-     <div className="relative z-10 flex flex-col gap-6">
-       <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center group-hover:scale-110 group-hover:bg-indigo-500/20 transition-all duration-500 shadow-[0_0_20px_rgba(99,102,241,0.1)] group-hover:shadow-[0_0_30px_rgba(99,102,241,0.2)]">
-         <Icon className="w-8 h-8 text-indigo-400 group-hover:text-white transition-colors" />
-       </div>
-       <div>
-         <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2 group-hover:text-indigo-400 transition-colors">{title}</h3>
-         <p className="text-sm text-slate-400 font-bold leading-relaxed">{subtitle}</p>
-       </div>
-       <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 duration-300">
-          <span>Manage Module</span>
-          <ChevronRight className="w-3 h-3" />
-       </div>
-     </div>
-  </button>
-);
-
-export default function PMPrograms() {
-  const [user, setUser] = useState(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [myPrograms, setMyPrograms] = useState([]);
-  const [allProjects, setAllProjects] = useState([]);
-  const [activeProgramId, setActiveProgramId] = useState(null);
-  const [activeProgramCard, setActiveProgramCard] = useState(null);
+/**
+ * PM OPERATIONS REGISTRY
+ * Unified list of all programs assigned to the current PM identity.
+ */
+export default function PMProgramsRegistry() {
+  const [programs, setPrograms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [activeTab, setTab] = useState('active'); 
   const router = useRouter();
 
+  const [schedule, setSchedule] = useState([]);
+
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user'));
-    if (!userData) { router.replace('/terminal'); return; }
-    setUser(userData);
-    
-    // Load programs mapped to this user
-    const programsData = JSON.parse(localStorage.getItem('impactos_programs') || '[]');
-    const mapped = programsData.filter(p => !p.deleted && String(p.assignedManager) === String(userData.id));
-    setMyPrograms(mapped);
+    fetchMyPrograms();
+    fetchGlobalSchedule();
+  }, [activeTab]);
 
-    // Load projects
-    const projectsData = JSON.parse(localStorage.getItem('impactos_projects') || '[]');
-    setAllProjects(projectsData.filter(p => !p.deleted));
-    
-    setTimeout(() => setIsLoaded(true), 400);
-  }, [router]);
-
-  const saveState = (key, data) => localStorage.setItem(key, JSON.stringify(data));
-
-  const handleSaveProgramDetails = (type) => {
-    let urlId = ''; let textId = ''; let urlKey = ''; let textKey = '';
-    
-    if (type === 'concept') { urlId = 'conceptUrl'; textId = 'conceptText'; urlKey = 'conceptNoteUrl'; textKey = 'conceptNote'; }
-    if (type === 'mission') { urlId = 'missionUrl'; textId = 'missionText'; urlKey = 'missionUrl'; textKey = 'missionVision'; }
-    if (type === 'kpis') { urlId = 'kpisUrl'; textId = 'kpisText'; urlKey = 'kpisUrl'; textKey = 'kpis'; }
-    if (type === 'schedule') { urlId = 'scheduleUrl'; textId = 'scheduleText'; urlKey = 'scheduleUrl'; textKey = 'topics'; }
-
-    const urlValue = document.getElementById(urlId)?.value || '';
-    const textValue = document.getElementById(textId)?.value || '';
-
-    const allPrograms = JSON.parse(localStorage.getItem('impactos_programs') || '[]');
-    const updatedPrograms = allPrograms.map(p => {
-      if (p.id === activeProgramId) { return { ...p, [urlKey]: urlValue, [textKey]: textValue }; }
-      return p;
-    });
-
-    saveState('impactos_programs', updatedPrograms);
-    setMyPrograms(updatedPrograms.filter(p => !p.deleted && String(p.assignedManager) === String(user.id)));
-    
-    setActiveProgramCard(null);
+  const fetchMyPrograms = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const identifier = user.cid || user.id;
+      const res = await fetch(`/api/pm/programs?assigned_pm_id=${identifier}&show_archived=${activeTab === 'archived'}`);
+      const data = await res.json();
+      if (data.success) {
+        setPrograms(data.programs || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!isLoaded) return (
-    <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-    </div>
+  const fetchGlobalSchedule = async () => {
+     try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const identifier = user.cid || user.id;
+        // Fetch sessions with dates across all PM programs
+        const res = await fetch('/api/pm/schedule?pm_id=' + identifier);
+        const data = await res.json();
+        if (data.success) {
+           setSchedule(data.schedule || []);
+        }
+     } catch (e) {}
+  };
+
+  const getGoogleCalendarLink = (activity) => {
+     const title = encodeURIComponent(activity.title);
+     const details = encodeURIComponent(activity.description || 'Program Session');
+     const startDate = (activity.scheduled_date || new Date().toISOString()).replace(/-/g, '').split('T')[0];
+     const endDate = (activity.end_date || activity.scheduled_date || new Date().toISOString()).replace(/-/g, '').split('T')[0];
+     
+     // Formulating Time Blocks
+     const startTime = (activity.start_time || '00:00').replace(/:/g, '') + '00';
+     const endTime = (activity.end_time || '23:59').replace(/:/g, '') + '00';
+     
+     return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${startDate}T${startTime}/${endDate}T${endTime}`;
+  };
+
+  const filtered = programs.filter(p => 
+    p.name.toLowerCase().includes(search.toLowerCase()) || 
+    (p.description && p.description.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const theProgram = myPrograms.find(p => p.id === activeProgramId);
-  const programProjects = activeProgramId ? allProjects.filter(p => String(p.programId) === String(activeProgramId)) : [];
-
   return (
-    <DashboardLayout role="program_manager">
-      {!activeProgramId ? (
-        <>
-          <header className="flex flex-col lg:flex-row justify-between items-start gap-6 mb-12">
-            <div className="animation-reveal">
-               <div className="flex items-center gap-4 mb-3">
-                  <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Program Hierarchy</span>
-                  <div className="h-px w-10 bg-indigo-500/30" />
-               </div>
-              <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">My Assigned Programs</h2>
-              <p className="text-slate-400 font-bold tracking-tight">
-                Select a program to configure its settings and view its nested projects.
-              </p>
+    <DashboardLayout role="program_manager" activeTab="programs">
+      <div className="space-y-12 pb-20">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/5 pb-10">
+          <div>
+            <div className="flex items-center gap-4 mb-4 text-left">
+               <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">Operational Portfolio</span>
+               <div className="h-px w-10 bg-[#FF6600]/30" />
+               <span className="badge badge-glow-blue uppercase text-[8px] font-black italic">Active Authority</span>
             </div>
-          </header>
-
-          {myPrograms.length === 0 ? (
-            <div className="ios-card flex flex-col items-center justify-center py-20 text-center">
-               <Briefcase className="w-16 h-16 text-indigo-500/30 mb-6" />
-               <h3 className="text-2xl font-black text-white tracking-tighter uppercase mb-2">No Programs Assigned</h3>
-               <p className="text-slate-400 font-bold max-w-sm">You have not been assigned to lead any active programs yet.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {myPrograms.map(prog => (
-                <div key={prog.id} className="ios-card group hover:border-indigo-500/30 transition-all cursor-pointer" onClick={() => setActiveProgramId(prog.id)}>
-                  <div className="flex justify-between items-center mb-6">
-                    <div className="p-3 bg-indigo-500/10 rounded-xl"><Layers className="w-6 h-6 text-indigo-400" /></div>
-                    <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-md">Active</span>
-                  </div>
-                  <h4 className="text-2xl font-black text-white uppercase tracking-tight mb-2">{prog.name}</h4>
-                  <p className="text-xs text-slate-400 font-bold max-w-[200px] truncate">{prog.description}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="space-y-10 animation-reveal">
-          <button 
-            onClick={() => { setActiveProgramId(null); setActiveProgramCard(null); }} 
-            className="btn-ghost !py-2 !px-4 hover:bg-white/5"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" /> Back to My Programs
-          </button>
+            <h2 className="text-5xl font-black text-white tracking-tighter uppercase leading-none italic">Assigned Programs</h2>
+            <p className="text-slate-400 font-bold mt-4 uppercase text-[10px] tracking-widest opacity-60 italic">Track and manage the progress of your assigned educational programs</p>
+          </div>
           
-          <header className="flex flex-col lg:flex-row justify-between items-end gap-10 pb-8 border-b border-white/5">
-            <div>
-               <div className="flex items-center gap-4 mb-3">
-                  <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Structure HQ</span>
-                  <div className="h-px w-10 bg-indigo-500/30" />
-               </div>
-               <h2 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">
-                 {theProgram?.name}
-               </h2>
-               <p className="text-slate-400 font-bold mt-4 max-w-xl opacity-70">Define operations, mission, and KPI signals for this lifecycle.</p>
-            </div>
-          </header>
+          <div className="relative w-full md:w-80">
+             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+             <input 
+               value={search}
+               onChange={e => setSearch(e.target.value)}
+               placeholder="Filter cohorts..." 
+               className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold transition-all" 
+             />
+          </div>
+        </header>
 
-          {!activeProgramCard ? (
-            <div className="space-y-10">
-               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                 <ProgramCard icon={FileText} title="Concept Note" subtitle="The AI-linked core philosophy definitions." onClick={() => setActiveProgramCard('concept')} />
-                 <ProgramCard icon={Target} title="Mission & Vision" subtitle="Strategic goals and future scaling outlook." onClick={() => setActiveProgramCard('mission')} />
-                 <ProgramCard icon={ChartBar} title="KPI Signal Mapping" subtitle="Trackable metrics for venture success." onClick={() => setActiveProgramCard('kpis')} />
-                 <ProgramCard icon={Calendar} title="Operational Schedule" subtitle="Curriculum phases and weekly topics." onClick={() => setActiveProgramCard('schedule')} />
-                 <ProgramCard icon={Users} title="Personnel Requests" subtitle="Manage staff assignments for this program." onClick={() => setActiveProgramCard('team')} />
-               </div>
-
-               {/* PROJECTS DIRECTORY SECTION */}
-               <div className="pt-10 border-t border-white/5 space-y-6">
-                 <div className="flex items-center gap-4">
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Nested Projects</h3>
-                    <span className="text-[10px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-md">{programProjects.length} Total</span>
-                 </div>
-                 {programProjects.length === 0 ? (
-                    <div className="ios-card flex flex-col items-center justify-center py-10 text-center">
-                       <FolderRoot className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                       <h3 className="text-xl font-black text-white tracking-tighter uppercase mb-2">No Projects Found</h3>
-                       <p className="text-slate-500 font-bold">There are currently no projects nested under this program.</p>
-                    </div>
-                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                       {programProjects.map(proj => (
-                         <div key={proj.id} className="ios-card group border border-white/[0.02]">
-                            <div className="flex justify-between items-start mb-6">
-                               <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-[12px] text-white">
-                                 {proj.name.charAt(0)}
-                               </div>
-                               <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${proj.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                                 {proj.status}
-                               </span>
-                            </div>
-                            <h4 className="text-lg font-black text-white uppercase tracking-tight mb-2 truncate">{proj.name}</h4>
-                            <p className="text-xs text-slate-500 font-bold capitalize mb-4">{proj.type}</p>
-                            <div className="pt-4 border-t border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-white cursor-pointer transition-colors">
-                               Open Project <ArrowUpRight className="w-3 h-3" />
-                            </div>
-                         </div>
-                       ))}
-                    </div>
-                 )}
-               </div>
-            </div>
-          ) : (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              className="ios-card !p-12 space-y-10"
-            >
-               <button onClick={() => setActiveProgramCard(null)} className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em] flex items-center gap-2 hover:opacity-70 transition-opacity">
-                  <ChevronLeft className="w-4 h-4" /> Return to Modules
-               </button>
-
-               {activeProgramCard === 'concept' && (
-                  <div className="space-y-8">
-                    <div>
-                      <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Program Concept Note</h3>
-                      <p className="text-slate-400 font-bold opacity-70">Formally define the boundaries and expectations of operations.</p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Provide a Link (Optional)</label>
-                      <div className="flex items-center gap-4 bg-white/[0.03] border border-white/5 rounded-2xl p-4 text-white focus-within:border-indigo-500/40 transition-colors hover:border-white/10">
-                        <LinkIcon className="w-5 h-5 text-indigo-400" />
-                        <input id="conceptUrl" type="url" placeholder="Paste a link to Google Docs, Notion, PDF, etc." defaultValue={theProgram?.conceptNoteUrl || ''} className="bg-transparent w-full outline-none text-sm font-bold placeholder:text-slate-600" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Or Type Details Directly</label>
-                      <textarea id="conceptText"
-                        placeholder="Write concept note details here..." 
-                        defaultValue={theProgram?.conceptNote} 
-                        className="w-full min-h-[250px] bg-white/[0.03] border border-white/5 rounded-3xl p-8 text-white outline-none focus:border-indigo-500/40 transition-colors custom-scrollbar font-bold leading-relaxed hover:border-white/10" 
-                      />
-                    </div>
-                    <button onClick={() => handleSaveProgramDetails('concept')} className="btn-prime !py-4 !px-10">Save Concept Note</button>
-                  </div>
-               )}
-               
-               {activeProgramCard === 'mission' && (
-                  <div className="space-y-8">
-                    <div>
-                      <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Mission & Vision</h3>
-                      <p className="text-slate-400 font-bold opacity-70">The strategic core of this program&apos;s existence.</p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Provide a Link (Optional)</label>
-                      <div className="flex items-center gap-4 bg-white/[0.03] border border-white/5 rounded-2xl p-4 text-white focus-within:border-indigo-500/40 transition-colors hover:border-white/10">
-                        <LinkIcon className="w-5 h-5 text-indigo-400" />
-                        <input id="missionUrl" type="url" placeholder="Paste a link to Google Docs, Notion, PDF, etc." defaultValue={theProgram?.missionUrl || ''} className="bg-transparent w-full outline-none text-sm font-bold placeholder:text-slate-600" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Or Type Details Directly</label>
-                      <textarea id="missionText"
-                        placeholder="Write the mission and vision..." 
-                        defaultValue={theProgram?.missionVision} 
-                        className="w-full min-h-[250px] bg-white/[0.03] border border-white/5 rounded-3xl p-8 text-white outline-none focus:border-indigo-500/40 transition-colors custom-scrollbar font-bold leading-relaxed hover:border-white/10" 
-                      />
-                    </div>
-                    <button onClick={() => handleSaveProgramDetails('mission')} className="btn-prime !py-4 !px-10">Save Strategy</button>
-                  </div>
-               )}
-               
-               {activeProgramCard === 'kpis' && (
-                  <div className="space-y-8">
-                     <div>
-                      <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">KPI Signal Mapping</h3>
-                      <p className="text-slate-400 font-bold opacity-70">List trackable parameters for program success.</p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Provide a Link (Optional)</label>
-                      <div className="flex items-center gap-4 bg-white/[0.03] border border-white/5 rounded-2xl p-4 text-white focus-within:border-indigo-500/40 transition-colors hover:border-white/10">
-                        <LinkIcon className="w-5 h-5 text-indigo-400" />
-                        <input id="kpisUrl" type="url" placeholder="Paste a link to Google Docs, Notion, PDF, etc." defaultValue={theProgram?.kpisUrl || ''} className="bg-transparent w-full outline-none text-sm font-bold placeholder:text-slate-600" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Or Type Details Directly</label>
-                      <textarea id="kpisText"
-                        placeholder="List what will be tracked for success..." 
-                        defaultValue={theProgram?.kpis} 
-                        className="w-full min-h-[250px] bg-white/[0.03] border border-white/5 rounded-3xl p-8 text-white outline-none focus:border-indigo-500/40 transition-colors custom-scrollbar font-bold leading-relaxed hover:border-white/10" 
-                      />
-                    </div>
-                    <button onClick={() => handleSaveProgramDetails('kpis')} className="btn-prime !py-4 !px-10">Save KPIs</button>
-                  </div>
-               )}
-               
-               {activeProgramCard === 'schedule' && (
-                  <div className="space-y-8">
-                    <div>
-                      <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Curriculum Flow</h3>
-                      <p className="text-slate-400 font-bold opacity-70">Define weekly phases and milestones.</p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Provide a Link (Optional)</label>
-                      <div className="flex items-center gap-4 bg-white/[0.03] border border-white/5 rounded-2xl p-4 text-white focus-within:border-indigo-500/40 transition-colors hover:border-white/10">
-                        <LinkIcon className="w-5 h-5 text-indigo-400" />
-                        <input id="scheduleUrl" type="url" placeholder="Paste a link to Google Docs, Notion, PDF, etc." defaultValue={theProgram?.scheduleUrl || ''} className="bg-transparent w-full outline-none text-sm font-bold placeholder:text-slate-600" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Or Type Details Directly</label>
-                      <textarea id="scheduleText"
-                        placeholder="Week 1: Pre-incubation basics...&#10;Week 2: Product Validation..." 
-                        defaultValue={theProgram?.topics} 
-                        className="w-full min-h-[250px] bg-white/[0.03] border border-white/5 rounded-3xl p-8 text-white outline-none focus:border-indigo-500/40 transition-colors custom-scrollbar font-bold leading-relaxed hover:border-white/10" 
-                      />
-                    </div>
-                    <button onClick={() => handleSaveProgramDetails('schedule')} className="btn-prime !py-4 !px-10">Save Schedule</button>
-                  </div>
-               )}
-               
-               {activeProgramCard === 'team' && (
-                  <div className="space-y-8">
-                    <div>
-                      <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Personnel Pipeline</h3>
-                      <p className="text-slate-400 font-bold opacity-70">Assign staff to this program.</p>
-                    </div>
-                    
-                    <div className="p-12 text-center bg-white/5 rounded-[3rem] border border-dashed border-white/10 group">
-                       <Users className="w-16 h-16 text-slate-700 mx-auto mb-6 group-hover:text-indigo-500 transition-colors duration-500" />
-                       <p className="text-slate-500 font-bold max-w-xs mx-auto">This UI is reserved for assigning staff members logically. (Pending detailed implementation)</p>
-                    </div>
-                  </div>
-               )}
-            </motion.div>
-          )}
+        <div className="flex gap-4">
+           <button 
+              onClick={() => setTab('active')}
+              className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'active' ? 'bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+           >
+              Active Missions
+           </button>
+           <button 
+              onClick={() => setTab('archived')}
+              className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'archived' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+           >
+              Archived Repository
+           </button>
         </div>
-      )}
+
+        {/* TACTICAL CALENDAR VIEW */}
+        <section className="ios-card bg-white/[0.01] border-white/5 !p-12 overflow-hidden shadow-2xl relative">
+           <div className="absolute top-0 right-0 w-80 h-80 bg-[#FF6600]/5 rounded-full blur-[100px] -mr-40 -mt-40" />
+           <div className="flex flex-col lg:flex-row justify-between items-start gap-12 relative z-10">
+              <div className="space-y-6">
+                 <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Operational Schedule</h3>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] italic">Timeline oversight across all cohorts</p>
+                 
+                 <div className="space-y-4 pt-6">
+                    {schedule.slice(0, 3).map(item => (
+                       <div key={item.id} className="flex items-center gap-6 group">
+                          <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center justify-center text-[10px] font-black uppercase group-hover:border-[#FF6600]/40 transition-all">
+                             <span className="text-[#FF6600]">{new Date(item.scheduled_date).getDate()}</span>
+                             <span className="text-slate-500 text-[7px]">{new Date(item.scheduled_date).toLocaleString('default', { month: 'short' })}</span>
+                          </div>
+                          <div className="flex-1">
+                             <p className="text-xs font-black text-white uppercase italic">{item.title}</p>
+                             <div className="flex items-center gap-2 mt-1">
+                                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{item.program_name}</p>
+                                <span className="text-slate-800">•</span>
+                                <p className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest italic">
+                                   {item.start_time || '00:00'} - {item.end_time || '23:59'}
+                                   {item.end_date && item.end_date !== item.scheduled_date && ` (to ${item.end_date})`}
+                                </p>
+                             </div>
+                          </div>
+                          <a href={getGoogleCalendarLink(item)} target="_blank" className="ml-auto p-2 rounded-lg bg-white/5 text-slate-700 hover:text-[#FF6600] transition-all opacity-0 group-hover:opacity-100">
+                             <Mail className="w-3.5 h-3.5" />
+                          </a>
+                       </div>
+                    ))}
+                    {schedule.length === 0 && <p className="text-[10px] font-black text-slate-700 uppercase italic">No tactical dates anchored.</p>}
+                 </div>
+              </div>
+
+              <div className="flex-1 w-full lg:max-w-md bg-white/[0.02] border border-white/5 rounded-[2rem] p-8">
+                 <div className="flex justify-between items-center mb-8">
+                    <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest italic">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                    <div className="flex gap-2">
+                       <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                       <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-7 gap-2 text-center text-[8px] font-black text-slate-500 uppercase tracking-widest mb-4">
+                    {['S','M','T','W','T','F','S'].map(d => <div key={d}>{d}</div>)}
+                 </div>
+                 <div className="grid grid-cols-7 gap-2">
+                    {Array.from({ length: 31 }, (_, i) => {
+                       const d = i + 1;
+                       const isToday = d === new Date().getDate();
+                       const hasEvent = schedule.some(s => new Date(s.scheduled_date).getDate() === d);
+                       return (
+                          <div key={i} className={`aspect-square flex items-center justify-center rounded-lg text-[9px] font-black transition-all ${isToday ? 'bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/30' : hasEvent ? 'bg-[#FF6600]/20 text-[#FF6600] border border-[#FF6600]/20' : 'text-slate-800'}`}>
+                             {d}
+                          </div>
+                       );
+                    })}
+                 </div>
+              </div>
+           </div>
+        </section>
+
+        <div className="grid grid-cols-1 gap-6">
+           {loading ? (
+              <div className="p-20 text-center space-y-4">
+                 <div className="w-12 h-12 border-4 border-[#FF6600]/10 border-t-[#FF6600] rounded-full animate-spin mx-auto" />
+                 <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Synchronizing Lifecycle Data...</p>
+              </div>
+           ) : filtered.length === 0 ? (
+              <div className="ios-card py-40 flex flex-col items-center justify-center opacity-30 border-dashed border-white/10">
+                 <Layers className="w-20 h-20 text-slate-800 mb-6" />
+                 <h4 className="text-2xl font-black text-white uppercase mb-2">No Cohorts Detected</h4>
+                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No programs have been anchored to your identity yet.</p>
+              </div>
+           ) : (
+              filtered.map(program => (
+                 <motion.div 
+                    key={program.id}
+                    onClick={() => router.push(`/pm/programs/${program.id}`)}
+                    className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-[#FF6600]/30 transition-all hover:bg-white/[0.01] border-white/5 shadow-2xl"
+                 >
+                    <div className="flex flex-col lg:flex-row items-stretch">
+                       <div className="p-10 lg:w-[400px] bg-white/[0.02] border-r border-white/5 flex flex-col justify-between">
+                          <div>
+                             <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2.5 rounded-xl bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20">
+                                   <Briefcase className="w-5 h-5" />
+                                </div>
+                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] italic animate-pulse">Active Portfolio</span>
+                             </div>
+                             <h3 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic group-hover:text-[#FF6600] transition-colors">{program.name}</h3>
+                          </div>
+                          <div className="mt-8 flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                             <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Active Lifecycle</span>
+                          </div>
+                       </div>
+
+                       <div className="flex-1 p-10 flex flex-col justify-between">
+                          <p className="text-[13px] text-slate-400 font-bold leading-relaxed uppercase tracking-tight line-clamp-3">
+                             {program.description || 'Executing standard operational oversight, ensuring participant progression and milestone synchronization within the FutureStudio incubation framework.'}
+                          </p>
+
+                           <div className="space-y-3">
+                              <div className="flex justify-between items-end">
+                                 <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest italic">Current Velocity</p>
+                                 <p className="text-xs font-black text-[#FF6600] italic leading-none">{(program.completion_index || 0).toFixed(1)}%</p>
+                              </div>
+                              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                 <motion.div 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${program.completion_index || 0}%` }}
+                                    className="h-full bg-gradient-to-r from-[#FF6600] to-[#FF9900] shadow-[0_0_10px_rgba(255,102,0,0.2)]"
+                                 />
+                              </div>
+                           </div>
+
+                          <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-8 border-t border-white/5 pt-8">
+                             <div>
+                                <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">Enrolled</p>
+                                <p className="text-lg font-black text-white uppercase tracking-tighter flex items-center gap-2 italic">{program.participants_count || 0} <Users className="w-3.5 h-3.5 text-slate-500" /></p>
+                             </div>
+                             <div>
+                                <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">Deliverables</p>
+                                <p className="text-lg font-black text-white uppercase tracking-tighter flex items-center gap-2 italic">{program.docs_completed || 0}/{program.docs_total || 0} <Layers className="w-3.5 h-3.5 text-slate-500" /></p>
+                             </div>
+                             <div>
+                                <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">Health</p>
+                                <p className="text-lg font-black text-emerald-500 uppercase tracking-tighter flex items-center gap-2 italic">Optimal <Activity className="w-3.5 h-3.5 text-emerald-900" /></p>
+                             </div>
+                             <div className="flex items-center justify-end">
+                                {activeTab === 'archived' ? (
+                                   <button 
+                                      onClick={async (e) => {
+                                         e.stopPropagation();
+                                         try {
+                                            const res = await fetch('/api/pm/programs', {
+                                               method: 'PATCH',
+                                               headers: { 'Content-Type': 'application/json' },
+                                               body: JSON.stringify({ id: program.id, is_archived: 0, action: 'archive' })
+                                            });
+                                            if ((await res.json()).success) {
+                                               fetchMyPrograms();
+                                               window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                                                  detail: { type: 'success', message: 'Mission Restored.' } 
+                                               }));
+                                            }
+                                         } catch(err) {}
+                                      }}
+                                      className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white hover:text-emerald-500 transition-all shadow-xl shadow-emerald-500/20 flex items-center gap-2"
+                                   >
+                                      <RotateCcw className="w-4 h-4" /> Restore Mission
+                                   </button>
+                                ) : (
+                                   <button className="btn-prime !py-3 !px-6 shadow-xl shadow-blue-600/10">
+                                      Launch Terminal <ArrowRight className="w-4 h-4 ml-2" />
+                                   </button>
+                                )}
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+                 </motion.div>
+              ))
+           )}
+        </div>
+      </div>
     </DashboardLayout>
   );
 }

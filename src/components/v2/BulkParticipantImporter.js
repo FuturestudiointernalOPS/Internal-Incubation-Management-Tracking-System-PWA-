@@ -36,7 +36,7 @@ export default function BulkParticipantImporter({ programId, onComplete }) {
     let successCount = 0;
     try {
       for (const p of data) {
-         const res = await fetch('/api/v2/participants', {
+         const res = await fetch('/api/participants', {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({
