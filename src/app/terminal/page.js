@@ -51,6 +51,7 @@ export default function TerminalLoginPage() {
           if (data.user.role === 'super_admin') {
             router.push('/admin');
           } else if (data.user.role === 'program_manager') {
+            localStorage.setItem('pm_session', 'pm-session-' + Date.now());
             router.push('/pm');
           } else {
             router.push('/participant');

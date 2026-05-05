@@ -21,10 +21,13 @@ export default function PMDashboard() {
   const [schedule, setSchedule] = useState([]);
 
   useEffect(() => {
-    const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {};
-    const pmSession = typeof window !== 'undefined' ? localStorage.getItem('pm_session') : null;
-    
-    if (!pmSession || !pmSession.startsWith('pm-session-')) {
+    const userString = localStorage.getItem('user');
+    if (!userString) {
+      router.replace('/terminal');
+      return;
+    }
+    const user = JSON.parse(userString);
+    if (user.role !== 'program_manager' && user.role !== 'super_admin') {
       router.replace('/terminal');
       return;
     }

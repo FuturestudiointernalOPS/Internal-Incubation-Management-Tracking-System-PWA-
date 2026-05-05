@@ -299,25 +299,64 @@ function ContactsPageContent() {
                    </button>
                 </div>
                 <div className="space-y-2">
-                  {['All Contacts', ...families.map(f => f.name)].map(group => (
-                    <div key={group} className="flex gap-2 group">
-                      <button
-                        onClick={() => setSelectedGroup(group)}
-                        className={`flex-1 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === group ? 'bg-[var(--brand-orange)] text-black' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-primary)]'}`}
-                      >
-                        {group}
-                      </button>
-                      {group !== 'All Contacts' && (
-                        <button 
-                          onClick={() => copyJoinLink(group)}
-                          title="Copy Join Link"
-                          className={`p-3 rounded-xl border border-[var(--border-primary)] transition-all ${copiedGroup === group ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' : 'bg-[var(--bg-primary)] text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]'}`}
+                  {['All Contacts', ...families.map(f => ({ ...f, type: 'family' }))].map(groupObj => {
+                    const group = typeof groupObj === 'string' ? groupObj : groupObj.name;
+                    const isAll = group === 'All Contacts';
+                    const isArchived = groupObj.is_archived;
+
+                    return (
+                      <div key={group} className={`flex gap-2 group ${isArchived ? 'opacity-50 grayscale' : ''}`}>
+                        <button
+                          onClick={() => setSelectedGroup(group)}
+                          className={`flex-1 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === group ? 'bg-[var(--brand-orange)] text-black' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-primary)]'}`}
                         >
-                          {copiedGroup === group ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
+                          {group} {isArchived && '(ARCHIVED)'}
                         </button>
-                      )}
-                    </div>
-                  ))}
+                        {!isAll && (
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => copyJoinLink(group)}
+                              title="Copy Join Link"
+                              className={`p-3 rounded-xl border border-[var(--border-primary)] transition-all ${copiedGroup === group ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' : 'bg-[var(--bg-primary)] text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]'}`}
+                            >
+                              {copiedGroup === group ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                if (!confirm(`Archive ${group}?`)) return;
+                                await fetch('/api/families', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: groupObj.id, is_archived: !isArchived })
+                                });
+                                fetchData();
+                              }}
+                              title={isArchived ? "Restore" : "Archive"}
+                              className="p-3 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] text-slate-500 hover:text-orange-500"
+                            >
+                              {isArchived ? <RefreshCw className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                if (!confirm(`PERMANENTLY DELETE ${group} and dissociate members?`)) return;
+                                await fetch('/api/families', {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: groupObj.id })
+                                });
+                                setSelectedGroup('All Contacts');
+                                fetchData();
+                              }}
+                              title="Delete"
+                              className="p-3 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] text-slate-500 hover:text-rose-500"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

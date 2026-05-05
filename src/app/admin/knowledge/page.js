@@ -31,6 +31,7 @@ export default function KnowledgeBank() {
   
   // Forms
   const [newNote, setNewNote] = useState({ title: '', description: '', stagedFiles: [] });
+  const [editingNote, setEditingNote] = useState(null);
 
   const notify = (type, message) => {
     setNotification({ type, message });
@@ -123,8 +124,64 @@ export default function KnowledgeBank() {
     }
   };
 
+  const handleUpdateNote = async () => {
+    if (!editingNote.title) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/knowledge', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'edit', id: editingNote.id, title: editingNote.title, description: editingNote.description })
+      });
+      if (res.ok) {
+        notify('success', 'Node updated successfully.');
+        setEditingNote(null);
+        fetchNotes();
+      }
+    } catch (e) {
+      notify('error', 'Failed to update node.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleArchiveToggle = async (id, currentArchiveState) => {
+    try {
+      const res = await fetch('/api/knowledge', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'archive', id, is_archived: !currentArchiveState })
+      });
+      if (res.ok) {
+        notify('success', currentArchiveState ? 'Node restored from archive.' : 'Node moved to archive.');
+        if (viewingNote?.id === id) setViewingNote(null);
+        fetchNotes();
+      }
+    } catch (e) {
+      notify('error', 'Sync failure.');
+    }
+  };
+
+  const handleDeleteNote = async (id) => {
+    if (!confirm("CRITICAL: This will permanently delete the operational node. Proceed?")) return;
+    try {
+      const res = await fetch('/api/knowledge', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (res.ok) {
+        notify('success', 'Node decommissioned permanently.');
+        if (viewingNote?.id === id) setViewingNote(null);
+        fetchNotes();
+      }
+    } catch (e) {
+      notify('error', 'Deletion failed.');
+    }
+  };
+
   const filteredNotes = allNotes.filter(n => {
-    const matchesTab = activeTab === 'archive' ? n.is_archived : !n.is_archived;
+    const matchesTab = activeTab === 'archive' ? !!n.is_archived : !n.is_archived;
     const matchesSearch = n.title.toLowerCase().includes(search.toLowerCase());
     return matchesTab && matchesSearch;
   });
@@ -158,22 +215,38 @@ export default function KnowledgeBank() {
             <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)] uppercase">Knowledge Bank</h1>
           </div>
           
-          <button onClick={() => setShowUploadModal(true)} className="btn btn-primary gap-2">
-            <Plus className="w-4 h-4" /> Create New Node
-          </button>
+          <div className="flex gap-3">
+             <button 
+                onClick={() => setLibraryTab(activeTab === 'active' ? 'archive' : 'active')}
+                className={`btn btn-secondary gap-2 ${activeTab === 'archive' ? 'border-[var(--brand-orange)] text-[var(--brand-orange)]' : ''}`}
+             >
+                <Archive className="w-4 h-4" /> {activeTab === 'archive' ? 'Active Records' : 'Archive'}
+             </button>
+             <button onClick={() => setShowUploadModal(true)} className="btn btn-primary gap-2">
+               <Plus className="w-4 h-4" /> Create New Node
+             </button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-          {/* VIEWER & LIBRARY (Omitted for brevity as they are unchanged from previous working state) */}
           <div className="xl:col-span-3">
              {viewingNote ? (
                 <div className="space-y-6">
                    <div className="flex justify-between items-center bg-[var(--bg-secondary)] p-6 rounded-2xl border border-[var(--border-primary)]">
                       <div className="flex items-center gap-4">
                          <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" />
-                         <h2 className="text-xl font-bold text-white uppercase">{viewingNote.title}</h2>
+                         <div>
+                            <h2 className="text-xl font-bold text-white uppercase">{viewingNote.title}</h2>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{viewingNote.description}</p>
+                         </div>
                       </div>
-                      <button onClick={() => setViewingNote(null)} className="p-2"><X className="w-6 h-6" /></button>
+                      <div className="flex gap-2">
+                         <button onClick={() => setEditingNote(viewingNote)} className="p-2 hover:text-[var(--brand-orange)] transition-colors"><Edit3 className="w-5 h-5" /></button>
+                         <button onClick={() => handleArchiveToggle(viewingNote.id, viewingNote.is_archived)} className="p-2 hover:text-orange-500 transition-colors">{viewingNote.is_archived ? <RotateCcw className="w-5 h-5" /> : <Archive className="w-5 h-5" />}</button>
+                         <button onClick={() => handleDeleteNote(viewingNote.id)} className="p-2 hover:text-rose-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                         <div className="w-px h-6 bg-[var(--border-primary)] mx-2 self-center" />
+                         <button onClick={() => setViewingNote(null)} className="p-2"><X className="w-6 h-6" /></button>
+                      </div>
                    </div>
                    <div className="card !p-0 h-[800px] overflow-hidden rounded-3xl border-[var(--border-primary)]">
                       <iframe src={`${activeFileUrl}#toolbar=0`} className="w-full h-full" title="Viewer" />
@@ -194,9 +267,17 @@ export default function KnowledgeBank() {
                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter library..." className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl py-3 pl-10 text-xs font-bold" />
                 </div>
                 <div className="space-y-3">
-                   {loading ? <TableSkeleton rows={5} /> : filteredNotes.map(n => (
-                      <div key={n.id} onClick={() => setViewingNote(n)} className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] hover:border-[var(--brand-orange)] transition-all cursor-pointer">
-                         <p className="text-[11px] font-bold text-white uppercase truncate">{n.title}</p>
+                   {loading ? <TableSkeleton rows={5} /> : filteredNotes.length === 0 ? (
+                      <div className="text-center py-10 opacity-40">
+                         <Library className="w-8 h-8 mx-auto mb-2" />
+                         <p className="text-[10px] font-bold uppercase">Library Empty</p>
+                      </div>
+                   ) : filteredNotes.map(n => (
+                      <div key={n.id} onClick={() => setViewingNote(n)} className={`p-4 rounded-xl border transition-all cursor-pointer ${viewingNote?.id === n.id ? 'border-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'border-[var(--border-primary)] bg-[var(--bg-primary)] hover:border-[var(--brand-orange)]'}`}>
+                         <div className="flex justify-between items-start gap-2">
+                            <p className="text-[11px] font-bold text-white uppercase truncate flex-1">{n.title}</p>
+                            {n.is_archived && <span className="text-[8px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">ARCHIVE</span>}
+                         </div>
                          <p className="text-[9px] text-slate-500 line-clamp-1 mt-1">{n.description}</p>
                       </div>
                    ))}
@@ -244,6 +325,29 @@ export default function KnowledgeBank() {
 
               <button onClick={handleCreateNote} disabled={isSaving || !newNote.title} className="btn btn-primary w-full py-5 uppercase font-bold tracking-[0.2em]">
                 {isSaving ? <div className="flex items-center justify-center gap-3"><Loader2 className="w-5 h-5 animate-spin" /> <span>Deploying to Supabase...</span></div> : 'Deploy Operational Node'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL */}
+      {editingNote && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+          <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">Edit Knowledge Node</h3>
+              </div>
+              <button onClick={() => setEditingNote(null)} className="p-2 hover:bg-[var(--bg-primary)] rounded-lg"><X className="w-6 h-6" /></button>
+            </div>
+            
+            <div className="space-y-6">
+              <input value={editingNote.title} onChange={e => setEditingNote({...editingNote, title: e.target.value})} placeholder="Node Title" className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
+              <textarea value={editingNote.description} onChange={e => setEditingNote({...editingNote, description: e.target.value})} placeholder="Strategic Description..." rows={3} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
+
+              <button onClick={handleUpdateNote} disabled={isSaving || !editingNote.title} className="btn btn-primary w-full py-5 uppercase font-bold tracking-[0.2em]">
+                {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Changes'}
               </button>
             </div>
           </div>

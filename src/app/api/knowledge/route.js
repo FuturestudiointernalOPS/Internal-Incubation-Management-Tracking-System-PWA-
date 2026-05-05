@@ -99,12 +99,22 @@ export async function PATCH(req) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'edit') {
+      const { title, description } = body;
+      await db.execute({
+        sql: "UPDATE v2_knowledge_bank SET title = ?, description = ? WHERE id = ?",
+        args: [title, description, id]
+      });
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
   } catch (error) {
     console.error("Knowledge PATCH Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
 
 export async function DELETE(req) {
   try {
