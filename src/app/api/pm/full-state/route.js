@@ -39,7 +39,7 @@ export async function GET(req) {
       db.execute({ sql: "SELECT * FROM v2_document_requirements WHERE program_id = ?", args: [id] }),
       db.execute({ sql: "SELECT * FROM v2_followups WHERE program_id = ? ORDER BY created_at DESC", args: [id] }),
       db.execute({ 
-        sql: `SELECT c.cid, c.name, c.email, ps.role 
+        sql: `SELECT ps.id, c.cid, c.name, c.email, ps.role 
               FROM v2_program_staff ps 
               JOIN contacts c ON ps.staff_id = c.cid 
               WHERE ps.program_id = ?`, 

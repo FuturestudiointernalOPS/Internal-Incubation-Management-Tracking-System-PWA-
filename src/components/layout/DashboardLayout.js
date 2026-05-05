@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
@@ -21,7 +21,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
   return (
     <>
       <div className="flex items-center gap-4 px-3 mb-14 mt-4">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--brand-orange)] to-orange-400 flex items-center justify-center shadow-lg shadow-orange-500/20">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--brand-orange)] to-orange-400 flex items-center justify-center border border-orange-500/20">
           <Activity className="text-white w-6 h-6" />
         </div>
         {!collapsed && (
@@ -85,7 +85,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
               key={item.id || item.href}
               href={item.href}
               onClick={() => setMobileMenuOpen(false)}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isActive ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-orange-500/20 italic' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
+              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isActive ? 'bg-[var(--brand-orange)] text-white border border-orange-600/20 italic' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
             >
               <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-black' : 'text-[var(--text-secondary)]'}`} />
               {!collapsed && <span className="truncate">{t(item.id) || item.name}</span>}
@@ -278,7 +278,7 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-[150]">
           <div onClick={() => setMobileMenuOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-[var(--bg-secondary)] p-6 shadow-2xl">
+          <aside className="absolute inset-y-0 left-0 w-64 bg-[var(--bg-secondary)] p-6 border-r border-[var(--border-primary)]">
             <SidebarContent {...commonProps} />
           </aside>
         </div>
@@ -309,7 +309,7 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
                 {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--brand-orange)] rounded-full" />}
               </button>
               {showNotifications && (
-                <div className="absolute right-0 top-10 w-72 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-xl p-4 z-[200]">
+                <div className="absolute right-0 top-10 w-72 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4 z-[200]">
                   <h4 className="text-[10px] font-bold uppercase mb-3 text-[var(--text-secondary)]">{t('intel_feed')}</h4>
                   <div className="max-h-48 overflow-y-auto space-y-2">
                     {notifications.length > 0 ? notifications.map(n => (

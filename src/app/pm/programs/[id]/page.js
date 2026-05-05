@@ -33,11 +33,16 @@ export default function ProgramWorkspace() {
   const [kpis, setKpis] = useState([]);
   const [events, setEvents] = useState([]);
   const [assignedStaff, setAssignedStaff] = useState([]);
+  const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [showKPIModal, setShowKPIModal] = useState(false);
   const [newTeam, setNewTeam] = useState({ name: '', handler_name: '' });
   const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending' });
+  const [newStaff, setNewStaff] = useState({ staff_id: '', role: 'teacher' });
+  const [newKPI, setNewKPI] = useState({ title: '', target_value: 80 });
   const [toast, setToast] = useState(null);
   const configNameRef = useRef(null);
   const configDescRef = useRef(null);
@@ -52,14 +57,19 @@ export default function ProgramWorkspace() {
   const saveConfig = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch('/api/pm/programs/' + id, {
+      const res = await fetch('/api/pm/programs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id,
           name: configNameRef.current?.value,
           description: configDescRef.current?.value,
           duration_weeks: parseInt(configWeeksRef.current?.value) || program?.duration_weeks,
           status: configStatusRef.current?.value,
+          note_id: program?.note_id,
+          assigned_pm_id: program?.assigned_pm_id,
+          assigned_assistant_id: program?.assigned_assistant_id,
+          materials: program?.materials,
         })
       });
       const data = await res.json();
@@ -92,13 +102,85 @@ export default function ProgramWorkspace() {
       const res = await fetch('/api/pm/curriculum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newSession, program_id: id })
+        body: JSON.stringify({
+          action: 'add_session',
+          program_id: id,
+          title: newSession.title,
+          week_number: newSession.week_number,
+          status: newSession.status,
+        })
       });
       const data = await res.json();
       if (data.success) { notify('Session added.'); setShowSessionModal(false); setNewSession({ title: '', week_number: 1, status: 'pending' }); fetchProgramData(); }
       else notify(data.error || 'Add failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
+  };
+
+  const addKPI = async () => {
+    if (!newKPI.title.trim()) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/v2/kpis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newKPI, program_id: id })
+      });
+      const data = await res.json();
+      if (data.success) { notify('KPI defined.'); setShowKPIModal(false); setNewKPI({ title: '', target_value: 80 }); fetchProgramData(); }
+      else notify(data.error || 'Failed.', 'error');
+    } catch (e) { notify('Network error.', 'error'); }
+    finally { setIsSaving(false); }
+  };
+
+  const removeKPI = async (kpiId) => {
+    if (!confirm('Decommission this KPI?')) return;
+    try {
+      await fetch('/api/v2/kpis', { method: 'DELETE', body: JSON.stringify({ id: kpiId }) });
+      notify('KPI removed.');
+      fetchProgramData();
+    } catch (e) {}
+  };
+
+  const assignStaff = async () => {
+    if (!newStaff.staff_id) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/v2/program-staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newStaff, program_id: id })
+      });
+      const data = await res.json();
+      if (data.success) { notify('Personnel assigned.'); setShowStaffModal(false); setNewStaff({ staff_id: '', role: 'teacher' }); fetchProgramData(); }
+      else notify(data.error || 'Assignment failed.', 'error');
+    } catch (e) { notify('Network error.', 'error'); }
+    finally { setIsSaving(false); }
+  };
+
+  const removeStaff = async (staffId) => {
+    if (!confirm('Remove this staff member?')) return;
+    try {
+      const record = assignedStaff.find(s => s.cid === staffId);
+      if (record && record.id) {
+         await fetch('/api/v2/program-staff', { method: 'DELETE', body: JSON.stringify({ id: record.id }) });
+         notify('Personnel removed.');
+         fetchProgramData();
+      }
+    } catch (e) {}
+  };
+
+  const deleteSession = async (sessionId) => {
+    if (!confirm('Decommission this node and all associated requirements?')) return;
+    try {
+       await fetch('/api/pm/curriculum', { 
+         method: 'DELETE', 
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ id: sessionId, type: 'session' }) 
+       });
+       notify('Session removed.');
+       fetchProgramData();
+    } catch (e) {}
   };
 
   useEffect(() => {
@@ -121,6 +203,7 @@ export default function ProgramWorkspace() {
         setKpis(res.kpis || []);
         setEvents(res.events || []);
         setAssignedStaff(res.assignedStaff || []);
+        setStaffList(res.staffList || []);
       }
     } catch (error) {
       console.error("Operational Fetch Failure:", error);
@@ -342,8 +425,8 @@ export default function ProgramWorkspace() {
                          <span className="px-2 py-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded text-[9px] font-bold uppercase text-[var(--text-secondary)]">
                            {session.assignment_type || 'General'}
                          </span>
-                         <button className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                           <MoreVertical className="w-4 h-4" />
+                         <button onClick={() => deleteSession(session.id)} className="p-2 text-rose-500 hover:text-rose-700">
+                           <Trash2 className="w-4 h-4" />
                          </button>
                       </div>
                     </div>
@@ -428,12 +511,12 @@ export default function ProgramWorkspace() {
                           <span className="font-bold text-sm uppercase tracking-tight">{kpi.title}</span>
                           <div className="flex items-center gap-4">
                             <span className="text-xs font-black text-[var(--brand-orange)]">{kpi.target_value}%</span>
-                            <button className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => removeKPI(kpi.id)} className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <button className="btn btn-secondary w-full py-3 gap-2 border-dashed">
+                    <button onClick={() => setShowKPIModal(true)} className="btn btn-secondary w-full py-3 gap-2 border-dashed">
                       <Plus className="w-4 h-4" /> Define KPI Target
                     </button>
                   </div>
@@ -453,11 +536,11 @@ export default function ProgramWorkspace() {
                               <p className="text-[9px] text-[var(--text-secondary)] font-bold">{staff.role}</p>
                             </div>
                           </div>
-                          <button className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => removeStaff(staff.cid)} className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       ))}
                     </div>
-                    <button className="btn btn-secondary w-full py-3 gap-2 border-dashed">
+                    <button onClick={() => setShowStaffModal(true)} className="btn btn-secondary w-full py-3 gap-2 border-dashed">
                       <Plus className="w-4 h-4" /> Assign Personnel
                     </button>
                   </div>
@@ -562,6 +645,68 @@ export default function ProgramWorkspace() {
             <div className="flex gap-3">
               <button onClick={() => setShowSessionModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
               <button onClick={addSession} disabled={isSaving || !newSession.title.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Adding...' : 'Add Session'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ASSIGN STAFF MODAL */}
+      {showStaffModal && (
+        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowStaffModal(false)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Assign Personnel</h3>
+              <button onClick={() => setShowStaffModal(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Select Staff Member</label>
+                <select value={newStaff.staff_id} onChange={e => setNewStaff(p => ({...p, staff_id: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+                  <option value="">Select Member...</option>
+                  {staffList.map(s => (
+                    <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assigned Role</label>
+                <select value={newStaff.role} onChange={e => setNewStaff(p => ({...p, role: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+                  <option value="teacher">Teacher</option>
+                  <option value="assistant">Assistant</option>
+                  <option value="evaluator">Evaluator</option>
+                  <option value="handler">Handler</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowStaffModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={assignStaff} disabled={isSaving || !newStaff.staff_id} className="flex-1 btn btn-primary">{isSaving ? 'Assigning...' : 'Assign'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DEFINE KPI MODAL */}
+      {showKPIModal && (
+        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowKPIModal(false)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Define KPI Target</h3>
+              <button onClick={() => setShowKPIModal(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>KPI Title</label>
+                <input value={newKPI.title} onChange={e => setNewKPI(p => ({...p, title: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Weekly Engagement" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Target Value (%)</label>
+                <input type="number" min="0" max="100" value={newKPI.target_value} onChange={e => setNewKPI(p => ({...p, target_value: parseInt(e.target.value) || 0}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowKPIModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={addKPI} disabled={isSaving || !newKPI.title.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Defining...' : 'Define'}</button>
             </div>
           </div>
         </div>
