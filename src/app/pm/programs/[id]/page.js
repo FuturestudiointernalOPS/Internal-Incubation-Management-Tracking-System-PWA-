@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
   Users, Briefcase, Activity, CheckCircle2, ChevronRight, 
   ExternalLink, FileText, Mail, MessageCircle, MoreVertical, 
-  Plus, Search, Shield, Target, Zap, Clock, AlertCircle, Trash2
+  Plus, Search, Shield, Target, Zap, Clock, AlertCircle, Trash2, LayoutDashboard
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
