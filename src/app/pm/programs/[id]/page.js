@@ -1,1880 +1,570 @@
 'use client';
-import { Zap as SignalIcon } from 'lucide-react';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
-  ChevronLeft, Plus, Calendar, 
-  Users, Layers, Settings, MessageSquare, Mail, MessageCircle,
-  Globe, LayoutDashboard, Search, Filter,
-  ArrowRight, Activity, Shield, Zap, Target, CheckCircle2, AlertCircle, Clock, Send, Briefcase, ChevronDown, Trash2, Edit3, Link2, ChevronRight, X, FileText, Video, Image as ImageIcon, Link as LinkIcon, FileCheck, BookOpen
+  Users, Briefcase, Activity, CheckCircle2, ChevronRight, 
+  ExternalLink, FileText, Mail, MessageCircle, MoreVertical, 
+  Plus, Search, Shield, Target, Zap, Clock, AlertCircle, Trash2, LayoutDashboard, X, Save
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useI18n } from '@/lib/i18n';
 
 /**
- * PROJECT MANAGER PROGRAM WORKSPACE (V2.7 - MANIFEST DYNAMICS)
- * Industry-Standard Curriculum Management with Tabular Manifest Staging & Operational Sync.
+ * IMPACTOS OPERATIONAL CONTROL ÔÇö PROGRAM WORKSPACE
+ * Performance-first, modular data loading, and clean data-first UI.
  */
-export default function PMProgramTerminalV2({ params }) {
-  const unwrappedParams = use(params);
-  const { id } = unwrappedParams;
-  const [isMessaging, setIsMessaging] = useState(false);
-  const [signalData, setSignalData] = useState({ subject: '', body: '', target_type: 'staff' });
-  const router = useRouter();
-  
-  const getWhatsAppLink = (c) => {
-    if (!c.phone) return '#';
-    const clean = c.phone.replace(/\D/g, '');
-    return `https://wa.me/${clean}`;
-  };
-  
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [user, setUser] = useState({});
-  const isLeadPMForProject = (user?.role === 'super_admin') || (user?.isLeadPM && program?.assigned_pm_id?.toLowerCase() === (user?.cid || user?.id)?.toLowerCase());
-  const [activeTab, setActiveTab] = useState('curriculum'); 
+
+export default function ProgramWorkspace() {
+  const { id } = useParams();
+  const { t } = useI18n();
   const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview');
+  const [loading, setLoading] = useState(true);
+  
+  // State Modules
+  const [user, setUser] = useState({});
+  const [program, setProgram] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [participants, setParticipants] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [requirements, setRequirements] = useState([]);
+  const [kpis, setKpis] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [assignedStaff, setAssignedStaff] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [newTeam, setNewTeam] = useState({ name: '', handler_name: '' });
+  const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending' });
+  const [toast, setToast] = useState(null);
+  const configNameRef = useRef(null);
+  const configDescRef = useRef(null);
+  const configWeeksRef = useRef(null);
+  const configStatusRef = useRef(null);
 
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab && ['resources', 'curriculum', 'teams', 'participants', 'progress'].includes(tab)) {
-      setActiveTab(tab);
-    }
-  }, [searchParams]);
-  const [reports, setReports] = useState([]);
-  const [followups, setFollowups] = useState([]);
-  const [isReportsLoading, setIsReportsLoading] = useState(false);
-  const [pmReportInputs, setPmReportInputs] = useState({}); // { week: { notes: '', saving: false } }
+  const notify = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
-  const handleSendSignal = async () => {
-    if (!signalData.body || !signalData.subject) return;
+  const saveConfig = async () => {
+    setIsSaving(true);
     try {
-      const res = await fetch('/api/v2/internal-comms', {
-        method: 'POST',
+      const res = await fetch('/api/pm/programs/' + id, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sender_id: user.cid || user.id,
-          program_id: id,
-          ...signalData,
-          priority: 'normal'
+          name: configNameRef.current?.value,
+          description: configDescRef.current?.value,
+          duration_weeks: parseInt(configWeeksRef.current?.value) || program?.duration_weeks,
+          status: configStatusRef.current?.value,
         })
       });
-      if ((await res.json()).success) {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { 
-           detail: { type: 'success', message: 'Signal Transmitted.' } 
-        }));
-        setIsMessaging(false);
-        setSignalData({ subject: '', body: '', target_type: 'staff' });
-      }
-    } catch (e) { console.error(e); }
+      const data = await res.json();
+      if (data.success) { notify('Configuration saved.'); fetchProgramData(); }
+      else notify(data.error || 'Save failed.', 'error');
+    } catch (e) { notify('Network error.', 'error'); }
+    finally { setIsSaving(false); }
   };
-  const [program, setProgram] = useState(null);
-  const [participants, setParticipants] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
-  const [sessions, setSessions] = useState([]);
-  const [docRequirements, setDocRequirements] = useState([]);
-  const [staffList, setStaffList] = useState([]);
-  const [standardTypes, setStandardTypes] = useState({ tasks: [], assignments: [], deliverables: [], media: [] });
 
-  const openMaterial = (material) => {
-    if (!material || !material.data) return;
+  const deployTeam = async () => {
+    if (!newTeam.name.trim()) return;
+    setIsSaving(true);
     try {
-      const base64 = material.data.split(',')[1];
-      const type = material.data.split(';')[0].split(':')[1];
-      const bin = atob(base64);
-      const array = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) array[i] = bin.charCodeAt(i);
-      const blob = new Blob([array], { type: type || 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    } catch (e) {
-      console.error("Material Viewport Error:", e);
-      window.dispatchEvent(new CustomEvent('impactos:notify', { 
-        detail: { type: 'error', message: 'Failed to generate asset viewport.' } 
-      }));
-    }
+      const res = await fetch('/api/pm/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newTeam, program_id: id })
+      });
+      const data = await res.json();
+      if (data.success) { notify('Squad deployed.'); setShowTeamModal(false); setNewTeam({ name: '', handler_name: '' }); fetchProgramData(); }
+      else notify(data.error || 'Deploy failed.', 'error');
+    } catch (e) { notify('Network error.', 'error'); }
+    finally { setIsSaving(false); }
   };
 
-  // Curriculum State
-  const [expandedWeeks, setExpandedWeeks] = useState([1]);
-  const [selectedTask, setSelectedTask] = useState(null);   
-  const [showTaskSelector, setShowTaskSelector] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  // New Requirement Inline State (V2.7 - Manifest Staging)
-  const [newReq, setNewReq] = useState({ 
-    isAdding: false, 
-    manifest: [], // Array of { title, format }
-    customTitle: '',
-    customFormat: ''
-  });
-
-  const [assignedStaff, setAssignedStaff] = useState([]);
-
-
-  // Teams Management State
-  const [showTeamModal, setShowTeamModal] = useState(false);
-  const [newTeam, setNewTeam] = useState({ name: '', handler_id: '', handler_name: '', member_ids: [] });
-
-  // Requirement Edit State
-  const [editingReq, setEditingReq] = useState(null);
+  const addSession = async () => {
+    if (!newSession.title.trim()) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/pm/curriculum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newSession, program_id: id })
+      });
+      const data = await res.json();
+      if (data.success) { notify('Session added.'); setShowSessionModal(false); setNewSession({ title: '', week_number: 1, status: 'pending' }); fetchProgramData(); }
+      else notify(data.error || 'Add failed.', 'error');
+    } catch (e) { notify('Network error.', 'error'); }
+    finally { setIsSaving(false); }
+  };
 
   useEffect(() => {
-    const sessionUser = JSON.parse(localStorage.getItem('user') || '{}');
-    setUser(sessionUser);
-    fetchPMData();
-    fetchFollowups();
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) setUser(JSON.parse(savedUser));
+  }, []);
+
+  const fetchProgramData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/pm/full-state?id=${id}`).then(res => res.json());
+      
+      if (res.success) {
+        setProgram(res.program);
+        setSessions(res.sessions || []);
+        setTeams(res.teams || []);
+        setParticipants(res.participants || []);
+        setSubmissions(res.submissions || []);
+        setRequirements(res.documents || []);
+        setKpis(res.kpis || []);
+        setEvents(res.events || []);
+        setAssignedStaff(res.assignedStaff || []);
+      }
+    } catch (error) {
+      console.error("Operational Fetch Failure:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
-  const fetchFollowups = async () => {
-    try {
-      const res = await fetch(`/api/v2/followups?program_id=${id}`);
-      const data = await res.json();
-      if (data.success) setFollowups(data.followups || []);
-    } catch (e) {}
-  };
-
-  const fetchPMData = async () => {
-    try {
-      const url = `/api/v2/pm/full-state?id=${id}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success && data.program) {
-        setProgram(data.program);
-        setParticipants(data.participants || []);
-        setTeams(data.teams || []);
-        setSubmissions(data.submissions || []);
-        setSessions(data.sessions || []);
-        setStaffList(data.staffList || []);
-        setDocRequirements(data.documents || []);
-        setAssignedStaff(data.assignedStaff || []);
-      }
-
-      // Fetch Standard Types (Expanded Categories)
-      const typeRes = await fetch('/api/v2/superadmin/standard-types');
-      const typeData = await typeRes.json();
-      if (typeData.success) {
-         setStandardTypes({
-            tasks: typeData.types.filter(t => t.category === 'task'),
-            assignments: typeData.types.filter(t => t.category === 'assignment'),
-            deliverables: typeData.types.filter(t => t.category === 'deliverable'),
-            media: typeData.types.filter(t => t.category === 'media')
-         });
-      }
-
-      setIsLoaded(true);
-      fetchReports(); // Ensure reports are synced for the curriculum view
-    } catch (e) {
-      console.error(e);
-      setIsLoaded(true);
-    }
-  };
-
-  const fetchReports = async () => {
-     setIsReportsLoading(true);
-     try {
-        const res = await fetch(`/api/v2/teacher/reports?program_id=${id}`);
-        const data = await res.json();
-        if (data.success) setReports(data.reports || []);
-     } catch (e) {}
-     finally { setIsReportsLoading(false); }
-  };
-
   useEffect(() => {
-     if (activeTab === 'reports') fetchReports();
-  }, [activeTab]);
+    fetchProgramData();
+  }, [fetchProgramData]);
 
-  const handleToggleSessionStatus = async (sessionId, newStatus) => {
-    try {
-      const res = await fetch('/api/v2/pm/curriculum', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ program_id: id, action: 'toggle_status', id: sessionId, status: newStatus })
-      });
-      if ((await res.json()).success) fetchPMData();
-    } catch (e) { console.error(e); }
-  };
+  if (loading) {
+    return (
+      <DashboardLayout role={user.role || "program_manager"}>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+          <div className="w-12 h-12 border-4 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">{t('loading')}</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  const handleToggleDeliverableStatus = async (delId, isCompleted) => {
-    try {
-      const res = await fetch('/api/v2/pm/curriculum', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ program_id: id, action: 'toggle_deliverable', id: delId, is_completed: isCompleted })
-      });
-      if ((await res.json()).success) fetchPMData();
-    } catch (e) { console.error(e); }
-  };
-
-  const handleSaveTaskConfig = async (taskData) => {
-     setIsProcessing(true);
-     try {
-        const isNew = !taskData.id;
-        const res = await fetch('/api/v2/pm/curriculum', {
-           method: isNew ? 'POST' : 'PUT',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ 
-              program_id: id, 
-              action: 'add_session',
-              type: 'session',
-              ...taskData 
-           })
-        });
-        const data = await res.json();
-        if (data.success) {
-           const sid = data.id || taskData.id;
-           // If there's a staged manifest, deploy it now
-           if (newReq.manifest.length > 0 && sid) {
-              await deployManifestItems(sid);
-           }
-           window.dispatchEvent(new CustomEvent('impactos:notify', { 
-              detail: { type: 'success', message: 'Saved' } 
-           }));
-           
-           setSelectedTask(null);
-           setNewReq({ isAdding: false, manifest: [], customTitle: '', customFormat: '' });
-           fetchPMData();
-        } else {
-           window.dispatchEvent(new CustomEvent('impactos:notify', { 
-              detail: { type: 'error', message: data.error || 'Configuration failed.' } 
-           }));
-        }
-     } catch (e) { 
-        console.error(e);
-        window.dispatchEvent(new CustomEvent('impactos:notify', { 
-           detail: { type: 'error', message: 'Sync Error.' } 
-        }));
-     } finally { 
-        setIsProcessing(false); 
-     }
-  };
-
-  const deployManifestItems = async (sid) => {
-     for (const item of newReq.manifest) {
-        await fetch('/api/v2/pm/curriculum', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ 
-              program_id: id, 
-              action: 'add_requirement',
-              title: item.title,
-              session_id: sid,
-              allowed_format: item.format || 'pdf',
-              weight: 1
-           })
-        });
-     }
-     setNewReq({ isAdding: false, manifest: [], customTitle: '', customFormat: '' });
-  };
-
-  const handleAddRequirements = async () => {
-      if (newReq.manifest.length === 0) return;
-      
-      if (selectedTask.id) {
-         setIsProcessing(true);
-         try {
-            await deployManifestItems(selectedTask.id);
-            await fetchPMData();
-            window.dispatchEvent(new CustomEvent('impactos:notify', { 
-               detail: { type: 'success', message: 'Manifest Anchored.' } 
-            }));
-         } catch (e) { console.error(e); }
-         finally { setIsProcessing(false); }
-      } else {
-         // It's a new session, just close the staging area
-         // The manifest items are already in newReq.manifest state
-         setNewReq({ ...newReq, isAdding: false });
-         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-            detail: { type: 'success', message: 'Manifest Staged.' } 
-         }));
-      }
-  };
-
-   const handleSavePMReport = async (wn) => {
-      const notes = pmReportInputs[wn]?.notes;
-      if (!notes) return;
-      
-      setPmReportInputs(prev => ({ ...prev, [wn]: { ...prev[wn], saving: true } }));
-      try {
-         const user = JSON.parse(localStorage.getItem('user') || '{}');
-         const res = await fetch('/api/v2/teacher/reports', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-               program_id: id,
-               week_number: wn,
-               teacher_id: user.cid || user.id,
-               teacher_name: (user.name || 'Program Manager') + ' (PM)',
-               progress_notes: notes,
-               student_reception: 'PM Oversight',
-               action_taken: 'PM Strategic Review',
-               reception_score: 10
-            })
-         });
-         
-         if ((await res.json()).success) {
-            window.dispatchEvent(new CustomEvent('impactos:notify', { 
-               detail: { type: 'success', message: 'Report Synchronized' } 
-            }));
-            fetchReports();
-            fetchPMData();
-            setPmReportInputs(prev => ({ ...prev, [wn]: { notes: '', saving: false } }));
-         }
-      } catch (e) { console.error(e); }
-      finally {
-         setPmReportInputs(prev => ({ ...prev, [wn]: { ...prev[wn], saving: false } }));
-      }
-   };
-
-  const handleDeleteRequirement = async (reqId) => {
-     if (!confirm("Delete this delivery requirement?")) return;
-     try {
-        const res = await fetch('/api/v2/pm/curriculum', {
-           method: 'DELETE',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ id: reqId, type: 'requirement' })
-        });
-        if ((await res.json()).success) {
-           await fetchPMData();
-        }
-     } catch (e) {}
-  };
-
-  const handleDeleteSession = async (sessionId) => {
-     if (!confirm("Delete this entire session and its requirements?")) return;
-     try {
-        const res = await fetch('/api/v2/pm/curriculum', {
-           method: 'DELETE',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ id: sessionId, type: 'session' })
-        });
-        if ((await res.json()).success) {
-           await fetchPMData();
-           setSelectedTask(null);
-        }
-     } catch (e) {}
-  };
-
-  const toggleWeek = (wn) => {
-     setExpandedWeeks(prev => prev.includes(wn) ? prev.filter(w => w !== wn) : [...prev, wn]);
-  };
-
-  const getFormatIcon = (format) => {
-     switch(format?.toLowerCase()) {
-        case 'pdf': return <FileText className="w-5 h-5 text-rose-500" />;
-        case 'doc': return <FileText className="w-5 h-5 text-blue-500" />;
-        case 'sheet': return <FileCheck className="w-5 h-5 text-emerald-500" />;
-        case 'url': return <LinkIcon className="w-5 h-5 text-[#FF6600]" />;
-        case 'vid': return <Video className="w-5 h-5 text-orange-500" />;
-        case 'images': return <ImageIcon className="w-5 h-5 text-purple-500" />;
-        default: return <Link2 className="w-5 h-5 text-slate-400" />;
-     }
-  };
-
-  // Progression Calculations (FLAT EQUITY MODEL - All items = 1)
-  const totalWeight = sessions.length;
-  
-   const getWeekStats = (wn) => {
-      const weekSessions = sessions.filter(s => s.week_number === wn);
-      const sessionIds = weekSessions.map(s => s.id);
-      const weekDocs = docRequirements.filter(dr => sessionIds.includes(dr.session_id));
-      const weekReports = reports.filter(r => r.week_number === wn);
-      
-      // Each week now requires a "Program Weekly Report" node (Weight: 10 points)
-      // This ensures 100% is only possible if the report is synchronized
-      const reportPoints = weekReports.length > 0 ? 10 : 0;
-      const totalPoints = (weekSessions.length * 5) + (weekDocs.length * 2) + 10; 
-      const completedPoints = (weekSessions.filter(s => s.status === 'completed').length * 5) + (weekDocs.filter(d => d.is_completed).length * 2) + reportPoints;
-      
-      const internalPercentage = totalPoints > 0 ? ((completedPoints / totalPoints) * 100).toFixed(1) : 0;
-      const title = weekSessions.length > 0 ? weekSessions[0].title : "Pending Program Phase";
-      
-      return { 
-        weight: weekSessions.length, 
-        completedWeight: weekSessions.filter(s => s.status === 'completed').length, 
-        percentage: internalPercentage, 
-        title,
-        totalDocs: weekDocs.length,
-        completedDocs: weekDocs.filter(d => d.is_completed).length,
-        hasReport: weekReports.length > 0
-      };
-   };
-
-  const maxWeek = Math.max(program?.duration_weeks || 1, ...sessions.map(s => s.week_number), 1);
-  const weeks = Array.from({ length: maxWeek }, (_, i) => i + 1);
-
-  if (!isLoaded || !program) return (
-     <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#FF6600]/20 border-t-[#FF6600] rounded-full animate-spin" />
-     </div>
-  );
+  const tabs = [
+    { id: 'overview', name: 'Overview', icon: LayoutDashboard },
+    { id: 'curriculum', name: 'Curriculum', icon: FileText },
+    { id: 'teams', name: 'Teams', icon: Target },
+    { id: 'participants', name: 'Participants', icon: Users },
+    { id: 'submissions', name: 'Submissions', icon: Activity },
+    { id: 'config', name: 'Configuration', icon: Shield },
+  ];
 
   return (
-    <DashboardLayout 
-       role="program_manager" 
-       activeTab="v2"
-       modals={
-          <AnimatePresence>
-             {showTaskSelector && (
-                <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
-                   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="ios-card w-full max-w-4xl !p-12 space-y-10 border-white/10 relative overflow-hidden bg-white/[0.03]">
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF6600]/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
-                      
-                      <div className="flex justify-between items-start">
-                         <div className="space-y-3">
-                            <h3 className="text-4xl font-black text-white uppercase italic tracking-tighter">Program Mode Registry</h3>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select the delivery modes for this program phase</p>
-                         </div>
-                         <button onClick={() => setShowTaskSelector(false)} className="p-4 rounded-2xl bg-white/5 text-slate-400 hover:text-white transition-all"><X className="w-6 h-6" /></button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                         {standardTypes.tasks?.map(type => {
-                            const current = (selectedTask.task_type || '').split(',').filter(x => x);
-                            const isSelected = current.includes(type.label);
-                            const label = type.label.toLowerCase();
-                            const Icon = label.includes('workshop') ? FileText : label.includes('master') ? Shield : label.includes('practical') ? Zap : Target;
-
-                            return (
-                               <button
-                                  key={type.id}
-                                  onClick={() => {
-                                     const next = isSelected ? current.filter(x => x !== type.label) : [...current, type.label];
-                                     setSelectedTask({...selectedTask, task_type: next.join(',')});
-                                  }}
-                                  className={`p-8 rounded-[2rem] text-left transition-all border flex flex-col gap-6 group relative overflow-hidden ${isSelected ? 'bg-[#FF6600] border-[#FF6600] shadow-2xl shadow-[#FF6600]/20' : 'bg-white/5 border-white/5 hover:border-white/20'}`}
-                               >
-                                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${isSelected ? 'bg-black text-white' : 'bg-white/5 text-slate-400 group-hover:text-white'}`}>
-                                     <Icon className="w-6 h-6" />
-                                  </div>
-                                  <div className="space-y-1">
-                                     <p className={`text-lg font-black uppercase italic leading-none ${isSelected ? 'text-black' : 'text-white'}`}>{type.label}</p>
-                                     <p className={`text-[10px] font-bold uppercase tracking-widest ${isSelected ? 'text-black/60' : 'text-slate-500'}`}>{isSelected ? 'Active Mode' : 'Deployment Node'}</p>
-                                  </div>
-                                  {isSelected && <CheckCircle2 className="absolute top-6 right-6 w-5 h-5 text-black" />}
-                               </button>
-                            );
-                         })}
-                      </div>
-
-                      <button 
-                         onClick={() => setShowTaskSelector(false)}
-                         className="w-full py-8 bg-white text-black font-black uppercase text-[12px] tracking-[0.4em] rounded-[2rem] hover:bg-[#FF6600] transition-all shadow-xl"
-                      >
-                         Confirm Configuration
-                      </button>
-                   </motion.div>
-                </div>
-             )}
-          </AnimatePresence>
-       }
-    >
-      <div className="space-y-12 pb-20">
+    <DashboardLayout role={user.role || "program_manager"}>
+      <div className="space-y-8 animate-in">
         
-        {/* HEADER */}
-        <header className="flex flex-col xl:flex-row justify-between items-start gap-10">
-          <div className="space-y-4">
-             <button 
-                onClick={() => router.push('/pm/programs')} 
-                className="group flex items-center gap-3 px-6 py-3 bg-white/5 text-slate-400 rounded-xl font-black uppercase text-[9px] tracking-widest hover:text-[#FF6600] hover:bg-[#FF6600]/5 transition-all border border-white/5 hover:border-[#FF6600]/20 w-fit"
-             >
-                <ChevronLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
-                <span>Return to Program Hub</span>
-             </button>
-             <h2 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-[0.85]">{program.name}</h2>
-             <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-3">
-                   <span className="px-3 py-1 bg-[#FF6600]/10 text-[#FF6600] text-[10px] font-black uppercase tracking-widest border border-[#FF6600]/20 rounded-md shadow-[0_0_15px_rgba(255,102,0,0.1)]">Completion Index</span>
-                   <div className="h-px w-6 bg-white/10" />
-                   <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest opacity-60 font-sans italic">Scheduling & Assignments Active</p>
-                </div>
-                
-                <div className="flex items-center gap-4 bg-white/5 px-6 py-2 rounded-2xl border border-white/5">
-                   <div className="text-right">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Project Velocity</p>
-                      <p className="text-xl font-black text-[#FF6600] italic leading-none drop-shadow-[0_0_10px_rgba(255,102,0,0.3)]">
-                         {((
-                            (sessions.filter(s => s.status === 'completed').length * 5) + 
-                            (docRequirements.filter(d => d.is_completed).length * 2)
-                         ) / ((sessions.length * 5 + docRequirements.length * 2) || 1) * 100).toFixed(1)}%
-                      </p>
-                   </div>
-                   <div className="w-10 h-10 rounded-full border-2 border-[#FF6600]/20 flex items-center justify-center relative">
-                      <svg className="w-8 h-8 transform -rotate-90">
-                         <circle cx="16" cy="16" r="14" fill="transparent" stroke="currentColor" strokeWidth="3" className="text-white/5" />
-                         <circle cx="16" cy="16" r="14" fill="transparent" stroke="currentColor" strokeWidth="3" className="text-[#FF6600]" strokeDasharray={88} strokeDashoffset={88 - (88 * (
-                            ((sessions.filter(s => s.status === 'completed').length * 5) + (docRequirements.filter(d => d.is_completed).length * 2)) / 
-                            ((sessions.length * 5 + docRequirements.length * 2) || 1)
-                         ))} strokeLinecap="round" />
-                      </svg>
-                   </div>
-                </div>
-             </div>
+        {/* HEADER SECTION */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="status-badge bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">{program?.status?.toUpperCase() || 'ACTIVE'}</span>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{program?.id}</span>
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight text-[var(--text-primary)]">{program?.name}</h1>
+            <p className="text-[var(--text-secondary)] text-sm max-w-2xl">{program?.description}</p>
           </div>
+          
+          {(user.role === 'super_admin' || user.role === 'program_manager') && (
+            <div className="flex gap-3">
+              <button className="btn btn-secondary gap-2">
+                <Shield className="w-4 h-4" />
+                Settings
+              </button>
+              <button className="btn btn-primary gap-2">
+                <Plus className="w-4 h-4" />
+                Deploy Node
+              </button>
+            </div>
+          )}
         </header>
 
-        {/* NAVIGATION */}
-        <nav className="flex items-center gap-12 border-b border-white/5">
-           {[
-              { id: 'resources', label: 'Knowledge Base', icon: BookOpen },
-              { id: 'curriculum', label: 'Curriculum', icon: Layers },
-              { id: 'teams', label: 'Cohort Registry', icon: Target },
-              { id: 'participants', label: 'Participants', icon: Users },
-              { id: 'submissions', label: 'Unit Submissions', icon: FileText },
-              { id: 'progress', label: 'Progress', icon: Activity },
-              { id: 'configuration', label: 'Configuration', icon: Settings }
-           ].map(tab => (
-              <button 
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-6 flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${activeTab === tab.id ? 'text-[#FF6600]' : 'text-slate-400 hover:text-white'}`}
-              >
-                <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-[#FF6600]' : 'opacity-40'}`} />
-                {tab.label}
-                {activeTab === tab.id && (
-                  <motion.div layoutId="pmTabAnchorV2" className="absolute bottom-0 left-0 right-0 h-1 bg-[#FF6600] rounded-t-full shadow-[0_0_20px_rgba(255,102,0,1)]" />
-                )}
-              </button>
-           ))}
-        </nav>
+        {/* TAB NAVIGATION */}
+        <div className="flex gap-1 border-b border-[var(--border-primary)]">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === tab.id ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            >
+              {tab.name}
+            </button>
+          ))}
+        </div>
 
-        {/* CONTENT */}
-        <div className="font-sans">
-           {activeTab === 'configuration' && (
-              <div className="max-w-4xl space-y-12">
-                 <div className="flex justify-between items-end mb-10">
-                    <div>
-                       <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Project Configuration</h3>
-                       <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mt-2">Strategic Parameters & Program Identity</p>
-                    </div>
-                 </div>
-
-                 {/* Identity Section */}
-                 <div className="ios-card bg-white/[0.02] border-white/5 !p-12 space-y-10">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                       <div className="space-y-4">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2 italic">Program Name</label>
-                          <input 
-                             value={program.name || ''}
-                             onChange={e => setProgram({...program, name: e.target.value})}
-                             className="w-full bg-black/40 border border-white/10 p-6 rounded-2xl text-white font-black text-xl outline-none focus:border-[#FF6600] transition-all"
-                          />
-                       </div>
-                       <div className="space-y-4">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2 italic">Duration (Weeks)</label>
-                          <input 
-                             type="number"
-                             value={program.duration_weeks || 0}
-                             onChange={e => setProgram({...program, duration_weeks: parseInt(e.target.value) || 0})}
-                             className="w-full bg-black/40 border border-white/10 p-6 rounded-2xl text-white font-black text-xl outline-none focus:border-[#FF6600] transition-all"
-                          />
-                       </div>
-                    </div>
-                    <div className="space-y-4">
-                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2 italic">Strategic Objective (Description)</label>
-                       <textarea 
-                          rows={4}
-                          value={program.description || ''}
-                          onChange={e => setProgram({...program, description: e.target.value})}
-                          className="w-full bg-black/40 border border-white/10 p-6 rounded-2xl text-slate-300 font-bold text-sm outline-none focus:border-[#FF6600] transition-all resize-none"
-                       />
-                    </div>
-                    <button 
-                       onClick={async () => {
-                          setIsProcessing(true);
-                          try {
-                             const res = await fetch('/api/v2/pm/programs', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(program)
-                             });
-                             if ((await res.json()).success) {
-                                window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                                   detail: { type: 'success', message: 'Identity Synchronized.' } 
-                                }));
-                                fetchPMData();
-                             }
-                          } catch (e) {}
-                          finally { setIsProcessing(false); }
-                       }}
-                       className="w-full py-6 bg-[#FF6600] text-black font-black uppercase text-[12px] tracking-[0.4em] rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
-                    >
-                       {isProcessing ? 'Synchronizing...' : 'Lock Strategic Identity'}
-                    </button>
-                 </div>
-              </div>
-           )}
-           {activeTab === 'curriculum' && (
-              <div className="max-w-4xl space-y-6">
-                 <div className="flex justify-between items-end mb-10">
-                    <div>
-                       <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Phase Overview</h3>
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Active Modules: {totalWeight}</p>
-                    </div>
-                    {isLeadPMForProject && (
-                       <button 
-                          onClick={() => setSelectedTask({ week_number: maxWeek, title: '', description: '', status: 'pending' })}
-                          className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
-                       >
-                          + Add New Phase
-                       </button>
-                    )}
-                 </div>
-
-                 {weeks.map(wn => {
-                    const weekSessions = sessions.filter(s => s.week_number === wn);
-                    const isOpen = expandedWeeks.includes(wn);
-                    const stats = getWeekStats(wn);
-                    
-                    return (
-                       <div key={wn} className="ios-card bg-white/[0.01] border-white/5 !p-0 overflow-hidden shadow-2xl">
-                          <button 
-                             onClick={() => toggleWeek(wn)}
-                             className="w-full flex items-center justify-between p-8 hover:bg-white/[0.02] transition-colors"
-                          >
-                             <div className="flex items-center gap-8">
-                                <div className="w-16 h-16 bg-[#FF6600]/10 rounded-2xl flex items-center justify-center text-[#FF6600] font-black text-2xl italic border border-[#FF6600]/20">
-                                   {String(wn).padStart(2, '0')}
-                                </div>
-                                <div className="text-left">
-                                   <div className="flex items-center gap-3 mb-2">
-                                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Phase Objective</p>
-                                      <div className="w-1.5 h-1.5 rounded-full bg-[#FF6600]" />
-                                      <span className="text-[10px] font-black text-[#FF6600] uppercase italic">{stats.percentage}% Contribution</span>
-                                   </div>
-                                   <h4 className="text-3xl font-black text-white uppercase italic leading-none tracking-tighter group-hover:text-[#FF6600] transition-colors">{stats.title}</h4>
-                                </div>
-                             </div>
-                             <div className="flex items-center gap-8">
-                                <div className="text-right hidden md:block">
-                                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1 italic">Phase Velocity</p>
-                                   <p className="text-xs font-black text-white uppercase tracking-tighter">
-                                      <span className="text-[#FF6600]">{stats.completedWeight}</span> / {stats.weight} Done ({stats.percentage}%)
-                                   </p>
-                                </div>
-                                <ChevronDown className={`w-6 h-6 text-slate-600 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                             </div>
-                          </button>
-
-                          <AnimatePresence>
-                             {isOpen && (
-                                <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="border-t border-white/5 bg-white/[0.005]">
-                                   <div className="p-6 space-y-4">
-                                      {weekSessions.map(session => {
-                                         const sessionFollowups = followups.filter(f => f.session_id === session.id);
-                                         
-                                         return (
-                                            <div key={session.id} className="space-y-4">
-                                               <div 
-                                                  key={session.id} 
-                                                  onClick={() => setSelectedTask(session)}
-                                                  className={`group flex items-center justify-between p-7 rounded-3xl border ${sessionFollowups.length > 0 ? 'border-[#FF6600]/40 bg-[#FF6600]/5' : 'border-white/5'} hover:border-[#FF6600]/40 hover:bg-[#FF6600]/5 cursor-pointer transition-all`}
-                                               >
-                                                  <div className="flex items-center gap-8">
-                                                     <div className="flex flex-col items-center gap-1">
-                                                        <div className={`w-3 h-3 rounded-full ${session.status === 'completed' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-[#FF6600]/30'}`} />
-                                                        <div className="w-px h-6 bg-white/5" />
-                                                        <Calendar className="w-3.5 h-3.5 text-slate-600" />
-                                                     </div>
-                                                     <div className="text-left">
-                                                        <div className="flex items-center gap-3">
-                                                           <h5 className="font-black text-white uppercase tracking-tighter text-xl leading-none italic group-hover:text-[#FF6600] transition-colors">{session.title}</h5>
-                                                           {sessionFollowups.length > 0 && (
-                                                              <div className="px-3 py-1 bg-[#FF6600] text-black text-[8px] font-black uppercase tracking-widest rounded-full animate-bounce">
-                                                                 Executive Feedback
-                                                              </div>
-                                                           )}
-                                                        </div>
-                                                        <div className="flex flex-wrap items-center gap-3 mt-3">
-                                                           <div className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/5 rounded-lg">
-                                                              <p className="text-[10px] text-[#FF6600] font-black uppercase tracking-widest italic opacity-70">
-                                                                 {session.scheduled_date ? `${session.scheduled_date}` : 'No Date Set'}
-                                                              </p>
-                                                           </div>
-                                                           
-                                                           <select 
-                                                              value={session.team_id || ''} 
-                                                              onChange={async (e) => {
-                                                                 try {
-                                                                    const tid = e.target.value;
-                                                                    const res = await fetch('/api/v2/pm/curriculum', {
-                                                                       method: 'POST',
-                                                                       headers: { 'Content-Type': 'application/json' },
-                                                                       body: JSON.stringify({ program_id: id, action: 'assign_team', id: session.id, team_id: tid })
-                                                                    });
-                                                                    if ((await res.json()).success) fetchPMData();
-                                                                 } catch (e) {}
-                                                              }}
-                                                              onClick={e => e.stopPropagation()}
-                                                              className="bg-black/40 border border-white/10 rounded-lg px-3 py-1 text-[9px] font-black text-white uppercase tracking-widest outline-none focus:border-[#FF6600]"
-                                                           >
-                                                              <option value="">Unassigned Unit</option>
-                                                              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                                           </select>
-
-                                                            <span className="text-slate-800 font-black">•</span>
-                                                            <p className="text-[10px] text-[#FF6600] font-black uppercase tracking-widest italic opacity-80">
-                                                               {session.handler_name || 'No Personnel Assigned'}
-                                                            </p>
-
-                                                            <span className="text-slate-800 font-black">•</span>
-                                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{docRequirements.filter(dr => dr.session_id == session.id).length} Tracked Deliverables</p>
-                                                        </div>
-                                                     </div>
-                                                  </div>
-                                                  <div className="flex items-center gap-3 group-hover:translate-x-3 transition-transform">
-                                                     <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic font-sans opacity-0 group-hover:opacity-100 transition-opacity">Configure Node</span>
-                                                     <ChevronRight className="w-6 h-6 text-[#FF6600]/30 group-hover:text-[#FF6600] transition-colors" />
-                                                  </div>
-                                               </div>
-
-                                               {/* EXECUTIVE FEEDBACK DISPLAY */}
-                                               {sessionFollowups.length > 0 && (
-                                                  <div className="ml-12 p-6 rounded-2xl bg-[#FF6600]/10 border border-[#FF6600]/20 space-y-4">
-                                                     <div className="flex items-center gap-3">
-                                                        <AlertCircle className="w-4 h-4 text-[#FF6600]" />
-                                                        <p className="text-[10px] font-black text-white uppercase tracking-widest italic">Strategic Directives from Super Admin</p>
-                                                     </div>
-                                                     <div className="space-y-3">
-                                                        {sessionFollowups.map(f => (
-                                                           <div key={f.id} className="p-4 rounded-xl bg-black/20 border border-white/5">
-                                                              <p className="text-xs text-white font-bold italic leading-relaxed">"{f.comment}"</p>
-                                                              <p className="text-[8px] font-black text-[#FF6600]/60 uppercase mt-2">{new Date(f.created_at).toLocaleString()}</p>
-                                                           </div>
-                                                        ))}
-                                                     </div>
-                                                  </div>
-                                               )}
-                                            </div>
-                                         );
-                                      })}
-                                      <button 
-                                         onClick={() => setSelectedTask({ week_number: wn, title: '', description: '', status: 'pending' })}
-                                         className="w-full py-6 border-2 border-dashed border-[#FF6600]/10 rounded-3xl text-[11px] font-black text-slate-600 uppercase tracking-[0.4em] hover:bg-[#FF6600]/5 hover:text-[#FF6600] hover:border-[#FF6600]/30 transition-all group flex items-center justify-center gap-4 italic"
-                                      >
-                                         <Plus className="w-4 h-4" /> Deploy Module for Phase {wn}
-                                      </button>
-
-                                      {/* PROGRAM WEEKLY REPORT (Tactical Intel) */}
-                                      {reports.filter(r => r.week_number === wn).length > 0 && (
-                                         <div className="mt-12 space-y-8 pt-12 border-t border-white/5 text-left">
-                                            <div className="flex items-center gap-4">
-                                               <div className="p-2.5 rounded-xl bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20">
-                                                  <FileText className="w-5 h-5" />
-                                               </div>
-                                               <div>
-                                                  <h5 className="text-xl font-black text-white uppercase tracking-tighter italic leading-none">Program Weekly Report</h5>
-                                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">Qualitative Intelligence Feed</p>
-                                               </div>
-                                            </div>
-
-                                            {reports.filter(r => r.week_number === wn).map(report => (
-                                               <div key={report.id} className="space-y-8 bg-white/[0.01] p-10 rounded-[2.5rem] border border-white/5">
-                                                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                                                     <div className="space-y-4">
-                                                        <h6 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-[#FF6600] pl-4 italic">Execution Status</h6>
-                                                        <p className="text-sm text-slate-200 font-bold leading-relaxed whitespace-pre-wrap">{report.progress_notes || 'No execution data provided.'}</p>
-                                                     </div>
-                                                     <div className="space-y-4">
-                                                        <h6 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-[#FF6600] pl-4 italic">Cohort Reception</h6>
-                                                        <p className="text-sm text-slate-200 font-bold leading-relaxed whitespace-pre-wrap">{report.student_reception || 'No reception metrics.'}</p>
-                                                     </div>
-                                                     <div className="space-y-4">
-                                                        <h6 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-[#FF6600] pl-4 italic">Strategic Impact</h6>
-                                                        <p className="text-sm text-slate-200 font-bold leading-relaxed whitespace-pre-wrap">{report.action_taken || 'No behavioral shifts recorded.'}</p>
-                                                     </div>
-                                                  </div>
-                                                  <div className="pt-6 border-t border-white/5 flex justify-between items-center">
-                                                     <p className="text-[9px] font-black text-slate-500 uppercase italic">Authenticated by {report.teacher_name}</p>
-                                                     <div className="flex items-center gap-2">
-                                                        <p className="text-[9px] font-black text-[#FF6600] uppercase italic">Reception Velocity: {report.reception_score}/10</p>
-                                                     </div>
-                                                  </div>
-                                               </div>
-                                            ))}
-                                         </div>
-                                      )}
-
-                                      {/* PM WEEKLY REPORT INPUT (Tactical Oversight) */}
-                                      <div className="mt-12 pt-12 border-t border-white/5 text-left space-y-6">
-                                         <div className="flex items-center gap-4">
-                                            <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                                               <Target className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                               <h5 className="text-xl font-black text-white uppercase tracking-tighter italic leading-none">PM Weekly Review</h5>
-                                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">Mission Authority Oversight</p>
-                                            </div>
-                                         </div>
-                                         
-                                         <div className="relative group">
-                                            <textarea 
-                                               rows={4}
-                                               placeholder="Enter your tactical oversight report for this week... (Required for 100% Progress)"
-                                               className="w-full bg-black/40 border border-white/10 rounded-[2rem] p-8 text-slate-200 font-bold text-sm outline-none focus:border-[#FF6600]/50 transition-all resize-none shadow-inner"
-                                               value={pmReportInputs[wn]?.notes || ''}
-                                               onChange={e => setPmReportInputs(prev => ({ ...prev, [wn]: { ...prev[wn], notes: e.target.value } }))}
-                                            />
-                                            <button 
-                                               onClick={() => handleSavePMReport(wn)}
-                                               disabled={pmReportInputs[wn]?.saving || !pmReportInputs[wn]?.notes}
-                                               className="absolute bottom-6 right-6 px-8 py-3 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 disabled:opacity-30 disabled:cursor-not-allowed"
-                                            >
-                                               {pmReportInputs[wn]?.saving ? 'Syncing...' : 'Lock Report'}
-                                            </button>
-                                         </div>
-                                      </div>
-
-                                   </div>
-                                </motion.div>
-                             )}
-                          </AnimatePresence>
-                       </div>
-                    );
-                 })}
-              </div>
-           )}
-           {activeTab === 'resources' && (
-              <div className="max-w-4xl space-y-12">
-                 <div className="space-y-6 text-left">
-                    <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Program Concept Note</h3>
-                    <div className="ios-card bg-white/[0.02] border-white/5 !p-12 leading-relaxed text-slate-300 font-bold whitespace-pre-wrap text-lg italic shadow-inner">
-                       {program.note_description || program.description || 'No conceptual overview provided for this program.'}
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <div className="space-y-6 text-left">
-                       <h3 className="text-xl font-black text-[#FF6600] uppercase tracking-widest italic">Core Assets</h3>
-                       <div className="space-y-4">
-                          {program.note_files && program.note_files.length > 0 ? (
-                             program.note_files.map((file, idx) => (
-                                <button 
-                                   key={idx} 
-                                   onClick={() => openMaterial({ name: file.name, data: file.url })}
-                                   className="w-full ios-card bg-white/[0.02] border-[#FF6600]/20 !p-8 flex items-center justify-between group hover:bg-[#FF6600]/5 transition-all cursor-pointer"
-                                >
-                                   <div className="flex items-center gap-6">
-                                      <div className="w-12 h-12 bg-[#FF6600]/10 rounded-2xl flex items-center justify-center text-[#FF6600]">
-                                         <FileText className="w-6 h-6" />
-                                      </div>
-                                      <span className="text-sm font-black text-white uppercase tracking-widest italic truncate max-w-[180px]">{file.name || 'Core Asset'}</span>
-                                   </div>
-                                   <ChevronRight className="w-6 h-6 text-slate-600 group-hover:text-[#FF6600]" />
-                                </button>
-                             ))
-                          ) : (
-                             <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic p-10 border border-white/5 rounded-[2rem] bg-white/[0.01]">Awaiting Core Assets...</p>
-                          )}
-                       </div>
-                    </div>
-
-                    <div className="space-y-6 text-left">
-                       <h3 className="text-xl font-black text-slate-400 uppercase tracking-widest italic">Supplementary Material</h3>
-                       <div className="space-y-4">
-                          {program.materials && program.materials.length > 0 ? (
-                             program.materials.map((file, idx) => (
-                                <button 
-                                   key={idx} 
-                                   onClick={() => openMaterial(file)}
-                                   className="w-full ios-card bg-white/[0.01] border-white/5 !p-8 flex items-center justify-between group hover:bg-white/[0.05] transition-all cursor-pointer text-left"
-                                >
-                                   <div className="flex items-center gap-6">
-                                      <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400">
-                                         <BookOpen className="w-6 h-6" />
-                                      </div>
-                                      <span className="text-sm font-black text-white uppercase tracking-widest italic truncate max-w-[180px]">{file.name || 'Material'}</span>
-                                   </div>
-                                   <ChevronRight className="w-6 h-6 text-slate-600 group-hover:text-white" />
-                                </button>
-                             ))
-                          ) : (
-                             <div className="ios-card bg-white/[0.01] border-white/5 !p-12 flex flex-col items-center justify-center gap-4 opacity-40">
-                                <Plus className="w-8 h-8 text-slate-800" />
-                                <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest italic">Knowledge Nodes Offline</p>
-                             </div>
-                          )}
-                       </div>
-                    </div>
-                 </div>
-              </div>
-           )}
-
-
-            {activeTab === 'progress' && (
-               <div className="max-w-5xl space-y-16 pb-20">
-                  {weeks.map(wn => {
-                     const weekSessions = sessions.filter(s => s.week_number === wn);
-                     const weekDocs = docRequirements.filter(dr => dr.program_id === id && dr.session_id && weekSessions.some(s => s.id === dr.session_id));
-                     const weekReport = reports.find(r => r.week_number === wn && r.teacher_name?.includes('(PM)'));
-                     const stats = getWeekStats(wn);
-                     
-                     return (
-                        <div key={wn} className="space-y-8">
-                           {/* WEEK HEADER & STATS */}
-                           <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-white/5 pb-6">
-                              <div className="flex items-center gap-6">
-                                 <div className="w-16 h-16 bg-[#FF6600]/10 rounded-3xl flex items-center justify-center text-[#FF6600] font-black text-2xl italic border border-[#FF6600]/20 shadow-xl shadow-[#FF6600]/5">
-                                    {String(wn).padStart(2, '0')}
-                                 </div>
-                                 <div className="text-left">
-                                    <h4 className="text-3xl font-black text-white uppercase italic tracking-tighter leading-none">Week {wn} Audit</h4>
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Mission Phase Velocity: {stats.percentage}%</p>
-                                 </div>
-                              </div>
-                              <div className="flex items-center gap-4 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-                                 <div className="text-right">
-                                    <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1 italic">Deliverable Fulfillment</p>
-                                    <p className="text-xs font-black text-white uppercase tracking-tighter">
-                                       <span className="text-[#FF6600]">{stats.completedDocs}</span> / {stats.totalDocs} Synchronized
-                                    </p>
-                                 </div>
-                              </div>
-                           </div>
-
-                           <div className="grid grid-cols-1 gap-6">
-                              {/* SESSION NODES */}
-                              {weekSessions.map(session => (
-                                 <div key={session.id} className="ios-card bg-white/[0.01] border-white/5 !p-8 space-y-8 group hover:border-[#FF6600]/20 transition-all">
-                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                                       <div className="flex items-center gap-6">
-                                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${
-                                             session.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 shadow-lg shadow-emerald-500/5' : 
-                                             session.status === 'in progress' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 
-                                             'bg-white/5 border-white/10 text-slate-400'
-                                          }`}>
-                                             <Zap className="w-6 h-6" />
-                                          </div>
-                                          <div className="text-left">
-                                             <h4 className="text-xl font-black text-white uppercase italic tracking-tighter leading-none">{session.title}</h4>
-                                             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-2">{session.assignment_type || 'Module'} Node • Priority Weight: {session.weight || 5}</p>
-                                          </div>
-                                       </div>
-                                       
-                                       <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-2xl border border-white/5 shadow-inner">
-                                          {['not started', 'in progress', 'completed'].map(st => (
-                                             <button 
-                                                key={st}
-                                                onClick={() => handleToggleSessionStatus(session.id, st)}
-                                                className={`px-5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
-                                                   session.status === st ? (
-                                                      st === 'completed' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' :
-                                                      st === 'in progress' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' :
-                                                      'bg-white/10 text-white shadow-lg'
-                                                   ) : 'text-slate-600 hover:text-white'
-                                                }`}
-                                             >
-                                                {st}
-                                             </button>
-                                          ))}
-                                       </div>
-                                    </div>
-
-                                    {/* DELIVERABLES GRID */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6 border-t border-white/5">
-                                       {docRequirements.filter(dr => dr.session_id == session.id).map(req => (
-                                          <div key={req.id} className={`flex items-center justify-between p-5 rounded-3xl border transition-all group/item ${req.is_completed ? 'bg-[#FF6600]/10 border-[#FF6600]/40 shadow-lg shadow-[#FF6600]/5' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
-                                             <div className="flex items-center gap-4">
-                                                <button 
-                                                   onClick={() => handleToggleDeliverableStatus(req.id, !req.is_completed)}
-                                                   className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-300 ${
-                                                      req.is_completed 
-                                                      ? 'bg-[#FF6600] border-[#FF6600] text-black scale-105' 
-                                                      : 'bg-black/40 border-white/10 hover:border-[#FF6600]'
-                                                   }`}
-                                                >
-                                                   {req.is_completed ? <CheckCircle2 className="w-4 h-4 stroke-[3px]" /> : <div className="w-1.5 h-1.5 rounded-full bg-white/10" />}
-                                                </button>
-                                                <span className={`text-[10px] font-black uppercase tracking-widest italic ${req.is_completed ? 'text-white' : 'text-slate-500'}`}>{req.title}</span>
-                                             </div>
-                                          </div>
-                                       ))}
-                                    </div>
-                                 </div>
-                              ))}
-
-                              {/* WEEKLY REPORT ACTION */}
-                              <div className={`ios-card !p-10 border-dashed border-2 transition-all overflow-hidden relative ${weekReport ? 'bg-emerald-500/[0.02] border-emerald-500/20 shadow-2xl shadow-emerald-500/5' : 'bg-indigo-500/[0.02] border-indigo-500/10'}`}>
-                                 <div className="flex flex-col md:flex-row gap-10">
-                                    <div className="flex-[2] space-y-6">
-                                       <div className="flex items-center gap-4">
-                                          <div className={`p-3 rounded-2xl border ${weekReport ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'}`}>
-                                             <FileText className="w-6 h-6" />
-                                          </div>
-                                          <div className="text-left">
-                                             <h5 className="text-2xl font-black text-white uppercase tracking-tighter italic leading-none">PM Weekly Review</h5>
-                                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Mission Authority Strategic Feedback</p>
-                                          </div>
-                                       </div>
-                                       
-                                       {weekReport ? (
-                                          <div className="space-y-4">
-                                             <div className="p-6 bg-black/40 border border-white/5 rounded-3xl shadow-inner italic leading-relaxed text-slate-300 font-bold text-sm">
-                                                "{weekReport.progress_notes}"
-                                             </div>
-                                             <div className="flex items-center gap-4">
-                                                <div className="px-4 py-1.5 bg-emerald-500 text-black text-[8px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-emerald-500/20">
-                                                   Strategic Report Synchronized
-                                                </div>
-                                                <span className="text-[9px] font-black text-slate-600 uppercase italic">Logged by PM on {new Date(weekReport.created_at).toLocaleDateString()}</span>
-                                             </div>
-                                          </div>
-                                       ) : (
-                                          <div className="space-y-4">
-                                             <textarea 
-                                                rows={3}
-                                                placeholder="Enter tactical oversight for this week... (Required for 100% completion)"
-                                                className="w-full bg-black/40 border border-white/10 rounded-3xl p-6 text-slate-200 font-bold text-sm outline-none focus:border-[#FF6600]/50 transition-all resize-none shadow-inner"
-                                                value={pmReportInputs[wn]?.notes || ''}
-                                                onChange={e => setPmReportInputs(prev => ({ ...prev, [wn]: { ...prev[wn], notes: e.target.value } }))}
-                                             />
-                                             <button 
-                                                onClick={() => handleSavePMReport(wn)}
-                                                disabled={pmReportInputs[wn]?.saving || !pmReportInputs[wn]?.notes}
-                                                className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 disabled:opacity-20"
-                                             >
-                                                {pmReportInputs[wn]?.saving ? 'Transmitting...' : 'Synchronize Report'}
-                                             </button>
-                                          </div>
-                                       )}
-                                    </div>
-                                    
-                                    <div className="flex-1 flex flex-col items-center justify-center border-l border-white/5 pl-10">
-                                       <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center transition-all ${weekReport ? 'bg-emerald-500 border-emerald-500 text-black shadow-[0_0_30px_rgba(16,185,129,0.3)] scale-110' : 'bg-white/5 border-white/10 text-slate-800 opacity-40'}`}>
-                                          {weekReport ? <CheckCircle2 className="w-10 h-10 stroke-[3px]" /> : <Activity className="w-10 h-10" />}
-                                       </div>
-                                       <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-6 italic ${weekReport ? 'text-emerald-500' : 'text-slate-700'}`}>
-                                          {weekReport ? 'Audit Complete' : 'Report Required'}
-                                       </p>
-                                    </div>
-                                 </div>
-                              </div>
-                           </div>
-                        </div>
-                     );
-                  })}
-               </div>
-            )}
-            {activeTab === 'teams' && (
-               <div className="space-y-16">
-                  {/* SEGMENT 1: ASSIGNED OPERATIONS PERSONNEL (Future Studio) */}
-                  <div className="space-y-10">
-                     <div className="flex justify-between items-end">
-                        <div>
-                           <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Assigned Operations Personnel</h3>
-                           <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mt-2">Future Studio Support Team: {assignedStaff.length}</p>
-                        </div>
-                     </div>
-
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {assignedStaff.map(staff => (
-                           <div key={staff.cid} className="ios-card bg-indigo-500/[0.02] border-indigo-500/10 p-10 flex flex-col justify-between group hover:border-[#FF6600]/40 transition-all shadow-2xl relative overflow-hidden">
-                              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 blur-[60px]" />
-                              <div className="space-y-8 relative z-10">
-                                 <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-                                    <Shield className="w-7 h-7" />
-                                 </div>
-                                 <div>
-                                    <h4 className="text-2xl font-black text-white uppercase tracking-tighter italic leading-none mb-3">{staff.name}</h4>
-                                    <div className="flex items-center gap-2">
-                                       <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-indigo-500/20">{staff.role || 'Personnel'}</span>
-                                       <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest opacity-60">ID: {staff.cid}</span>
-                                    </div>
-                                 </div>
-                              </div>
-                              <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center relative z-10">
-                                 <div className="flex items-center gap-3">
-                                    {staff.email && (
-                                       <a href={`mailto:${staff.email}`} className="p-3 bg-white/5 hover:bg-[#FF6600]/10 rounded-xl text-slate-500 hover:text-[#FF6600] transition-all border border-transparent hover:border-[#FF6600]/20">
-                                          <Mail className="w-4 h-4" />
-                                       </a>
-                                    )}
-                                    {staff.phone && (
-                                       <a href={getWhatsAppLink(staff)} target="_blank" rel="noopener noreferrer" className="p-3 bg-emerald-500/5 hover:bg-emerald-500 rounded-xl text-emerald-500 hover:text-white transition-all border border-emerald-500/10">
-                                          <MessageCircle className="w-4 h-4" />
-                                       </a>
-                                    )}
-                                 </div>
-                                 <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest italic bg-indigo-500/5 px-4 py-1.5 rounded-full border border-indigo-500/10">Active Support</span>
-                              </div>
-                           </div>
-                        ))}
-                        {assignedStaff.length === 0 && (
-                           <div className="col-span-full py-20 ios-card border-dashed flex flex-col items-center justify-center italic text-slate-700 text-[10px] uppercase tracking-widest">Awaiting Personnel Assignment...</div>
-                        )}
-                     </div>
+        {/* WORKSPACE CONTENT */}
+        <div className="pt-4">
+          {activeTab === 'overview' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="card space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
+                    <Users className="w-6 h-6" />
                   </div>
-
-                  <div className="w-full h-px bg-white/5" />
-
-                  {/* SEGMENT 2: SQUAD REGISTRY (Participants) */}
-                  <div className="space-y-10">
-                     <div className="flex justify-between items-end">
-                        <div>
-                           <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Squad Registry</h3>
-                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Active Units: {teams.length}</p>
-                        </div>
-                        <button 
-                           onClick={() => setShowTeamModal(true)}
-                           className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
-                        >
-                           + Deploy New Unit
-                        </button>
-                     </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                     {teams.map(team => (
-                        <div key={team.id} className="ios-card bg-white/[0.01] border-white/5 p-12 flex flex-col justify-between group hover:border-[#FF6600]/20 transition-all shadow-2xl relative overflow-hidden">
-                           <div className="absolute top-0 right-0 w-40 h-40 bg-[#FF6600]/5 rounded-full -mr-20 -mt-20 blur-[80px]" />
-                           <div className="space-y-10 relative z-10">
-                              <div className="w-16 h-16 rounded-3xl bg-[#FF6600]/10 flex items-center justify-center text-[#FF6600] border border-[#FF6600]/20 shadow-xl shadow-[#FF6600]/5">
-                                 <Target className="w-8 h-8" />
-                              </div>
-                              <div>
-                                 <h4 className="text-4xl font-black text-white uppercase tracking-tighter italic leading-[0.8] mb-4">{team.name}</h4>
-                                 <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
-                                    <span className="text-slate-600">Handler:</span> {team.handler_name || 'Unassigned'}
-                                 </p>
-                              </div>
-                           </div>
-                           <div className="mt-16 pt-8 border-t border-white/5 flex justify-between items-center relative z-10">
-                              <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest italic">Unit Healthy</span>
-                              <div className="flex items-center gap-3">
-                                 <button onClick={async () => {
-                                    if(confirm('Decommission this unit?')) {
-                                       await fetch('/api/v2/pm/teams', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: team.id}) });
-                                       fetchPMData();
-                                    }
-                                 }} className="p-3 rounded-xl bg-white/5 text-slate-600 hover:text-rose-500 transition-all"><Trash2 className="w-4 h-4"/></button>
-                                 <button className="p-4 rounded-2xl bg-[#FF6600]/10 text-[#FF6600] hover:bg-[#FF6600] hover:text-black transition-all"><ArrowRight className="w-5 h-5" /></button>
-                              </div>
-                           </div>
-                        </div>
-                     ))}
-                     {teams.length === 0 && <div className="col-span-full py-60 ios-card border-dashed flex flex-col items-center justify-center italic text-slate-600 text-[11px] uppercase tracking-widest">Awaiting Unit Deployment...</div>}
+                  <span className="text-2xl font-bold">{participants.length}</span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">Total Participants</p>
+                  <p className="text-[10px] text-emerald-500 font-bold mt-1">+12% from last cohort</p>
+                </div>
+              </div>
+              
+              <div className="card space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500">
+                    <Activity className="w-6 h-6" />
                   </div>
-               </div>
+                  <span className="text-2xl font-bold">{submissions.length}</span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">Operational Submissions</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">Completion Rate: 84%</p>
+                </div>
+              </div>
+
+              <div className="card space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="p-3 bg-purple-500/10 rounded-xl text-purple-500">
+                    <Target className="w-6 h-6" />
+                  </div>
+                  <span className="text-2xl font-bold">{teams.length}</span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">Deployed Squads</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">Active Operations</p>
+                </div>
+              </div>
             </div>
-         )}
+          )}
 
-            {activeTab === 'participants' && (
-               <div className="space-y-10">
-                  <div className="flex justify-between items-end mb-12">
-                     <div>
-                        <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Enrollment Registry</h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Total Participants: {participants.length}</p>
-                     </div>
+          {activeTab === 'participants' && (
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Participant</th>
+                    <th>Email</th>
+                    <th>Squad</th>
+                    <th>Status</th>
+                    <th className="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {participants.map(p => (
+                    <tr key={p.id}>
+                      <td className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] flex items-center justify-center font-bold text-xs border border-[var(--border-primary)]">
+                          {p.name.charAt(0)}
+                        </div>
+                        <span className="font-bold">{p.name}</span>
+                      </td>
+                      <td>{p.email}</td>
+                      <td>
+                        <span className="px-2 py-1 bg-[var(--bg-primary)] rounded text-[10px] font-bold uppercase">
+                          {p.group_name || 'Unassigned'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="text-xs font-medium">Operational</span>
+                        </div>
+                      </td>
+                      <td className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <button className="p-2 hover:text-[var(--brand-blue)]"><Mail className="w-4 h-4" /></button>
+                          <button className="p-2 hover:text-emerald-500"><MessageCircle className="w-4 h-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === 'teams' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {teams.map(team => (
+                <div key={team.id} className="card group hover:border-[var(--brand-orange)] transition-all">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
+                      <Target className="w-6 h-6" />
+                    </div>
+                    {(user.role === 'super_admin' || user.role === 'program_manager') && (
+                      <button className="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                    )}
                   </div>
-
-                  <div className="ios-card bg-white/[0.01] border-white/5 !p-0 overflow-hidden shadow-2xl">
-                     <table className="w-full text-left">
-                        <thead>
-                           <tr className="border-b border-white/5 text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] bg-white/[0.02]">
-                              <th className="p-8">Participant Node</th>
-                              <th className="p-8">Email Index</th>
-                              <th className="p-8">Squad Assignment</th>
-                              <th className="p-8">Status</th>
-                              <th className="p-8 text-right">Action</th>
-                           </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                           {participants.map(p => (
-                              <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors">
-                                 <td className="p-8 flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-xs">
-                                       {p.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                       <p className="text-sm font-black text-white uppercase tracking-tighter italic leading-none">{p.name}</p>
-                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 opacity-60">ID: {p.cid || 'N/A'}</p>
-                                    </div>
-                                 </td>
-                                 <td className="p-8 font-bold text-slate-400 text-xs lowercase">{p.email}</td>
-                                 <td className="p-8">
-                                    <div className="relative group/sel">
-                                       <select 
-                                          className="bg-white/5 border border-white/5 rounded-lg px-4 py-2 text-[10px] font-black text-slate-400 outline-none focus:border-[#FF6600] appearance-none cursor-pointer uppercase tracking-widest hover:text-white transition-all pr-10"
-                                          defaultValue={p.group_name || ''}
-                                          onChange={async (e) => {
-                                             const newGroup = e.target.value;
-                                             try {
-                                                await fetch('/api/contacts', {
-                                                   method: 'PUT',
-                                                   headers: { 'Content-Type': 'application/json' },
-                                                   body: JSON.stringify({ cid: p.cid, group_name: newGroup })
-                                                });
-                                                window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                                                   detail: { type: 'success', message: 'Squad Updated.' } 
-                                                }));
-                                                fetchPMData();
-                                             } catch(e) {}
-                                          }}
-                                       >
-                                          <option value="" className="bg-[#0f0f1a]">No Squad</option>
-                                          {teams.map(t => <option key={t.id} value={t.name} className="bg-[#0f0f1a]">{t.name.toUpperCase()}</option>)}
-                                       </select>
-                                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600 pointer-events-none group-hover/sel:text-white" />
-                                    </div>
-                                 </td>
-                                 <td className="p-8">
-                                    <span className="badge badge-glow-blue text-[8px] font-black uppercase italic">Operational</span>
-                                 </td>
-                                 <td className="p-8 text-right">
-                                    <div className="flex items-center justify-end gap-3">
-                                       {p.email && (
-                                          <a 
-                                             href={`mailto:${p.email}`} 
-                                             className="p-3 bg-white/5 hover:bg-[#FF6600]/10 rounded-xl text-slate-500 hover:text-[#FF6600] transition-all border border-transparent hover:border-[#FF6600]/20"
-                                             title="Send Email"
-                                          >
-                                             <Mail className="w-4 h-4" />
-                                          </a>
-                                       )}
-                                       {p.phone && (
-                                          <a 
-                                             href={getWhatsAppLink(p)} 
-                                             target="_blank" 
-                                             rel="noopener noreferrer" 
-                                             className="p-3 bg-emerald-500/5 hover:bg-emerald-500 rounded-xl text-emerald-500 hover:text-white transition-all border border-emerald-500/10"
-                                             title="Open WhatsApp"
-                                          >
-                                             <MessageCircle className="w-4 h-4" />
-                                          </a>
-                                       )}
-                                       <button className="p-3 rounded-xl bg-white/5 text-slate-600 hover:text-white transition-all border border-white/5" title="View Profile"><ArrowRight className="w-4 h-4"/></button>
-                                    </div>
-                                 </td>
-                              </tr>
-                           ))}
-                           {participants.length === 0 && (
-                              <tr>
-                                 <td colSpan={5} className="p-20 text-center text-[10px] font-black text-slate-600 uppercase tracking-widest italic">No participants anchored to this program node.</td>
-                              </tr>
-                           )}
-                        </tbody>
-                     </table>
+                  <h3 className="text-xl font-bold mb-2">{team.name}</h3>
+                  <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider font-bold mb-6">Handler: {team.handler_name || 'Unassigned'}</p>
+                  <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
+                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Healthy</span>
+                    <button className="text-[var(--brand-blue)] text-xs font-bold uppercase flex items-center gap-1">
+                      Details <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
-               </div>
-            )}
+                </div>
+              ))}
+              {(user.role === 'super_admin' || user.role === 'program_manager') && (
+                <button onClick={() => setShowTeamModal(true)} className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-60 hover:opacity-100 transition-all min-h-[200px]">
+                  <Plus className="w-8 h-8 text-[var(--text-secondary)]" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Deploy New Squad</span>
+                </button>
+              )}
+            </div>
+          )}
 
-            {activeTab === 'submissions' && (
-               <div className="space-y-12 pb-20">
-                  <div className="flex justify-between items-end mb-10">
-                     <div>
-                        <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Unit Submission Audit</h3>
-                        <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mt-2">Active Performance Nodes: {submissions.length}</p>
-                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-12">
-                     {weeks.map(wn => {
-                        const weekSessions = sessions.filter(s => s.week_number === wn);
-                        const weekSubmissions = submissions.filter(sub => {
-                           const session = sessions.find(s => s.id === sub.requirement_id.split('_')[0]); // Rough mapping
-                           return session?.week_number === wn;
-                        });
-
-                        if (weekSessions.length === 0) return null;
-
-                        return (
-                           <div key={wn} className="space-y-6">
-                              <div className="flex items-center gap-4">
-                                 <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-slate-400 font-black italic">
-                                    {String(wn).padStart(2, '0')}
-                                 </div>
-                                 <h4 className="text-xl font-black text-white uppercase tracking-tighter italic">Week {wn} Submissions</h4>
+          {activeTab === 'curriculum' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black uppercase tracking-tighter">Strategic Curriculum</h3>
+                <button onClick={() => setShowSessionModal(true)} className="btn btn-primary btn-sm gap-2">
+                  <Plus className="w-4 h-4" /> Add Session
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {sessions.map(session => (
+                  <div key={session.id} className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all">
+                    <div className="p-6 bg-[var(--bg-tertiary)] flex justify-between items-center border-b border-[var(--border-primary)]">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-[var(--bg-primary)] flex flex-col items-center justify-center text-[10px] font-black border border-[var(--border-primary)]">
+                          <span className="text-[var(--brand-orange)]">W{session.week_number}</span>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-[var(--text-primary)] uppercase">{session.title}</h4>
+                          <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-widest">{session.status}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <span className="px-2 py-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded text-[9px] font-bold uppercase text-[var(--text-secondary)]">
+                           {session.assignment_type || 'General'}
+                         </span>
+                         <button className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                           <MoreVertical className="w-4 h-4" />
+                         </button>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Associated Deliverables</span>
+                        <button className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline">+ Requirement</button>
+                      </div>
+                      <div className="space-y-2">
+                        {requirements.filter(r => r.session_id === session.id).map(req => (
+                          <div key={req.id} className="flex items-center justify-between p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-4 h-4 text-[var(--brand-blue)]" />
+                              <div>
+                                <p className="text-xs font-bold text-[var(--text-primary)]">{req.title}</p>
+                                <p className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wide">Format: {req.allowed_format || 'PDF'}</p>
                               </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                 {weekSessions.map(session => {
-                                    const sessionSubmissions = submissions.filter(s => s.requirement_id.startsWith(session.id));
-                                    
-                                    return (
-                                       <div key={session.id} className="ios-card bg-white/[0.01] border-white/5 !p-8 space-y-6 group hover:border-[#FF6600]/20 transition-all">
-                                          <div className="flex justify-between items-start">
-                                             <div>
-                                                <h5 className="text-sm font-black text-white uppercase tracking-widest italic group-hover:text-[#FF6600] transition-colors">{session.title}</h5>
-                                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Status: {session.status}</p>
-                                             </div>
-                                             <div className="px-3 py-1 bg-white/5 rounded-lg border border-white/10">
-                                                <span className="text-[10px] font-black text-white">{sessionSubmissions.length} / {teams.length || 1}</span>
-                                             </div>
-                                          </div>
-
-                                          <div className="space-y-3">
-                                             {teams.map(team => {
-                                                const teamSub = sessionSubmissions.find(s => s.team_id === team.id);
-                                                return (
-                                                   <div key={team.id} className={`flex items-center justify-between p-4 rounded-xl border ${teamSub ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-white/[0.01] border-white/5'}`}>
-                                                      <div className="flex items-center gap-3">
-                                                         <div className={`w-2 h-2 rounded-full ${teamSub ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/5'}`} />
-                                                         <span className={`text-[10px] font-black uppercase tracking-widest ${teamSub ? 'text-white' : 'text-slate-600'}`}>{team.name}</span>
-                                                      </div>
-                                                      {teamSub && (
-                                                         <button 
-                                                            onClick={() => window.open(teamSub.file_url, '_blank')}
-                                                            className="p-2 text-slate-400 hover:text-[#FF6600] transition-colors"
-                                                         >
-                                                            <ExternalLink className="w-3.5 h-3.5" />
-                                                         </button>
-                                                      )}
-                                                   </div>
-                                                );
-                                             })}
-                                          </div>
-                                       </div>
-                                    );
-                                 })}
-                              </div>
-                           </div>
-                        );
-                     })}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${req.is_completed ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                              <button className="text-[10px] font-bold text-rose-500 hover:underline">Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                        {requirements.filter(r => r.session_id === session.id).length === 0 && (
+                           <p className="text-[10px] italic text-[var(--text-secondary)] opacity-40">No specific document requirements anchored to this node.</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-               </div>
-            )}
+                ))}
+              </div>
+            </div>
+          )}
 
+          {activeTab === 'config' && (
+            <div className="space-y-8 animate-in">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
+                    Program Identity
+                  </h3>
+                  <div className="card space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Program Name</label>
+                      <input ref={configNameRef} type="text" defaultValue={program?.name} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Strategic Description</label>
+                      <textarea ref={configDescRef} rows="4" defaultValue={program?.description} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Duration (Weeks)</label>
+                        <input ref={configWeeksRef} type="number" defaultValue={program?.duration_weeks} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Operational Status</label>
+                        <select ref={configStatusRef} defaultValue={program?.status} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold">
+                          <option value="active">ACTIVE</option>
+                          <option value="archived">ARCHIVED</option>
+                          <option value="draft">DRAFT</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button onClick={saveConfig} disabled={isSaving} className="btn btn-primary w-full py-4 mt-4 gap-2">
+                      <Save className="w-4 h-4" />{isSaving ? 'Saving...' : 'Synchronize Global Settings'}
+                    </button>
+                  </div>
+                </div>
 
+                <div className="space-y-6">
+                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-purple-500" />
+                    Strategic KPIs
+                  </h3>
+                  <div className="card space-y-4">
+                    <div className="space-y-2">
+                      {kpis.map(kpi => (
+                        <div key={kpi.id} className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                          <span className="font-bold text-sm uppercase tracking-tight">{kpi.title}</span>
+                          <div className="flex items-center gap-4">
+                            <span className="text-xs font-black text-[var(--brand-orange)]">{kpi.target_value}%</span>
+                            <button className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="btn btn-secondary w-full py-3 gap-2 border-dashed">
+                      <Plus className="w-4 h-4" /> Define KPI Target
+                    </button>
+                  </div>
+
+                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2 mt-8">
+                    <Users className="w-5 h-5 text-blue-500" />
+                    Staff Deployment
+                  </h3>
+                  <div className="card space-y-4">
+                    <div className="space-y-2">
+                      {assignedStaff.map(staff => (
+                        <div key={staff.cid} className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center text-[10px] font-black uppercase">{staff.name?.charAt(0)}</div>
+                            <div>
+                              <p className="text-xs font-black uppercase tracking-tight">{staff.name}</p>
+                              <p className="text-[9px] text-[var(--text-secondary)] font-bold">{staff.role}</p>
+                            </div>
+                          </div>
+                          <button className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="btn btn-secondary w-full py-3 gap-2 border-dashed">
+                      <Plus className="w-4 h-4" /> Assign Personnel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'submissions' && (
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Participant</th>
+                    <th>Deliverable</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th className="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {submissions.map(sub => (
+                    <tr key={sub.id}>
+                      <td>{sub.participant_name || 'N/A'}</td>
+                      <td>{sub.deliverable_title}</td>
+                      <td className="text-[10px] opacity-60 font-bold">{new Date(sub.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${sub.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-orange-500/10 text-orange-500'}`}>
+                          {sub.status}
+                        </span>
+                      </td>
+                      <td className="text-right">
+                        <button className="text-[var(--brand-blue)] text-[10px] font-black uppercase italic">Review</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {submissions.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="py-20 text-center opacity-30 italic">No submissions detected in this sector.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
-      <AnimatePresence>
-         {selectedTask && (
-            <div className="fixed inset-0 z-[500] flex items-start pt-20 justify-center bg-black/90 backdrop-blur-md p-4 overflow-y-auto" onClick={() => { setSelectedTask(null); setNewReq({...newReq, isAdding: false}); }}>
-               <motion.div 
-                 initial={{ opacity: 0, scale: 0.95 }} 
-                 animate={{ opacity: 1, scale: 1 }} 
-                 exit={{ opacity: 0, scale: 0.95 }} 
-                 onClick={(e) => e.stopPropagation()}
-                 className="ios-card w-full max-w-4xl bg-[#0d0d18] border-white/10 shadow-3xl p-16 overflow-y-auto max-h-[90vh] custom-scrollbar relative"
-               >
-                  
-                  <div className="space-y-14">
-                     <header className="flex justify-between items-start relative z-10">
-                        <div className="space-y-4 text-left">
-                           <div className="flex items-center gap-4">
-                              <Activity className="w-5 h-5 text-[#FF6600]" />
-                              <span className="text-[11px] font-bold text-[#FF6600] uppercase tracking-[0.5em]">Phase Logic</span>
-                           </div>
-                           <h3 className="text-5xl font-black text-white uppercase tracking-tighter italic leading-none">{selectedTask.id ? 'Mission Configuration' : 'Deploy New Module'}</h3>
-                        </div>
-                        <button onClick={() => { setSelectedTask(null); setNewReq({...newReq, isAdding: false}); }} className="p-4 bg-white/5 rounded-2xl text-slate-400 hover:text-white transition-all">
-                           <X className="w-8 h-8" />
-                        </button>
-                     </header>
+      {/* TOAST */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-[500] px-6 py-4 rounded-2xl shadow-2xl text-sm font-black uppercase tracking-widest transition-all ${
+          toast.type === 'error' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+        }`}>{toast.msg}</div>
+      )}
 
-                     <div className="space-y-10">
-                        <div className="space-y-3">
-                           <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic opacity-60">Module Name</label>
-                           <input 
-                              readOnly={!isLeadPMForProject}
-                              placeholder="Define the primary module objective..." 
-                              className={`w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none transition-all font-black text-xl shadow-inner ${isLeadPMForProject ? 'focus:border-[#FF6600]' : 'opacity-60 cursor-default'}`} 
-                              value={selectedTask.title || ''} 
-                              onChange={e => isLeadPMForProject && setSelectedTask({...selectedTask, title: e.target.value})} 
-                           />
-                        </div>
-
-                        <div className="space-y-3">
-                           <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic opacity-60">Objective Description</label>
-                           <textarea 
-                              readOnly={!isLeadPMForProject}
-                              rows={4} 
-                              placeholder="Architect operational requirements..." 
-                              className={`w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none transition-all font-bold resize-none leading-relaxed text-md shadow-inner ${isLeadPMForProject ? 'focus:border-[#FF6600]' : 'opacity-60 cursor-default'}`} 
-                              value={selectedTask.description || ''} 
-                              onChange={e => isLeadPMForProject && setSelectedTask({...selectedTask, description: e.target.value})} 
-                           />
-                        </div>
-
-                        <div className="space-y-3">
-                           <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic opacity-60">Knowledge Resource URL</label>
-                           <div className="flex gap-4">
-                              <input 
-                                 readOnly={!isLeadPMForProject}
-                                 placeholder="https://knowledge-node.com/..." 
-                                 className={`flex-1 bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none transition-all font-bold text-md shadow-inner ${isLeadPMForProject ? 'focus:border-[#FF6600]' : 'opacity-60 cursor-default'}`} 
-                                 value={selectedTask.material_url || ''} 
-                                 onChange={e => isLeadPMForProject && setSelectedTask({...selectedTask, material_url: e.target.value})} 
-                              />
-                              {selectedTask.material_url && (
-                                 <a 
-                                    href={selectedTask.material_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="px-8 bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20 rounded-3xl flex items-center justify-center hover:bg-[#FF6600] hover:text-black transition-all group"
-                                    title="Open Resource Material"
-                                 >
-                                    <Link2 className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                                 </a>
-                              )}
-                           </div>
-                        </div>
-
-                        <div className="space-y-6 bg-white/5 p-6 md:p-8 rounded-3xl border border-white/5">
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
-                              <div className="space-y-3 text-left">
-                                 <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic opacity-60">Start Date *</label>
-                                 <input 
-                                    type="date"
-                                    required
-                                    className="w-full bg-[#0d0d18] border border-white/10 p-6 rounded-2xl text-white outline-none font-black shadow-inner focus:border-[#FF6600] [color-scheme:dark]"
-                                    value={selectedTask.scheduled_date || ''}
-                                    onChange={e => setSelectedTask({...selectedTask, scheduled_date: e.target.value})}
-                                 />
-                              </div>
-                              <div className="space-y-3 text-left">
-                                 <label className="text-[12px] font-black text-white uppercase tracking-[0.3em] ml-2 italic">End Date *</label>
-                                 <input 
-                                    type="date"
-                                    required
-                                    className="w-full bg-[#0d0d18] border border-white/10 p-6 rounded-2xl text-white outline-none font-black shadow-inner focus:border-[#FF6600] [color-scheme:dark]"
-                                    value={selectedTask.end_date || ''}
-                                    onChange={e => setSelectedTask({...selectedTask, end_date: e.target.value})}
-                                 />
-                              </div>
-                           </div>
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                              <div className="space-y-3 text-left opacity-60">
-                                 <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic">Start Time (Optional)</label>
-                                 <input 
-                                    type="time"
-                                    className="w-full bg-[#0d0d18] border border-white/10 p-6 rounded-2xl text-white outline-none font-black shadow-inner focus:border-[#FF6600]"
-                                    value={selectedTask.start_time || ''}
-                                    onChange={e => setSelectedTask({...selectedTask, start_time: e.target.value})}
-                                 />
-                              </div>
-                              <div className="space-y-3 text-left opacity-60">
-                                 <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic">End Time (Optional)</label>
-                                 <input 
-                                    type="time"
-                                    className="w-full bg-[#0d0d18] border border-white/10 p-6 rounded-2xl text-white outline-none font-black shadow-inner focus:border-[#FF6600]"
-                                    value={selectedTask.end_time || ''}
-                                    onChange={e => setSelectedTask({...selectedTask, end_time: e.target.value})}
-                                 />
-                              </div>
-                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-3 text-left">
-                               <label className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2 italic opacity-60">Deployment Status</label>
-                               <div className="relative">
-                                  <select 
-                                     disabled={!isLeadPMForProject}
-                                     className={`w-full bg-[#0d0d18] border border-white/10 p-7 rounded-3xl text-white outline-none font-black appearance-none shadow-inner ${isLeadPMForProject ? 'cursor-pointer focus:border-[#FF6600]' : 'opacity-60 cursor-default'}`}
-                                     value={selectedTask.status}
-                                     onChange={e => isLeadPMForProject && setSelectedTask({...selectedTask, status: e.target.value})}
-                                  >
-                                     <option value="pending" className="bg-[#080810]">PENDING</option>
-                                     <option value="active" className="bg-[#080810]">ACTIVE</option>
-                                     <option value="completed" className="bg-[#080810]">COMPLETE</option>
-                                  </select>
-                                  <ChevronDown className="absolute right-7 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-500 pointer-events-none" />
-                               </div>
-                            </div>
-                            <div className="space-y-3 text-left">
-                                <label className="text-[12px] font-black text-[#FF6600] uppercase tracking-[0.3em] ml-2 italic">Assigned Personnel (Teacher)</label>
-                                <div className="flex flex-wrap gap-3 p-6 bg-[#0d0d18] border border-white/5 rounded-3xl min-h-[100px] shadow-inner">
-                                   {staffList.map(s => {
-                                      const currentIds = (selectedTask.handler_id || '').split(',').filter(x => x);
-                                      const isSelected = currentIds.includes(s.cid);
-                                      return (
-                                         <button
-                                            key={s.cid}
-                                            type="button"
-                                            onClick={() => {
-                                               if (!isLeadPMForProject) return;
-                                               const nextIds = isSelected ? currentIds.filter(x => x !== s.cid) : [...currentIds, s.cid];
-                                               const nextNames = staffList.filter(x => nextIds.includes(x.cid)).map(x => x.name);
-                                               setSelectedTask({
-                                                  ...selectedTask, 
-                                                  handler_id: nextIds.join(','), 
-                                                  handler_name: nextNames.join(', ')
-                                               });
-                                            }}
-                                            className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${isSelected ? 'bg-[#FF6600] text-black border-[#FF6600] shadow-lg shadow-[#FF6600]/10' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
-                                         >
-                                            {s.name}
-                                         </button>
-                                      );
-                                   })}
-                                   {staffList.length === 0 && <p className="text-[10px] font-black text-slate-600 uppercase italic p-4 opacity-40">No personnel anchored to workspace.</p>}
-                                </div>
-                             </div>
-                        </div>
-                        <div className="space-y-3 text-left">
-                         {/* UNIFIED TASK MULTI-SELECT ARCHITECTURE */}
-                         <div className="space-y-10 py-6 border-t border-white/5">
-                            <div className="space-y-4 text-left">
-                               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.3em] ml-1">Delivery Mode</label>
-                               <div className="flex flex-wrap gap-3 p-2">
-                                  {standardTypes.tasks?.map(type => {
-                                     const current = (selectedTask.task_type || '').split(',').filter(x => x);
-                                     const isSelected = current.includes(type.label);
-                                     return (
-                                        <button
-                                           key={type.id}
-                                           onClick={() => {
-                                              const next = isSelected ? current.filter(x => x !== type.label) : [...current, type.label];
-                                              setSelectedTask({...selectedTask, task_type: next.join(',')});
-                                           }}
-                                           className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border ${isSelected ? 'bg-[#FF6600] text-black border-[#FF6600] shadow-xl shadow-[#FF6600]/10' : 'bg-white/5 text-slate-400 border-white/5 hover:border-white/10'}`}
-                                        >
-                                           {type.label}
-                                        </button>
-                                     );
-                                  })}
-                               </div>
-                            </div>
-                         </div>
-                        </div>
-
-                        {/* DELIVERABLE ANCHORING (Manifest Staging) */}
-                        <div className="pt-8 border-t border-white/5 space-y-12">
-                           <div className="flex justify-between items-center">
-                              <h5 className="text-[13px] font-black text-white uppercase tracking-[0.4em] italic mb-0 leading-none font-sans">Expected deliverables from the student</h5>
-                              <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest bg-[#FF6600]/10 px-4 py-1.5 rounded-full border border-[#FF6600]/20 shadow-lg animate-pulse">
-                                 {docRequirements.filter(dr => String(dr.session_id) === String(selectedTask.id)).length} Active Nodes
-                              </span>
-                           </div>
-
-                           <div className="space-y-6">
-                               {/* THE MANIFEST GRID (Deployed Items) */}
-                               {selectedTask.id ? (
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {docRequirements.filter(dr => String(dr.session_id) === String(selectedTask.id)).map(req => (
-                                       <div key={req.id} className="p-5 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-between group hover:border-[#FF6600]/30 transition-all shadow-lg">
-                                          <div className="flex items-center gap-4 text-left">
-                                             <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-[#FF6600]">
-                                                {getFormatIcon(req.allowed_format)}
-                                             </div>
-                                             <div>
-                                                {editingReq?.id === req.id ? (
-                                                  <div className="flex flex-col gap-2">
-                                                     <input 
-                                                        className="bg-black/40 border border-white/10 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-[#FF6600]"
-                                                        value={editingReq.title}
-                                                        onChange={e => setEditingReq({...editingReq, title: e.target.value})}
-                                                        onBlur={async () => {
-                                                           try {
-                                                              await fetch('/api/v2/pm/curriculum', {
-                                                                 method: 'PUT',
-                                                                 headers: { 'Content-Type': 'application/json' },
-                                                                 body: JSON.stringify({ id: req.id, title: editingReq.title, allowed_format: editingReq.allowed_format })
-                                                              });
-                                                              await fetchPMData();
-                                                              setEditingReq(null);
-                                                           } catch(e) {}
-                                                        }}
-                                                        autoFocus
-                                                     />
-                                                     <select 
-                                                        className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-[#FF6600] font-black uppercase outline-none"
-                                                        value={editingReq.allowed_format}
-                                                        onChange={e => setEditingReq({...editingReq, allowed_format: e.target.value})}
-                                                     >
-                                                        {standardTypes.media?.map(t => <option key={t.id} value={t.label.toLowerCase()}>{t.label}</option>)}
-                                                     </select>
-                                                  </div>
-                                                ) : (
-                                                  <>
-                                                     <p className="text-xs font-black text-white uppercase tracking-tighter italic leading-none">{req.title}</p>
-                                                     <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">{req.allowed_format?.toUpperCase()}</p>
-                                                  </>
-                                                )}
-                                             </div>
-                                          </div>
-                                          {isLeadPMForProject && (
-                                             <div className="flex items-center gap-2">
-                                                <button onClick={() => setEditingReq(req)} className="p-2 text-slate-800 hover:text-[#FF6600] opacity-0 group-hover:opacity-100 transition-all">
-                                                   <Edit3 className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handleDeleteRequirement(req.id)} className="p-2 text-slate-800 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110">
-                                                   <Trash2 className="w-4 h-4" />
-                                                </button>
-                                             </div>
-                                          )}
-                                       </div>
-                                    ))}
-                                 </div>
-                               ) : newReq.manifest.length > 0 && !newReq.isAdding && (
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {newReq.manifest.map((item, idx) => (
-                                       <div key={idx} className="p-5 bg-[#FF6600]/5 border border-[#FF6600]/20 rounded-2xl flex items-center justify-between group shadow-lg">
-                                          <div className="flex items-center gap-4 text-left">
-                                             <div className="w-10 h-10 rounded-xl bg-[#FF6600]/10 flex items-center justify-center text-[#FF6600]">
-                                                {getFormatIcon(item.format)}
-                                             </div>
-                                             <div>
-                                                <p className="text-xs font-black text-white uppercase tracking-tighter italic leading-none">{item.title}</p>
-                                                <p className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest mt-1">Staged for Deployment</p>
-                                             </div>
-                                          </div>
-                                          <button 
-                                             type="button"
-                                             onClick={() => setNewReq({...newReq, manifest: newReq.manifest.filter((_, i) => i !== idx)})}
-                                             className="p-2 text-rose-500 hover:scale-110 transition-transform"
-                                          >
-                                             <Trash2 className="w-4 h-4" />
-                                          </button>
-                                       </div>
-                                    ))}
-                                 </div>
-                               )}
-
-                                  {/* MANIFEST STAGING TERMINAL (Drafting Area) */}
-                                   {newReq.isAdding ? (
-                                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="ios-card bg-white/[0.02] border-white/5 !p-8 space-y-10 shadow-3xl">
-                                         
-                                         <div className="space-y-6">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] ml-1">1. Build Manifest from Registry</label>
-                                            <div className="flex flex-wrap gap-2 p-2 bg-black/20 rounded-2xl border border-white/5">
-                                               {standardTypes.deliverables?.map(t => {
-                                                  const isSelected = newReq.manifest.some(m => m.title === t.label);
-                                                  return (
-                                                     <button 
-                                                        key={t.id}
-                                                        onClick={() => {
-                                                           if (isSelected) {
-                                                              setNewReq({...newReq, manifest: newReq.manifest.filter(m => m.title !== t.label)});
-                                                           } else {
-                                                              setNewReq({...newReq, manifest: [...newReq.manifest, { title: t.label, format: 'pdf' }]});
-                                                           }
-                                                        }}
-                                                        className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${isSelected ? 'bg-[#FF6600] text-black border-[#FF6600] shadow-lg' : 'bg-white/5 text-slate-400 border-white/5 hover:border-white/10'}`}
-                                                     >
-                                                        {t.label}
-                                                     </button>
-                                                  );
-                                               })}
-                                            </div>
-                                         </div>
-
-                                         <div className="space-y-4">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] ml-1">Or Manual Entry</label>
-                                            <div className="flex gap-3">
-                                               <input 
-                                                  placeholder="Type custom requirement name..." 
-                                                  className="flex-1 bg-black/20 border border-white/5 p-5 rounded-2xl text-white outline-none focus:border-[#FF6600]/50 font-bold text-sm shadow-inner"
-                                                  value={newReq.customTitle}
-                                                  onChange={e => setNewReq({...newReq, customTitle: e.target.value})}
-                                               />
-                                               <button 
-                                                  onClick={() => {
-                                                     if (!newReq.customTitle) return;
-                                                     setNewReq({
-                                                        ...newReq, 
-                                                        manifest: [...newReq.manifest, { title: newReq.customTitle, format: 'pdf' }],
-                                                        customTitle: ''
-                                                     });
-                                                  }}
-                                                  className="px-8 bg-white/5 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-[#FF6600] hover:text-black transition-all border border-white/5"
-                                               >
-                                                  + Add to Staged
-                                               </button>
-                                            </div>
-                                         </div>
-
-                                         {/* THE MANIFEST TABLE */}
-                                         {newReq.manifest.length > 0 && (
-                                            <div className="space-y-4">
-                                               <label className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.4em] ml-1">2. Audit Staged Manifest</label>
-                                               <div className="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
-                                                  <table className="w-full text-left">
-                                                     <thead>
-                                                        <tr className="border-b border-white/5 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                                                           <th className="p-6">Requirement Node</th>
-                                                           <th className="p-6">Content Type</th>
-                                                           <th className="p-6 text-right">Remove</th>
-                                                        </tr>
-                                                     </thead>
-                                                     <tbody className="divide-y divide-white/5">
-                                                        {newReq.manifest.map((item, idx) => (
-                                                           <tr key={idx} className="group hover:bg-white/[0.02] transition-colors">
-                                                              <td className="p-6 font-black text-white text-xs uppercase italic">{item.title}</td>
-                                                              <td className="p-6">
-                                                                 <select 
-                                                                    className="bg-[#0d0d18] border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black text-[#FF6600] outline-none focus:border-[#FF6600] appearance-none cursor-pointer uppercase tracking-widest"
-                                                                    value={item.format}
-                                                                    onChange={(e) => {
-                                                                       const updated = [...newReq.manifest];
-                                                                       updated[idx].format = e.target.value;
-                                                                       setNewReq({...newReq, manifest: updated});
-                                                                    }}
-                                                                 >
-                                                                    {standardTypes.media?.map(t => <option key={t.id} value={t.label.toLowerCase()} className="bg-[#0f0f1a]">{t.label}</option>)}
-                                                                 </select>
-                                                              </td>
-                                                              <td className="p-6 text-right">
-                                                                 <button 
-                                                                    onClick={() => setNewReq({...newReq, manifest: newReq.manifest.filter((_, i) => i !== idx)})}
-                                                                    className="p-2 text-slate-800 hover:text-rose-500 transition-colors"
-                                                                 >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                 </button>
-                                                              </td>
-                                                           </tr>
-                                                        ))}
-                                                     </tbody>
-                                                  </table>
-                                               </div>
-                                            </div>
-                                         )}
-
-                                         <div className="pt-6 flex gap-4">
-                                            <button 
-                                               onClick={handleAddRequirements}
-                                               disabled={isProcessing || newReq.manifest.length === 0}
-                                               className="flex-1 h-[64px] bg-[#FF6600] text-black font-black uppercase text-[11px] tracking-[0.4em] rounded-3xl flex items-center justify-center gap-3 hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10 disabled:opacity-20 italic"
-                                            >
-                                               {isProcessing ? <Clock className="w-4 h-4 animate-spin"/> : <CheckCircle2 className="w-4 h-4" />}
-                                               {selectedTask.id ? 'Anchor to Module' : 'Stage for Deployment'} ({newReq.manifest.length})
-                                            </button>
-                                            <button onClick={() => setNewReq({...newReq, isAdding: false, manifest: []})} className="h-[64px] px-10 bg-white/5 rounded-3xl text-[11px] font-black text-slate-500 hover:text-white transition-all uppercase tracking-widest">Cancel</button>
-                                         </div>
-                                      </motion.div>
-                                   ) : (
-                                      <button 
-                                         onClick={() => setNewReq({...newReq, isAdding: true})}
-                                         className="w-full py-10 bg-white/[0.01] border border-white/5 rounded-[2.5rem] text-[11px] font-bold text-slate-500 uppercase tracking-widest hover:bg-[#FF6600]/5 hover:text-[#FF6600] transition-all flex items-center justify-center gap-4 border-dashed"
-                                      >
-                                         <Plus className="w-4 h-4" /> Define Deliverable Manifest
-                                      </button>
-                                   )}
-                              </div>
-                           </div>
-
-                        {/* ACTION BUTTONS (Moved to the bottom) */}
-                        <div className="flex gap-8 pt-8 border-t border-white/5">
-                            <button onClick={() => { setSelectedTask(null); setNewReq({...newReq, isAdding: false}); }} className="flex-1 py-6 rounded-3xl bg-white/5 text-slate-600 font-black uppercase text-[11px] tracking-widest hover:text-white transition-all italic border border-transparent">{isLeadPMForProject ? 'Cancel' : 'Close Viewport'}</button>
-                            {isLeadPMForProject && (
-                               <button 
-                                  onClick={() => handleSaveTaskConfig(selectedTask)} 
-                                  disabled={isProcessing}
-                                  className="flex-[2] py-6 rounded-3xl bg-[#FF6600] text-black font-black uppercase text-[11px] tracking-widest hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 italic"
-                               >
-                                  {isProcessing ? 'Saving...' : 'Save Configuration'}
-                               </button>
-                            )}
-                         </div>
-                     </div>
-                  </div>
-               </motion.div>
+      {/* DEPLOY SQUAD MODAL */}
+      {showTeamModal && (
+        <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-6" onClick={() => setShowTeamModal(false)}>
+          <div className="w-full max-w-sm rounded-2xl p-8 space-y-6 shadow-2xl" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Deploy New Squad</h3>
+              <button onClick={() => setShowTeamModal(false)}><X className="w-5 h-5" /></button>
             </div>
-         )}
-      </AnimatePresence>
-      {/* TEAM DEPLOYMENT MODAL */}
-      <AnimatePresence>
-         {showTeamModal && (
-            <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
-               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="ios-card w-full max-w-md !p-12 space-y-10 border-white/10 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-40 h-40 bg-[#FF6600]/5 rounded-full -mr-20 -mt-20 blur-3xl" />
-                  <div className="flex flex-col items-center gap-6 mb-4 text-center">
-                     <div className="p-5 bg-[#FF6600]/10 rounded-3xl text-[#FF6600] border border-[#FF6600]/20 shadow-xl">
-                        <Target className="w-8 h-8" />
-                     </div>
-                     <div>
-                        <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Deploy Unit</h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Initialize squad operational parameters</p>
-                     </div>
-                  </div>
-
-                  <div className="space-y-6">
-                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 italic">Unit Identity</label>
-                        <input 
-                           placeholder="Team Alpha / Squad Zero..." 
-                           className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-white outline-none focus:border-[#FF6600] transition-all font-black text-lg shadow-inner" 
-                           value={newTeam.name}
-                           onChange={e => setNewTeam({...newTeam, name: e.target.value})}
-                        />
-                     </div>
-
-                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 italic">Mission Handlers (Staff)</label>
-                        <div className="flex flex-wrap gap-2 p-4 bg-white/5 border border-white/10 rounded-2xl min-h-[80px] shadow-inner">
-                           {staffList.map(s => {
-                              const currentIds = (newTeam.handler_id || '').split(',').filter(x => x);
-                              const isSelected = currentIds.includes(s.cid);
-                              return (
-                                 <button
-                                    key={s.cid}
-                                    type="button"
-                                    onClick={() => {
-                                       const nextIds = isSelected ? currentIds.filter(x => x !== s.cid) : [...currentIds, s.cid];
-                                       const nextNames = staffList.filter(x => nextIds.includes(x.cid)).map(x => x.name);
-                                       setNewTeam({
-                                          ...newTeam, 
-                                          handler_id: nextIds.join(','), 
-                                          handler_name: nextNames.join(', ')
-                                       });
-                                    }}
-                                    className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all border ${isSelected ? 'bg-[#FF6600] text-black border-[#FF6600]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
-                                 >
-                                    {s.name}
-                                 </button>
-                              );
-                           })}
-                           {staffList.length === 0 && <p className="text-[9px] font-black text-slate-700 uppercase italic p-2">No handlers available.</p>}
-                        </div>
-                     </div>
-                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest ml-2 italic">Assigned Members (Participants)</label>
-                        <div className="flex flex-wrap gap-2 p-4 bg-white/5 border border-white/10 rounded-2xl min-h-[120px] max-h-[200px] overflow-y-auto shadow-inner custom-scrollbar">
-                           {participants.map(p => {
-                              const isSelected = newTeam.member_ids.includes(p.cid);
-                              return (
-                                 <button
-                                    key={p.cid}
-                                    type="button"
-                                    onClick={() => {
-                                       const nextIds = isSelected 
-                                          ? newTeam.member_ids.filter(id => id !== p.cid) 
-                                          : [...newTeam.member_ids, p.cid];
-                                       setNewTeam({ ...newTeam, member_ids: nextIds });
-                                    }}
-                                    className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all border ${isSelected ? 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
-                                 >
-                                    {p.name}
-                                 </button>
-                               );
-                           })}
-                           {participants.length === 0 && <p className="text-[9px] font-black text-slate-700 uppercase italic p-2">No registered contacts found.</p>}
-                        </div>
-                        <p className="text-[8px] font-bold text-slate-600 mt-2 ml-2 italic">Select the contacts to be grouped into this operational unit.</p>
-                     </div>
-
-                     <div className="flex gap-6 pt-6">
-                        <button onClick={() => setShowTeamModal(false)} className="flex-1 py-5 rounded-2xl bg-white/5 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-white transition-all italic">Abort</button>
-                        <button 
-                           onClick={async () => {
-                              if (!newTeam.name) return;
-                              setIsProcessing(true);
-                              const res = await fetch('/api/v2/pm/teams', {
-                                 method: 'POST',
-                                 headers: { 'Content-Type': 'application/json' },
-                                 body: JSON.stringify({ ...newTeam, program_id: id })
-                              });
-                              if ((await res.json()).success) {
-                                 await fetchPMData();
-                                 setShowTeamModal(false);
-                                 setNewTeam({ name: '', handler_id: '', handler_name: '', member_ids: [] });
-                              }
-                              setIsProcessing(false);
-                           }}
-                           disabled={isProcessing || !newTeam.name}
-                           className="flex-1 py-5 rounded-2xl bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 italic"
-                        >
-                           {isProcessing ? 'Deploying...' : 'Deploy Unit'}
-                        </button>
-                     </div>
-                  </div>
-               </motion.div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Squad Name</label>
+                <input value={newTeam.name} onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Alpha Squad" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Handler Name</label>
+                <input value={newTeam.handler_name} onChange={e => setNewTeam(p => ({...p, handler_name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Jane Doe" />
+              </div>
             </div>
-         )}
-      </AnimatePresence>
+            <div className="flex gap-3">
+              <button onClick={() => setShowTeamModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={deployTeam} disabled={isSaving || !newTeam.name.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Deploying...' : 'Deploy'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD SESSION MODAL */}
+      {showSessionModal && (
+        <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-6" onClick={() => setShowSessionModal(false)}>
+          <div className="w-full max-w-sm rounded-2xl p-8 space-y-6 shadow-2xl" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Add Session</h3>
+              <button onClick={() => setShowSessionModal(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Session Title</label>
+                <input value={newSession.title} onChange={e => setNewSession(p => ({...p, title: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Orientation Week" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Week Number</label>
+                <input type="number" min="1" value={newSession.week_number} onChange={e => setNewSession(p => ({...p, week_number: parseInt(e.target.value) || 1}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowSessionModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={addSession} disabled={isSaving || !newSession.title.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Adding...' : 'Add Session'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </DashboardLayout>
   );
 }
-
