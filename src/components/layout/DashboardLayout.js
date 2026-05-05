@@ -5,7 +5,7 @@ import {
   Sun, Moon, Users, LayoutDashboard, Briefcase, Calendar, User,
   MessageSquare, Settings, LogOut, Bell,
   Search, ChevronRight, ChevronDown, TrendingUp,
-  FileText, ShieldCheck, Activity, Menu, X, Zap, Rocket, Trash2, Send, Library, Globe 
+  FileText, ShieldCheck, Activity, Menu, X, Zap, Rocket, Trash2, Send, Library, Globe, BarChart3 
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -108,7 +108,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
 
 const NAVIGATION_MATRIX = {
   super_admin: [
-    { id: 'dashboard', name: 'DASHBOARD', icon: ShieldCheck, href: '/admin' },
+    { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/admin' },
     { id: 'programs', name: 'PROGRAMS', icon: Briefcase, subItems: [
         { id: 'list_programs', name: 'ALL PROGRAMS', href: '/admin/programs' },
         { id: 'create_program', name: 'CREATE PROGRAM', href: '/admin/programs/new' },
@@ -120,12 +120,14 @@ const NAVIGATION_MATRIX = {
         { id: 'all_contacts', name: 'CONTACTS', href: '/admin/communications/contacts' },
     ]},
     { id: 'knowledge', name: 'KNOWLEDGE', icon: Library, href: '/admin/knowledge' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
   ],
   admin: [
     { id: 'dashboard', name: 'DASHBOARD', icon: ShieldCheck, href: '/admin' },
     { id: 'personnel', name: 'TEAM SETTINGS', icon: Users, href: '/admin/personnel' },
     { id: 'projects', name: 'PROJECTS', icon: Briefcase, href: '/admin/projects' },
     { id: 'logs', name: 'ACTIVITY LOGS', icon: FileText, href: '/admin/logs' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
   ],
   program_manager: [
     { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/pm' },
@@ -133,20 +135,24 @@ const NAVIGATION_MATRIX = {
     { id: 'communication', name: 'COMMUNICATION', icon: MessageSquare, href: '/pm/communications/contacts' },
     { id: 'progress_hub', name: 'PROGRESS', icon: Activity, href: '/pm/progress' },
     { id: 'knowledge', name: 'KNOWLEDGE', icon: Library, href: '/admin/knowledge' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
   ],
   staff: [
     { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/staff' },
     { id: 'knowledge', name: 'KNOWLEDGE', icon: Library, href: '/admin/knowledge' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
   ],
   teacher: [
     { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/teacher' },
     { id: 'sessions', name: 'SESSIONS', icon: Calendar, href: '/teacher/sessions' },
     { id: 'reviews', name: 'SUBMISSIONS', icon: FileText, href: '/teacher/reviews' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
   ],
   participant: [
     { id: 'dashboard', name: 'DASHBOARD', icon: Briefcase, href: '/participant' },
     { id: 'tasks', name: 'TASKS', icon: FileText, href: '#' },
     { id: 'feedback', name: 'FEEDBACK', icon: MessageSquare, href: '#' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
   ],
 };
 
