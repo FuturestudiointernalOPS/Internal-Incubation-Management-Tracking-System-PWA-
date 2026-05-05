@@ -5,8 +5,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
   Zap, ArrowLeft, Shield, User, Users, BookOpen, 
   Plus, X, Loader2, Target, Calendar, Briefcase,
-  CheckCircle2, AlertCircle, Info
+  CheckCircle2, AlertCircle, Info, FileText, Upload, Trash2, File
 } from 'lucide-react';
+import { uploadFile } from '@/lib/storage';
 import { useRouter } from 'next/navigation';
 
 /**
@@ -18,6 +19,7 @@ import { useRouter } from 'next/navigation';
 export default function NewProgram() {
   const router = useRouter();
   const [isDeploying, setIsDeploying] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [notification, setNotification] = useState(null);
 
   // DATA REPOSITORY
@@ -70,6 +72,45 @@ export default function NewProgram() {
     }
     loadAssets();
   }, []);
+
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      const uploadedUrls = [];
+      for (const file of files) {
+        const path = `concept-notes/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+        const res = await uploadFile('knowledge', path, file);
+        if (res.success) {
+          uploadedUrls.push({
+            name: file.name,
+            url: res.url,
+            type: file.type
+          });
+        } else {
+          throw new Error(`Upload failed for ${file.name}: ${res.error}`);
+        }
+      }
+      setProgram(prev => ({
+        ...prev,
+        materials: [...prev.materials, ...uploadedUrls]
+      }));
+      notify('success', `${files.length} file(s) attached successfully.`);
+    } catch (e) {
+      notify('error', e.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeMaterial = (index) => {
+    setProgram(prev => ({
+      ...prev,
+      materials: prev.materials.filter((_, i) => i !== index)
+    }));
+  };
 
   const handleDeploy = async (e) => {
     e.preventDefault();
@@ -187,21 +228,61 @@ export default function NewProgram() {
                  <h3 className="text-sm font-bold uppercase tracking-tight">Attached Concept Note</h3>
               </div>
               
-              <div className="space-y-2">
-                <select 
-                  value={program.note_id}
-                  onChange={e => setProgram({...program, note_id: e.target.value})}
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
-                >
-                  <option value="">Attach Concept Note...</option>
-                  {knowledgeNodes.map(node => (
-                    <option key={node.id} value={node.id}>{node.title.toUpperCase()}</option>
-                  ))}
-                </select>
-                <div className="flex items-center gap-2 p-3 bg-blue-500/5 rounded-lg border border-blue-500/10">
-                   <Info className="w-3 h-3 text-blue-400" />
-                   <p className="text-[8px] font-bold text-blue-300 uppercase tracking-widest">Selected note assets will be auto-linked.</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Knowledge Node Link</label>
+                   <select 
+                    value={program.note_id}
+                    onChange={e => setProgram({...program, note_id: e.target.value})}
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
+                  >
+                    <option value="">Link Knowledge Node...</option>
+                    {knowledgeNodes.map(node => (
+                      <option key={node.id} value={node.id}>{node.title.toUpperCase()}</option>
+                    ))}
+                  </select>
                 </div>
+
+                <div className="relative group">
+                  <input 
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    onChange={handleFileUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    disabled={isUploading}
+                  />
+                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[var(--border-primary)] rounded-xl group-hover:border-[var(--brand-orange)] transition-all bg-[var(--bg-primary)]/50">
+                     {isUploading ? (
+                       <Loader2 className="w-6 h-6 text-[var(--brand-orange)] animate-spin mb-2" />
+                     ) : (
+                       <Upload className="w-6 h-6 text-[var(--text-secondary)] group-hover:text-[var(--brand-orange)] mb-2 transition-all" />
+                     )}
+                     <p className="text-[9px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
+                       {isUploading ? 'Uploading Assets...' : 'Attach Program Materials (PDF)'}
+                     </p>
+                  </div>
+                </div>
+
+                {program.materials.length > 0 && (
+                  <div className="space-y-2">
+                    {program.materials.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <FileText className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <p className="text-[10px] font-bold text-emerald-100 truncate uppercase">{file.name}</p>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => removeMaterial(idx)}
+                          className="p-1 hover:bg-rose-500/20 rounded text-rose-400 transition-all"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
