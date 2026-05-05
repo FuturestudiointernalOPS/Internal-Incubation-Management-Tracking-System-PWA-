@@ -476,7 +476,7 @@ export default function PMProgramTerminalV2({ params }) {
         <header className="flex flex-col xl:flex-row justify-between items-start gap-10">
           <div className="space-y-4">
              <button 
-                onClick={() => router.push('/pm/programs')} 
+                onClick={() => router.push('/v2/pm/programs')} 
                 className="group flex items-center gap-3 px-6 py-3 bg-white/5 text-slate-400 rounded-xl font-black uppercase text-[9px] tracking-widest hover:text-[#FF6600] hover:bg-[#FF6600]/5 transition-all border border-white/5 hover:border-[#FF6600]/20 w-fit"
              >
                 <ChevronLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
@@ -522,8 +522,7 @@ export default function PMProgramTerminalV2({ params }) {
               { id: 'teams', label: 'Cohort Registry', icon: Target },
               { id: 'participants', label: 'Participants', icon: Users },
               { id: 'submissions', label: 'Unit Submissions', icon: FileText },
-              { id: 'progress', label: 'Progress', icon: Activity },
-              { id: 'configuration', label: 'Configuration', icon: Settings }
+              { id: 'progress', label: 'Progress', icon: Activity }
            ].map(tab => (
               <button 
                 key={tab.id}
@@ -541,70 +540,6 @@ export default function PMProgramTerminalV2({ params }) {
 
         {/* CONTENT */}
         <div className="font-sans">
-           {activeTab === 'configuration' && (
-              <div className="max-w-4xl space-y-12">
-                 <div className="flex justify-between items-end mb-10">
-                    <div>
-                       <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Project Configuration</h3>
-                       <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mt-2">Strategic Parameters & Program Identity</p>
-                    </div>
-                 </div>
-
-                 {/* Identity Section */}
-                 <div className="ios-card bg-white/[0.02] border-white/5 !p-12 space-y-10">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                       <div className="space-y-4">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2 italic">Program Name</label>
-                          <input 
-                             value={program.name || ''}
-                             onChange={e => setProgram({...program, name: e.target.value})}
-                             className="w-full bg-black/40 border border-white/10 p-6 rounded-2xl text-white font-black text-xl outline-none focus:border-[#FF6600] transition-all"
-                          />
-                       </div>
-                       <div className="space-y-4">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2 italic">Duration (Weeks)</label>
-                          <input 
-                             type="number"
-                             value={program.duration_weeks || 0}
-                             onChange={e => setProgram({...program, duration_weeks: parseInt(e.target.value) || 0})}
-                             className="w-full bg-black/40 border border-white/10 p-6 rounded-2xl text-white font-black text-xl outline-none focus:border-[#FF6600] transition-all"
-                          />
-                       </div>
-                    </div>
-                    <div className="space-y-4">
-                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2 italic">Strategic Objective (Description)</label>
-                       <textarea 
-                          rows={4}
-                          value={program.description || ''}
-                          onChange={e => setProgram({...program, description: e.target.value})}
-                          className="w-full bg-black/40 border border-white/10 p-6 rounded-2xl text-slate-300 font-bold text-sm outline-none focus:border-[#FF6600] transition-all resize-none"
-                       />
-                    </div>
-                    <button 
-                       onClick={async () => {
-                          setIsProcessing(true);
-                          try {
-                             const res = await fetch('/api/v2/pm/programs', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(program)
-                             });
-                             if ((await res.json()).success) {
-                                window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                                   detail: { type: 'success', message: 'Identity Synchronized.' } 
-                                }));
-                                fetchPMData();
-                             }
-                          } catch (e) {}
-                          finally { setIsProcessing(false); }
-                       }}
-                       className="w-full py-6 bg-[#FF6600] text-black font-black uppercase text-[12px] tracking-[0.4em] rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
-                    >
-                       {isProcessing ? 'Synchronizing...' : 'Lock Strategic Identity'}
-                    </button>
-                 </div>
-              </div>
-           )}
            {activeTab === 'curriculum' && (
               <div className="max-w-4xl space-y-6">
                  <div className="flex justify-between items-end mb-10">
@@ -1877,4 +1812,3 @@ export default function PMProgramTerminalV2({ params }) {
     </DashboardLayout>
   );
 }
-

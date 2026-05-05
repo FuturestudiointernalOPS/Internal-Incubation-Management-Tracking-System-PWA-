@@ -9,10 +9,10 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 /**
- * PROJECT MANAGER OPERATIONS HUB (FULL FEATURE V2)
+ * PROJECT MANAGER OPERATIONS HUB
  * Optimized Command Interface with zero latency logic.
  */
-export default function PMDashboard() {
+export default function PMV2Dashboard() {
   const router = useRouter();
   const [programs, setPrograms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +88,7 @@ export default function PMDashboard() {
    const isLeadPM = user.isLeadPM;
 
    return (
-    <DashboardLayout role="program_manager" activeTab="dashboard">
+    <DashboardLayout role="program_manager" activeTab="v2">
       <div className="space-y-12 pb-20">
         <header className="flex flex-col lg:flex-row justify-between items-start gap-10 border-b border-white/5 pb-10">
           <div>
@@ -149,7 +149,7 @@ export default function PMDashboard() {
                     {schedule.slice(0, 6).map(item => (
                        <div 
                           key={item.id} 
-                          onClick={() => router.push(`/pm/programs/${item.program_id}`)}
+                          onClick={() => router.push(`/v2/pm/programs/${item.program_id}`)}
                           className="flex items-center gap-6 group cursor-pointer hover:bg-white/5 p-3 -m-3 rounded-2xl transition-all border border-transparent hover:border-white/5"
                        >
                           <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center justify-center text-[10px] font-black uppercase group-hover:border-[#FF6600]/40 transition-all">
@@ -213,7 +213,7 @@ export default function PMDashboard() {
                   {programs.map(program => (
                      <div 
                         key={program.id}
-                        onClick={() => router.push(`/pm/programs/${program.id}`)}
+                        onClick={() => router.push(`/v2/pm/programs/${program.id}`)}
                         className="ios-card bg-white/[0.02] border-white/5 p-8 group cursor-pointer hover:border-[#FF6600]/30 transition-all hover:bg-white/5 shadow-2xl"
                      >
                         <div className="flex justify-between items-start mb-8">
@@ -253,7 +253,7 @@ export default function PMDashboard() {
                      Communication nodes are restricted to your specific cohort identity.
                      </p>
                      <button 
-                     onClick={() => router.push('/pm/communications/contacts')}
+                     onClick={() => router.push('/v2/pm/communications/contacts')}
                      className="btn-prime !py-4 shadow-orange-600/20 shadow-xl"
                      >
                         <MessageSquare className="w-4 h-4 mr-2" /> Open Outreach Terminal

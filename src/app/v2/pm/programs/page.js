@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus, Globe, Mail, CheckCircle2, RotateCcw } from 'lucide-react';
 
 /**
- * PM OPERATIONS REGISTRY (FULL FEATURE V2)
+ * PM OPERATIONS REGISTRY
  * Unified list of all programs assigned to the current PM identity.
  */
 export default function PMProgramsRegistry() {
@@ -191,7 +191,7 @@ export default function PMProgramsRegistry() {
               filtered.map(program => (
                  <motion.div 
                     key={program.id}
-                    onClick={() => router.push(`/pm/programs/${program.id}`)}
+                    onClick={() => router.push(`/v2/pm/programs/${program.id}`)}
                     className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-[#FF6600]/30 transition-all hover:bg-white/[0.01] border-white/5 shadow-2xl"
                  >
                     <div className="flex flex-col lg:flex-row items-stretch">
