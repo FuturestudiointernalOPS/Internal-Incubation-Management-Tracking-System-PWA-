@@ -39,6 +39,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ programs: 0, participants: 0, totalStaff: 0 });
   const [activity, setActivity] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [activePrograms, setActivePrograms] = useState([]);
   const [processingId, setProcessingId] = useState(null);
   
   const router = useRouter();
@@ -56,6 +57,7 @@ export default function AdminDashboard() {
       if (stateData.success) {
          setStats(stateData.stats || {});
          setActivity(stateData.activity || []);
+         setActivePrograms(stateData.activePrograms || []);
       }
       if (notifData.success) {
          setNotifications(notifData.notifications || []);
@@ -232,6 +234,48 @@ export default function AdminDashboard() {
                   </div>
                 )) : (
                   <p className="text-[10px] text-[var(--text-secondary)] italic opacity-50 py-10 text-center">Awaiting incoming signals...</p>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* ACTIVE PROGRAMS LIST */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-8">
+              <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-2">
+                <Layers className="w-4 h-4 text-emerald-500" /> 
+                Active Programs
+              </h4>
+              <button 
+                onClick={() => router.push('/admin/programs')}
+                className="text-[9px] font-bold text-[var(--brand-orange)] uppercase hover:underline"
+              >
+                View All
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {loading ? <TableSkeleton rows={3} /> : (
+                activePrograms.length > 0 ? activePrograms.map((prog, i) => (
+                  <div 
+                    key={prog.id} 
+                    onClick={() => router.push(`/admin/programs/${prog.id}`)}
+                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
+                      <Rocket className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight truncate">{prog.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                         <span className="text-[8px] font-bold text-emerald-500 uppercase px-1.5 py-0.5 bg-emerald-500/10 rounded">{prog.status}</span>
+                         <span className="text-[8px] text-[var(--text-secondary)] font-medium uppercase">{new Date(prog.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-3 h-3 text-[var(--border-primary)]" />
+                  </div>
+                )) : (
+                  <p className="text-[10px] text-[var(--text-secondary)] italic opacity-50 py-10 text-center">No active programs found.</p>
                 )
               )}
             </div>

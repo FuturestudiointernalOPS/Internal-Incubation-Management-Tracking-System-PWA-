@@ -25,7 +25,7 @@ export async function GET(req) {
                       FROM v2_sessions s WHERE s.program_id = p.id
                      ) as completion_index
               FROM v2_programs p 
-              LEFT JOIN v2_knowledge_bank k ON p.note_id = k.id::TEXT 
+              LEFT JOIN v2_knowledge_bank k ON p.note_id = CAST(k.id AS TEXT) 
               LEFT JOIN contacts c ON p.assigned_pm_id = c.cid
               WHERE p.id = ?`, 
         args: [id] 
