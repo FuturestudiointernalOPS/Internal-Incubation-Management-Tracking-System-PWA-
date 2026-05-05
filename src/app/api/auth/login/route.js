@@ -91,8 +91,11 @@ export async function POST(req) {
     else if (user.email?.toLowerCase() === 'gwyn.ukoha@gmail.com' || user.id === 'sa') {
       finalRole = 'super_admin';
     } 
-    else if (pmAssignment.rows.length > 0 || user.role === 'project_manager' || user.group_name?.toUpperCase() === 'STAFF' || user.group_name?.toUpperCase() === 'FUTURE STUDIO') {
+    else if (pmAssignment.rows.length > 0) {
       finalRole = 'program_manager';
+    } 
+    else if (user.role === 'project_manager' || user.group_name?.toUpperCase() === 'STAFF' || user.group_name?.toUpperCase() === 'FUTURE STUDIO') {
+      finalRole = 'staff'; // Staff without specific program assignments
     } 
     else if (handlerAssignment.rows.length > 0) {
       finalRole = 'teacher'; 
@@ -100,7 +103,7 @@ export async function POST(req) {
 
     // --- ACCESS CONTROL GATE ---
     // If user is Staff/Admin and NOT logging in via Terminal, block them.
-    if ((finalRole === 'super_admin' || finalRole === 'program_manager') && !isTerminal) {
+    if ((finalRole === 'super_admin' || finalRole === 'program_manager' || finalRole === 'staff') && !isTerminal) {
        return NextResponse.json({ 
          success: false, 
          error: "Staff account detected. Please use the secure Future Studio Terminal at /terminal to log in." 

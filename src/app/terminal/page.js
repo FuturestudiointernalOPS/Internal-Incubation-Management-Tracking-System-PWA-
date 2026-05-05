@@ -53,6 +53,8 @@ export default function TerminalLoginPage() {
           } else if (data.user.role === 'program_manager') {
             localStorage.setItem('pm_session', 'pm-session-' + Date.now());
             router.push('/pm');
+          } else if (data.user.role === 'staff') {
+            router.push('/staff');
           } else {
             router.push('/participant');
           }

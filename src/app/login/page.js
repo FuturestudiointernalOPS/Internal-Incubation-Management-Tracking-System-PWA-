@@ -33,6 +33,8 @@ export default function LoginPage() {
                 router.push('/admin');
             } else if (data.user.role === 'program_manager') {
                 router.push('/pm');
+            } else if (data.user.role === 'staff') {
+                router.push('/staff');
             } else if (data.user.role === 'teacher') {
                 router.push('/teacher');
             } else {
