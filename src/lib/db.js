@@ -2,40 +2,45 @@ import { Pool } from 'pg';
 
 /**
  * IMPACTOS DATA ARCHITECTURE — UNIFIED DB ENGINE (SUPABASE EDITION)
- * Optimized exclusively for Supabase/PostgreSQL.
+ * Optimized exclusively for Supabase/PostgreSQL with serverless lazy-loading.
  */
 
-// SECURE PARAMETER EXTRACTION
-let pgConfig = null;
-const dbUrl = process.env.DATABASE_URL;
+let pgPool = null;
 
-if (!dbUrl) {
-  console.warn("CRITICAL: DATABASE_URL is missing. The system will fail to connect to Supabase.");
-} else {
+const getPool = () => {
+  if (pgPool) return pgPool;
+
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.error("CRITICAL: DATABASE_URL is missing in this environment.");
+    return null;
+  }
+
   try {
-    // We use a simplified configuration for Supabase
-    pgConfig = {
+    pgPool = new Pool({
       connectionString: dbUrl,
       ssl: { rejectUnauthorized: false },
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
-    };
+    });
+    return pgPool;
   } catch (e) {
-    console.error("DB Configuration Error:", e.message);
+    console.error("DB Pool Creation Error:", e.message);
+    return null;
   }
-}
-
-const pgPool = pgConfig ? new Pool(pgConfig) : null;
+};
 
 export const initDb = async () => {
-  if (!pgPool) throw new Error("Database not initialized. Check DATABASE_URL.");
+  const pool = getPool();
+  if (!pool) throw new Error("Database initialization failed. Check environment variables.");
   return true;
 };
 
 const db = {
   execute: async (queryObj) => {
-    if (!pgPool) throw new Error("Database connection pool is offline.");
+    const pool = getPool();
+    if (!pool) throw new Error("Database connection pool is offline.");
 
     const sql = typeof queryObj === 'string' ? queryObj : queryObj.sql;
     const args = queryObj.args || [];
@@ -48,7 +53,7 @@ const db = {
         return `$${count}`;
       });
       
-      const result = await pgPool.query(pgSql, args);
+      const result = await pool.query(pgSql, args);
       
       return {
         rows: result.rows,
@@ -64,4 +69,5 @@ const db = {
 };
 
 export default db;
+
 
