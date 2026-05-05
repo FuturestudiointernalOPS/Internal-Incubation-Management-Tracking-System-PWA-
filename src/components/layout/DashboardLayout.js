@@ -151,7 +151,6 @@ const NAVIGATION_MATRIX = {
   ],
   staff: [
     { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/staff' },
-    { id: 'knowledge', name: 'KNOWLEDGE', icon: Library, href: '/admin/knowledge' },
     { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
   ],
   teacher: [
