@@ -25,6 +25,7 @@ export default function PMDashboard() {
     
     // Auth Validation Node
     if (!pmSession || !pmSession.startsWith('pm-session-')) {
+      setIsLoading(false);
       router.replace('/terminal');
       return;
     }
@@ -79,8 +80,11 @@ export default function PMDashboard() {
   };
 
   if (isLoading) return (
-     <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#FF6600]/20 border-t-[#FF6600] rounded-full animate-spin" />
+     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#FF6600]/20 border-t-[#FF6600] rounded-full animate-spin" />
+          <p className="text-xs font-black uppercase tracking-widest opacity-40" style={{ color: 'var(--text-secondary)' }}>Loading Operations Hub...</p>
+        </div>
      </div>
   );
 

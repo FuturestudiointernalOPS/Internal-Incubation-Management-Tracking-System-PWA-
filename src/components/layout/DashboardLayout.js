@@ -33,7 +33,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
         </div>
         {!collapsed && (
           <div className="animation-reveal">
-            <h1 className="text-xl font-black tracking-tighter text-white uppercase leading-none italic">ImpactOS</h1>
+            <h1 className="text-xl font-black tracking-tighter uppercase leading-none italic" style={{ color: 'var(--text-primary)' }}>ImpactOS</h1>
             <p className="text-[12px] font-bold text-[#FF6600] uppercase tracking-widest mt-1 opacity-80 italic">{role?.replace(/_/g, ' ')}</p>
           </div>
         )}
@@ -54,7 +54,8 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
                 <button
                   onClick={() => toggleMenu(item.id)}
                   onMouseEnter={() => handleHover(item)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-black text-[14px] uppercase tracking-wider select-none ${isChildActive ? 'text-[#0066FF] bg-[#0066FF]/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-black text-[14px] uppercase tracking-wider select-none ${isChildActive ? 'text-[#0066FF] bg-[#0066FF]/10' : 'hover:bg-black/5'}`}
+                  style={isChildActive ? {} : { color: 'var(--text-secondary)' }}
                   title={collapsed ? item.name : undefined}
                 >
                   <div className="flex items-center gap-3">
@@ -81,7 +82,8 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
                             }
                             setMobileMenuOpen(false); 
                           }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-black text-[15px] text-left select-none uppercase tracking-tighter ${isSubActive ? 'bg-[#0066FF]/10 text-white border border-[#0066FF]/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 font-black text-[15px] text-left select-none uppercase tracking-tighter ${isSubActive ? 'bg-[#0066FF]/10 border border-[#0066FF]/20' : 'hover:bg-black/5'}`}
+                          style={isSubActive ? { color: 'var(--text-primary)' } : { color: 'var(--text-secondary)' }}
                         >
                           <span className="truncate">{subItem.name}</span>
                           {isSubActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0066FF] shadow-[0_0_10px_rgba(0,102,255,0.5)]" />}
@@ -101,7 +103,8 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
                 href={item.href}
                 onMouseEnter={() => handleHover(item)}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 font-black text-[14px] uppercase tracking-wider select-none ${isActive ? 'bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 font-black text-[14px] uppercase tracking-wider select-none ${isActive ? 'bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/20' : 'hover:bg-black/5'}`}
+                style={isActive ? {} : { color: 'var(--text-secondary)' }}
               >
                 <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
                 {!collapsed && <span className="truncate">{item.name}</span>}
@@ -117,12 +120,13 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
       </nav>
 
       {/* BOTTOM ACTIONS */}
-      <div className="mt-auto pt-6 border-t border-white/5 space-y-4">
+      <div className="mt-auto pt-6 space-y-4 border-t" style={{ borderColor: 'var(--border-primary)' }}>
         
         {/* PROFILE ACTION */}
         <Link 
-          href={role === 'super_admin' ? '/v2/superadmin/profile' : role === 'program_manager' ? '/v2/pm/profile' : role === 'teacher' ? '/v2/teacher/profile' : '/v2/participant/profile'}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 font-black uppercase tracking-widest text-[11px] ${activeTab === 'profile' || pathname?.includes('profile') ? 'bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/20' : 'bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-white/10'}`}
+          href={role === 'super_admin' ? '/v2/superadmin/profile' : role === 'program_manager' ? '/pm/profile' : role === 'teacher' ? '/v2/teacher/profile' : '/v2/participant/profile'}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 font-black uppercase tracking-widest text-[11px] ${activeTab === 'profile' || pathname?.includes('profile') ? 'bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/20' : 'hover:bg-black/5 border'}`}
+          style={activeTab === 'profile' || pathname?.includes('profile') ? {} : { color: 'var(--text-secondary)', borderColor: 'var(--border-primary)' }}
         >
           <User className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span className="animation-reveal">My Profile</span>}
@@ -291,25 +295,25 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
              filteredItems[progIndex] = {
                 ...filteredItems[progIndex],
                 subItems: [
-                   { id: 'all_programs', name: 'Registry Overview', href: '/v2/pm/programs' },
+                   { id: 'all_programs', name: 'Registry Overview', href: '/pm/programs' },
                    ...pmPrograms.map(p => ({
                       id: `prog_${p.id}`,
                       name: p.name,
-                      href: `/v2/pm/programs/${p.id}`
+                      href: `/pm/programs/${p.id}`
                    }))
                 ]
              };
           }
        }
 
-        const match = pathname?.match(/\/v2\/pm\/programs\/(P-[^/]+)/);
+        const match = pathname?.match(/\/pm\/programs\/(P-[^/]+)/);
         if (match) {
            const currentProgId = match[1];
            const progressHubIndex = filteredItems.findIndex(i => i.id === 'progress_hub');
            if (progressHubIndex !== -1) {
               filteredItems[progressHubIndex] = {
                  ...filteredItems[progressHubIndex],
-                 href: `/v2/pm/programs/${currentProgId}?tab=progress`
+                 href: `/pm/programs/${currentProgId}?tab=progress`
               };
            }
         }
@@ -332,10 +336,10 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#080810] text-slate-200 selection:bg-[#0066FF]/30 font-sans">
+    <div className="flex h-screen w-full overflow-hidden font-sans selection:bg-[#0066FF]/30" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
       <aside
-        style={{ width: collapsed ? 80 : 280 }}
-        className="hidden md:flex flex-col h-screen sticky top-0 bg-[#0d0d18] border-r border-white/5 p-6 overflow-hidden z-[100] flex-shrink-0 transition-[width] duration-200"
+        className="hidden md:flex flex-col h-screen sticky top-0 p-6 overflow-hidden z-[100] flex-shrink-0 transition-[width] duration-200 border-r"
+        style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)', width: collapsed ? 80 : 280 }}
       >
         <SidebarContent {...commonProps} />
         <button
@@ -364,7 +368,8 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
             className="fixed inset-0 bg-black/80 z-[150]"
           />
           <aside
-            className="fixed inset-y-0 left-0 w-[280px] bg-[#0d0d18] border-r border-white/10 p-8 z-[160] overflow-hidden"
+            className="fixed inset-y-0 left-0 w-[280px] p-8 z-[160] overflow-hidden border-r"
+            style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
           >
             <button 
               onClick={() => setMobileMenuOpen(false)}
@@ -381,11 +386,11 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
         {/* GLOBAL HEADER */}
-        <header className="h-[72px] flex items-center justify-between px-8 bg-[#0d0d18]/30 backdrop-blur-xl border-b border-white/5 sticky top-0 z-[50]">
-          <div className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-widest leading-none">
+        <header className="h-[72px] flex items-center justify-between px-8 backdrop-blur-xl border-b sticky top-0 z-[50]" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}>
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest leading-none" style={{ color: 'var(--text-secondary)' }}>
             <span className="opacity-40">ImpactOS</span>
             <ChevronRight className="w-3 h-3 opacity-20" />
-            <span className="text-white animation-reveal lowercase">
+            <span className="animation-reveal lowercase" style={{ color: 'var(--text-primary)' }}>
               {activeTab || (pathname ? String(pathname).split('/').pop().replace(/-/g, ' ') : 'Dashboard')}
             </span>
           </div>
@@ -415,7 +420,8 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
               <input 
                 type="text" 
                 placeholder="Search..." 
-                className="bg-white/5 border border-white/5 rounded-full py-2.5 pl-11 pr-6 text-sm outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all w-[300px]"
+                className="border rounded-full py-2.5 pl-11 pr-6 text-sm outline-none transition-all w-[300px] focus:ring-2 focus:ring-[#FF6600]/30"
+                style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
               />
               <span className="absolute right-4 px-1.5 py-0.5 rounded border border-white/10 text-[10px] font-bold text-slate-500">⌘K</span>
             </div>
@@ -491,9 +497,9 @@ export default function DashboardLayout({ children, role = 'admin', activeTab, o
               </AnimatePresence>
             </div>
 
-            <div className="flex items-center gap-4 pl-6 border-l border-white/5">
+            <div className="flex items-center gap-4 pl-6 border-l" style={{ borderColor: 'var(--border-primary)' }}>
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-black text-white leading-none mb-1 uppercase tracking-tight italic">User Account</p>
+                <p className="text-sm font-black leading-none mb-1 uppercase tracking-tight italic" style={{ color: 'var(--text-primary)' }}>User Account</p>
                 <p className="text-[10px] font-bold text-[#0066FF] uppercase tracking-tighter opacity-80 italic">{role}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[#FF6B00] flex items-center justify-center font-black text-xs shadow-lg shadow-orange-500/5">
