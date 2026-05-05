@@ -20,9 +20,9 @@ const getPool = () => {
     pgPool = new Pool({
       connectionString: dbUrl,
       ssl: { rejectUnauthorized: false },
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      max: 10, // Reduced from 20 to be safer in serverless
+      idleTimeoutMillis: 10000, // Reduced to release connections faster
+      connectionTimeoutMillis: 10000, // Increased from 2000 to allow for cold starts
     });
     return pgPool;
   } catch (e) {

@@ -34,7 +34,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
 
       {!collapsed && (
         <div className="px-3 mb-4">
-           <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] opacity-40">Main Operations</p>
+           <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] opacity-40">Main Operations</p>
         </div>
       )}
 
@@ -48,7 +48,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
               <div key={item.id} className="space-y-1">
                 <button
                   onClick={() => toggleMenu(item.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isChildActive ? 'text-[var(--text-primary)] bg-white/5 border border-white/5' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5'}`}
+                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isChildActive ? 'text-[var(--text-primary)] bg-[var(--bg-tertiary)] border border-[var(--border-secondary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
                 >
                   <div className="flex items-center gap-4">
                     <item.icon className={`w-4 h-4 flex-shrink-0 ${isChildActive ? 'text-[var(--brand-orange)]' : 'text-[var(--text-secondary)]'}`} />
@@ -65,7 +65,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
                           key={subItem.id || subItem.href}
                           href={subItem.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide ${isSubActive ? 'text-[var(--brand-orange)] bg-orange-500/5' : 'text-slate-500 hover:text-[var(--text-primary)] hover:bg-white/5'}`}
+                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide ${isSubActive ? 'text-[var(--brand-orange)] bg-[var(--bg-tertiary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
                         >
                           <span className="truncate">{t(subItem.id) || subItem.name}</span>
                         </Link>
@@ -83,7 +83,7 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
               key={item.id || item.href}
               href={item.href}
               onClick={() => setMobileMenuOpen(false)}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isActive ? 'bg-[var(--brand-orange)] text-black shadow-xl shadow-orange-500/20 italic' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5'}`}
+              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isActive ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-orange-500/20 italic' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
             >
               <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-black' : 'text-[var(--text-secondary)]'}`} />
               {!collapsed && <span className="truncate">{t(item.id) || item.name}</span>}
@@ -92,13 +92,13 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
         })}
       </nav>
 
-      <div className="mt-auto pt-8 border-t border-white/5 space-y-3">
+      <div className="mt-auto pt-8 border-t border-[var(--border-secondary)] space-y-3">
         {!collapsed && (
-           <p className="px-3 mb-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-30">User Protocol</p>
+           <p className="px-3 mb-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-30">User Protocol</p>
         )}
         <Link 
           href={`/${role === 'super_admin' ? 'admin' : role === 'program_manager' ? 'pm' : role === 'teacher' ? 'teacher' : 'participant'}/profile`}
-          className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes('profile') ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+          className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes('profile') ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
         >
           <User className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span>{t('profile')}</span>}

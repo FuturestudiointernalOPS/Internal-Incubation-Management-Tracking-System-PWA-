@@ -16,11 +16,13 @@
     --brand-blue: #0066FF;
     
     /* THEME TOKENS (LIGHT MODE DEFAULT) */
-    --bg-primary: #F8FAFC;
+    --bg-primary: #F1F5F9;
     --bg-secondary: #FFFFFF;
+    --bg-tertiary: #E2E8F0;
     --text-primary: #0F172A;
-    --text-secondary: #64748B;
-    --border-primary: #E2E8F0;
+    --text-secondary: #475569;
+    --border-primary: #CBD5E1;
+    --border-secondary: #E2E8F0;
     --accent: var(--brand-orange);
     
     --radius-sm: 0.375rem;
@@ -34,9 +36,11 @@
   :root[data-theme='dark'] {
     --bg-primary: #020617; /* Deep Navy Blue */
     --bg-secondary: #0F172A; /* Slate Blue Surface */
+    --bg-tertiary: #1E293B;
     --text-primary: #F8FAFC;
     --text-secondary: #94A3B8;
-    --border-primary: #1E293B;
+    --border-primary: #334155;
+    --border-secondary: #1E293B;
   }
 
   * {
@@ -74,6 +78,14 @@
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     padding: 1.5rem;
+  }
+
+  .ios-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 2.5rem;
+    padding: 2rem;
+    transition: all var(--transition-fast);
   }
 
   .btn {

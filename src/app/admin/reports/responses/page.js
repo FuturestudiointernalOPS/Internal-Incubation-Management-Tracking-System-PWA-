@@ -77,9 +77,9 @@ export default function ReportResponses() {
           </div>
           
           <div className="flex gap-3">
-             <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl px-8 flex flex-col justify-center">
+             <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl px-8 flex flex-col justify-center shadow-sm">
                 <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Total Signals</span>
-                <span className="text-white font-bold text-lg leading-none">{filteredReports.length}</span>
+                <span className="text-[var(--text-primary)] font-black text-2xl leading-none tracking-tighter">{filteredReports.length}</span>
              </div>
           </div>
         </header>
@@ -101,7 +101,7 @@ export default function ReportResponses() {
               <select 
                 value={selectedProgram}
                 onChange={e => setSelectedProgram(e.target.value)}
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-white outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
                  <option>All Programs</option>
                  {programs.map(p => <option key={p.id}>{p.name}</option>)}
@@ -130,13 +130,13 @@ export default function ReportResponses() {
                       >
                          <div className="flex flex-col md:flex-row justify-between gap-6">
                             <div className="flex gap-5">
-                               <div className="w-14 h-14 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex flex-col items-center justify-center group-hover:border-[var(--brand-orange)]/50 transition-colors">
+                               <div className="w-14 h-14 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] flex flex-col items-center justify-center group-hover:border-[var(--brand-orange)]/50 transition-colors">
                                   <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase">Wk</span>
-                                  <span className="text-xl font-bold text-white leading-none">{report.week_number}</span>
+                                  <span className="text-xl font-bold text-[var(--text-primary)] leading-none">{report.week_number}</span>
                                </div>
                                <div className="space-y-1">
-                                  <h4 className="text-sm font-bold uppercase tracking-tight text-white">{prog?.name || 'Program Asset'}</h4>
-                                  <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                  <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">{prog?.name || 'Program Asset'}</h4>
+                                  <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
                                      <User className="w-3 h-3" /> {report.teacher_name}
                                      <span className="w-1 h-1 rounded-full bg-slate-700" />
                                      <Clock className="w-3 h-3" /> {new Date(report.created_at).toLocaleDateString()}
@@ -149,7 +149,7 @@ export default function ReportResponses() {
                                   <p className="text-[8px] font-bold text-slate-600 uppercase tracking-[0.2em] mb-1">Reception</p>
                                   <div className="flex gap-1 justify-center">
                                      {[...Array(10)].map((_, i) => (
-                                        <div key={i} className={`w-1 h-3 rounded-full ${i < report.reception_score ? 'bg-emerald-500' : 'bg-slate-800'}`} />
+                                        <div key={i} className={`w-1 h-3 rounded-full ${i < report.reception_score ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)] opacity-30'}`} />
                                      ))}
                                   </div>
                                </div>
@@ -161,8 +161,8 @@ export default function ReportResponses() {
                             </div>
                          </div>
                          
-                         <div className="mt-6 pt-6 border-t border-[var(--border-primary)]">
-                            <p className="text-xs font-medium text-slate-400 line-clamp-2 italic leading-relaxed">
+                         <div className="mt-6 pt-6 border-t border-[var(--border-secondary)]">
+                            <p className="text-xs font-medium text-[var(--text-secondary)] line-clamp-2 italic leading-relaxed">
                                "{report.progress_notes}"
                             </p>
                          </div>
