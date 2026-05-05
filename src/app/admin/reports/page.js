@@ -1,11 +1,20 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, Clock } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 export default function ReportsPlaceholder() {
+  const [role, setRole] = useState(null);
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    setRole(user.role || 'staff');
+  }, []);
+
+  if (!role) return null;
+
   return (
-    <DashboardLayout role="staff">
+    <DashboardLayout role={role}>
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-6">
         <div className="w-20 h-20 rounded-3xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 flex items-center justify-center text-[var(--brand-orange)] animate-pulse">
           <BarChart3 className="w-10 h-10" />

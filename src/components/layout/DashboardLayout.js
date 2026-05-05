@@ -222,8 +222,11 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
   }, []);
 
   const navItems = useMemo(() => {
-    const items = [...(NAVIGATION_MATRIX[role] || NAVIGATION_MATRIX.admin)];
-    if (role === 'program_manager' && pmPrograms.length > 0) {
+    // Priority: user.role (from session) > role (from prop) > fallback 'admin'
+    const activeRole = user.role || role || 'admin';
+    const items = [...(NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin)];
+    
+    if (activeRole === 'program_manager' && pmPrograms.length > 0) {
       const progIndex = items.findIndex(i => i.id === 'programs');
       if (progIndex !== -1) {
         items[progIndex] = {
@@ -236,14 +239,15 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
       }
     }
     return items;
-  }, [role, pmPrograms]);
+  }, [user.role, role, pmPrograms]);
 
   const handleLogout = () => {
     localStorage.clear();
     router.replace('/login');
   };
 
-  const commonProps = { collapsed, role, user, navItems, openMenus, toggleMenu, pathname, setMobileMenuOpen, handleLogout, t };
+  const activeRole = user.role || role || 'admin';
+  const commonProps = { collapsed, role: activeRole, user, navItems, openMenus, toggleMenu, pathname, setMobileMenuOpen, handleLogout, t };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[var(--bg-primary)] text-[var(--text-primary)]">
