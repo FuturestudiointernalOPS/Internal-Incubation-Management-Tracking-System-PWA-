@@ -29,6 +29,10 @@ export default function ProgramWorkspace() {
   const [teams, setTeams] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [submissions, setSubmissions] = useState([]);
+  const [requirements, setRequirements] = useState([]);
+  const [kpis, setKpis] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [assignedStaff, setAssignedStaff] = useState([]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -38,20 +42,19 @@ export default function ProgramWorkspace() {
   const fetchProgramData = useCallback(async () => {
     setLoading(true);
     try {
-      // Parallel Modular Fetching (< 1.5s Load Target)
-      const [progRes, sessionRes, teamRes, partRes, subRes] = await Promise.all([
-        fetch(`/api/pm/programs/${id}`).then(res => res.json()),
-        fetch(`/api/sessions?program_id=${id}`).then(res => res.json()),
-        fetch(`/api/pm/teams?program_id=${id}`).then(res => res.json()),
-        fetch(`/api/participants?program_id=${id}`).then(res => res.json()),
-        fetch(`/api/submissions?program_id=${id}`).then(res => res.json())
-      ]);
-
-      if (progRes.success) setProgram(progRes.program);
-      if (sessionRes.success) setSessions(sessionRes.sessions || []);
-      if (teamRes.success) setTeams(teamRes.teams || []);
-      if (partRes.success) setParticipants(partRes.participants || []);
-      if (subRes.success) setSubmissions(subRes.submissions || []);
+      const res = await fetch(`/api/pm/full-state?id=${id}`).then(res => res.json());
+      
+      if (res.success) {
+        setProgram(res.program);
+        setSessions(res.sessions || []);
+        setTeams(res.teams || []);
+        setParticipants(res.participants || []);
+        setSubmissions(res.submissions || []);
+        setRequirements(res.documents || []);
+        setKpis(res.kpis || []);
+        setEvents(res.events || []);
+        setAssignedStaff(res.assignedStaff || []);
+      }
     } catch (error) {
       console.error("Operational Fetch Failure:", error);
     } finally {
@@ -80,6 +83,7 @@ export default function ProgramWorkspace() {
     { id: 'teams', name: 'Teams', icon: Target },
     { id: 'participants', name: 'Participants', icon: Users },
     { id: 'submissions', name: 'Submissions', icon: Activity },
+    { id: 'config', name: 'Configuration', icon: Shield },
   ];
 
   return (
@@ -246,7 +250,190 @@ export default function ProgramWorkspace() {
             </div>
           )}
 
-          {/* Additional tabs will be implemented here */}
+          {activeTab === 'curriculum' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black uppercase tracking-tighter">Strategic Curriculum</h3>
+                <button className="btn btn-primary btn-sm gap-2">
+                  <Plus className="w-4 h-4" /> Add Session
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {sessions.map(session => (
+                  <div key={session.id} className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all">
+                    <div className="p-6 bg-[var(--bg-tertiary)] flex justify-between items-center border-b border-[var(--border-primary)]">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-[var(--bg-primary)] flex flex-col items-center justify-center text-[10px] font-black border border-[var(--border-primary)]">
+                          <span className="text-[var(--brand-orange)]">W{session.week_number}</span>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-[var(--text-primary)] uppercase">{session.title}</h4>
+                          <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-widest">{session.status}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <span className="px-2 py-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded text-[9px] font-bold uppercase text-[var(--text-secondary)]">
+                           {session.assignment_type || 'General'}
+                         </span>
+                         <button className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                           <MoreVertical className="w-4 h-4" />
+                         </button>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Associated Deliverables</span>
+                        <button className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline">+ Requirement</button>
+                      </div>
+                      <div className="space-y-2">
+                        {requirements.filter(r => r.session_id === session.id).map(req => (
+                          <div key={req.id} className="flex items-center justify-between p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-4 h-4 text-[var(--brand-blue)]" />
+                              <div>
+                                <p className="text-xs font-bold text-[var(--text-primary)]">{req.title}</p>
+                                <p className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wide">Format: {req.allowed_format || 'PDF'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${req.is_completed ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                              <button className="text-[10px] font-bold text-rose-500 hover:underline">Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                        {requirements.filter(r => r.session_id === session.id).length === 0 && (
+                           <p className="text-[10px] italic text-[var(--text-secondary)] opacity-40">No specific document requirements anchored to this node.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'config' && (
+            <div className="space-y-8 animate-in">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
+                    Program Identity
+                  </h3>
+                  <div className="card space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Program Name</label>
+                      <input type="text" defaultValue={program?.name} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Strategic Description</label>
+                      <textarea rows="4" defaultValue={program?.description} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Duration (Weeks)</label>
+                        <input type="number" defaultValue={program?.duration_weeks} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Operational Status</label>
+                        <select defaultValue={program?.status} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold">
+                          <option value="active">ACTIVE</option>
+                          <option value="archived">ARCHIVED</option>
+                          <option value="draft">DRAFT</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button className="btn btn-primary w-full py-4 mt-4">Synchronize Global Settings</button>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-purple-500" />
+                    Strategic KPIs
+                  </h3>
+                  <div className="card space-y-4">
+                    <div className="space-y-2">
+                      {kpis.map(kpi => (
+                        <div key={kpi.id} className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                          <span className="font-bold text-sm uppercase tracking-tight">{kpi.title}</span>
+                          <div className="flex items-center gap-4">
+                            <span className="text-xs font-black text-[var(--brand-orange)]">{kpi.target_value}%</span>
+                            <button className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="btn btn-secondary w-full py-3 gap-2 border-dashed">
+                      <Plus className="w-4 h-4" /> Define KPI Target
+                    </button>
+                  </div>
+
+                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2 mt-8">
+                    <Users className="w-5 h-5 text-blue-500" />
+                    Staff Deployment
+                  </h3>
+                  <div className="card space-y-4">
+                    <div className="space-y-2">
+                      {assignedStaff.map(staff => (
+                        <div key={staff.cid} className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center text-[10px] font-black uppercase">{staff.name?.charAt(0)}</div>
+                            <div>
+                              <p className="text-xs font-black uppercase tracking-tight">{staff.name}</p>
+                              <p className="text-[9px] text-[var(--text-secondary)] font-bold">{staff.role}</p>
+                            </div>
+                          </div>
+                          <button className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="btn btn-secondary w-full py-3 gap-2 border-dashed">
+                      <Plus className="w-4 h-4" /> Assign Personnel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'submissions' && (
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Participant</th>
+                    <th>Deliverable</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th className="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {submissions.map(sub => (
+                    <tr key={sub.id}>
+                      <td>{sub.participant_name || 'N/A'}</td>
+                      <td>{sub.deliverable_title}</td>
+                      <td className="text-[10px] opacity-60 font-bold">{new Date(sub.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${sub.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-orange-500/10 text-orange-500'}`}>
+                          {sub.status}
+                        </span>
+                      </td>
+                      <td className="text-right">
+                        <button className="text-[var(--brand-blue)] text-[10px] font-black uppercase italic">Review</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {submissions.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="py-20 text-center opacity-30 italic">No submissions detected in this sector.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
           
         </div>
       </div>
