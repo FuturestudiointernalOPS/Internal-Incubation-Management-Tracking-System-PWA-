@@ -31,7 +31,7 @@ export async function GET(req) {
       FROM v2_programs p
       LEFT JOIN contacts c1 ON p.assigned_pm_id = c1.cid
       LEFT JOIN contacts c2 ON p.assigned_assistant_id = c2.cid
-      LEFT JOIN v2_knowledge_bank k ON p.note_id = k.id
+      LEFT JOIN v2_knowledge_bank k ON p.note_id = CAST(k.id AS TEXT)
       WHERE p.is_archived = ?
     `;
     

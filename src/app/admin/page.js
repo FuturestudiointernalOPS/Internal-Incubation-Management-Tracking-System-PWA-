@@ -152,8 +152,8 @@ export default function AdminDashboard() {
                       <Bell className="w-6 h-6" />
                    </div>
                    <div>
-                      <h4 className="text-sm font-bold uppercase tracking-tight text-white">{notif.title}</h4>
-                      <p className="text-[11px] font-medium text-orange-200/70 uppercase tracking-widest mt-1">{notif.message}</p>
+                      <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">{notif.title}</h4>
+                      <p className="text-[11px] font-medium text-[var(--brand-orange)] uppercase tracking-widest mt-1">{notif.message}</p>
                    </div>
                 </div>
                 <div className="flex gap-3">

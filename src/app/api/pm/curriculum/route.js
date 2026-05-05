@@ -12,16 +12,16 @@ export async function POST(req) {
       if (action === 'add_session') {
          const { title, description, week_number, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name } = payload;
          const result = await db.execute({
-            sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
             args: [program_id, title, description, week_number || 1, 'not started', 1, scheduled_date || null, end_date || null, start_time || null, end_time || null, assignment_type || null, task_type || null, handler_id || null, handler_name || null]
          });
-         return NextResponse.json({ success: true, id: Number(result.lastInsertRowid) });
+         return NextResponse.json({ success: true, id: result.rows[0].id });
       }
 
       if (action === 'add_requirement') {
          const { title, description, session_id, allowed_format } = payload;
          await db.execute({
-            sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight) VALUES (?, ?, ?, ?, ?, ?)",
+            sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
             args: [program_id, title, description || null, session_id || null, allowed_format || 'pdf', 1]
          });
          return NextResponse.json({ success: true });
