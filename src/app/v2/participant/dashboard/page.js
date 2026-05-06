@@ -5,7 +5,7 @@ import {
   CheckCircle2, Clock, FileText, Download, 
   Send, Layers, Layout, Target, 
   ChevronRight, BookOpen, MessageSquare, 
-  Plus, AlertCircle, ExternalLink, Activity, Zap, X, Shield
+  Plus, AlertCircle, ExternalLink, Activity, Zap, X, Shield, Briefcase
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardLayout from '@/components/layout/DashboardLayout';
