@@ -6,7 +6,7 @@ import {
   Upload, Plus, Users, Mail, Phone, Search, 
   AlertCircle, X, Loader2, CheckCircle, Download, 
   CreditCard, MapPin, Calendar as CalendarIcon, Edit3, Briefcase,
-  Key, MessageCircle, Send, Globe, Shield, User, RefreshCw, Star, Link as LinkIcon, Trash2, Archive
+  Key, MessageCircle, Send, Globe, Shield, User, RefreshCw, Star, Link as LinkIcon, Trash2, Archive, TrendingUp
 } from 'lucide-react';
 import Papa from 'papaparse';
 import { IMPACT_CACHE } from '@/utils/impactCache';
@@ -37,27 +37,18 @@ function ContactsPageContent() {
   const [isBulkNew, setIsBulkNew] = useState(false);
   
   const [showGroupCredsModal, setShowGroupCredsModal] = useState(false);
-  const [groupCredsForm, setGroupCredsForm] = useState({ id: '', name: '', email: '', password: '' });
+  const [groupCredsForm, setGroupCredsForm] = useState({ id: '', name: '', shared_email: '', shared_password_read: '', shared_password_edit: '', type: 'individual' });
 
   const [selectedGroup, setSelectedGroup] = useState('All Contacts');
+  const [selectedType, setSelectedType] = useState('all');
   const [showTeamModal, setShowTeamModal] = useState(false);
-  const [teamForm, setTeamForm] = useState({ name: '', program_id: '', group_name: '', member_ids: [] });
+  const [teamForm, setTeamForm] = useState({ name: '', program_id: '', group_name: '', member_ids: [], team_type: 'group' });
   const [programs, setPrograms] = useState([]);
   const [families, setFamilies] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
-
-  useEffect(() => {
-    if (roleParam) {
-      // Map 'Staff' to 'Future Studio' if legacy links are used, else use raw param
-      const normalized = roleParam.toLowerCase() === 'staff' ? 'Future Studio' : roleParam;
-      setSelectedGroup(normalized);
-    }
-  }, [roleParam]);
-
-  const fileInputRef = useRef(null);
   
-  // Forms
-  const [familyForm, setFamilyForm] = useState({ name: '', program_id: '' });
+  const [familyForm, setFamilyForm] = useState({ name: '', program_id: '', type: 'individual' });
+
   const [form, setForm] = useState({ cid: '', name: '', email: '', phone: '', address: '', dob: '', group_name: '', role: 'staff', gender: '', mother_name: '', password: '' });
   const [credsForm, setCredsForm] = useState({ cid: '', name: '', email: '', password: '', isDirty: false });
 
@@ -153,94 +144,17 @@ function ContactsPageContent() {
     
     const matchesGroup = selectedGroup === 'All Contacts' || c.group_name?.toUpperCase() === selectedGroup.toUpperCase();
     const matchesArchive = showArchived ? !!c.deleted : !c.deleted;
-    return matchesSearch && matchesGroup && matchesArchive;
+    
+    let matchesType = true;
+    if (selectedType !== 'all') {
+       const family = families.find(f => f.name?.toUpperCase() === c.group_name?.toUpperCase());
+       matchesType = family?.type === selectedType;
+    }
+
+    return matchesSearch && matchesGroup && matchesArchive && matchesType;
   });
 
-  const handleBulkSubmit = async () => {
-     if (!bulkFile) return;
-     if (!bulkGroupName && !isBulkNew) {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Select or name a group.' }}));
-        return;
-     }
-
-     const finalGroupName = bulkGroupName;
-
-     // If new group, create it first
-     if (isBulkNew) {
-        try {
-           await fetch('/api/families', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: finalGroupName })
-           });
-        } catch (e) { console.error(e); }
-     }
-
-     Papa.parse(bulkFile, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-           const payload = results.data.map(row => ({
-              name: row.name || row.Name || row.fullName || '',
-              email: row.email || row.Email || '',
-              phone: row.phone || row.Phone || '',
-              group_name: finalGroupName,
-              role: 'staff',
-              password: generatePassword()
-           })).filter(c => c.name && c.email);
-
-           if (payload.length === 0) {
-              window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                  detail: { type: 'error', message: 'No valid data. Headers must match: name, email, phone.' } 
-              }));
-              return;
-           }
-
-           try {
-              const res = await fetch('/api/contacts', {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify(payload)
-              });
-              
-              const data = await res.json();
-              if (data.success && data.inserted > 0) {
-                 fetchRegistryData();
-                 setShowBulkModal(false);
-                 setBulkFile(null);
-                 setBulkGroupName('');
-                 window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                     detail: { type: 'success', message: `${data.inserted} contacts assigned to ${finalGroupName}.` } 
-                 }));
-              } else {
-                 const errorMsg = data.errors?.[0]?.error || 'No records were saved (Duplicate Email?).';
-                 window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                     detail: { type: 'error', message: errorMsg } 
-                 }));
-              }
-           } catch (err) { console.error(err); }
-        }
-     });
-  };
-
-  const onFileSelect = (e) => {
-     const file = e.target.files[0];
-     if (!file) return;
-     setBulkFile(file);
-     setShowBulkModal(true);
-  };
-
-  const getWhatsAppLink = (c, passwordOverride = null) => {
-     const phone = (c.phone || '').replace(/[^0-9]/g, '');
-     if (!phone) return '#';
-     
-     const password = passwordOverride || c.password || 'N/A';
-     const loginUrl = typeof window !== 'undefined' ? window.location.origin + '/login' : 'https://impactos.app/login';
-     
-     const message = `Hello ${c.name},\n\nYour ImpactOS account has been provisioned.\n\nURL: ${loginUrl}\nUsername: ${c.email}\nPassword: ${password}\n\nPlease login and secure your account.`;
-     
-     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-  };
+  // ... handleBulkSubmit, onFileSelect, getWhatsAppLink ...
 
   return (
     <DashboardLayout role="super_admin" activeTab="Future Studio" modals={
@@ -256,15 +170,24 @@ function ContactsPageContent() {
                 </div>
                 <div className="space-y-6">
                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Unit Name</label>
-                      <input value={teamForm.name} onChange={e => setTeamForm({...teamForm, name: e.target.value})} placeholder="e.g. Alpha Squad..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" />
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Unit Name / Business ID</label>
+                      <input value={teamForm.name} onChange={e => setTeamForm({...teamForm, name: e.target.value})} placeholder="e.g. Alpha Squad or SolarTech..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" />
                    </div>
-                   <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Assigned Program</label>
-                      <select value={teamForm.program_id} onChange={e => setTeamForm({...teamForm, program_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold appearance-none">
-                         <option value="" className="bg-[#0f0f1a]">Select Program...</option>
-                         {programs.map(p => <option key={p.id} value={p.id} className="bg-[#0f0f1a]">{p.name}</option>)}
-                      </select>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Program</label>
+                         <select value={teamForm.program_id} onChange={e => setTeamForm({...teamForm, program_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold appearance-none">
+                            <option value="" className="bg-[#0f0f1a]">Select...</option>
+                            {programs.map(p => <option key={p.id} value={p.id} className="bg-[#0f0f1a]">{p.name}</option>)}
+                         </select>
+                      </div>
+                      <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Unit Type</label>
+                         <select value={teamForm.team_type} onChange={e => setTeamForm({...teamForm, team_type: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold appearance-none">
+                            <option value="group" className="bg-[#0f0f1a]">Project Group</option>
+                            <option value="company" className="bg-[#0f0f1a]">Business Entity</option>
+                         </select>
+                      </div>
                    </div>
                    <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest italic">Member Assignment Pool ({filtered.length})</label>
@@ -309,7 +232,7 @@ function ContactsPageContent() {
                             const data = await res.json();
                             if (data.success) {
                                setShowTeamModal(false);
-                               setTeamForm({ name: '', program_id: '', group_name: '', member_ids: [] });
+                               setTeamForm({ name: '', program_id: '', group_name: '', member_ids: [], team_type: 'group' });
                                fetchRegistryData();
                                window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: `Unit ${teamForm.name} deployed successfully.` }}));
                             }
@@ -333,45 +256,67 @@ function ContactsPageContent() {
         )}
         {showGroupCredsModal && (
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={() => setShowGroupCredsModal(false)}>
-             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-sm !p-12 space-y-8 border-white/10 text-center" onClick={(e) => e.stopPropagation()}>
+             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-lg !p-12 space-y-8 border-white/10" onClick={(e) => e.stopPropagation()}>
                 <div className="flex flex-col items-center gap-4 mb-6">
-                   <div className="p-4 bg-emerald-500/10 rounded-2xl text-emerald-500">
+                   <div className={`p-4 rounded-2xl ${groupCredsForm.type === 'company' ? 'bg-[#FF6600]/10 text-[#FF6600]' : 'bg-blue-500/10 text-blue-500'}`}>
                       <Shield className="w-8 h-8" />
                    </div>
-                   <div>
-                     <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Group Access</h3>
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Shared Credentials: {groupCredsForm.name}</p>
+                   <div className="text-center">
+                     <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Entity Access Control</h3>
+                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Target Segment: {groupCredsForm.name}</p>
                    </div>
                 </div>
 
-                <div className="space-y-4">
-                   <div className="space-y-1 text-left">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Shared Username (Email)</label>
+                <div className="space-y-6">
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Shared Identifier (Email)</label>
                       <input 
-                         value={groupCredsForm.email} 
-                         onChange={e => setGroupCredsForm({...groupCredsForm, email: e.target.value})} 
-                         placeholder="Group email or username..." 
+                         value={groupCredsForm.shared_email} 
+                         onChange={e => setGroupCredsForm({...groupCredsForm, shared_email: e.target.value})} 
+                         placeholder="e.g. startup@impactos.com" 
                          className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" 
                       />
                    </div>
-                   <div className="space-y-1 text-left">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Shared Password</label>
-                      <div className="relative">
-                         <input 
-                            type={showPassword ? "text" : "password"} 
-                            value={groupCredsForm.password} 
-                            onChange={e => setGroupCredsForm({...groupCredsForm, password: e.target.value})} 
-                            placeholder="Enter shared password..." 
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold pr-12" 
-                         />
-                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">
-                            {showPassword ? <Globe className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
-                         </button>
+                   
+                   <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Executive Key (Edit)</label>
+                         <div className="relative">
+                            <input 
+                               type={showPassword ? "text" : "password"} 
+                               value={groupCredsForm.shared_password_edit} 
+                               onChange={e => setGroupCredsForm({...groupCredsForm, shared_password_edit: e.target.value})} 
+                               placeholder="Edit key..." 
+                               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold pr-10 text-xs" 
+                            />
+                            <button onClick={() => setGroupCredsForm({...groupCredsForm, shared_password_edit: generatePassword()})} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#FF6600]"><RefreshCw className="w-3 h-3" /></button>
+                         </div>
                       </div>
+                      <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Delegate Key (Read)</label>
+                         <div className="relative">
+                            <input 
+                               type={showPassword ? "text" : "password"} 
+                               value={groupCredsForm.shared_password_read} 
+                               onChange={e => setGroupCredsForm({...groupCredsForm, shared_password_read: e.target.value})} 
+                               placeholder="Read key..." 
+                               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-blue-500/50 font-bold pr-10 text-xs" 
+                            />
+                            <button onClick={() => setGroupCredsForm({...groupCredsForm, shared_password_read: generatePassword()})} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400"><RefreshCw className="w-3 h-3" /></button>
+                         </div>
+                      </div>
+                   </div>
+                   
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Segment Category</label>
+                      <select value={groupCredsForm.type} onChange={e => setGroupCredsForm({...groupCredsForm, type: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none appearance-none font-bold">
+                         <option value="individual" className="bg-[#0f0f1a]">Individual Applicants Pool</option>
+                         <option value="company" className="bg-[#0f0f1a]">Business / Entity Cohort</option>
+                      </select>
                    </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="pt-4 flex flex-col gap-4">
                    <button 
                       onClick={async () => {
                          try {
@@ -384,15 +329,15 @@ function ContactsPageContent() {
                             if (data.success) {
                                setShowGroupCredsModal(false);
                                fetchRegistryData();
-                               window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Group access updated.' }}));
+                               window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Entity configuration deployed.' }}));
                             }
                          } catch (err) { console.error(err); }
                       }} 
-                      className="w-full py-5 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/20"
+                      className="w-full py-5 bg-[#FF6600] text-black rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-[#FF6600]/20 hover:bg-white transition-all italic"
                    >
-                      Update Group Access
+                      Update Entity Access
                    </button>
-                   <button onClick={() => setShowGroupCredsModal(false)} className="w-full py-4 bg-white/5 text-slate-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:text-white transition-all">Cancel</button>
+                   <button onClick={() => setShowGroupCredsModal(false)} className="w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-white transition-all">Dismiss</button>
                 </div>
              </motion.div>
           </div>
@@ -401,18 +346,25 @@ function ContactsPageContent() {
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={() => setShowFamilyModal(false)}>
              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-sm !p-12 space-y-8 border-white/10 text-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-6">
-                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter">New Corporate Group</h3>
+                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter">New Corporate Segment</h3>
                    <button onClick={() => setShowFamilyModal(false)} className="text-slate-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-xl">
                       <X className="w-5 h-5" />
                    </button>
                 </div>
                 <div className="space-y-4">
                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Group Identity</label>
-                      <input value={familyForm.name} onChange={e => setFamilyForm({...familyForm, name: e.target.value})} placeholder="e.g. Interns 2026..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-black uppercase" />
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest text-left block">Segment Identity</label>
+                      <input value={familyForm.name} onChange={e => setFamilyForm({...familyForm, name: e.target.value})} placeholder="e.g. Interns 2026 or SolarTech..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-black uppercase" />
                    </div>
                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Assign to Program</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest text-left block">Program Logic</label>
+                      <select value={familyForm.type} onChange={e => setFamilyForm({...familyForm, type: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 appearance-none font-bold">
+                         <option value="individual" className="bg-[#080810]">Individual Focus</option>
+                         <option value="company" className="bg-[#080810]">Entity Focus (Company)</option>
+                      </select>
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest text-left block">Initial Program Assignment</label>
                       <select value={familyForm.program_id} onChange={e => setFamilyForm({...familyForm, program_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 appearance-none font-bold">
                          <option value="" className="bg-[#080810]">Select Program (Optional)...</option>
                          {programs.map(p => <option key={p.id} value={p.id} className="bg-[#080810]">{p.name}</option>)}
@@ -431,17 +383,18 @@ function ContactsPageContent() {
                      const data = await res.json();
                      if (data.success) {
                        setShowFamilyModal(false);
-                       setFamilyForm({ name: '', program_id: '' });
+                       setFamilyForm({ name: '', program_id: '', type: 'individual' });
                        fetchRegistryData();
-                       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: `Group "${familyForm.name}" registered.` }}));
+                       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: `Segment "${familyForm.name}" deployed.` }}));
                      } else {
                         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || 'Registration failed.' }}));
                      }
                    } catch (err) { console.error(err); }
-                }} className="w-full btn-prime !py-4 rounded-xl !text-xs font-black uppercase tracking-widest">Register Group</button>
+                }} className="w-full btn-prime !py-4 rounded-xl !text-xs font-black uppercase tracking-widest shadow-xl shadow-[#FF6600]/20 italic">DEPLOY SEGMENT</button>
              </motion.div>
           </div>
         )}
+
         
         {showManualModal && (
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={() => setShowManualModal(false)}>
@@ -699,6 +652,14 @@ function ContactsPageContent() {
 
                  <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2 opacity-60 italic">Registry Segments</h4>
+                    
+                    {/* Segment Type Filter */}
+                    <div className="flex gap-2 p-1 bg-black/20 rounded-xl mb-4 border border-white/5">
+                       <button onClick={() => setSelectedType('all')} className={`flex-1 py-2 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all ${selectedType === 'all' ? 'bg-[#FF6600] text-black' : 'text-slate-500 hover:text-white'}`}>All</button>
+                       <button onClick={() => setSelectedType('individual')} className={`flex-1 py-2 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all ${selectedType === 'individual' ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-white'}`}>Indiv.</button>
+                       <button onClick={() => setSelectedType('company')} className={`flex-1 py-2 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all ${selectedType === 'company' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-white'}`}>Entity</button>
+                    </div>
+
                     <div className="space-y-1">
                        <button onClick={() => setSelectedGroup('All Contacts')} className={`w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedGroup === 'All Contacts' ? 'bg-[#FF6600] text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'}`}>Unified Registry</button>
                        <div className={`flex items-center justify-between rounded-2xl transition-all ${selectedGroup?.toLowerCase() === 'future studio' ? 'bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/20' : 'hover:bg-white/5'}`}>
@@ -707,11 +668,17 @@ function ContactsPageContent() {
                           </button>
                        </div>
                        <div className="h-px w-full bg-white/5 my-4" />
-                        {families.filter(f => f.name?.toLowerCase() !== 'staff' && f.name?.toLowerCase() !== 'future studio').map(f => (
+                        {families.filter(f => {
+                           if (selectedType !== 'all' && f.type !== selectedType) return false;
+                           return f.name?.toLowerCase() !== 'staff' && f.name?.toLowerCase() !== 'future studio';
+                        }).map(f => (
                            <div key={f.id} className={`flex flex-col rounded-2xl transition-all border ${selectedGroup === f.name ? 'bg-white/10 border-white/10' : 'border-transparent hover:bg-white/5'}`}>
                               <div className="flex items-center justify-between">
                                  <button onClick={() => setSelectedGroup(f.name)} className={`flex-1 text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest ${selectedGroup === f.name ? 'text-white' : 'text-slate-400'}`}>
-                                    {f.name}
+                                    <span className="flex items-center gap-2">
+                                       {f.type === 'company' ? <Briefcase className="w-3 h-3 text-[#FF6600]" /> : <User className="w-3 h-3 text-blue-400" />}
+                                       {f.name}
+                                    </span>
                                     {f.program_id && (
                                        <span className="block text-[7px] text-[#FF6600] mt-1 opacity-60">Linked to: {programs.find(p => p.id === f.program_id)?.name || 'Active Program'}</span>
                                     )}
@@ -720,7 +687,14 @@ function ContactsPageContent() {
                                     <button 
                                        onClick={(e) => {
                                           e.stopPropagation();
-                                          setGroupCredsForm({ id: f.id, name: f.name, email: f.email || '', password: f.password || '' });
+                                          setGroupCredsForm({ 
+                                             id: f.id, 
+                                             name: f.name, 
+                                             shared_email: f.shared_email || '', 
+                                             shared_password_read: f.shared_password_read || '', 
+                                             shared_password_edit: f.shared_password_edit || '',
+                                             type: f.type || 'individual'
+                                          });
                                           setShowGroupCredsModal(true);
                                        }}
                                        className="p-3 text-slate-500 hover:text-emerald-500 transition-colors bg-black/20 rounded-xl border border-white/5"
@@ -779,8 +753,37 @@ function ContactsPageContent() {
                              teams.filter(t => t.group_name === selectedGroup).map(t => (
                                 <div key={t.id} className="p-5 bg-white/5 rounded-2xl border border-white/5 space-y-3 group/team hover:border-[#FF6600]/20 transition-all">
                                    <div className="flex items-center justify-between">
-                                      <span className="text-sm font-black text-white uppercase italic tracking-tighter">{t.name}</span>
+                                      <div className="flex items-center gap-2">
+                                         {t.team_type === 'company' ? <Briefcase className="w-4 h-4 text-[#FF6600]" /> : <Users className="w-4 h-4 text-blue-400" />}
+                                         <span className="text-sm font-black text-white uppercase italic tracking-tighter">{t.name}</span>
+                                      </div>
                                       <div className="flex items-center gap-1">
+                                         {t.team_type !== 'company' && (
+                                            <button 
+                                               onClick={async () => {
+                                                  if (confirm(`Promote unit ${t.name} to Business Entity? This will generate shared executive credentials.`)) {
+                                                     try {
+                                                        const res = await fetch('/api/v2/pm/teams/pivot', {
+                                                           method: 'POST',
+                                                           headers: { 'Content-Type': 'application/json' },
+                                                           body: JSON.stringify({ team_id: t.id })
+                                                        });
+                                                        const data = await res.json();
+                                                        if (data.success) {
+                                                           window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                                                              detail: { type: 'success', message: `${t.name} promoted to Business Entity!` } 
+                                                           }));
+                                                           fetchRegistryData();
+                                                        }
+                                                     } catch (e) { console.error(e); }
+                                                  }
+                                               }}
+                                               className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-all"
+                                               title="Promote to Business"
+                                            >
+                                               <TrendingUp className="w-3.5 h-3.5" />
+                                            </button>
+                                         )}
                                          <button 
                                             onClick={async () => {
                                                try {

@@ -55,13 +55,8 @@ export default function LoginPage() {
       <div className="w-full max-w-[400px] space-y-8 animate-in">
         
         <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-[var(--brand-orange)] flex items-center justify-center shadow-xl shadow-[var(--brand-orange)]/20">
-            <Zap className="text-white w-8 h-8" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight uppercase">ImpactOS</h1>
-            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em] mt-1">Operational Access</p>
-          </div>
+          <img src="/brand/logo_full.png" alt="Future Studio" className="h-16 object-contain animate-in fade-in zoom-in duration-700" />
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em] mt-1">Operational Access Hub</p>
         </div>
 
         <div className="card shadow-2xl border-[var(--border-primary)]">

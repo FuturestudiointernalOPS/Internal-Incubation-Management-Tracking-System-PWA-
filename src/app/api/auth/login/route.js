@@ -21,6 +21,8 @@ export async function POST(req) {
 
     let user = result.rows[0];
     let isTeamLogin = false;
+    let isFamilyLogin = false;
+    let permission = 'edit'; // Default for individuals and teams
 
     if (!user) {
       // Check for Team Login
@@ -36,25 +38,50 @@ export async function POST(req) {
     }
 
     if (!user) {
+      // Check for Family/Company Login (Shared Entity Credentials)
+      const familyResult = await db.execute({
+        sql: "SELECT * FROM families WHERE shared_email = ? LIMIT 1",
+        args: [cleanEmail]
+      });
+      
+      if (familyResult.rows.length > 0) {
+        const family = familyResult.rows[0];
+        // Check dual passwords
+        if (password === family.shared_password_edit) {
+           user = family;
+           isFamilyLogin = true;
+           permission = 'edit';
+        } else if (password === family.shared_password_read) {
+           user = family;
+           isFamilyLogin = true;
+           permission = 'read';
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json({ success: false, error: "Invalid credentials or unauthorized access." }, { status: 401 });
     }
 
     // --- CRYPTOGRAPHIC VERIFICATION ---
-    const isHashed = user.password && user.password.startsWith('$2');
-    let isMatch = false;
+    // If it was a Family login, password was already checked
+    if (!isFamilyLogin) {
+      const isHashed = user.password && user.password.startsWith('$2');
+      let isMatch = false;
 
-    if (isHashed) {
-      isMatch = await bcrypt.compare(password, user.password);
-    } else {
-      isMatch = (password === user.password);
-    }
+      if (isHashed) {
+        isMatch = await bcrypt.compare(password, user.password);
+      } else {
+        isMatch = (password === user.password);
+      }
 
-    if (!isMatch) {
-      return NextResponse.json({ success: false, error: "Invalid credentials node." }, { status: 401 });
+      if (!isMatch) {
+        return NextResponse.json({ success: false, error: "Invalid credentials node." }, { status: 401 });
+      }
     }
 
     // --- STATUS VERIFICATION GATE ---
-    if (!isTeamLogin) {
+    if (!isTeamLogin && !isFamilyLogin) {
       if (user.status === 'inactive') {
         return NextResponse.json({ success: false, error: "Access Denied: Your account has been suspended." }, { status: 403 });
       }
@@ -83,6 +110,9 @@ export async function POST(req) {
     if (isTeamLogin) {
       finalRole = 'team';
     } 
+    else if (isFamilyLogin) {
+       finalRole = 'participant'; // Family entity acts like a participant but with group data
+    }
     else if (user.role === 'super_admin' || user.id === 'sa') {
       finalRole = 'super_admin';
     } 
@@ -97,7 +127,6 @@ export async function POST(req) {
     } 
 
     // --- ACCESS CONTROL GATE ---
-    // If user is Staff/Admin and NOT logging in via Terminal, block them.
     if ((finalRole === 'super_admin' || finalRole === 'program_manager' || finalRole === 'staff' || finalRole === 'teacher') && !isTerminal) {
        return NextResponse.json({ 
          success: false, 
@@ -105,7 +134,7 @@ export async function POST(req) {
        }, { status: 403 });
     }
 
-    if (finalRole === 'participant') {
+    if (finalRole === 'participant' && !isFamilyLogin) {
       if (!user.group_name || user.group_name === 'unassigned') {
         return NextResponse.json({ 
           success: false, 
@@ -114,12 +143,23 @@ export async function POST(req) {
       }
     }
 
-    if (finalRole === 'team') {
-       // Teams are always authorized if they exist
-       return NextResponse.json({ success: true, user: { ...user, role: finalRole, team_id: user.id } });
+    // For Family login, we need to map some fields to match participant structure
+    const responseUser = isFamilyLogin ? {
+       ...user,
+       cid: user.registration_id, // Map reg ID to CID for dashboard lookup
+       name: user.name,
+       group_name: user.name,
+       role: 'participant',
+       is_entity: true,
+       permission: permission
+    } : { ...user, role: finalRole, permission: 'edit' };
+
+    if (isTeamLogin) {
+       responseUser.team_id = user.id;
     }
 
-    return NextResponse.json({ success: true, user: { ...user, role: finalRole } });
+    return NextResponse.json({ success: true, user: responseUser });
+
 
   } catch (err) {
     console.error("Auth V1 Error:", err);

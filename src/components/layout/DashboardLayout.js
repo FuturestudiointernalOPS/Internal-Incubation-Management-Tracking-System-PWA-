@@ -21,14 +21,12 @@ const SidebarContent = ({ collapsed, role, user, navItems, openMenus, toggleMenu
   return (
     <>
       <div className="flex items-center gap-4 px-3 mb-14 mt-4">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--brand-orange)] to-orange-400 flex items-center justify-center border border-orange-500/20">
-          <Activity className="text-white w-6 h-6" />
-        </div>
-        {!collapsed && (
-          <div className="animate-in">
-            <h1 className="text-xl font-black tracking-tighter text-[var(--text-primary)] uppercase leading-none italic">Impact<span className="text-[var(--brand-orange)]">OS</span></h1>
-            <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.4em] mt-1.5 opacity-60">{role?.replace(/_/g, ' ')}</p>
+        {collapsed ? (
+          <div className="w-10 h-10 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <img src="/brand/icon_orange.png" alt="FS" className="w-8 h-8 object-contain" />
           </div>
+        ) : (
+          <img src="/brand/logo_full.png" alt="Future Studio" className="h-8 object-contain animate-in fade-in" />
         )}
       </div>
 
@@ -297,8 +295,9 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
       )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 flex items-center justify-between px-6 bg-[var(--bg-secondary)] border-b border-[var(--border-primary)] sticky top-0 z-[50]">
-          <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase">
+        <header className="h-20 flex items-center px-6 border-b border-[var(--border-primary)] relative overflow-hidden group bg-[var(--bg-secondary)]/80 backdrop-blur-xl sticky top-0 z-[100]">
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-orange)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase relative z-10">
             <span>ImpactOS</span>
             <ChevronRight className="w-3 h-3 opacity-30" />
             <span className="text-[var(--text-primary)]">
@@ -306,7 +305,7 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 ml-auto relative z-10">
             <button onClick={toggleTheme} className="p-2 rounded-md hover:bg-[var(--bg-primary)] text-[var(--text-secondary)]">
               <Sun className="w-4 h-4 dark:hidden" />
               <Moon className="w-4 h-4 hidden dark:block" />

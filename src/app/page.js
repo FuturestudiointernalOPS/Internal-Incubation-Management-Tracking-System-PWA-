@@ -30,10 +30,7 @@ export default function LandingPage() {
       {/* NAVIGATION */}
       <nav className="fixed top-0 left-0 w-full h-[80px] bg-[#0d0d18]/60 backdrop-blur-2xl border-b border-white/5 z-[100] px-8 lg:px-20 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/20">
-            <Zap className="text-white w-6 h-6" />
-          </div>
-          <h1 className="text-2xl font-black text-white tracking-tighter uppercase leading-none">ImpactOS</h1>
+          <img src="/brand/logo_full.png" alt="Future Studio" className="h-8 object-contain" />
         </div>
         
         <div className="hidden lg:flex items-center gap-10">
@@ -168,9 +165,7 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer className="py-24 px-8 lg:px-20 border-t border-white/5 bg-[#0d0d18]/40">
          <div className="flex flex-col items-center space-y-10 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-2xl shadow-indigo-600/30">
-              <Zap className="text-white w-8 h-8" />
-            </div>
+            <img src="/brand/logo_full.png" alt="Future Studio" className="h-10 object-contain opacity-80 hover:opacity-100 transition-opacity" />
             <div className="space-y-2">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.6em]">ImpactOS Deployment</p>
               <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">
