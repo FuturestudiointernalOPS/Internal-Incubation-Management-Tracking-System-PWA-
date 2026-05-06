@@ -1053,28 +1053,6 @@ function ContactsPageContent() {
                                       <RefreshCw className="w-6 h-6" />
                                    </button>
                                 ) : (
-                                   {/* Deletion / Archiving restricted to prevent data loss */}
-                                   /* 
-                                   <button 
-                                      onClick={async () => {
-                                         if (confirm('Archive this member? They will lose access immediately.')) {
-                                            const res = await fetch('/api/contacts', {
-                                               method: 'PUT',
-                                               headers: { 'Content-Type': 'application/json' },
-                                               body: JSON.stringify({ cid: c.cid, deleted: 1 })
-                                            });
-                                            if (res.ok) {
-                                               window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Member archived.' }}));
-                                               fetchRegistryData();
-                                            }
-                                         }
-                                      }}
-                                      className="p-4 bg-white/5 hover:bg-rose-500/10 rounded-2xl text-slate-400 hover:text-rose-500 transition-all border border-transparent hover:border-rose-500/20"
-                                      title="Archive Member"
-                                   >
-                                      <Trash2 className="w-6 h-6" />
-                                   </button>
-                                   */
                                    null
                                 )}
                                 <button 
