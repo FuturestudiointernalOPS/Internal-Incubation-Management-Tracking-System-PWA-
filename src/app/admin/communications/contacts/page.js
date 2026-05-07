@@ -569,7 +569,8 @@ function ContactsPageContent() {
              </div>
           </div>
         </div>
-      )      {showGroupModal && (
+       )}
+       {showGroupModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
           <div className="card w-full max-w-sm space-y-6 border-[var(--brand-orange)]/30 animate-in text-left">
             <div className="flex justify-between items-center">
