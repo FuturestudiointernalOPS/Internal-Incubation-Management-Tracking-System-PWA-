@@ -42,7 +42,7 @@ function ContactsPageContent() {
   // Forms
   const [form, setForm] = useState({ cid: '', name: '', email: '', phone: '', group_name: '', role: 'staff', password: '' });
   const [credsForm, setCredsForm] = useState({ cid: '', name: '', email: '', password: '' });
-  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(null); // Changed to null/object for edit mode
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupType, setNewGroupType] = useState('individual');
   const [newGroupProgramId, setNewGroupProgramId] = useState('');
@@ -145,26 +145,32 @@ function ContactsPageContent() {
     }
   };
 
-  const handleCreateGroup = async () => {
+  const handleSaveGroup = async () => {
     if (!newGroupName.trim()) return;
     setIsProcessing(true);
     try {
+      const isEdit = showGroupModal && typeof showGroupModal === 'object';
       const res = await fetch('/api/families', {
-         method: 'POST',
+         method: isEdit ? 'PUT' : 'POST',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ name: newGroupName.trim(), type: newGroupType, program_id: newGroupProgramId || null })
+         body: JSON.stringify({ 
+           id: isEdit ? showGroupModal.id : undefined,
+           name: newGroupName.trim(), 
+           type: newGroupType, 
+           program_id: newGroupProgramId || null 
+         })
       });
       const data = await res.json();
       if (data.success) {
-         setNotification({ type: 'success', message: 'Operational segment created.' });
+         setNotification({ type: 'success', message: isEdit ? 'Operational segment updated.' : 'Operational segment created.' });
          setTimeout(() => setNotification(null), 3000);
-         setShowGroupModal(false);
+         setShowGroupModal(null);
          setNewGroupName('');
          setNewGroupType('individual');
          setNewGroupProgramId('');
          fetchData(); 
       } else {
-         setNotification({ type: 'error', message: data.error || 'Failed to create segment.' });
+         setNotification({ type: 'error', message: data.error || 'Failed to save segment.' });
          setTimeout(() => setNotification(null), 4000);
       }
     } catch (e) {
@@ -569,16 +575,17 @@ function ContactsPageContent() {
              </div>
           </div>
         </div>
-       )}
-       {showGroupModal && (
+       )}      {showGroupModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
           <div className="card w-full max-w-sm space-y-6 border-[var(--brand-orange)]/30 animate-in text-left">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">Create Group / Segment</h3>
+                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">
+                  {typeof showGroupModal === 'object' ? 'Edit Segment' : 'Create Group / Segment'}
+                </h3>
                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">Define the segment type and focus area</p>
               </div>
-              <button onClick={() => setShowGroupModal(false)} className="p-2 hover:bg-[var(--bg-primary)] rounded-lg"><X className="w-6 h-6" /></button>
+              <button onClick={() => setShowGroupModal(null)} className="p-2 hover:bg-[var(--bg-primary)] rounded-lg"><X className="w-6 h-6" /></button>
             </div>
             
             <div className="space-y-4">
@@ -615,17 +622,17 @@ function ContactsPageContent() {
                 </select>
               </div>
               <button 
-                onClick={handleCreateGroup}
+                onClick={handleSaveGroup}
                 disabled={isProcessing || !newGroupName.trim()}
                 className="btn btn-primary w-full py-4 font-bold uppercase tracking-widest flex items-center justify-center gap-2"
               >
                 {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
-                Create Segment
+                {typeof showGroupModal === 'object' ? 'Update Logic' : 'Create Segment'}
               </button>
             </div>
           </div>
         </div>
-        )}
+      )}    )}
     </DashboardLayout>
   );
 }
