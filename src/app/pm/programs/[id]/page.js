@@ -872,8 +872,6 @@ export default function ProgramWorkspace() {
           </div>
         </div>
       )}
-        </div>
-      )}
 
       {/* ASSIGN STAFF MODAL */}
       {showStaffModal && (

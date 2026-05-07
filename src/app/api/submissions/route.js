@@ -40,7 +40,7 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
      await initDb();
-     const { id, status, feedback } = await req.json();
+     const { id, status, feedback, score } = await req.json();
 
      if (!id || !status) {
         return NextResponse.json({ success: false, error: "Missing ID or status" }, { status: 400 });
@@ -64,8 +64,8 @@ export async function PATCH(req) {
 
      // 2. Update Database
      await db.execute({
-        sql: "UPDATE v2_submissions SET status = ?, feedback = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?",
-        args: [status, feedback || null, id]
+        sql: "UPDATE v2_submissions SET status = ?, feedback = ?, score = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?",
+        args: [status, feedback || null, score !== undefined ? score : null, id]
      });
 
      // 3. Dispatch Notification (Flexible Branding)
