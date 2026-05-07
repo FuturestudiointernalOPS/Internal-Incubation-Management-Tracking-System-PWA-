@@ -393,25 +393,25 @@ function ContactsPageContent() {
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl" onClick={() => setShowFamilyModal(false)}>
              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-sm !p-12 space-y-8 border-white/10 text-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-6">
-                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter">New Corporate Segment</h3>
+                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Create Segment / Group</h3>
                    <button onClick={() => setShowFamilyModal(false)} className="text-slate-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-xl">
                       <X className="w-5 h-5" />
                    </button>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-4 text-left">
                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest text-left block">Segment Identity</label>
-                      <input value={familyForm.name} onChange={e => setFamilyForm({...familyForm, name: e.target.value})} placeholder="e.g. Interns 2026 or SolarTech..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-black uppercase" />
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest block">Group Name / Identity</label>
+                      <input value={familyForm.name} onChange={e => setFamilyForm({...familyForm, name: e.target.value})} placeholder="e.g. SolarTech or Tech Cohort..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-black uppercase" />
                    </div>
                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest text-left block">Program Logic</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest block">Program Logic (Focus)</label>
                       <select value={familyForm.type} onChange={e => setFamilyForm({...familyForm, type: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 appearance-none font-bold">
-                         <option value="individual" className="bg-[#080810]">Individual Focus</option>
-                         <option value="company" className="bg-[#080810]">Entity Focus (Company)</option>
+                         <option value="individual" className="bg-[#080810]">Individual Students</option>
+                         <option value="company" className="bg-[#080810]">Business Entities / Companies</option>
                       </select>
                    </div>
                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest text-left block">Initial Program Assignment</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest block">Initial Program Assignment</label>
                       <select value={familyForm.program_id} onChange={e => setFamilyForm({...familyForm, program_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 appearance-none font-bold">
                          <option value="" className="bg-[#080810]">Select Program (Optional)...</option>
                          {programs.map(p => <option key={p.id} value={p.id} className="bg-[#080810]">{p.name}</option>)}
@@ -437,7 +437,7 @@ function ContactsPageContent() {
                         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || 'Registration failed.' }}));
                      }
                    } catch (err) { console.error(err); }
-                }} className="w-full btn-prime !py-4 rounded-xl !text-xs font-black uppercase tracking-widest shadow-xl shadow-[#FF6600]/20 italic">DEPLOY SEGMENT</button>
+                }} className="w-full btn-prime !py-4 rounded-xl !text-xs font-black uppercase tracking-widest shadow-xl shadow-[#FF6600]/20 italic">CREATE SEGMENT</button>
              </motion.div>
           </div>
         )}
