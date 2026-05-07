@@ -55,7 +55,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[400px] space-y-8 animate-in">
         
         <div className="flex flex-col items-center text-center space-y-4">
-          <img src="/brand/logo_full.png" alt="Future Studio" className="h-16 object-contain animate-in fade-in zoom-in duration-700" />
+          <img src="/brand/logo_full.png" alt="Future Studio" className="h-20 object-contain animate-in fade-in zoom-in duration-700 mb-2" />
           <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em] mt-1">Operational Access Hub</p>
         </div>
 

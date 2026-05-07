@@ -44,6 +44,8 @@ function ContactsPageContent() {
   const [credsForm, setCredsForm] = useState({ cid: '', name: '', email: '', password: '' });
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupType, setNewGroupType] = useState('individual');
+  const [newGroupProgramId, setNewGroupProgramId] = useState('');
   
   // Feedback
   const [notification, setNotification] = useState(null);
@@ -150,7 +152,7 @@ function ContactsPageContent() {
       const res = await fetch('/api/families', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ name: newGroupName.trim() })
+         body: JSON.stringify({ name: newGroupName.trim(), type: newGroupType, program_id: newGroupProgramId || null })
       });
       const data = await res.json();
       if (data.success) {
@@ -158,6 +160,8 @@ function ContactsPageContent() {
          setTimeout(() => setNotification(null), 3000);
          setShowGroupModal(false);
          setNewGroupName('');
+         setNewGroupType('individual');
+         setNewGroupProgramId('');
          fetchData(); 
       } else {
          setNotification({ type: 'error', message: data.error || 'Failed to create segment.' });
@@ -336,22 +340,6 @@ function ContactsPageContent() {
                             >
                               {isArchived ? <RefreshCw className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
                             </button>
-                            <button 
-                              onClick={async () => {
-                                if (!confirm(`PERMANENTLY DELETE ${group} and dissociate members?`)) return;
-                                await fetch('/api/families', {
-                                  method: 'DELETE',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ id: groupObj.id })
-                                });
-                                setSelectedGroup('All Contacts');
-                                fetchData();
-                              }}
-                              title="Delete"
-                              className="p-3 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] text-slate-500 hover:text-rose-500"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
                           </div>
                         )}
                       </div>
@@ -438,9 +426,7 @@ function ContactsPageContent() {
                             >
                               {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
                             </button>
-                            <button className="p-2.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:text-rose-500 transition-all">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {/* Delete button removed to protect data integrity */}
                           </div>
                         </td>
                       </tr>
@@ -583,27 +569,49 @@ function ContactsPageContent() {
              </div>
           </div>
         </div>
-      )}
-      {showGroupModal && (
+      )      {showGroupModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
           <div className="card w-full max-w-sm space-y-6 border-[var(--brand-orange)]/30 animate-in text-left">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">Create Group</h3>
+                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">Create Group / Segment</h3>
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">Define the segment type and focus area</p>
               </div>
               <button onClick={() => setShowGroupModal(false)} className="p-2 hover:bg-[var(--bg-primary)] rounded-lg"><X className="w-6 h-6" /></button>
             </div>
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Group Name</label>
+                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Group Name / Identity</label>
                 <input 
                   value={newGroupName} 
                   onChange={e => setNewGroupName(e.target.value)} 
-                  placeholder="e.g. ALPHA TEAM"
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                  placeholder="e.g. SolarTech or Tech Cohort..."
+                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" 
                   autoFocus
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Program Logic (Focus)</label>
+                <select
+                  value={newGroupType}
+                  onChange={e => setNewGroupType(e.target.value)}
+                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none"
+                >
+                  <option value="individual">Individual Students</option>
+                  <option value="company">Business Entities / Companies</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Initial Program Assignment</label>
+                <select
+                  value={newGroupProgramId}
+                  onChange={e => setNewGroupProgramId(e.target.value)}
+                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none"
+                >
+                  <option value="">Select Program (Optional)...</option>
+                  {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
               </div>
               <button 
                 onClick={handleCreateGroup}
@@ -616,7 +624,7 @@ function ContactsPageContent() {
             </div>
           </div>
         </div>
-      )}
+      )})}
 
     </DashboardLayout>
   );
