@@ -32,26 +32,27 @@ export default function ProgramManagement() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Lazy Fetching: Prioritize visible data
-      const res = await fetch(`/api/pm/programs?show_archived=${activeTab === 'archived'}`);
-      const data = await res.json();
+      const [progRes, managerRes, segmentRes] = await Promise.all([
+        fetch(`/api/pm/programs?show_archived=${activeTab === 'archived'}`),
+        fetch('/api/contacts/full-state'),
+        fetch('/api/families')
+      ]);
       
-      if (data.success) {
-        setPrograms(data.programs || []);
+      const [progData, managerData, segmentData] = await Promise.all([
+        progRes.json(), managerRes.json(), segmentRes.json()
+      ]);
+      
+      if (progData.success) setPrograms(progData.programs || []);
+      if (managerData.success) {
+        const managers = (managerData.contacts || []).filter(c => 
+          c.role === 'super_admin' || c.role === 'program_manager'
+        );
+        setTeams(managers); // Used for managers list
       }
-
-      // Parallel background fetch for secondary assets
-      if (activeTab === 'cohorts') {
-        const teamRes = await fetch('/api/contacts');
-        const teamData = await teamRes.json();
-        if (teamData.success) {
-           const staff = (teamData.contacts || []).filter(c => c.group_name?.toUpperCase() === 'FUTURE STUDIO');
-           setTeams(staff);
-        }
-      }
+      if (segmentData.success) setNotes(segmentData.families || []); // Used for segments list
       
     } catch (e) {
-      console.error("Data Synchronization Failure:", e);
+      console.error("Sync Failure:", e);
     } finally {
       setLoading(false);
     }
@@ -306,10 +307,64 @@ export default function ProgramManagement() {
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                  />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Lead Program Manager</label>
+                  <select 
+                    value={editingProgram.assigned_pm_id || ''} 
+                    onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} 
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none"
+                  >
+                    <option value="">Unassigned</option>
+                    {teams.map(m => <option key={m.cid} value={m.cid}>{m.name.toUpperCase()}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Duration (Weeks)</label>
+                  <input 
+                    type="number"
+                    value={editingProgram.duration_weeks || 4} 
+                    onChange={e => setEditingProgram({...editingProgram, duration_weeks: parseInt(e.target.value)})} 
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Operational Teams (Segments)</label>
+                 <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]">
+                    {notes.map(s => {
+                      const isAssigned = s.program_id === editingProgram.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            const newSegments = [...(editingProgram.assigned_segments || [])];
+                            if (newSegments.includes(s.id)) {
+                              setEditingProgram({...editingProgram, assigned_segments: newSegments.filter(id => id !== s.id)});
+                            } else {
+                              setEditingProgram({...editingProgram, assigned_segments: [...newSegments, s.id]});
+                            }
+                          }}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                            (editingProgram.assigned_segments || []).includes(s.id) 
+                              ? 'bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]' 
+                              : 'bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          <span className="text-[9px] font-bold uppercase truncate">{s.name}</span>
+                        </button>
+                      );
+                    })}
+                 </div>
+              </div>
+
               <div className="space-y-2">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Program Description</label>
                  <textarea 
-                    rows={4}
+                    rows={3}
                     value={editingProgram.description} 
                     onChange={e => setEditingProgram({...editingProgram, description: e.target.value})} 
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none"

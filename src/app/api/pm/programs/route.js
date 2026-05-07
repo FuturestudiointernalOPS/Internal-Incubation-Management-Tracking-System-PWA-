@@ -114,7 +114,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const { id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, materials } = await req.json();
+    const { id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, materials, assigned_segments } = await req.json();
 
     if (!id) return NextResponse.json({ success: false, error: "ID required" }, { status: 400 });
 
@@ -124,6 +124,25 @@ export async function PUT(req) {
             WHERE id = ?`,
       args: [name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, status, JSON.stringify(materials || []), id]
     });
+
+    // Handle Segment/Team Assignments
+    if (Array.isArray(assigned_segments)) {
+      // 1. Unlink segments currently assigned to this program
+      await db.execute({
+        sql: "UPDATE families SET program_id = NULL WHERE program_id = ?",
+        args: [id]
+      });
+
+      // 2. Link the new set of segments
+      if (assigned_segments.length > 0) {
+        for (const segmentId of assigned_segments) {
+          await db.execute({
+            sql: "UPDATE families SET program_id = ? WHERE id = ?",
+            args: [id, segmentId]
+          });
+        }
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

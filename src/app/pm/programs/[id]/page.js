@@ -53,6 +53,10 @@ export default function ProgramWorkspace() {
   const [newKPI, setNewKPI] = useState({ title: '', target_value: 80 });
   const [toast, setToast] = useState(null);
   
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [reviewScore, setReviewScore] = useState('');
+  
   const configNameRef = useRef(null);
   const configDescRef = useRef(null);
   const configWeeksRef = useRef(null);
@@ -250,6 +254,30 @@ export default function ProgramWorkspace() {
        notify('Session removed.');
        fetchProgramData();
     } catch (e) {}
+  };
+
+  const handleReviewSubmission = async () => {
+    if (!selectedSubmission) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/submissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedSubmission.id,
+          status: 'approved',
+          score: parseInt(reviewScore) || 0,
+          feedback: 'Graded via PM Dashboard'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify('Submission graded successfully.');
+        setShowReviewModal(false);
+        fetchProgramData();
+      } else notify(data.error || 'Failed to grade', 'error');
+    } catch (e) { notify('Network error.', 'error'); }
+    finally { setIsSaving(false); }
   };
 
   useEffect(() => {
@@ -719,7 +747,10 @@ export default function ProgramWorkspace() {
                         </span>
                       </td>
                       <td className="text-right">
-                        <button className="text-[var(--brand-blue)] text-[10px] font-black uppercase italic">Review</button>
+                        <button 
+                           onClick={() => { setSelectedSubmission(sub); setReviewScore(sub.score || 0); setShowReviewModal(true); }}
+                           className="text-[var(--brand-blue)] text-[10px] font-black uppercase italic"
+                        >Review</button>
                       </td>
                     </tr>
                   ))}
@@ -798,6 +829,49 @@ export default function ProgramWorkspace() {
               <button onClick={addSession} disabled={isSaving || !newSession.title.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Adding...' : 'Add Session'}</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* REVIEW & GRADE MODAL */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowReviewModal(false)}>
+          <div className="card w-full max-w-md space-y-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Grade Submission</h3>
+              <button onClick={() => setShowReviewModal(false)}><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="p-4 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl space-y-2">
+               <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Participant</p>
+               <p className="text-sm font-black text-[var(--text-primary)]">{selectedSubmission?.participant_name || 'Group Submission'}</p>
+               <a href={selectedSubmission?.submission_link} target="_blank" className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2">
+                  <ExternalLink className="w-3 h-3" /> View Source Material
+               </a>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Numerical Grade (Score)</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="100"
+                  value={reviewScore} 
+                  onChange={e => setReviewScore(e.target.value)} 
+                  className="w-full rounded-lg px-4 py-3 text-2xl outline-none font-black text-center text-[var(--brand-orange)]" 
+                  style={{ background: 'var(--bg-primary)', border: '2px solid var(--border-primary)' }} 
+                  placeholder="e.g. 70" 
+                />
+                <p className="text-[9px] font-bold text-slate-500 text-center uppercase mt-2">This score will be synchronized to the global graduation aggregation engine.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button onClick={() => setShowReviewModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={handleReviewSubmission} disabled={isSaving || reviewScore === ''} className="flex-1 btn btn-primary">{isSaving ? 'Grading...' : 'Approve & Grade'}</button>
+            </div>
+          </div>
+        </div>
+      )}
         </div>
       )}
 

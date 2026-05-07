@@ -54,7 +54,7 @@ export default function TerminalLoginPage() {
             localStorage.setItem('pm_session', 'pm-session-' + Date.now());
             router.push('/pm');
           } else if (data.user.role === 'staff') {
-            router.push('/staff');
+            router.push('/teacher');
           } else {
             router.push('/participant');
           }

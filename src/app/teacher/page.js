@@ -196,6 +196,22 @@ export default function TeacherV2Dashboard() {
      } catch (e) { alert("Review failed."); }
   };
 
+  const handleCompleteSession = async (sessionId) => {
+     if (!confirm("Are you sure you want to mark this scheduled node as completed?")) return;
+     try {
+        const res = await fetch('/api/teacher/sessions/complete', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (data.success) {
+           alert("Session Marked as Completed. Intelligence synced to HQ.");
+           fetchDashboardData();
+        }
+     } catch (e) { alert("Session completion action failed."); }
+  };
+
   if (isLoading) return (
      <div className="min-h-screen bg-[#080810] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-[#FF6600]/80/20 border-t-[#FF6600]/80 rounded-full animate-spin" />
@@ -274,6 +290,12 @@ export default function TeacherV2Dashboard() {
                                 <span className="text-[var(--text-primary)]">{sessions[0].start_time || '00:00'} - {sessions[0].end_time || '23:59'}</span>
                              </div>
                           </div>
+                          <button 
+                             onClick={() => handleCompleteSession(sessions[0].id)}
+                             className="w-full mt-4 py-3 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all shadow-lg hover:shadow-emerald-500/20"
+                          >
+                             <CheckCircle2 className="w-3 h-3 inline mr-2" /> Mark as Complete
+                          </button>
                        </div>
                     ) : (
                        <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase italic opacity-40">No tasks pending deployment.</p>

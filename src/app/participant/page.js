@@ -32,6 +32,7 @@ export default function ParticipantV2Dashboard() {
   const [team, setTeam] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [grades, setGrades] = useState({ individualScore: 0, groupScore: 0, finalGrade: 0 });
   
   // State for feedback modal
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -67,6 +68,7 @@ export default function ParticipantV2Dashboard() {
         setDocRequirements(data.documents || []);
         setFollowups(data.followups || []);
         setTeam(data.team || null);
+        if (data.grades) setGrades(data.grades);
       };
 
       // 1. Check Prefetch Store (Zero Latency)
@@ -195,6 +197,20 @@ export default function ParticipantV2Dashboard() {
                    <p className="text-[10px] font-black text-white uppercase truncate w-full">{team.name}</p>
                 </div>
              )}
+
+             <div className="w-48 ios-card bg-[#0d0d18] border-white/5 !p-4 flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-2">
+                   <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Graduation Grade</p>
+                   <div className="p-1.5 rounded bg-emerald-500/10 text-emerald-400"><Target className="w-3 h-3" /></div>
+                </div>
+                <div className="space-y-2">
+                   <p className="text-3xl font-black text-white">{grades.finalGrade}<span className="text-sm text-slate-500">/100</span></p>
+                   <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-500 border-t border-white/5 pt-2">
+                      <span>IND: {grades.individualScore}</span>
+                      <span>GRP: {grades.groupScore}</span>
+                   </div>
+                </div>
+             </div>
           </div>
         </header>
 
