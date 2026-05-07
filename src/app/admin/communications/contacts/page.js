@@ -493,7 +493,7 @@ function ContactsPageContent() {
                 <div className="flex justify-between items-center px-2">
                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Login Details</label>
                    <button 
-                     onClick={() => setForm({...form, password: generatePassword()})}
+                     onClick={() => setForm({...form, password: generatePassword(      )}</div></DashboardLayout>);}
                      className="text-[9px] font-bold text-[var(--brand-orange)] uppercase"
                    >
                      Generate Password
@@ -625,7 +625,7 @@ function ContactsPageContent() {
             </div>
           </div>
         </div>
-      )})}
+            )}</div></DashboardLayout>);}
 
     </DashboardLayout>
   );
