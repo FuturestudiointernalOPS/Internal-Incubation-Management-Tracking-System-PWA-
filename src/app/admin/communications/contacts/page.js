@@ -325,6 +325,18 @@ function ContactsPageContent() {
                         {!isAll && (
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
+                              onClick={() => {
+                                setNewGroupName(groupObj.name);
+                                setNewGroupType(groupObj.type || 'individual');
+                                setNewGroupProgramId(groupObj.program_id || '');
+                                setShowGroupModal(groupObj);
+                              }}
+                              title="Edit Segment Logic"
+                              className="p-3 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] text-slate-500 hover:text-[var(--brand-orange)]"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button 
                               onClick={() => copyJoinLink(group)}
                               title="Copy Join Link"
                               className={`p-3 rounded-xl border border-[var(--border-primary)] transition-all ${copiedGroup === group ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' : 'bg-[var(--bg-primary)] text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]'}`}
