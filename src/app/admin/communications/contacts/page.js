@@ -631,9 +631,7 @@ function ContactsPageContent() {
               </button>
             </div>
           </div>
-        </div>
-      )}    )}
-    </DashboardLayout>
+        </div>        )}</DashboardLayout>
   );
 }
 
