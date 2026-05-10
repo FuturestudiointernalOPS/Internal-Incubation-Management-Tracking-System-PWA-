@@ -146,7 +146,7 @@ const NAVIGATION_MATRIX = {
     { id: 'programs', name: 'PROGRAMS', icon: Briefcase, href: '/pm/programs' },
     { id: 'communication', name: 'COMMUNICATION', icon: MessageSquare, href: '/pm/communications/contacts' },
     { id: 'progress_hub', name: 'PROGRESS', icon: Activity, href: '/pm/progress' },
-    { id: 'knowledge', name: 'KNOWLEDGE', icon: Library, href: '/admin/knowledge' },
+    { id: 'knowledge', name: 'KNOWLEDGE', icon: Library, href: '#' },
     { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
   ],
   staff: [

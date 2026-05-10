@@ -637,57 +637,8 @@ export default function ProgramWorkspace() {
             <div className="space-y-8 animate-in">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
-                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
-                    Program Identity
-                  </h3>
-                  <div className="card space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Program Name</label>
-                      <input 
-                        ref={configNameRef} 
-                        type="text" 
-                        defaultValue={program?.name} 
-                        disabled={user.role === 'program_manager'}
-                        className={`w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold ${user.role === 'program_manager' ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Strategic Description</label>
-                      <textarea ref={configDescRef} rows="4" defaultValue={program?.description} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
-                    </div>
-                     <div className="grid grid-cols-2 gap-4">
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Duration (Weeks)</label>
-                         <input ref={configWeeksRef} type="number" defaultValue={program?.duration_weeks} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Operational Status</label>
-                         <select ref={configStatusRef} defaultValue={program?.status} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold">
-                           <option value="active">ACTIVE</option>
-                           <option value="archived">ARCHIVED</option>
-                           <option value="draft">DRAFT</option>
-                         </select>
-                       </div>
-                     </div>
-
-                     <div className="space-y-1 mt-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">PROGRAM MANAGER</label>
-                        <div className="w-full bg-[var(--bg-primary)]/50 border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--brand-orange)] flex items-center justify-between">
-                           <div className="flex items-center gap-3">
-                              <User className="w-4 h-4" />
-                              <span className="uppercase">{program?.pm_name || 'Not Assigned'}</span>
-                           </div>
-                           <Shield className="w-4 h-4 opacity-30" />
-                        </div>
-                     </div>
-                    <button onClick={saveConfig} disabled={isSaving} className="btn btn-primary w-full py-4 mt-4 gap-2">
-                      <Save className="w-4 h-4" />{isSaving ? 'Saving...' : 'Synchronize Global Settings'}
-                    </button>
-                  </div>
-
-                  {/* STRATEGIC MATERIALS (PDFs) */}
-                  <div className="space-y-6 mt-8">
+                  {/* STRATEGIC MATERIALS (PDFs) — MOVED TO TOP FOR VISIBILITY */}
+                  <div className="space-y-6 mb-8">
                     <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
                       <FileText className="w-5 h-5 text-blue-500" />
                       Strategic Materials
@@ -769,6 +720,56 @@ export default function ProgramWorkspace() {
                       </div>
                     </div>
                   </div>
+
+                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
+                    Program Identity
+                  </h3>
+                  <div className="card space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Program Name</label>
+                      <input 
+                        ref={configNameRef} 
+                        type="text" 
+                        defaultValue={program?.name} 
+                        disabled={user.role === 'program_manager'}
+                        className={`w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold ${user.role === 'program_manager' ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Strategic Description</label>
+                      <textarea ref={configDescRef} rows="4" defaultValue={program?.description} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Duration (Weeks)</label>
+                         <input ref={configWeeksRef} type="number" defaultValue={program?.duration_weeks} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                       </div>
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Operational Status</label>
+                         <select ref={configStatusRef} defaultValue={program?.status} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold">
+                           <option value="active">ACTIVE</option>
+                           <option value="archived">ARCHIVED</option>
+                           <option value="draft">DRAFT</option>
+                         </select>
+                       </div>
+                     </div>
+
+                     <div className="space-y-1 mt-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">PROGRAM MANAGER</label>
+                        <div className="w-full bg-[var(--bg-primary)]/50 border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--brand-orange)] flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                              <User className="w-4 h-4" />
+                              <span className="uppercase">{program?.pm_name || 'Not Assigned'}</span>
+                           </div>
+                           <Shield className="w-4 h-4 opacity-30" />
+                        </div>
+                     </div>
+                    <button onClick={saveConfig} disabled={isSaving} className="btn btn-primary w-full py-4 mt-4 gap-2">
+                      <Save className="w-4 h-4" />{isSaving ? 'Saving...' : 'Synchronize Global Settings'}
+                    </button>
+                  </div>
+
                 </div>
 
                 <div className="space-y-6">
