@@ -33,13 +33,13 @@ export default function ProgramManagement() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const statusParam = activeTab === 'archived' ? 'archived' : (activeTab === 'completed' ? 'completed' : 'all');
     try {
+      const statusParam = activeTab === 'active' ? 'all' : activeTab;
       const [progRes, managerRes, segmentRes, kbRes] = await Promise.all([
-        fetch(`/api/pm/programs?status=${statusParam}`),
+        fetch(`/api/pm/programs?show_archived=${activeTab === 'archived'}&status=${statusParam}`),
         fetch('/api/contacts/full-state'),
         fetch('/api/families'),
-        fetch('/api/v2/knowledge-bank')
+        fetch('/api/knowledge')
       ]);
       
       const [progData, managerData, segmentData, kbData] = await Promise.all([
@@ -49,12 +49,11 @@ export default function ProgramManagement() {
       if (progData.success) setPrograms(progData.programs || []);
       if (managerData.success) {
         const managers = (managerData.contacts || []).filter(c => 
-          c.role === 'super_admin' || c.role === 'program_manager' || c.role === 'staff' || c.role === 'teacher'
+          c.role === 'super_admin' || c.role === 'program_manager'
         );
-        setTeams(managers); 
+        setTeams(managers);
       }
-      if (segmentData.success) setNotes(segmentData.families || []); 
-      if (kbData.success) setKnowledgeItems(kbData.knowledgeItems || kbData.notes || []);
+      if (segmentData.success) setNotes(segmentData.families || []);
       
     } catch (e) {
       console.error("Sync Failure:", e);
@@ -62,6 +61,7 @@ export default function ProgramManagement() {
       setLoading(false);
     }
   }, [activeTab]);
+
 
   useEffect(() => {
     fetchData();
