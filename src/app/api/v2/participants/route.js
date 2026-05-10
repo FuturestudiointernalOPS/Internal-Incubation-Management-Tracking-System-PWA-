@@ -71,13 +71,13 @@ export async function GET(req) {
     const program_id = searchParams.get('program_id');
 
     let sql = `
-      SELECT id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source
+      SELECT CAST(id AS TEXT) as id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source
       FROM v2_participants 
       WHERE program_id = ?
       
       UNION
       
-      SELECT c.cid as id, f.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'group' as source
+      SELECT CAST(c.cid AS TEXT) as id, f.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'group' as source
       FROM contacts c
       JOIN families f ON UPPER(c.group_name) = UPPER(f.name)
       WHERE f.program_id = ?
