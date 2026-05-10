@@ -45,7 +45,7 @@ export default function PublicApplicationRegistration() {
  
     try {
       const searchParams = new URLSearchParams(window.location.search);
-      const groupParam = searchParams.get('group') || 'unassigned';
+      const groupParam = searchParams.get('rid') || searchParams.get('group') || 'unassigned';
 
       // ENFORCEMENT: Ensure all public registrations are set to pending for Super Admin approval
 

@@ -123,10 +123,19 @@ export async function POST(req) {
     // Handle Segment/Team Assignments for new program
     if (Array.isArray(assigned_segments) && assigned_segments.length > 0) {
       for (const segmentId of assigned_segments) {
-        await db.execute({
-          sql: "UPDATE families SET program_id = ? WHERE id = ?",
-          args: [id, Number(segmentId)]
-        });
+        if (!segmentId) continue;
+        const sid = !isNaN(segmentId) ? Number(segmentId) : null;
+        if (sid !== null) {
+          await db.execute({
+            sql: "UPDATE families SET program_id = ? WHERE id = ?",
+            args: [id, sid]
+          });
+        } else {
+          await db.execute({
+            sql: "UPDATE families SET program_id = ? WHERE name = ?",
+            args: [id, segmentId]
+          });
+        }
       }
     }
 
@@ -162,10 +171,19 @@ export async function PUT(req) {
       // 2. Link the new set of segments
       if (assigned_segments.length > 0) {
         for (const segmentId of assigned_segments) {
-          await db.execute({
-            sql: "UPDATE families SET program_id = ? WHERE id = ?",
-            args: [id, Number(segmentId)]
-          });
+          if (!segmentId) continue;
+          const sid = !isNaN(segmentId) ? Number(segmentId) : null;
+          if (sid !== null) {
+            await db.execute({
+              sql: "UPDATE families SET program_id = ? WHERE id = ?",
+              args: [id, sid]
+            });
+          } else {
+            await db.execute({
+              sql: "UPDATE families SET program_id = ? WHERE name = ?",
+              args: [id, segmentId]
+            });
+          }
         }
       }
     }

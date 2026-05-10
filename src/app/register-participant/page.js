@@ -29,7 +29,7 @@ export default function PublicParticipantRegistration() {
   useEffect(() => {
     // Extract program from URL
     const searchParams = new URLSearchParams(window.location.search);
-    const targetProgramName = searchParams.get('program');
+    const targetProgramName = searchParams.get('program') || searchParams.get('rid') || searchParams.get('group');
 
     const fetchProgramRegistry = async () => {
        try {
