@@ -77,6 +77,7 @@ export async function GET(req) {
       
       UNION
       
+      -- Self-Healing Join: Matches contacts via Family Link
       SELECT CAST(c.cid AS TEXT) as id, f.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'group' as source
       FROM contacts c
       JOIN families f ON UPPER(TRIM(c.group_name)) = UPPER(TRIM(f.name))
@@ -84,14 +85,23 @@ export async function GET(req) {
       
       UNION
       
+      -- Direct Profile Link: Matches contacts with program_id in their profile
       SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'direct' as source
       FROM contacts
       WHERE program_id = ?
       
+      UNION
+      
+      -- Name-Based Fallback: Matches contacts whose group_name matches the program name
+      SELECT CAST(c.cid AS TEXT) as id, p.id as program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'fallback' as source
+      FROM contacts c
+      CROSS JOIN v2_programs p
+      WHERE p.id = ? AND UPPER(TRIM(c.group_name)) = UPPER(TRIM(p.name))
+      
       ORDER BY created_at DESC
     `;
     
-    let args = [program_id, program_id, program_id];
+    let args = [program_id, program_id, program_id, program_id];
     
     if (!program_id) {
        sql = "SELECT *, 'manual' as source FROM v2_participants ORDER BY created_at DESC";
