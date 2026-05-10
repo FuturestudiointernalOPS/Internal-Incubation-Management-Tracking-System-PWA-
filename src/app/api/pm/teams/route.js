@@ -27,7 +27,7 @@ export async function POST(req) {
   try {
     await initDb();
     const data = await req.json();
-    const { program_id, name, handler_id, handler_name, member_ids, group_name } = data;
+    const { program_id, name, handler_id, handler_name, member_ids, group_name, leader_id } = data;
 
     if (!program_id || !name) {
       return NextResponse.json({ success: false, error: "Missing squad parameters." }, { status: 400 });
@@ -42,23 +42,23 @@ export async function POST(req) {
 
     // 1. Create Team Record
     const result = await db.execute({
-      sql: "INSERT INTO v2_teams (id, program_id, name, handler_id, handler_name, password, team_username, group_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
-      args: [teamId, program_id, name, handler_id || null, handler_name || null, generatedPassword, generatedUsername, group_name || null]
+      sql: "INSERT INTO v2_teams (id, program_id, name, handler_id, handler_name, password, team_username, group_name, leader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
+      args: [teamId, program_id, name, handler_id || null, handler_name || null, generatedPassword, generatedUsername, group_name || null, leader_id || null]
     });
 
     const team = result.rows[0];
 
-    // 2. Link Members to Team
+    // 2. Link Members to Team in v2_participants
     if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
       const placeholders = member_ids.map(() => "?").join(",");
       await db.execute({
-        sql: `UPDATE contacts SET team_id = ? WHERE cid IN (${placeholders})`,
+        sql: `UPDATE v2_participants SET team_id = ? WHERE id IN (${placeholders})`,
         args: [team.id, ...member_ids]
       });
 
       // 3. Send Emails
       const memberRes = await db.execute({
-        sql: `SELECT email, name FROM contacts WHERE cid IN (${placeholders})`,
+        sql: `SELECT email, name FROM v2_participants WHERE id IN (${placeholders})`,
         args: [...member_ids]
       });
 

@@ -6,7 +6,7 @@ import {
   Users, Briefcase, Activity, CheckCircle2, ChevronRight, 
   ExternalLink, FileText, Mail, MessageCircle, MoreVertical, 
   Plus, Search, Shield, Target, Zap, Clock, AlertCircle, Trash2, LayoutDashboard, X, Save, BarChart3,
-  User, Paperclip, BookOpen
+  User, Paperclip, BookOpen, CheckSquare, Square, UserPlus
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
@@ -34,6 +34,9 @@ export default function ProgramWorkspace() {
   const [submissions, setSubmissions] = useState([]);
   const [requirements, setRequirements] = useState([]);
   const [reports, setReports] = useState([]);
+  const [activeSubTab, setActiveSubTab] = useState('individuals');
+  const [selectedParticipants, setSelectedParticipants] = useState([]);
+  const [newTeam, setNewTeam] = useState({ name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' });
   const [kpis, setKpis] = useState([]);
   const [events, setEvents] = useState([]);
   const [assignedStaff, setAssignedStaff] = useState([]);
@@ -113,8 +116,9 @@ export default function ProgramWorkspace() {
       if (data.success) { 
         notify('Student Group initialized.'); 
         setShowTeamModal(false); 
-        setNewTeam({ name: '', handler_name: '' }); 
+        setNewTeam({ name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' }); 
         fetchProgramData(true); 
+        setSelectedParticipants([]);
       }
       else notify(data.error || 'Deploy failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
@@ -368,7 +372,6 @@ export default function ProgramWorkspace() {
     { id: 'config', name: 'Configuration', icon: Shield },
     { id: 'curriculum', name: 'Curriculum', icon: FileText },
     { id: 'reports', name: 'Reports', icon: BarChart3 },
-    { id: 'teams', name: 'Teams', icon: Target },
     { id: 'participants', name: 'Participants', icon: Users },
     { id: 'submissions', name: 'Submissions', icon: Activity },
   ];
@@ -464,48 +467,194 @@ export default function ProgramWorkspace() {
           )}
 
           {activeTab === 'participants' && (
-            <div className="table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Participant</th>
-                    <th>Email</th>
-                    <th>Squad</th>
-                    <th>Status</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {participants.map(p => (
-                    <tr key={p.id}>
-                      <td className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] flex items-center justify-center font-bold text-xs border border-[var(--border-primary)]">
-                          {p.name.charAt(0)}
+            <div className="space-y-6 animate-in">
+              {/* SUB-TAB NAVIGATION */}
+              <div className="flex gap-4 border-b border-[var(--border-primary)]/30 pb-2">
+                <button 
+                  onClick={() => setActiveSubTab('individuals')}
+                  className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === 'individuals' ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100'}`}
+                >
+                  Individuals ({participants.length})
+                </button>
+                <button 
+                  onClick={() => setActiveSubTab('groups')}
+                  className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === 'groups' ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100'}`}
+                >
+                  Groups ({teams.length})
+                </button>
+                <button 
+                  onClick={() => setActiveSubTab('staff')}
+                  className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === 'staff' ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100'}`}
+                >
+                  Program Staff ({assignedStaff.length})
+                </button>
+              </div>
+
+              {activeSubTab === 'individuals' && (
+                <div className="space-y-4">
+                   <div className="flex justify-between items-center bg-[var(--bg-tertiary)] p-4 rounded-xl border border-[var(--border-primary)]">
+                      <div className="flex items-center gap-2">
+                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Selection:</span>
+                         <span className="text-sm font-black text-[var(--brand-orange)]">{selectedParticipants.length} Selected</span>
+                      </div>
+                      <div className="flex gap-2">
+                         <button 
+                           onClick={() => setSelectedParticipants(participants.map(p => p.id))}
+                           className="text-[9px] font-black uppercase text-blue-500 hover:underline"
+                         >Select All</button>
+                         <button 
+                           onClick={() => setSelectedParticipants([])}
+                           className="text-[9px] font-black uppercase text-rose-500 hover:underline"
+                         >Clear</button>
+                         {selectedParticipants.length > 0 && (
+                            <button 
+                              onClick={() => {
+                                setNewTeam({ name: '', handler_name: '', member_ids: selectedParticipants });
+                                setShowTeamModal(true);
+                              }}
+                              className="btn btn-primary btn-sm py-1 px-4 gap-2"
+                            >
+                               <Target className="w-3 h-3" /> Group Students
+                            </button>
+                         )}
+                      </div>
+                   </div>
+
+                   <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th className="w-10">
+                             <div className="flex items-center justify-center">
+                                <CheckSquare className="w-4 h-4 opacity-20" />
+                             </div>
+                          </th>
+                          <th>Participant</th>
+                          <th>Email</th>
+                          <th>Group</th>
+                          <th>Status</th>
+                          <th className="text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {participants.map(p => {
+                          const isSelected = selectedParticipants.includes(p.id);
+                          return (
+                            <tr key={p.id} className={isSelected ? 'bg-orange-500/5' : ''}>
+                              <td className="text-center">
+                                 <button 
+                                   onClick={() => {
+                                      if (isSelected) setSelectedParticipants(selectedParticipants.filter(id => id !== p.id));
+                                      else setSelectedParticipants([...selectedParticipants, p.id]);
+                                   }}
+                                   className={`p-2 transition-colors ${isSelected ? 'text-[var(--brand-orange)]' : 'text-slate-500 opacity-20 hover:opacity-100'}`}
+                                 >
+                                    {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                                 </button>
+                              </td>
+                              <td className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] flex items-center justify-center font-bold text-xs border border-[var(--border-primary)]">
+                                  {p.name.charAt(0)}
+                                </div>
+                                <span className="font-bold">{p.name}</span>
+                              </td>
+                              <td>{p.email}</td>
+                              <td>
+                                <span className="px-2 py-1 bg-[var(--bg-primary)] rounded text-[10px] font-bold uppercase">
+                                  {p.group_name || 'Unassigned'}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                  <span className="text-xs font-medium">Operational</span>
+                                </div>
+                              </td>
+                              <td className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <button className="p-2 hover:text-[var(--brand-blue)]"><Mail className="w-4 h-4" /></button>
+                                  <button className="p-2 hover:text-emerald-500"><MessageCircle className="w-4 h-4" /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {activeSubTab === 'groups' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {teams.map(team => (
+                    <div key={team.id} className="card group hover:border-[var(--brand-orange)] transition-all">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
+                          <Target className="w-6 h-6" />
                         </div>
-                        <span className="font-bold">{p.name}</span>
-                      </td>
-                      <td>{p.email}</td>
-                      <td>
-                        <span className="px-2 py-1 bg-[var(--bg-primary)] rounded text-[10px] font-bold uppercase">
-                          {p.group_name || 'Unassigned'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                          <span className="text-xs font-medium">Operational</span>
-                        </div>
-                      </td>
-                      <td className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <button className="p-2 hover:text-[var(--brand-blue)]"><Mail className="w-4 h-4" /></button>
-                          <button className="p-2 hover:text-emerald-500"><MessageCircle className="w-4 h-4" /></button>
-                        </div>
-                      </td>
-                    </tr>
+                        {(user.role === 'super_admin' || user.role === 'program_manager') && (
+                          <button onClick={() => deleteTeam(team.id)} className="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                        )}
+                      </div>
+                      <h3 className="text-xl font-bold mb-2">{team.name}</h3>
+                      <div className="space-y-1 mb-6">
+                        <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Handler / Staff</p>
+                        <p className="text-xs text-[var(--text-primary)] font-black uppercase tracking-tight">{team.handler_name || 'Unassigned'}</p>
+                      </div>
+                      <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Healthy</span>
+                        <button className="text-[var(--brand-blue)] text-xs font-bold uppercase flex items-center gap-1">
+                          Details <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                  {teams.length === 0 && (
+                    <div className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-40 min-h-[160px] col-span-full py-8 text-center">
+                       <Target className="w-8 h-8 text-[var(--text-secondary)]" />
+                       <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">No student groups found.<br/>Select participants in the Individuals tab to initialize a group.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeSubTab === 'staff' && (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-xl font-black uppercase tracking-tighter">Program Staff</h3>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Assigned mentors, assistants, and evaluators for this program</p>
+                    </div>
+                    <button onClick={() => setShowStaffModal(true)} className="btn btn-primary btn-sm px-4 gap-2">
+                      <UserPlus className="w-3 h-3" /> Assign Personnel
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {assignedStaff.map(staff => (
+                      <div key={staff.cid} className="card flex items-center justify-between p-4 hover:border-[var(--brand-orange)] transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] flex items-center justify-center text-xs font-black uppercase border border-[var(--brand-orange)]/20">
+                            {staff.name?.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-tight">{staff.name}</p>
+                            <p className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-wider">{staff.role}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => removeStaff(staff.cid)} className="text-rose-500 hover:scale-110 transition-transform"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    ))}
+                    {assignedStaff.length === 0 && (
+                      <div className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-40 min-h-[120px] col-span-full py-8 text-center">
+                         <Users className="w-8 h-8 text-[var(--text-secondary)]" />
+                         <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">No staff members assigned yet.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1027,29 +1176,6 @@ export default function ProgramWorkspace() {
                     </button>
                   </div>
 
-                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2 mt-8">
-                    <Users className="w-5 h-5 text-blue-500" />
-                    Staff Deployment
-                  </h3>
-                  <div className="card space-y-4">
-                    <div className="space-y-2">
-                      {assignedStaff.map(staff => (
-                        <div key={staff.cid} className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center text-[10px] font-black uppercase">{staff.name?.charAt(0)}</div>
-                            <div>
-                              <p className="text-xs font-black uppercase tracking-tight">{staff.name}</p>
-                              <p className="text-[9px] text-[var(--text-secondary)] font-bold">{staff.role}</p>
-                            </div>
-                          </div>
-                          <button onClick={() => removeStaff(staff.cid)} className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      ))}
-                    </div>
-                    <button onClick={() => setShowStaffModal(true)} className="btn btn-secondary w-full py-3 gap-2 border-dashed">
-                      <Plus className="w-4 h-4" /> Assign Personnel
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1221,12 +1347,26 @@ export default function ProgramWorkspace() {
                 <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Group Name</label>
                 <input value={newTeam.name} onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Group Alpha" />
               </div>
+              
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Teacher / Lead Personnel (Mentorship & Oversight)</label>
-                <select value={newTeam.handler_name} onChange={e => setNewTeam(p => ({...p, handler_name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
-                   <option value="">Select Staff...</option>
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Group Lead (Student)</label>
+                <select value={newTeam.leader_id} onChange={e => setNewTeam(p => ({...p, leader_id: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+                   <option value="">Select Lead...</option>
+                   {participants.filter(p => newTeam.member_ids.includes(p.id)).map(p => (
+                     <option key={p.id} value={p.id}>{p.name}</option>
+                   ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Oversight (Staff Member)</label>
+                <select value={newTeam.staff_id} onChange={e => {
+                  const staff = assignedStaff.find(s => String(s.cid) === e.target.value);
+                  setNewTeam(p => ({...p, staff_id: e.target.value, handler_name: staff?.name || ''}));
+                }} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+                   <option value="">No Staff Assigned (Optional)</option>
                    {assignedStaff.map(s => (
-                     <option key={s.cid} value={s.name}>{s.name} ({s.role})</option>
+                     <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
                    ))}
                 </select>
               </div>
@@ -1327,7 +1467,7 @@ export default function ProgramWorkspace() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assigned Role</label>
                 <select value={newStaff.role} onChange={e => setNewStaff(p => ({...p, role: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
-                  <option value="teacher">Teacher</option>
+                  <option value="staff">Staff Member</option>
                   <option value="assistant">Assistant</option>
                   <option value="evaluator">Evaluator</option>
                   <option value="handler">Handler</option>
