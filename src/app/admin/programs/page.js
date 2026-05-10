@@ -245,6 +245,7 @@ export default function ProgramManagement() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
               </table>
           </div>
         )}
