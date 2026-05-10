@@ -49,7 +49,7 @@ export default function PMDashboard() {
 
   const fetchPMPrograms = async (pmId) => {
     try {
-      const res = await fetch('/api/v2/pm/programs?assigned_pm_id=' + pmId);
+      const res = await fetch('/api/pm/programs?assigned_pm_id=' + pmId);
       const data = await res.json();
       
       if (data.success) {

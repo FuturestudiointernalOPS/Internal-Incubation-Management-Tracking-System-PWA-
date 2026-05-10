@@ -22,7 +22,7 @@ export default function PMProgressHub() {
        return;
     }
     
-    fetch('/api/v2/pm/programs?assigned_pm_id=' + (user.cid || user.id))
+    fetch('/api/pm/programs?assigned_pm_id=' + (user.cid || user.id))
       .then(res => res.json())
       .then(data => {
         if (data.success) setPrograms(data.programs || []);

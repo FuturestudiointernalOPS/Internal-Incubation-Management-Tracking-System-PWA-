@@ -31,7 +31,7 @@ export default function PMProgramsRegistry() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const identifier = user.cid || user.id;
       
-      let endpoint = `/api/v2/pm/programs?assigned_pm_id=${identifier}`;
+      let endpoint = `/api/pm/programs?assigned_pm_id=${identifier}`;
       if (activeTab === 'archived') {
          endpoint += '&show_archived=true';
       } else if (activeTab === 'completed') {
@@ -57,7 +57,7 @@ export default function PMProgramsRegistry() {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         const identifier = user.cid || user.id;
         // Fetch sessions with dates across all PM programs
-        const res = await fetch('/api/v2/pm/schedule?pm_id=' + identifier);
+        const res = await fetch('/api/pm/schedule?pm_id=' + identifier);
         const data = await res.json();
         if (data.success) {
            setSchedule(data.schedule || []);
@@ -265,7 +265,7 @@ export default function PMProgramsRegistry() {
                                       onClick={async (e) => {
                                          e.stopPropagation();
                                          try {
-                                            const res = await fetch('/api/v2/pm/programs', {
+                                            const res = await fetch('/api/pm/programs', {
                                                method: 'PATCH',
                                                headers: { 'Content-Type': 'application/json' },
                                                body: JSON.stringify({ id: program.id, is_archived: 0, action: 'archive' })

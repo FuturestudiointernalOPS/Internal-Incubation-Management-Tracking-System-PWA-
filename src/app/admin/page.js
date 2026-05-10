@@ -305,11 +305,11 @@ export default function AdminDashboard() {
                 <button 
                    onClick={async () => {
                       try {
-                         const progRes = await fetch('/api/v2/pm/programs');
+                         const progRes = await fetch('/api/pm/programs');
                          const progData = await progRes.json();
                          const program_id = progData.programs?.[0]?.id || 'SYSTEM-GENERIC';
 
-                         const res = await fetch('/api/v2/invites', {
+                         const res = await fetch('/api/invites', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
