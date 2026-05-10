@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { CardSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
+import { uploadFile } from '@/lib/storage';
 
 /**
  * IMPACTOS MISSION CONTROL — PROGRAM MANAGEMENT
@@ -24,6 +25,7 @@ export default function ProgramManagement() {
   const [activeTab, setTab] = useState('active'); 
   const [editingProgram, setEditingProgram] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [notes, setNotes] = useState([]);
   const [teams, setTeams] = useState([]);
 
@@ -107,6 +109,37 @@ export default function ProgramManagement() {
       });
       if ((await res.json()).success) fetchData();
     } catch (e) {}
+  };
+
+  const handleEditFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const path = `curriculum/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+      const res = await uploadFile('knowledge', path, file);
+      
+      if (res.success) {
+        const newMaterial = {
+          name: file.name,
+          url: res.url,
+          size: file.size,
+          type: file.type,
+          uploadedAt: new Date().toISOString()
+        };
+        
+        const currentMaterials = Array.isArray(editingProgram.materials) ? editingProgram.materials : [];
+        setEditingProgram({
+          ...editingProgram,
+          materials: [...currentMaterials, newMaterial]
+        });
+      }
+    } catch (e) {
+      console.error("Upload failed:", e);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const filtered = programs.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
@@ -336,7 +369,7 @@ export default function ProgramManagement() {
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
                   >
                     <option value="">None Assigned</option>
-                    {notes.map(n => <option key={n.id} value={n.id}>{n.name.toUpperCase()}</option>)}
+                    {knowledgeItems.map(item => <option key={item.id} value={item.id}>{item.title?.toUpperCase() || 'UNTITLED NODE'}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -363,27 +396,21 @@ export default function ProgramManagement() {
                       })()}
                     </div>
                     <button 
-                      type="button"
-                      onClick={() => document.getElementById('curriculum-upload').click()}
-                      className="btn btn-secondary px-6 flex items-center gap-2"
-                    >
-                      <Upload className="w-4 h-4" /> <span>Upload PDF</span>
-                    </button>
-                    <input 
-                      id="curriculum-upload"
-                      type="file"
-                      accept=".pdf"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        // For V1 stability, we store the filename/status while the upload handles in the background
-                        setEditingProgram({
-                          ...editingProgram, 
-                          materials: [{ name: file.name, size: file.size, lastModified: file.lastModified, status: 'staged' }]
-                        });
-                      }}
-                    />
+                       type="button"
+                       disabled={isUploading}
+                       onClick={() => document.getElementById('curriculum-upload').click()}
+                       className="btn btn-secondary px-6 flex items-center gap-2"
+                     >
+                       {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                       <span>{isUploading ? 'Uploading...' : 'Upload PDF'}</span>
+                     </button>
+                     <input 
+                       id="curriculum-upload"
+                       type="file"
+                       accept=".pdf"
+                       className="hidden"
+                       onChange={handleEditFileUpload}
+                     />
                  </div>
               </div>
 
