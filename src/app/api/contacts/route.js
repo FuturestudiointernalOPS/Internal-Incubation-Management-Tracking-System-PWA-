@@ -41,9 +41,9 @@ export async function POST(req) {
       }
       const hashedPassword = await bcrypt.hash(finalPassword, 10);
 
-      // Gated Status Logic
-      const groupName = c.group_name || 'unassigned';
-      const isInternal = groupName.toUpperCase() === 'FUTURE STUDIO';
+      // Gated Status Logic (UPPERCASE NORMALIZATION)
+      const groupName = (c.group_name || 'unassigned').toUpperCase();
+      const isInternal = groupName === 'FUTURE STUDIO';
       const initialStatus = isInternal ? 'pending' : 'approved';
       
       // Strict Role Normalization

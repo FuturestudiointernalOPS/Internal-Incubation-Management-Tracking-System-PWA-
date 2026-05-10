@@ -19,22 +19,20 @@ export async function GET() {
     const familiesRes = await db.execute("SELECT * FROM families ORDER BY name ASC");
     let familiesList = familiesRes.rows;
 
-    // SOLIDIFICATION: Ensure "FUTURE STUDIO" is a REAL record in the database
-    const fsGroup = familiesList.find(f => f.name.toUpperCase() === 'FUTURE STUDIO');
-    if (!fsGroup) {
-      console.log("Forensic Correction: Creating permanent FUTURE STUDIO group...");
-      await db.execute({
-        sql: "INSERT INTO families (name, registration_id, type) VALUES (?, ?, ?)",
-        args: ['FUTURE STUDIO', 'R-FS-001', 'individual']
-      });
-      // Re-fetch to get the newly created record with its ID
-      const updatedFamilies = await db.execute("SELECT * FROM families ORDER BY name ASC");
-      familiesList = updatedFamilies.rows;
+    // NORMALIZATION: Ensure FUTURE STUDIO is in the filter list (Uppercase Protocol)
+    if (!familiesList.find(f => f.name.toUpperCase() === 'FUTURE STUDIO')) {
+      familiesList.unshift({ name: 'FUTURE STUDIO', registration_id: 'R-FS-001' });
     }
+
+    // Data Sanitization: Normalize all contact group names to uppercase
+    const normalizedContacts = contactsRes.rows.map(c => ({
+      ...c,
+      group_name: c.group_name ? c.group_name.toUpperCase() : 'UNASSIGNED'
+    }));
 
     return NextResponse.json({ 
       success: true, 
-      contacts: contactsRes.rows,
+      contacts: normalizedContacts,
       families: familiesList 
     });
 
