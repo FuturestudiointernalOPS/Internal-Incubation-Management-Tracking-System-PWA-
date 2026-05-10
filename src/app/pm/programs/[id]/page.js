@@ -1179,6 +1179,36 @@ export default function ProgramWorkspace() {
                    <option value="at_risk">AT RISK</option>
                    <option value="critical">CRITICAL</option>
                 </select>
+
+                <div className="mt-4 p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3">
+                   <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] border-b border-[var(--border-primary)] pb-2">Strategic Health Guide</p>
+                   <div className="grid grid-cols-1 gap-2">
+                      <div className="flex items-start gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1" />
+                         <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
+                            <span className="text-emerald-500">Optimal:</span> Performance exceeding expectations. Zero blockers.
+                         </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1" />
+                         <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
+                            <span className="text-blue-500">Stable:</span> On track. Minor hurdles managed successfully.
+                         </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1" />
+                         <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
+                            <span className="text-yellow-500">At Risk:</span> Warning signs. Emerging blockers requiring attention.
+                         </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1" />
+                         <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
+                            <span className="text-rose-500">Critical:</span> Major failure. Intervention required immediately.
+                         </p>
+                      </div>
+                   </div>
+                </div>
               </div>
             </div>
             <div className="flex gap-3">
