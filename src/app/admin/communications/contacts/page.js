@@ -190,7 +190,10 @@ function ContactsPageContent() {
   const getWhatsAppLink = (c, pass) => {
     const phone = c.phone?.replace(/[^0-9]/g, '');
     if (!phone) return '#';
-    const isStaff = c.role?.toLowerCase() === 'staff' || c.group_name?.toLowerCase() === 'future studio' || c.group_name?.toLowerCase() === 'staff';
+    // GATEWAY PROTOCOL: FUTURE STUDIO -> /terminal | OTHERS -> /login
+    const isStaff = c.role?.toLowerCase() === 'staff' || 
+                    c.group_name?.toUpperCase() === 'FUTURE STUDIO';
+    
     const portalUrl = `${window.location.origin}${isStaff ? '/terminal' : '/login'}`;
     const msg = `Hello ${c.name},\n\nYour ImpactOS account is ready.\n\nURL: ${portalUrl}\nUser: ${c.email}\nPass: ${pass || 'N/A'}`;
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
