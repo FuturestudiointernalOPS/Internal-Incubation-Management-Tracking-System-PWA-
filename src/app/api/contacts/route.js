@@ -171,6 +171,30 @@ export async function PUT(req) {
        args: args
     });
 
+    // AUTO-PURGE: If status was changed to active/approved, clear related notifications
+    if (data.status === 'active' || data.status === 'approved') {
+       try {
+          // Find the user's name first to match the notification message
+          const userRes = await db.execute({
+             sql: "SELECT name FROM contacts WHERE cid = ?",
+             args: [data.cid]
+          });
+          if (userRes.rows.length > 0) {
+             const userName = userRes.rows[0].name;
+             await db.execute({
+                sql: `UPDATE v2_notifications 
+                      SET read = 1 
+                      WHERE recipient_id = 'sa' 
+                      AND message LIKE ? 
+                      AND read = 0`,
+                args: [`%${userName}%`]
+             });
+          }
+       } catch (e) {
+          console.error("Auto-Purge Failure:", e);
+       }
+    }
+
     return NextResponse.json({ success: true, rowsAffected: match.rowsAffected });
   } catch (err) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
