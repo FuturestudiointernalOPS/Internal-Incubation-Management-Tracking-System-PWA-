@@ -33,7 +33,7 @@ export default function ProgramManagement() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const statusParam = activeTab === 'archived' ? 'archived' : (activeTab === 'completed' ? 'completed' : 'active');
+    const statusParam = activeTab === 'archived' ? 'archived' : (activeTab === 'completed' ? 'completed' : 'all');
     try {
       const [progRes, managerRes, segmentRes, kbRes] = await Promise.all([
         fetch(`/api/pm/programs?status=${statusParam}`),
@@ -152,7 +152,7 @@ export default function ProgramManagement() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex gap-2 p-1 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
             {[
-              { id: 'active', label: 'Active Programs' },
+              { id: 'active', label: 'All Programs' },
               { id: 'completed', label: 'Completed Programs' },
               { id: 'archived', label: 'Archived' }
             ].map(tab => (

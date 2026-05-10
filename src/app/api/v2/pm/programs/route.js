@@ -38,7 +38,7 @@ export async function GET(req) {
     
     const args = [showArchived ? 1 : 0];
 
-    if (status) {
+    if (status && status.toLowerCase() !== 'all') {
        if (status.toLowerCase() === 'active') {
           query += " AND (p.status ILIKE ? OR p.status IS NULL)";
        } else {
