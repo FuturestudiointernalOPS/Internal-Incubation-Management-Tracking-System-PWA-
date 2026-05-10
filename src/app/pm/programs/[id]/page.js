@@ -52,7 +52,6 @@ export default function ProgramWorkspace() {
   const [showPMReportModal, setShowPMReportModal] = useState(false);
   
   const [selectedSessionId, setSelectedSessionId] = useState(null);
-  const [newTeam, setNewTeam] = useState({ name: '', handler_name: '' });
   const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending' });
   const [newRequirement, setNewRequirement] = useState({ title: '', description: '', allowed_format: 'pdf' });
   const [newPMReport, setNewPMReport] = useState({ summary: '', status: 'optimal' });
