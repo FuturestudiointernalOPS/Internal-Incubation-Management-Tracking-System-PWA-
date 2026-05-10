@@ -129,7 +129,7 @@ export default function SuperAdminStandardization() {
                  <h2 className="text-5xl font-black text-white tracking-tighter uppercase italic leading-none">Operational Standards</h2>
               </div>
               <button 
-                 onClick={() => router.push('/admin/programs')}
+                 onClick={() => router.push('/v2/superadmin/programs')}
                  className="group flex items-center gap-4 px-8 py-4 bg-white/5 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#FF6600] hover:text-black transition-all border border-white/5 hover:border-[#FF6600]"
               >
                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
