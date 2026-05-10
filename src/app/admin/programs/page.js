@@ -29,30 +29,31 @@ export default function ProgramManagement() {
 
   const router = useRouter();
 
+  const [knowledgeItems, setKnowledgeItems] = useState([]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [progRes, managerRes, segmentRes] = await Promise.all([
+      const [progRes, managerRes, segmentRes, kbRes] = await Promise.all([
         fetch(`/api/pm/programs?show_archived=${activeTab === 'archived'}`),
         fetch('/api/contacts/full-state'),
-        fetch('/api/families')
+        fetch('/api/families'),
+        fetch('/api/v2/knowledge-bank')
       ]);
       
-      const [progData, managerData, segmentData] = await Promise.all([
-        progRes.json(), managerRes.json(), segmentRes.json()
+      const [progData, managerData, segmentData, kbData] = await Promise.all([
+        progRes.json(), managerRes.json(), segmentRes.json(), kbRes.json()
       ]);
       
       if (progData.success) setPrograms(progData.programs || []);
       if (managerData.success) {
         const managers = (managerData.contacts || []).filter(c => 
-          c.role === 'super_admin' || 
-          c.role === 'program_manager' || 
-          c.role === 'staff' || 
-          c.role === 'teacher'
+          c.role === 'super_admin' || c.role === 'program_manager' || c.role === 'staff' || c.role === 'teacher'
         );
-        setTeams(managers); // Used for managers list
+        setTeams(managers); 
       }
-      if (segmentData.success) setNotes(segmentData.families || []); // Used for segments list
+      if (segmentData.success) setNotes(segmentData.families || []); 
+      if (kbData.success) setKnowledgeItems(kbData.knowledgeItems || kbData.notes || []);
       
     } catch (e) {
       console.error("Sync Failure:", e);
@@ -323,6 +324,31 @@ export default function ProgramManagement() {
                   </select>
                 </div>
                 <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Assistant Manager</label>
+                  <select 
+                    value={editingProgram.assigned_assistant_id || ''} 
+                    onChange={e => setEditingProgram({...editingProgram, assigned_assistant_id: e.target.value})} 
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none"
+                  >
+                    <option value="">Unassigned</option>
+                    {teams.map(m => <option key={m.cid} value={m.cid}>{m.name.toUpperCase()}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Knowledge Base Note</label>
+                  <select 
+                    value={editingProgram.note_id || ''} 
+                    onChange={e => setEditingProgram({...editingProgram, note_id: e.target.value})} 
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none"
+                  >
+                    <option value="">No Knowledge Base Assigned</option>
+                    {knowledgeItems.map(k => <option key={k.id} value={k.id}>{k.title.toUpperCase()}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Duration (Weeks)</label>
                   <input 
                     type="number"
@@ -333,11 +359,20 @@ export default function ProgramManagement() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Curriculum Materials (PDF URL)</label>
+                 <input 
+                    value={typeof editingProgram.materials === 'string' ? editingProgram.materials : (Array.isArray(editingProgram.materials) ? (editingProgram.materials[0]?.url || editingProgram.materials[0] || '') : '')} 
+                    onChange={e => setEditingProgram({...editingProgram, materials: [{ name: 'Strategic_Curriculum.pdf', url: e.target.value }]})} 
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                    placeholder="https://example.com/curriculum.pdf"
+                 />
+              </div>
+
               <div className="space-y-3">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Operational Teams (Segments)</label>
-                 <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]">
+                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-2 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]">
                     {notes.map(s => {
-                      const isAssigned = s.program_id === editingProgram.id;
                       return (
                         <button
                           key={s.id}
@@ -367,7 +402,7 @@ export default function ProgramManagement() {
               <div className="space-y-2">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Program Description</label>
                  <textarea 
-                    rows={3}
+                    rows={2}
                     value={editingProgram.description} 
                     onChange={e => setEditingProgram({...editingProgram, description: e.target.value})} 
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none"
