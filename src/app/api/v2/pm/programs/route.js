@@ -20,7 +20,7 @@ export async function GET(req) {
              (SELECT COUNT(*) FROM v2_document_requirements WHERE program_id = p.id) as docs_total,
              (SELECT COUNT(*) FROM v2_document_requirements WHERE program_id = p.id AND is_completed = 1) as docs_completed,
              (SELECT COUNT(*) FROM v2_weekly_reports WHERE program_id = p.id) as reports_count,
-             (SELECT 
+             COALESCE((SELECT 
                 ( (COUNT(CASE WHEN s.status = 'completed' THEN 1 END) * 5.0) + 
                   (COALESCE((SELECT SUM(is_completed) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) +
                   (COALESCE((SELECT COUNT(DISTINCT week_number) * 10.0 FROM v2_weekly_reports WHERE program_id = p.id), 0))
@@ -28,7 +28,7 @@ export async function GET(req) {
                 ( (COUNT(s.id) * 5.0 + COALESCE((SELECT COUNT(*) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) + (p.duration_weeks * 10.0) + 0.0001
                 ) * 100.0
               FROM v2_sessions s WHERE s.program_id = p.id
-             ) as completion_index
+             ), 0) as completion_index
       FROM v2_programs p
       LEFT JOIN contacts c1 ON p.assigned_pm_id = c1.cid
       LEFT JOIN contacts c2 ON p.assigned_assistant_id = c2.cid

@@ -63,12 +63,19 @@ export default function PMV2Dashboard() {
       const data = await res.json();
       
       if (data.success) {
-         setPrograms(data.programs || []);
-         const participants = (data.programs || []).reduce((acc, p) => acc + (p.participant_count || 0), 0);
+         const prgs = data.programs || [];
+         setPrograms(prgs);
+         
+         const totalP = prgs.reduce((acc, p) => acc + (Number(p.participants_count) || 0), 0);
+         const totalD = prgs.reduce((acc, p) => acc + (Number(p.docs_total) || 0), 0);
+         const avgE = prgs.length > 0 
+            ? (prgs.reduce((acc, p) => acc + (Number(p.completion_index) || 0), 0) / prgs.length).toFixed(1) + '%'
+            : '0%';
+
          setStats({
-            totalParticipants: participants,
-            activeDeliverables: (data.programs || []).length * 8,
-            averageEngagement: '84%'
+            totalParticipants: totalP,
+            activeDeliverables: totalD,
+            averageEngagement: avgE
          });
       }
       setIsLoading(false);
@@ -232,7 +239,7 @@ export default function PMV2Dashboard() {
                         <div className="flex items-center justify-between pt-6 border-t border-white/5">
                            <div className="flex items-center gap-3">
                               <Users className="w-3.5 h-3.5 text-slate-700" />
-                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{program.participant_count || 0} Enrolled</span>
+                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{program.participants_count || 0} Enrolled</span>
                            </div>
                            <div className="p-2 bg-white/5 rounded-xl text-slate-700 group-hover:text-[#FF6600] group-hover:bg-[#FF6600]/10 transition-all">
                               <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-all" />
