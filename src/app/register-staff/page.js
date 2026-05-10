@@ -47,17 +47,16 @@ export default function PublicApplicationRegistration() {
       const searchParams = new URLSearchParams(window.location.search);
       const groupParam = searchParams.get('group') || 'unassigned';
 
-      // ENFORCEMENT: If the group is Future Studio, ensure status is pending
-      const isInternal = groupParam.toUpperCase() === 'FUTURE STUDIO';
+      // ENFORCEMENT: Ensure all public registrations are set to pending for Super Admin approval
 
       const res = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
            ...formData, 
-           name: formData.fullName, // Ensure 'name' is populated
+           name: formData.fullName, 
            group_name: groupParam,
-           status: isInternal ? 'pending' : 'approved'
+           status: 'pending'
         })
       });
   
@@ -66,9 +65,7 @@ export default function PublicApplicationRegistration() {
       if (data.success) {
         setStatus({ 
           state: 'success', 
-          message: isInternal 
-            ? 'Strategic registration complete! Your Future Studio account is now awaiting Super Admin approval.' 
-            : 'Registration successful! You can now log in to the portal.'
+          message: 'Strategic registration complete! Your account is now awaiting Super Admin approval.'
         });
       } else {
         setStatus({ state: 'error', message: data.error || 'Failed to submit application.' });
