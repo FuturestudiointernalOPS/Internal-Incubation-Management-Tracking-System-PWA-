@@ -314,8 +314,12 @@ function ContactsPageContent() {
                         </td>
                         <td>
                           <div className="flex items-center gap-2">
-                            <span className="px-2 py-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded text-[9px] font-bold uppercase">{c.group_name || 'Individual'}</span>
-                            <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase ${c.status === 'pending' ? 'bg-orange-500/10 text-orange-400' : 'bg-emerald-500/10 text-emerald-400'}`}>{c.status}</span>
+                             <span className="px-2 py-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded text-[9px] font-bold uppercase">{c.group_name || 'Individual'}</span>
+                             <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase ${
+                               c.status === 'pending' ? 'bg-orange-500/10 text-orange-400' : 
+                               c.status === 'inactive' ? 'bg-rose-500/10 text-rose-400' : 
+                               'bg-emerald-500/10 text-emerald-400'
+                             }`}>{c.status}</span>
                           </div>
                         </td>
                         <td className="text-right">

@@ -17,11 +17,19 @@ export async function GET() {
     
     // 2. Fetch All Groups/Families (to populate the sidebar filters)
     const familiesRes = await db.execute("SELECT * FROM families ORDER BY name ASC");
-    
-    // Ensure "FUTURE STUDIO" is always in the list even if empty
-    const familiesList = familiesRes.rows;
-    if (!familiesList.find(f => f.name.toUpperCase() === 'FUTURE STUDIO')) {
-      familiesList.unshift({ name: 'FUTURE STUDIO', registration_id: 'R-FS001' });
+    let familiesList = familiesRes.rows;
+
+    // SOLIDIFICATION: Ensure "FUTURE STUDIO" is a REAL record in the database
+    const fsGroup = familiesList.find(f => f.name.toUpperCase() === 'FUTURE STUDIO');
+    if (!fsGroup) {
+      console.log("Forensic Correction: Creating permanent FUTURE STUDIO group...");
+      await db.execute({
+        sql: "INSERT INTO families (name, registration_id, type) VALUES (?, ?, ?)",
+        args: ['FUTURE STUDIO', 'R-FS-001', 'individual']
+      });
+      // Re-fetch to get the newly created record with its ID
+      const updatedFamilies = await db.execute("SELECT * FROM families ORDER BY name ASC");
+      familiesList = updatedFamilies.rows;
     }
 
     return NextResponse.json({ 
