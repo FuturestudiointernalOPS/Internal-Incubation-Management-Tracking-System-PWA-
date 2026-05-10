@@ -184,7 +184,8 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
       const savedUser = localStorage.getItem('user');
       if (!savedUser) return;
       const parsedUser = JSON.parse(savedUser);
-      const res = await fetch(`/api/notifications?recipient_id=${parsedUser.cid || parsedUser.id}`);
+      const recipientId = parsedUser.role === 'super_admin' ? 'sa' : (parsedUser.cid || parsedUser.id);
+      const res = await fetch(`/api/notifications?recipient_id=${recipientId}`);
       const data = await res.json();
       if (data.success) {
         setNotifications(data.notifications || []);
@@ -324,11 +325,23 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
                   <h4 className="text-[10px] font-bold uppercase mb-3 text-[var(--text-secondary)]">{t('intel_feed')}</h4>
                   <div className="max-h-48 overflow-y-auto space-y-2">
                     {notifications.length > 0 ? notifications.map(n => (
-                      <div key={n.id} className="p-2 rounded hover:bg-[var(--bg-primary)] text-xs">
-                        <p className="font-bold">{n.title}</p>
-                        <p className="opacity-70">{n.message}</p>
+                      <div 
+                        key={n.id} 
+                        onClick={() => {
+                          if (n.type === 'verification' || n.title.includes('ACCESS')) {
+                            router.push('/admin/communications/contacts');
+                            setShowNotifications(false);
+                          }
+                        }}
+                        className={`p-3 rounded-xl hover:bg-[var(--bg-primary)] transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.read ? 'bg-[var(--brand-orange)]/5' : ''}`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">{n.title}</p>
+                          {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />}
+                        </div>
+                        <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed group-hover:text-[var(--text-primary)] transition-colors">{n.message}</p>
                       </div>
-                    )) : <p className="text-[10px] opacity-40 italic">{t('loading')}</p>}
+                    )) : <p className="text-[10px] opacity-40 italic py-4 text-center">{t('no_new_intel')}</p>}
                   </div>
                 </div>
               )}
