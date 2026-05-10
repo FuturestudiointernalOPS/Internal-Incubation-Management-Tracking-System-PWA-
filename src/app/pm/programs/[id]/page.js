@@ -623,37 +623,51 @@ export default function ProgramWorkspace() {
                       <div className="grid grid-cols-1 gap-3">
                         {(() => {
                            let materials = [];
-                           try {
-                             materials = typeof program?.materials === 'string' 
-                               ? JSON.parse(program.materials) 
-                               : (program?.materials || []);
-                           } catch (e) { materials = []; }
+                           const raw = program?.materials;
                            
-                           if (!Array.isArray(materials)) materials = [];
-
-                           if (materials.length === 0) {
-                              return <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">No strategic materials have been anchored to this program yet.</p>;
+                           if (!raw) materials = [];
+                           else if (Array.isArray(raw)) materials = raw;
+                           else if (typeof raw === 'string') {
+                             if (raw.startsWith('[') || raw.startsWith('{')) {
+                               try { materials = JSON.parse(raw); } catch (e) { materials = [raw]; }
+                             } else {
+                               materials = [raw];
+                             }
                            }
 
-                           return materials.map((file, idx) => (
-                             <a 
-                               key={idx} 
-                               href={file.url || file} 
-                               target="_blank" 
-                               rel="noopener noreferrer"
-                               className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] hover:border-blue-500/50 transition-all group"
-                             >
-                               <div className="flex items-center gap-3">
-                                 <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg">
-                                   <FileText className="w-4 h-4" />
+                           if (!Array.isArray(materials)) materials = [materials];
+                           const cleanMaterials = materials.filter(Boolean);
+
+                           if (cleanMaterials.length === 0) {
+                               return <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">No strategic materials have been anchored to this program yet.</p>;
+                           }
+
+                           return cleanMaterials.map((file, idx) => {
+                             const url = typeof file === 'object' ? (file.url || file.path) : file;
+                             const name = typeof file === 'object' ? (file.name || file.title) : (typeof file === 'string' ? file.split('/').pop() : 'Strategic_Document.pdf');
+                             
+                             if (!url) return null;
+
+                             return (
+                               <a 
+                                 key={idx} 
+                                 href={url} 
+                                 target="_blank" 
+                                 rel="noopener noreferrer"
+                                 className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] hover:border-blue-500/50 transition-all group"
+                               >
+                                 <div className="flex items-center gap-3">
+                                   <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg">
+                                     <FileText className="w-4 h-4" />
+                                   </div>
+                                   <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px]">
+                                     {name}
+                                   </span>
                                  </div>
-                                 <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px]">
-                                   {file.name || (typeof file === 'string' ? file.split('/').pop() : 'Strategic_Document.pdf')}
-                                 </span>
-                               </div>
-                               <ExternalLink className="w-4 h-4 text-slate-600 group-hover:text-blue-500 transition-colors" />
-                             </a>
-                           ));
+                                 <ExternalLink className="w-4 h-4 text-slate-600 group-hover:text-blue-500 transition-colors" />
+                               </a>
+                             );
+                           });
                         })()}
                       </div>
                     </div>
