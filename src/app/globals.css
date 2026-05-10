@@ -43,6 +43,16 @@
     --border-secondary: #1E293B;
   }
 
+  /* Browser Date Picker Consistency (Dark Mode) */
+  :root[data-theme='dark'] input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+    opacity: 0.8;
+  }
+  :root[data-theme='dark'] input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+
   * {
     box-sizing: border-box;
     margin: 0;
