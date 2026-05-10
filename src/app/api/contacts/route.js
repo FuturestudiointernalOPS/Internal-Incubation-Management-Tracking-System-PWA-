@@ -183,10 +183,10 @@ export async function PUT(req) {
              const userName = userRes.rows[0].name;
              await db.execute({
                 sql: `UPDATE v2_notifications 
-                      SET read = 1 
+                      SET is_read = 1 
                       WHERE recipient_id = 'sa' 
                       AND message ILIKE ? 
-                      AND read = 0`,
+                      AND is_read = 0`,
                 args: [`%${userName}%`]
              });
           }
