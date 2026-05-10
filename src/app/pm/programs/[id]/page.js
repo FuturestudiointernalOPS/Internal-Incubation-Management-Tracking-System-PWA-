@@ -405,7 +405,7 @@ export default function ProgramWorkspace() {
         <div className="pt-4">
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="card space-y-4">
+              <div className="card space-y-4 border-l-4 border-blue-500">
                 <div className="flex justify-between items-start">
                   <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
                     <Users className="w-6 h-6" />
@@ -415,10 +415,11 @@ export default function ProgramWorkspace() {
                 <div>
                   <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">Total Participants</p>
                   <p className="text-[10px] text-emerald-500 font-bold mt-1">+12% from last cohort</p>
+                  <p className="text-[9px] text-slate-500/60 font-medium mt-2 leading-relaxed">Active learners currently enrolled. This count drives the institutional footprint and scaling metrics for this specific program node.</p>
                 </div>
               </div>
               
-              <div className="card space-y-4">
+              <div className="card space-y-4 border-l-4 border-orange-500">
                 <div className="flex justify-between items-start">
                   <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500">
                     <Activity className="w-6 h-6" />
@@ -427,11 +428,12 @@ export default function ProgramWorkspace() {
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">Operational Submissions</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">Completion Rate: 84%</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">Completion Rate: {participants.length > 0 ? Math.round((submissions.length / (participants.length * sessions.length || 1)) * 100) : 0}%</p>
+                  <p className="text-[9px] text-slate-500/60 font-medium mt-2 leading-relaxed">Total evidence-based artifacts uploaded. Each submission is a tactical requirement anchored to a curriculum week, directly influencing graduation scores.</p>
                 </div>
               </div>
 
-              <div className="card space-y-4">
+              <div className="card space-y-4 border-l-4 border-purple-500">
                 <div className="flex justify-between items-start">
                   <div className="p-3 bg-purple-500/10 rounded-xl text-purple-500">
                     <Target className="w-6 h-6" />
@@ -441,6 +443,7 @@ export default function ProgramWorkspace() {
                 <div>
                   <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">Deployed Squads</p>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">Active Operations</p>
+                  <p className="text-[9px] text-slate-500/60 font-medium mt-2 leading-relaxed">Total number of squads currently executing the curriculum. High squad counts require increased personnel oversight and tactical health monitoring.</p>
                 </div>
               </div>
             </div>
@@ -533,198 +536,224 @@ export default function ProgramWorkspace() {
               </div>
               <div className="grid grid-cols-1 gap-4">
                 {sessions.map(session => (
-                  <div key={session.id} className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all">
-                    <div className="p-6 bg-[var(--bg-tertiary)] border-b border-[var(--border-primary)]">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] flex flex-col items-center justify-center text-[11px] font-black border border-[var(--border-primary)] shadow-sm">
-                            <span className="text-[var(--brand-orange)]">W{session.week_number}</span>
+                  <div key={session.id} className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-[var(--bg-secondary)] group mb-4">
+                    {/* STEP 0: THE HEADER (GLOBAL STATE) */}
+                    <div className="px-6 py-4 bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-primary)]">
+                       <div className="flex items-center gap-4">
+                          <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-inner">
+                             <span className="text-[10px] font-black text-[var(--text-secondary)] opacity-50">WK</span>
+                             <span className="text-sm font-black text-[var(--brand-orange)] -mt-1">{session.week_number}</span>
                           </div>
                           <div>
-                            <h4 className="font-bold text-[var(--text-primary)] uppercase tracking-tight text-lg">{session.title}</h4>
-                            <div className="flex items-center gap-3 mt-1">
-                               <select 
-                                 value={session.status} 
-                                 onChange={(e) => updateSessionStatus(session.id, e.target.value)}
-                                 className={`text-[9px] font-black uppercase px-2 py-1 rounded border outline-none transition-all cursor-pointer ${
-                                    session.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
-                                    session.status === 'in progress' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30' :
-                                    session.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
-                                    'bg-slate-500/10 text-slate-500 border-slate-500/30'
-                                 }`}
-                               >
-                                  <option value="pending">PENDING</option>
-                                  <option value="in progress">IN PROGRESS</option>
-                                  <option value="completed">COMPLETED</option>
-                               </select>
-                               <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest opacity-40">Tactical Window</span>
-                            </div>
+                             <h4 className="text-base font-black text-[var(--text-primary)] uppercase tracking-tight">{session.title}</h4>
+                             <div className="flex items-center gap-2 mt-1">
+                                <span className={`w-2 h-2 rounded-full animate-pulse ${
+                                   session.status === 'completed' ? 'bg-emerald-500' :
+                                   session.status === 'in progress' ? 'bg-indigo-500' : 'bg-amber-500'
+                                }`} />
+                                <span className="text-[9px] font-black uppercase tracking-widest opacity-60">State: {session.status}</span>
+                             </div>
                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 flex-1 max-w-2xl">
-                           <div className="space-y-1">
-                              <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Start Date</label>
-                              <input 
-                                type="date" 
-                                value={session.scheduled_date ? new Date(session.scheduled_date).toISOString().split('T')[0] : ''} 
-                                onChange={(e) => updateSessionField(session.id, 'scheduled_date', e.target.value)}
-                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" 
-                              />
-                           </div>
-                           <div className="space-y-1">
-                              <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Finish Date</label>
-                              <input 
-                                type="date" 
-                                value={session.end_date ? new Date(session.end_date).toISOString().split('T')[0] : ''} 
-                                onChange={(e) => updateSessionField(session.id, 'end_date', e.target.value)}
-                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" 
-                              />
-                           </div>
-                           <div className="space-y-1 col-span-2">
-                              <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Assign Team Member</label>
-                              <select 
-                                value={session.handler_id || ''} 
-                                onChange={(e) => {
-                                   const staff = assignedStaff.find(s => String(s.cid) === e.target.value);
-                                   updateSessionField(session.id, 'handler_id', e.target.value, staff?.name);
-                                }}
-                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
-                              >
-                                 <option value="">Select Member...</option>
-                                 {assignedStaff.map(s => (
-                                    <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
-                                 ))}
-                              </select>
-                           </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                           <button onClick={() => deleteSession(session.id)} className="p-2 text-rose-500/30 hover:text-rose-500 transition-colors">
+                       </div>
+                       
+                       <div className="flex items-center gap-3">
+                          <button 
+                            onClick={() => { setSelectedSessionId(session.id); setShowPMReportModal(true); }}
+                            className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/5 transition-all"
+                          >
+                             <Activity className="w-3.5 h-3.5" />
+                             <span className="text-[9px] font-black uppercase italic tracking-wider">Give Weekly Report</span>
+                          </button>
+                          <button onClick={() => deleteSession(session.id)} className="p-2 text-rose-500/20 hover:text-rose-500 transition-all">
                              <Trash2 className="w-4 h-4" />
-                           </button>
-                        </div>
-                      </div>
+                          </button>
+                       </div>
                     </div>
-                    <div className="p-6 space-y-4">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex flex-col gap-1">
-                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Associated Deliverables</span>
-                             <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Deliverables required from the student by the end of this topic for formal assessment.</p>
-                          </div>
-                          <div className="flex gap-4">
-                            <button 
-                              onClick={() => { setSelectedSessionId(session.id); setShowPMReportModal(true); }}
-                              className="text-[10px] font-black text-emerald-500 uppercase hover:underline"
-                            >PM Report</button>
-                            <button 
-                              onClick={() => { setSelectedSessionId(session.id); setShowRequirementModal(true); }}
-                              className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline"
-                            >+ Requirement</button>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          {requirements.filter(r => r.session_id === session.id).map(req => (
-                            <div key={req.id} className="flex items-center justify-between p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
-                              <div className="flex items-center gap-3">
-                                <FileText className="w-4 h-4 text-[var(--brand-blue)]" />
-                                <div>
-                                  <p className="text-xs font-bold text-[var(--text-primary)]">{req.title}</p>
-                                  <p className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wide">Format: {req.allowed_format || 'PDF'}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`w-2 h-2 rounded-full ${req.is_completed ? 'bg-emerald-500' : 'bg-orange-500'}`} />
-                                <button className="text-[10px] font-bold text-rose-500 hover:underline">Remove</button>
-                              </div>
-                            </div>
-                          ))}
-                          {requirements.filter(r => r.session_id === session.id).length === 0 && (
-                             <p className="text-[10px] italic text-[var(--text-secondary)] opacity-40">No specific document requirements anchored to this node.</p>
-                          )}
-                        </div>
 
-                        {/* WEEKLY MATERIALS SECTION */}
-                        <div className="pt-4 border-t border-[var(--border-primary)]/50">
-                           <div className="flex items-center justify-between mb-3">
-                              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Weekly Materials (PDFs)</span>
-                              <label className="text-[10px] font-black text-blue-500 uppercase hover:underline cursor-pointer">
-                                 + Add PDF
-                                 <input 
-                                    type="file" 
-                                    accept=".pdf" 
-                                    className="hidden" 
-                                    onChange={async (e) => {
+                    <div className="p-6">
+                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                          
+                          {/* PHASE 1: LOGISTICS (THE SETUP) */}
+                          <div className="lg:col-span-4 space-y-6">
+                             <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center text-[10px] font-black text-indigo-500 border border-indigo-500/20 shadow-sm">1</div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Logistics & Deployment</span>
+                             </div>
+                             
+                             <div className="space-y-4 p-5 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)] shadow-sm">
+                                <div className="space-y-1">
+                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">Assign Team Member</label>
+                                   <select 
+                                     value={session.handler_id || ''} 
+                                     onChange={(e) => {
+                                        const staff = assignedStaff.find(s => String(s.cid) === e.target.value);
+                                        updateSessionField(session.id, 'handler_id', e.target.value, staff?.name);
+                                     }}
+                                     className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                                   >
+                                      <option value="">Select Member...</option>
+                                      {assignedStaff.map(s => (
+                                         <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
+                                      ))}
+                                   </select>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                   <div className="space-y-1">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">Start Date</label>
+                                      <input 
+                                        type="date" 
+                                        value={session.scheduled_date ? new Date(session.scheduled_date).toISOString().split('T')[0] : ''} 
+                                        onChange={(e) => updateSessionField(session.id, 'scheduled_date', e.target.value)}
+                                        className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500" 
+                                      />
+                                   </div>
+                                   <div className="space-y-1">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">Finish Date</label>
+                                      <input 
+                                        type="date" 
+                                        value={session.end_date ? new Date(session.end_date).toISOString().split('T')[0] : ''} 
+                                        onChange={(e) => updateSessionField(session.id, 'end_date', e.target.value)}
+                                        className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500" 
+                                      />
+                                   </div>
+                                </div>
+
+                                <div className="pt-2">
+                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">Operational State</label>
+                                   <select 
+                                     value={session.status} 
+                                     onChange={(e) => updateSessionStatus(session.id, e.target.value)}
+                                     className={`w-full mt-1 px-4 py-3 rounded-xl border text-[10px] font-black uppercase outline-none transition-all cursor-pointer ${
+                                        session.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
+                                        session.status === 'in progress' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30' :
+                                        'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                                     }`}
+                                   >
+                                      <option value="pending">PENDING</option>
+                                      <option value="in progress">IN PROGRESS</option>
+                                      <option value="completed">COMPLETED</option>
+                                   </select>
+                                </div>
+                             </div>
+                          </div>
+
+                          {/* PHASE 2: CURRICULUM (THE CORE) */}
+                          <div className="lg:col-span-5 space-y-6">
+                             <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                   <div className="w-5 h-5 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 shadow-sm">2</div>
+                                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">Assessments & Deliverables</span>
+                                </div>
+                                <button 
+                                  onClick={() => { setSelectedSessionId(session.id); setShowRequirementModal(true); }}
+                                  className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
+                                >
+                                   <Plus className="w-3 h-3" /> Add Requirement
+                                </button>
+                             </div>
+
+                             <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                                {requirements.filter(r => r.session_id === session.id).map(req => (
+                                  <div key={req.id} className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all shadow-sm">
+                                    <div className="flex items-center gap-4">
+                                      <div className="w-9 h-9 rounded-xl bg-indigo-500/5 flex items-center justify-center">
+                                         <FileText className="w-5 h-5 text-indigo-500" />
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">{req.title}</p>
+                                        <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic">Requirement: {req.allowed_format || 'PDF'}</p>
+                                      </div>
+                                    </div>
+                                    <button className="text-rose-500/10 hover:text-rose-500 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                                  </div>
+                                ))}
+                                {requirements.filter(r => r.session_id === session.id).length === 0 && (
+                                   <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
+                                      <Shield className="w-10 h-10 mb-2" />
+                                      <p className="text-[10px] font-bold uppercase tracking-widest">No Deliverables Anchored</p>
+                                   </div>
+                                )}
+                             </div>
+                             <p className="text-[8px] font-bold text-slate-500/50 uppercase tracking-widest italic text-center px-6">These items are formal evidence submitted by participants for final graduation scoring.</p>
+                          </div>
+
+                          {/* PHASE 3: RESOURCES (THE SUPPORT) */}
+                          <div className="lg:col-span-3 space-y-6">
+                             <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                   <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center text-[10px] font-black text-blue-500 border border-blue-500/20 shadow-sm">3</div>
+                                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">Weekly Resources</span>
+                                </div>
+                                <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
+                                   <Plus className="w-3 h-3" /> Upload
+                                   <input type="file" accept=".pdf" className="hidden" onChange={async (e) => {
                                        const file = e.target.files[0];
                                        if (!file) return;
                                        notify('Syncing material...', 'info');
-                                       // Simple staging logic: for now we update the session via API
                                        try {
                                           const res = await fetch('/api/pm/curriculum', {
                                              method: 'POST',
                                              headers: { 'Content-Type': 'application/json' },
-                                             body: JSON.stringify({ 
-                                                action: 'anchor_material', 
-                                                program_id: id, 
-                                                session_id: session.id,
-                                                file_name: file.name
-                                             })
+                                             body: JSON.stringify({ action: 'anchor_material', program_id: id, session_id: session.id, file_name: file.name })
                                           });
-                                          if ((await res.json()).success) {
-                                             notify('Material anchored to week.');
-                                             fetchProgramData(true);
-                                          }
+                                          if ((await res.json()).success) { notify('Material anchored.'); fetchProgramData(true); }
                                        } catch (e) { notify('Upload failed.', 'error'); }
-                                    }}
-                                 />
-                              </label>
-                           </div>
-                           <div className="space-y-2">
-                              {(() => {
-                                 let sessionMaterials = [];
-                                 try {
-                                    sessionMaterials = typeof session.materials === 'string' 
-                                       ? JSON.parse(session.materials || '[]') 
-                                       : (session.materials || []);
-                                 } catch (e) { sessionMaterials = []; }
-                                 
-                                 return (
-                                    <div className="grid grid-cols-1 gap-2">
-                                       {/* Institutional Knowledge Base Assets */}
-                                       {(program?.knowledge_assets || []).map((kb, kIdx) => (
-                                          <div key={`kb-${kIdx}`} className="flex items-center justify-between p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
-                                             <div className="flex items-center gap-3">
-                                                <BookOpen className="w-4 h-4 text-emerald-500" />
-                                                <div>
-                                                   <p className="text-xs font-bold text-[var(--text-primary)]">{kb.name || 'Core Asset'}</p>
-                                                   <p className="text-[8px] text-emerald-600 font-black uppercase tracking-widest">Institutional Intelligence</p>
-                                                </div>
-                                             </div>
-                                             <button onClick={() => setActivePDF({ url: kb.url, name: kb.name })} className="text-[10px] font-black text-emerald-600 uppercase hover:underline">View</button>
-                                          </div>
-                                       ))}
-                                       
-                                       {/* Session-Specific Materials */}
-                                       {sessionMaterials.map((m, idx) => (
-                                          <div key={`mat-${idx}`} className="flex items-center justify-between p-3 bg-blue-500/5 rounded-lg border border-blue-500/10">
-                                             <div className="flex items-center gap-3">
-                                                <FileText className="w-3.5 h-3.5 text-blue-500" />
-                                                <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[200px]">{m.name || m}</span>
-                                             </div>
-                                             <button className="text-[9px] font-bold text-rose-500 hover:underline">Remove</button>
-                                          </div>
-                                       ))}
+                                    }} />
+                                </label>
+                             </div>
 
-                                       {sessionMaterials.length === 0 && (!program?.knowledge_assets || program.knowledge_assets.length === 0) && (
-                                          <p className="text-[10px] italic text-[var(--text-secondary)] opacity-40">No weekly materials linked yet.</p>
-                                       )}
-                                    </div>
-                                 );
-                              })()}
-                           </div>
-                        </div>
-                      </div>
+                             <div className="space-y-3">
+                                {/* Institutional Assets */}
+                                {(program?.knowledge_assets || []).map((kb, kIdx) => (
+                                   <div key={`kb-${kIdx}`} className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/20 flex flex-col gap-3 group/asset shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                         <BookOpen className="w-4 h-4 text-emerald-500" />
+                                         <div className="min-w-0">
+                                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate leading-none">{kb.name || 'Core Asset'}</p>
+                                            <p className="text-[7px] text-emerald-600 font-black uppercase tracking-widest mt-1">Institutional Intelligence</p>
+                                         </div>
+                                      </div>
+                                      <button onClick={() => setActivePDF({ url: kb.url, name: kb.name })} className="w-full py-2 bg-emerald-500/10 rounded-lg text-[9px] font-black text-emerald-600 uppercase hover:bg-emerald-500/20 transition-all border border-emerald-500/10">View Asset</button>
+                                   </div>
+                                ))}
+
+                                {/* Weekly Specific */}
+                                {(() => {
+                                   let sessionMaterials = [];
+                                   try {
+                                      sessionMaterials = typeof session.materials === 'string' 
+                                         ? JSON.parse(session.materials || '[]') 
+                                         : (session.materials || []);
+                                   } catch (e) { sessionMaterials = []; }
+
+                                   return sessionMaterials.map((mat, mIdx) => (
+                                      <div key={`mat-${mIdx}`} className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/20 flex flex-col gap-3 group/asset shadow-sm">
+                                         <div className="flex items-center gap-3">
+                                            <Zap className="w-4 h-4 text-blue-500" />
+                                            <div className="min-w-0">
+                                               <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate leading-none">{mat.name}</p>
+                                               <p className="text-[7px] text-blue-600 font-black uppercase tracking-widest mt-1">Tactical Asset</p>
+                                            </div>
+                                         </div>
+                                         <div className="flex gap-2">
+                                            <button className="flex-1 py-2 bg-blue-500/10 rounded-lg text-[9px] font-black text-blue-600 uppercase hover:bg-blue-500/20 transition-all border border-blue-500/10">View</button>
+                                            <button className="px-3 py-2 bg-rose-500/5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
+                                         </div>
+                                      </div>
+                                   ));
+                                })()}
+                                
+                                {(!session.materials || session.materials === '[]' || (Array.isArray(session.materials) && session.materials.length === 0)) && (!program?.knowledge_assets || program.knowledge_assets.length === 0) && (
+                                   <div className="py-8 text-center opacity-20 italic space-y-2">
+                                      <Clock className="w-6 h-6 mx-auto" />
+                                      <p className="text-[9px] font-bold uppercase">No Materials</p>
+                                   </div>
+                                )}
+                             </div>
+                          </div>
+
+                       </div>
                     </div>
                   </div>
                 ))}
