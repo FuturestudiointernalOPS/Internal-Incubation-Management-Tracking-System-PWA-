@@ -315,7 +315,7 @@ function ContactsPageContent() {
                   return (
                     <div key={name} className="flex gap-2 group items-center">
                       <button onClick={() => setSelectedGroup(name)} className={`flex-1 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === name ? 'bg-[var(--brand-orange)] text-black' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-primary)]'}`}>
-                        {name} {f.is_archived && '(ARCHIVED)'}
+                        {name} {!!f.is_archived && '(ARCHIVED)'}
                       </button>
                       {!isAll && (
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
