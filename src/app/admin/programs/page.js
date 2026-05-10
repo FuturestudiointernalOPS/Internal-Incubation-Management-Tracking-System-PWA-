@@ -383,26 +383,44 @@ export default function ProgramManagement() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Curriculum Materials (PDF)</label>
-                 <div className="flex gap-3">
-                    <div className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-secondary)] text-[11px] truncate">
-                      {(() => {
-                        const mats = editingProgram.materials;
-                        if (!mats || (Array.isArray(mats) && mats.length === 0)) return "No curriculum PDF linked.";
-                        if (typeof mats === 'string') return mats;
-                        if (Array.isArray(mats)) return mats[0]?.name || mats[0]?.url || mats[0] || "File Linked";
-                        return "Asset Linked";
-                      })()}
-                    </div>
+              <div className="space-y-4">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Curriculum Materials (PDF)</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {(() => {
+                      const mats = Array.isArray(editingProgram.materials) ? editingProgram.materials : 
+                                  (typeof editingProgram.materials === 'string' ? JSON.parse(editingProgram.materials || '[]') : []);
+                      
+                      if (mats.length === 0) return <p className="text-[10px] italic opacity-40 ml-2">No program-specific PDFs uploaded.</p>;
+                      
+                      return mats.map((f, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-4 h-4 text-blue-500" />
+                            <span className="text-[10px] font-bold text-white uppercase truncate max-w-[200px]">{f.name || 'Untitled PDF'}</span>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              const newMats = mats.filter((_, idx) => idx !== i);
+                              setEditingProgram({ ...editingProgram, materials: newMats });
+                            }}
+                            className="text-rose-500 hover:bg-rose-500/10 p-1 rounded transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                  
+                  <div className="flex items-center gap-3 mt-2">
                     <button 
                        type="button"
                        disabled={isUploading}
                        onClick={() => document.getElementById('curriculum-upload').click()}
-                       className="btn btn-secondary px-6 flex items-center gap-2"
+                       className="btn btn-secondary px-6 py-3 flex items-center gap-2 border-dashed"
                      >
                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                       <span>{isUploading ? 'Uploading...' : 'Upload PDF'}</span>
+                       <span className="text-[10px] uppercase font-black">{isUploading ? 'Syncing...' : 'Upload Additional PDF'}</span>
                      </button>
                      <input 
                        id="curriculum-upload"
@@ -411,8 +429,8 @@ export default function ProgramManagement() {
                        className="hidden"
                        onChange={handleEditFileUpload}
                      />
-                 </div>
-              </div>
+                  </div>
+                </div>
 
               <div className="space-y-3">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">OPERATIONAL TEAMS</label>
