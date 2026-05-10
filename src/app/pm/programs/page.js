@@ -219,7 +219,7 @@ export default function PMProgramsRegistry() {
                            <div className="space-y-3">
                               <div className="flex justify-between items-end">
                                  <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest italic">Current Velocity</p>
-                                 <p className="text-xs font-black text-[#FF6600] italic leading-none">{(program.completion_index || 0).toFixed(1)}%</p>
+                                 <p className="text-xs font-black text-[#FF6600] italic leading-none">{Number(program.completion_index || 0).toFixed(1)}%</p>
                               </div>
                               <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
                                  <motion.div 
