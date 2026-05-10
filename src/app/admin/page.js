@@ -143,9 +143,9 @@ export default function AdminDashboard() {
         </header>
 
         {/* NOTIFICATION HUB — ONLY VISIBLE WHEN ALERTED */}
-        {notifications.length > 0 && (
+        {notifications.filter(n => !n.read).length > 0 && (
           <div className="grid grid-cols-1 gap-6">
-            {notifications.map(notif => (
+            {notifications.filter(n => !n.read).map(notif => (
               <div key={notif.id} className="card border-orange-500/30 bg-orange-500/5 flex flex-col md:flex-row justify-between items-center gap-6 animate-pulse hover:animate-none">
                 <div className="flex items-center gap-5">
                    <div className="p-3 rounded-xl bg-orange-500/20 text-orange-500">

@@ -45,6 +45,8 @@ function ContactsPageContent() {
 
   // Feedback
   const [notification, setNotification] = useState(null);
+  const [selectedContacts, setSelectedContacts] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('All'); // All, Active, Inactive, Pending
 
   useEffect(() => {
     if (roleParam) {
@@ -174,6 +176,34 @@ function ContactsPageContent() {
     } finally { setIsProcessing(false); }
   };
 
+  const handleBulkActivate = async () => {
+    if (selectedContacts.length === 0) return;
+    setIsProcessing(true);
+    try {
+       await Promise.all(selectedContacts.map(cid => 
+          fetch('/api/contacts', {
+             method: 'PUT',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ cid, status: 'active' })
+          })
+       ));
+       setNotification({ type: 'success', message: `${selectedContacts.length} identities activated.` });
+       setSelectedContacts([]);
+       fetchData();
+    } catch (e) {
+       console.error("Bulk Activation Failure:", e);
+    } finally {
+       setIsProcessing(false);
+       setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const toggleSelection = (cid) => {
+    setSelectedContacts(prev => 
+       prev.includes(cid) ? prev.filter(id => id !== cid) : [...prev, cid]
+    );
+  };
+
   const copyJoinLink = (groupName) => {
     const link = `${window.location.origin}/register-staff?group=${encodeURIComponent(groupName)}`;
     navigator.clipboard.writeText(link);
@@ -184,7 +214,13 @@ function ContactsPageContent() {
   const filtered = contacts.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
     const matchesGroup = selectedGroup === 'All Contacts' || c.group_name?.toUpperCase() === selectedGroup.toUpperCase();
-    return matchesSearch && matchesGroup && (!showArchived ? !c.deleted : !!c.deleted);
+    
+    let matchesStatus = true;
+    if (statusFilter === 'Active') matchesStatus = c.status === 'active' || c.status === 'approved';
+    else if (statusFilter === 'Inactive') matchesStatus = c.status === 'inactive';
+    else if (statusFilter === 'Pending') matchesStatus = c.status === 'pending';
+
+    return matchesSearch && matchesGroup && matchesStatus && (!showArchived ? !c.deleted : !!c.deleted);
   });
 
   const getWhatsAppLink = (c, pass) => {
@@ -301,14 +337,65 @@ function ContactsPageContent() {
             </div>
           </div>
 
-          <div className="xl:col-span-3">
+          <div className="xl:col-span-3 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+               <div className="flex bg-[var(--bg-secondary)] p-1 rounded-xl border border-[var(--border-primary)]">
+                  {['All', 'Active', 'Inactive', 'Pending'].map(status => (
+                     <button
+                        key={status}
+                        onClick={() => setStatusFilter(status)}
+                        className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === status ? 'bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                     >
+                        {status}
+                     </button>
+                  ))}
+               </div>
+
+               {selectedContacts.length > 0 && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
+                     <span className="text-[10px] font-black text-emerald-500 uppercase">{selectedContacts.length} Selected</span>
+                     <button onClick={handleBulkActivate} className="btn btn-primary !bg-emerald-500 !py-2 !text-[9px] gap-2">
+                        <UserCheck className="w-3 h-3" /> Activate All
+                     </button>
+                     <button onClick={() => setSelectedContacts([])} className="p-2 hover:bg-rose-500/10 text-rose-500 rounded-lg">
+                        <X className="w-4 h-4" />
+                     </button>
+                  </motion.div>
+               )}
+            </div>
+
             {loading ? <TableSkeleton rows={8} /> : (
               <div className="table-container">
                 <table className="data-table">
-                  <thead><tr><th>Identity</th><th>Segment / Role</th><th className="text-right">Actions</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th className="w-10">
+                        <input 
+                           type="checkbox" 
+                           checked={selectedContacts.length === filtered.length && filtered.length > 0}
+                           onChange={() => {
+                              if (selectedContacts.length === filtered.length) setSelectedContacts([]);
+                              else setSelectedContacts(filtered.map(c => c.cid));
+                           }}
+                           className="w-4 h-4 rounded border-[var(--border-primary)] bg-[var(--bg-primary)] accent-[var(--brand-orange)]"
+                        />
+                      </th>
+                      <th>Identity</th>
+                      <th>Segment / Role</th>
+                      <th className="text-right">Actions</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {filtered.map(c => (
-                      <tr key={c.cid} className="group">
+                      <tr key={c.cid} className={`group ${selectedContacts.includes(c.cid) ? 'bg-[var(--brand-orange)]/5' : ''}`}>
+                        <td>
+                           <input 
+                              type="checkbox" 
+                              checked={selectedContacts.includes(c.cid)}
+                              onChange={() => toggleSelection(c.cid)}
+                              className="w-4 h-4 rounded border-[var(--border-primary)] bg-[var(--bg-primary)] accent-[var(--brand-orange)]"
+                           />
+                        </td>
                         <td>
                           <div className="flex flex-col">
                             <span className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-tight">{c.name}</span>
