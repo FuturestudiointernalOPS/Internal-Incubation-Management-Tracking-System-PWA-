@@ -530,38 +530,99 @@ export default function ProgramWorkspace() {
                       </div>
                     </div>
                     <div className="p-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Associated Deliverables</span>
-                        <div className="flex gap-4">
-                          <button 
-                            onClick={() => { setSelectedSessionId(session.id); setShowPMReportModal(true); }}
-                            className="text-[10px] font-black text-emerald-500 uppercase hover:underline"
-                          >PM Report</button>
-                          <button 
-                            onClick={() => { setSelectedSessionId(session.id); setShowRequirementModal(true); }}
-                            className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline"
-                          >+ Requirement</button>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Associated Deliverables</span>
+                          <div className="flex gap-4">
+                            <button 
+                              onClick={() => { setSelectedSessionId(session.id); setShowPMReportModal(true); }}
+                              className="text-[10px] font-black text-emerald-500 uppercase hover:underline"
+                            >PM Report</button>
+                            <button 
+                              onClick={() => { setSelectedSessionId(session.id); setShowRequirementModal(true); }}
+                              className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+                            >+ Requirement</button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        {requirements.filter(r => r.session_id === session.id).map(req => (
-                          <div key={req.id} className="flex items-center justify-between p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
-                            <div className="flex items-center gap-3">
-                              <FileText className="w-4 h-4 text-[var(--brand-blue)]" />
-                              <div>
-                                <p className="text-xs font-bold text-[var(--text-primary)]">{req.title}</p>
-                                <p className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wide">Format: {req.allowed_format || 'PDF'}</p>
+                        <div className="space-y-2">
+                          {requirements.filter(r => r.session_id === session.id).map(req => (
+                            <div key={req.id} className="flex items-center justify-between p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
+                              <div className="flex items-center gap-3">
+                                <FileText className="w-4 h-4 text-[var(--brand-blue)]" />
+                                <div>
+                                  <p className="text-xs font-bold text-[var(--text-primary)]">{req.title}</p>
+                                  <p className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wide">Format: {req.allowed_format || 'PDF'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${req.is_completed ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                                <button className="text-[10px] font-bold text-rose-500 hover:underline">Remove</button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${req.is_completed ? 'bg-emerald-500' : 'bg-orange-500'}`} />
-                              <button className="text-[10px] font-bold text-rose-500 hover:underline">Remove</button>
-                            </div>
-                          </div>
-                        ))}
-                        {requirements.filter(r => r.session_id === session.id).length === 0 && (
-                           <p className="text-[10px] italic text-[var(--text-secondary)] opacity-40">No specific document requirements anchored to this node.</p>
-                        )}
+                          ))}
+                          {requirements.filter(r => r.session_id === session.id).length === 0 && (
+                             <p className="text-[10px] italic text-[var(--text-secondary)] opacity-40">No specific document requirements anchored to this node.</p>
+                          )}
+                        </div>
+
+                        {/* WEEKLY MATERIALS SECTION */}
+                        <div className="pt-4 border-t border-[var(--border-primary)]/50">
+                           <div className="flex items-center justify-between mb-3">
+                              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Weekly Materials (PDFs)</span>
+                              <label className="text-[10px] font-black text-blue-500 uppercase hover:underline cursor-pointer">
+                                 + Add PDF
+                                 <input 
+                                    type="file" 
+                                    accept=".pdf" 
+                                    className="hidden" 
+                                    onChange={async (e) => {
+                                       const file = e.target.files[0];
+                                       if (!file) return;
+                                       notify('Syncing material...', 'info');
+                                       // Simple staging logic: for now we update the session via API
+                                       try {
+                                          const res = await fetch('/api/pm/curriculum', {
+                                             method: 'POST',
+                                             headers: { 'Content-Type': 'application/json' },
+                                             body: JSON.stringify({ 
+                                                action: 'anchor_material', 
+                                                program_id: id, 
+                                                session_id: session.id,
+                                                file_name: file.name
+                                             })
+                                          });
+                                          if ((await res.json()).success) {
+                                             notify('Material anchored to week.');
+                                             fetchProgramData(true);
+                                          }
+                                       } catch (e) { notify('Upload failed.', 'error'); }
+                                    }}
+                                 />
+                              </label>
+                           </div>
+                           <div className="space-y-2">
+                              {(() => {
+                                 let sessionMaterials = [];
+                                 try {
+                                    sessionMaterials = typeof session.materials === 'string' 
+                                       ? JSON.parse(session.materials || '[]') 
+                                       : (session.materials || []);
+                                 } catch (e) { sessionMaterials = []; }
+                                 
+                                 if (sessionMaterials.length === 0) return <p className="text-[10px] italic text-[var(--text-secondary)] opacity-40">No weekly materials linked yet.</p>;
+
+                                 return sessionMaterials.map((m, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-3 bg-blue-500/5 rounded-lg border border-blue-500/10">
+                                       <div className="flex items-center gap-3">
+                                          <Paperclip className="w-3.5 h-3.5 text-blue-500" />
+                                          <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[200px]">{m.name || m}</span>
+                                       </div>
+                                       <button className="text-[9px] font-bold text-rose-500 hover:underline">Remove</button>
+                                    </div>
+                                 ));
+                              })()}
+                           </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -624,27 +685,35 @@ export default function ProgramWorkspace() {
                         {(() => {
                            let materials = [];
                            const raw = program?.materials;
+                           const kbAssets = program?.knowledge_assets || [];
                            
-                           if (!raw) materials = [];
-                           else if (Array.isArray(raw)) materials = raw;
-                           else if (typeof raw === 'string') {
-                             if (raw.startsWith('[') || raw.startsWith('{')) {
-                               try { materials = JSON.parse(raw); } catch (e) { materials = [raw]; }
-                             } else {
-                               materials = [raw];
+                           if (raw) {
+                             if (Array.isArray(raw)) materials = [...raw];
+                             else if (typeof raw === 'string') {
+                               if (raw.startsWith('[') || raw.startsWith('{')) {
+                                 try { materials = JSON.parse(raw); } catch (e) { materials = [raw]; }
+                               } else {
+                                 materials = [raw];
+                               }
                              }
                            }
 
                            if (!Array.isArray(materials)) materials = [materials];
-                           const cleanMaterials = materials.filter(Boolean);
+                           
+                           // Merge with Knowledge Base Assets
+                           const allMaterials = [
+                             ...materials.map(m => ({ ...m, source: 'curriculum' })),
+                             ...kbAssets.map(a => ({ ...a, source: 'knowledge' }))
+                           ].filter(Boolean);
 
-                           if (cleanMaterials.length === 0) {
+                           if (allMaterials.length === 0) {
                                return <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">No strategic materials have been anchored to this program yet.</p>;
                            }
 
-                           return cleanMaterials.map((file, idx) => {
+                           return allMaterials.map((file, idx) => {
                              const url = typeof file === 'object' ? (file.url || file.path) : file;
                              const name = typeof file === 'object' ? (file.name || file.title) : (typeof file === 'string' ? file.split('/').pop() : 'Strategic_Document.pdf');
+                             const isKB = file.source === 'knowledge';
                              
                              if (!url) return null;
 
@@ -654,17 +723,22 @@ export default function ProgramWorkspace() {
                                  href={url} 
                                  target="_blank" 
                                  rel="noopener noreferrer"
-                                 className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] hover:border-blue-500/50 transition-all group"
+                                 className={`flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border transition-all group ${isKB ? 'border-emerald-500/30 hover:border-emerald-500' : 'border-[var(--border-primary)] hover:border-blue-500/50'}`}
                                >
                                  <div className="flex items-center gap-3">
-                                   <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg">
+                                   <div className={`p-2 rounded-lg ${isKB ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
                                      <FileText className="w-4 h-4" />
                                    </div>
-                                   <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px]">
-                                     {name}
-                                   </span>
+                                   <div>
+                                     <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px] block">
+                                       {name}
+                                     </span>
+                                     <span className={`text-[8px] font-black uppercase tracking-widest ${isKB ? 'text-emerald-500' : 'text-blue-500'}`}>
+                                       {isKB ? 'Knowledge Asset' : 'Program Material'}
+                                     </span>
+                                   </div>
                                  </div>
-                                 <ExternalLink className="w-4 h-4 text-slate-600 group-hover:text-blue-500 transition-colors" />
+                                 <ExternalLink className={`w-4 h-4 transition-colors ${isKB ? 'text-emerald-600 group-hover:text-emerald-400' : 'text-slate-600 group-hover:text-blue-500'}`} />
                                </a>
                              );
                            });

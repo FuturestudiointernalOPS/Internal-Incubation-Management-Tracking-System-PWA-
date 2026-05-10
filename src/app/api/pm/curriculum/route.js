@@ -54,6 +54,29 @@ export async function POST(req) {
          return NextResponse.json({ success: true });
       }
 
+      if (action === 'anchor_material') {
+         const { session_id, file_name } = payload;
+         // Fetch existing materials
+         const currentRes = await db.execute({
+            sql: "SELECT materials FROM v2_sessions WHERE id = ?",
+            args: [session_id]
+         });
+         let materials = [];
+         try {
+            const raw = currentRes.rows[0]?.materials;
+            materials = typeof raw === 'string' ? JSON.parse(raw || '[]') : (raw || []);
+         } catch(e) { materials = []; }
+         
+         const newMaterial = { name: file_name, timestamp: new Date().toISOString(), status: 'anchored' };
+         const updated = JSON.stringify([...materials, newMaterial]);
+
+         await db.execute({
+            sql: "UPDATE v2_sessions SET materials = ? WHERE id = ?",
+            args: [updated, session_id]
+         });
+         return NextResponse.json({ success: true });
+      }
+
       if (action === 'submit_pm_report') {
          const { session_id, week_number, summary, status, pm_id } = payload;
          await db.execute({

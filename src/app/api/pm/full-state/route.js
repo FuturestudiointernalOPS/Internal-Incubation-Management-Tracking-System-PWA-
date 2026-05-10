@@ -52,11 +52,21 @@ export async function GET(req) {
     const program = progRes.rows[0];
     if (program) {
       try {
-        program.materials = JSON.parse(program.materials || '[]');
-        program.note_files = JSON.parse(program.note_files || '[]');
+        program.materials = typeof program.materials === 'string' ? JSON.parse(program.materials || '[]') : (program.materials || []);
+        
+        // Fetch new Multi-PDF attachments for the linked Knowledge Note
+        if (program.note_id) {
+           const kbAttachmentsRes = await db.execute({
+             sql: "SELECT name, url FROM v2_knowledge_attachments WHERE note_id = ?",
+             args: [program.note_id]
+           });
+           program.knowledge_assets = kbAttachmentsRes.rows;
+        } else {
+           program.knowledge_assets = [];
+        }
       } catch (e) {
         program.materials = [];
-        program.note_files = [];
+        program.knowledge_assets = [];
       }
     }
 
