@@ -53,12 +53,12 @@ export async function GET(req) {
     }
 
     // 2. Fetch Aggregate Metrics (Grouped)
-    // This is significantly faster than per-row subqueries
-    const [sessions, participants, docs, reports] = await Promise.all([
+    const [sessions, participants, docs, reports, segments] = await Promise.all([
       db.execute("SELECT program_id, COUNT(*) as count, COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed FROM v2_sessions GROUP BY program_id"),
       db.execute("SELECT program_id, COUNT(*) as count FROM v2_participants GROUP BY program_id"),
       db.execute("SELECT program_id, COUNT(*) as count, SUM(is_completed) as completed FROM v2_document_requirements GROUP BY program_id"),
-      db.execute("SELECT program_id, COUNT(DISTINCT week_number) as weeks FROM v2_weekly_reports GROUP BY program_id")
+      db.execute("SELECT program_id, COUNT(DISTINCT week_number) as weeks FROM v2_weekly_reports GROUP BY program_id"),
+      db.execute("SELECT id, program_id FROM families WHERE program_id IS NOT NULL")
     ]);
 
     // Map metrics for O(1) lookup
@@ -66,7 +66,12 @@ export async function GET(req) {
       sessions: Object.fromEntries(sessions.rows.map(r => [r.program_id, r])),
       participants: Object.fromEntries(participants.rows.map(r => [r.program_id, r.count])),
       docs: Object.fromEntries(docs.rows.map(r => [r.program_id, r])),
-      reports: Object.fromEntries(reports.rows.map(r => [r.program_id, r.weeks]))
+      reports: Object.fromEntries(reports.rows.map(r => [r.program_id, r.weeks])),
+      segments: segments.rows.reduce((acc, r) => {
+        if (!acc[r.program_id]) acc[r.program_id] = [];
+        acc[r.program_id].push(r.id);
+        return acc;
+      }, {})
     };
 
     // 3. Assemble Final Data
@@ -92,7 +97,8 @@ export async function GET(req) {
         docs_total: d.count,
         docs_completed: d.completed,
         reports_count: r_weeks,
-        completion_index: Math.round(completion_index)
+        completion_index: Math.round(completion_index),
+        assigned_segments: metrics.segments[p.id] || []
       };
     });
     
@@ -106,13 +112,23 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const { name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, materials, start_date, end_date } = await req.json();
+    const { name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, materials, start_date, end_date, assigned_segments } = await req.json();
     const id = "P-" + new Date().getFullYear() + "-" + uuidv4().split('-')[0].toUpperCase();
 
     await db.execute({
       sql: `INSERT INTO v2_programs (id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [id, name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, 'active', 0, JSON.stringify(materials || []), start_date || null, end_date || null]
     });
+
+    // Handle Segment/Team Assignments for new program
+    if (Array.isArray(assigned_segments) && assigned_segments.length > 0) {
+      for (const segmentId of assigned_segments) {
+        await db.execute({
+          sql: "UPDATE families SET program_id = ? WHERE id = ?",
+          args: [id, Number(segmentId)]
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, id });
   } catch (error) {
@@ -148,7 +164,7 @@ export async function PUT(req) {
         for (const segmentId of assigned_segments) {
           await db.execute({
             sql: "UPDATE families SET program_id = ? WHERE id = ?",
-            args: [id, segmentId]
+            args: [id, Number(segmentId)]
           });
         }
       }
