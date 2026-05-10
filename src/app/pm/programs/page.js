@@ -83,55 +83,55 @@ export default function PMProgramsRegistry() {
                <div className="h-px w-10 bg-[#FF6600]/30" />
                <span className="badge badge-glow-blue uppercase text-[8px] font-black italic">Active Authority</span>
             </div>
-            <h2 className="text-5xl font-black text-white tracking-tighter uppercase leading-none italic">Assigned Programs</h2>
-            <p className="text-slate-400 font-bold mt-4 uppercase text-[10px] tracking-widest opacity-60 italic">Track and manage the progress of your assigned educational programs</p>
+            <h2 className="text-5xl font-black text-[var(--text-primary)] tracking-tighter uppercase leading-none italic">Assigned Programs</h2>
+            <p className="text-[var(--text-secondary)] font-bold mt-4 uppercase text-[10px] tracking-widest opacity-60 italic">Track and manage the progress of your assigned educational programs</p>
           </div>
           
           <div className="relative w-full md:w-80">
-             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
              <input 
                value={search}
                onChange={e => setSearch(e.target.value)}
                placeholder="Filter cohorts..." 
-               className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold transition-all" 
+               className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl pl-12 pr-6 py-4 text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 font-bold transition-all" 
              />
           </div>
         </header>
 
         <div className="flex gap-4">
-           <button 
-              onClick={() => setTab('active')}
-              className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'active' ? 'bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20' : 'bg-white/5 text-slate-500 hover:text-white'}`}
-           >
-              Active Missions
-           </button>
-           <button 
-              onClick={() => setTab('archived')}
-              className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'archived' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white/5 text-slate-500 hover:text-white'}`}
-           >
-              Archived Repository
-           </button>
+            <button 
+               onClick={() => setTab('active')}
+               className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'active' ? 'bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            >
+               Active Missions
+            </button>
+            <button 
+               onClick={() => setTab('archived')}
+               className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'archived' ? 'bg-orange-500 text-white shadow-lg' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            >
+               Archived Repository
+            </button>
         </div>
 
         {/* TACTICAL CALENDAR VIEW */}
-        <section className="ios-card bg-white/[0.01] border-white/5 !p-12 overflow-hidden shadow-2xl relative">
+        <section className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-12 overflow-hidden shadow-2xl relative">
            <div className="absolute top-0 right-0 w-80 h-80 bg-[#FF6600]/5 rounded-full blur-[100px] -mr-40 -mt-40" />
            <div className="flex flex-col lg:flex-row justify-between items-start gap-12 relative z-10">
               <div className="space-y-6">
-                 <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Operational Schedule</h3>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] italic">Timeline oversight across all cohorts</p>
+                 <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter italic leading-none">Operational Schedule</h3>
+                 <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] italic">Timeline oversight across all cohorts</p>
                  
                  <div className="space-y-4 pt-6">
                     {schedule.slice(0, 3).map(item => (
                        <div key={item.id} className="flex items-center gap-6 group">
-                          <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center justify-center text-[10px] font-black uppercase group-hover:border-[#FF6600]/40 transition-all">
-                             <span className="text-[#FF6600]">{new Date(item.scheduled_date).getDate()}</span>
-                             <span className="text-slate-500 text-[7px]">{new Date(item.scheduled_date).toLocaleString('default', { month: 'short' })}</span>
-                          </div>
-                          <div className="flex-1">
-                             <p className="text-xs font-black text-white uppercase italic">{item.title}</p>
-                             <div className="flex items-center gap-2 mt-1">
-                                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{item.program_name}</p>
+                           <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex flex-col items-center justify-center text-[10px] font-black uppercase group-hover:border-[#FF6600]/40 transition-all">
+                              <span className="text-[#FF6600]">{new Date(item.scheduled_date).getDate()}</span>
+                              <span className="text-[var(--text-secondary)] text-[7px]">{new Date(item.scheduled_date).toLocaleString('default', { month: 'short' })}</span>
+                           </div>
+                           <div className="flex-1">
+                              <p className="text-xs font-black text-[var(--text-primary)] uppercase italic">{item.title}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                 <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{item.program_name}</p>
                                 <span className="text-slate-800">•</span>
                                 <p className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest italic">
                                    {item.start_time || '00:00'} - {item.end_time || '23:59'}
@@ -192,10 +192,10 @@ export default function PMProgramsRegistry() {
                  <motion.div 
                     key={program.id}
                     onClick={() => router.push(`/pm/programs/${program.id}`)}
-                    className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-[#FF6600]/30 transition-all hover:bg-white/[0.01] border-white/5 shadow-2xl"
+                    className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-[#FF6600]/30 transition-all hover:bg-[var(--bg-tertiary)] border-[var(--border-primary)] shadow-2xl"
                  >
                     <div className="flex flex-col lg:flex-row items-stretch">
-                       <div className="p-10 lg:w-[400px] bg-white/[0.02] border-r border-white/5 flex flex-col justify-between">
+                       <div className="p-10 lg:w-[400px] bg-[var(--bg-tertiary)] border-r border-[var(--border-primary)] flex flex-col justify-between">
                           <div>
                              <div className="flex items-center gap-3 mb-6">
                                 <div className="p-2.5 rounded-xl bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20">
@@ -203,7 +203,7 @@ export default function PMProgramsRegistry() {
                                 </div>
                                 <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] italic animate-pulse">Active Portfolio</span>
                              </div>
-                             <h3 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic group-hover:text-[#FF6600] transition-colors">{program.name}</h3>
+                             <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter leading-none italic group-hover:text-[#FF6600] transition-colors">{program.name}</h3>
                           </div>
                           <div className="mt-8 flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
@@ -212,7 +212,7 @@ export default function PMProgramsRegistry() {
                        </div>
 
                        <div className="flex-1 p-10 flex flex-col justify-between">
-                          <p className="text-[13px] text-slate-400 font-bold leading-relaxed uppercase tracking-tight line-clamp-3">
+                          <p className="text-[13px] text-[var(--text-secondary)] font-bold leading-relaxed uppercase tracking-tight line-clamp-3">
                              {program.description || 'Executing standard operational oversight, ensuring participant progression and milestone synchronization within the FutureStudio incubation framework.'}
                           </p>
 
@@ -232,12 +232,12 @@ export default function PMProgramsRegistry() {
 
                           <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-8 border-t border-white/5 pt-8">
                              <div>
-                                <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">Enrolled</p>
-                                <p className="text-lg font-black text-white uppercase tracking-tighter flex items-center gap-2 italic">{program.participants_count || 0} <Users className="w-3.5 h-3.5 text-slate-500" /></p>
+                                <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">Enrolled</p>
+                                <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter flex items-center gap-2 italic">{program.participants_count || 0} <Users className="w-3.5 h-3.5 text-slate-500" /></p>
                              </div>
                              <div>
-                                <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">Deliverables</p>
-                                <p className="text-lg font-black text-white uppercase tracking-tighter flex items-center gap-2 italic">{program.docs_completed || 0}/{program.docs_total || 0} <Layers className="w-3.5 h-3.5 text-slate-500" /></p>
+                                <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">Deliverables</p>
+                                <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter flex items-center gap-2 italic">{program.docs_completed || 0}/{program.docs_total || 0} <Layers className="w-3.5 h-3.5 text-slate-500" /></p>
                              </div>
                              <div>
                                 <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">Health</p>

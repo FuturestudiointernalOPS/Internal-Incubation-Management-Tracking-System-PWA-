@@ -190,7 +190,9 @@ function ContactsPageContent() {
   const getWhatsAppLink = (c, pass) => {
     const phone = c.phone?.replace(/[^0-9]/g, '');
     if (!phone) return '#';
-    const msg = `Hello ${c.name},\n\nYour ImpactOS account is ready.\n\nURL: ${window.location.origin}/login\nUser: ${c.email}\nPass: ${pass || 'N/A'}`;
+    const isStaff = c.role?.toLowerCase() === 'staff' || c.group_name?.toLowerCase() === 'future studio' || c.group_name?.toLowerCase() === 'staff';
+    const portalUrl = `${window.location.origin}${isStaff ? '/terminal' : '/login'}`;
+    const msg = `Hello ${c.name},\n\nYour ImpactOS account is ready.\n\nURL: ${portalUrl}\nUser: ${c.email}\nPass: ${pass || 'N/A'}`;
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   };
 

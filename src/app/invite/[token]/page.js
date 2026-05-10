@@ -31,7 +31,7 @@ export default function InvitePage({ params }) {
         const data = await res.json();
         
         if (!res.ok) {
-          setError(data.error || "Invalid invitation link.");
+          setError(data.error || "Invalid Future Studio Invite Link.");
         } else {
           setInviteData(data.invite);
         }

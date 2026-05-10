@@ -6,8 +6,10 @@ import {
   ChevronLeft, Plus, Calendar, 
   Users, Layers, Settings, MessageSquare, Mail, MessageCircle,
   Globe, LayoutDashboard, Search, Filter,
-  ArrowRight, Activity, Shield, Zap, Target, CheckCircle2, AlertCircle, Clock, Send, Briefcase, ChevronDown, Trash2, Edit3, Link2, ChevronRight, X, FileText, Video, Image as ImageIcon, Link as LinkIcon, FileCheck, BookOpen
+  ArrowRight, Activity, Shield, Zap, Target, CheckCircle2, AlertCircle, Clock, Send, Briefcase, ChevronDown, Trash2, Edit3, Link2, ChevronRight, X, FileText, Video, Image as ImageIcon, Link as LinkIcon, FileCheck, BookOpen, Map, Mic2
 } from 'lucide-react';
+import CalendarComponent from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -33,6 +35,7 @@ export default function PMProgramTerminalV2({ params }) {
   const [user, setUser] = useState({});
   const isLeadPMForProject = (user?.role === 'super_admin') || (user?.isLeadPM && program?.assigned_pm_id?.toLowerCase() === (user?.cid || user?.id)?.toLowerCase());
   const [activeTab, setActiveTab] = useState('curriculum'); 
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -101,6 +104,43 @@ export default function PMProgramTerminalV2({ params }) {
   const [selectedTask, setSelectedTask] = useState(null);   
   const [showTaskSelector, setShowTaskSelector] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (e, sessionId) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target.result;
+        const res = await fetch('/api/v2/pm/curriculum', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            program_id: id,
+            action: 'add_requirement',
+            title: file.name,
+            session_id: sessionId,
+            allowed_format: 'pdf',
+            material_data: base64
+          })
+        });
+        if ((await res.json()).success) {
+           fetchPMData();
+           window.dispatchEvent(new CustomEvent('impactos:notify', { 
+             detail: { type: 'success', message: 'PDF Attached to Node' } 
+           }));
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // New Requirement Inline State (V2.7 - Manifest Staging)
   const [newReq, setNewReq] = useState({ 
@@ -415,8 +455,108 @@ export default function PMProgramTerminalV2({ params }) {
        role="program_manager" 
        activeTab="v2"
        modals={
-          <AnimatePresence>
-             {showTaskSelector && (
+           <AnimatePresence>
+              {selectedTask && (
+                 <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md overflow-y-auto">
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="ios-card w-full max-w-2xl !p-10 space-y-8 bg-white/[0.03] border-white/10 relative">
+                       <div className="flex justify-between items-center">
+                          <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter">{selectedTask.id ? 'Refine Operational Node' : 'Deploy New Node'}</h3>
+                          <button onClick={() => setSelectedTask(null)} className="p-2 text-slate-500 hover:text-white"><X className="w-6 h-6" /></button>
+                       </div>
+
+                       <div className="space-y-6">
+                          <div className="grid grid-cols-2 gap-6">
+                             <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Phase (Week)</label>
+                                <input 
+                                   type="number" 
+                                   value={selectedTask.week_number} 
+                                   onChange={e => setSelectedTask({...selectedTask, week_number: parseInt(e.target.value)})}
+                                   className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-bold text-white outline-none focus:border-[#FF6600]/50" 
+                                />
+                             </div>
+                             <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Delivery Style</label>
+                                <select 
+                                   value={selectedTask.assignment_type || ''} 
+                                   onChange={e => setSelectedTask({...selectedTask, assignment_type: e.target.value})}
+                                   className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-bold text-white outline-none focus:border-[#FF6600]/50"
+                                >
+                                   <option value="">Select Mode</option>
+                                   <option value="Masterclass">Masterclass</option>
+                                   <option value="Workshop">Workshop</option>
+                                   <option value="Talk Show">Talk Show</option>
+                                   <option value="Road Trip">Road Trip</option>
+                                   <option value="Practical">Practical Session</option>
+                                </select>
+                             </div>
+                          </div>
+
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Node Title</label>
+                             <input 
+                                value={selectedTask.title} 
+                                onChange={e => setSelectedTask({...selectedTask, title: e.target.value})}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-bold text-white outline-none focus:border-[#FF6600]/50" 
+                                placeholder="Execution Module Name"
+                             />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-6">
+                             <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Execution Date</label>
+                                <input 
+                                   type="date" 
+                                   value={selectedTask.scheduled_date || ''} 
+                                   onChange={e => setSelectedTask({...selectedTask, scheduled_date: e.target.value})}
+                                   className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-bold text-white outline-none focus:border-[#FF6600]/50" 
+                                />
+                             </div>
+                             <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Start Time</label>
+                                <input 
+                                   type="time" 
+                                   value={selectedTask.start_time || ''} 
+                                   onChange={e => setSelectedTask({...selectedTask, start_time: e.target.value})}
+                                   className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-bold text-white outline-none focus:border-[#FF6600]/50" 
+                                />
+                             </div>
+                          </div>
+
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Operational Intel</label>
+                             <textarea 
+                                value={selectedTask.description} 
+                                onChange={e => setSelectedTask({...selectedTask, description: e.target.value})}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-bold text-white outline-none focus:border-[#FF6600]/50 resize-none" 
+                                rows={4}
+                                placeholder="Define the delivery expectations and strategic goals..."
+                             />
+                          </div>
+
+                          <div className="flex gap-4">
+                             <button 
+                                onClick={() => handleSaveTaskConfig(selectedTask)}
+                                disabled={isProcessing}
+                                className="flex-1 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20"
+                             >
+                                {isProcessing ? 'Syncing...' : 'Lock Configuration'}
+                             </button>
+                             {selectedTask.id && (
+                                <button 
+                                   onClick={() => handleDeleteSession(selectedTask.id)}
+                                   className="px-6 py-4 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all"
+                                >
+                                   <Trash2 className="w-5 h-5" />
+                                </button>
+                             )}
+                          </div>
+                       </div>
+                    </motion.div>
+                 </div>
+              )}
+
+              {showTaskSelector && (
                 <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="ios-card w-full max-w-4xl !p-12 space-y-10 border-white/10 relative overflow-hidden bg-white/[0.03]">
                       <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF6600]/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
@@ -517,8 +657,8 @@ export default function PMProgramTerminalV2({ params }) {
         {/* NAVIGATION */}
         <nav className="flex items-center gap-12 border-b border-white/5">
            {[
-              { id: 'resources', label: 'Knowledge Base', icon: BookOpen },
               { id: 'curriculum', label: 'Curriculum', icon: Layers },
+              { id: 'calendar', label: 'Tactical Calendar', icon: Calendar },
               { id: 'teams', label: 'Cohort Registry', icon: Target },
               { id: 'participants', label: 'Participants', icon: Users },
               { id: 'submissions', label: 'Unit Submissions', icon: FileText },
@@ -540,6 +680,89 @@ export default function PMProgramTerminalV2({ params }) {
 
         {/* CONTENT */}
         <div className="font-sans">
+           {activeTab === 'calendar' && (
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
+                 <div className="xl:col-span-1 space-y-8">
+                    <div className="ios-card bg-white/[0.02] border-white/5 !p-6 shadow-2xl">
+                       <CalendarComponent 
+                          onChange={setSelectedDate} 
+                          value={selectedDate}
+                          className="w-full bg-transparent border-none text-white font-sans"
+                          tileClassName={({ date, view }) => {
+                             if (view === 'month') {
+                                const hasActivity = sessions.some(s => s.scheduled_date === date.toISOString().split('T')[0]);
+                                return hasActivity ? 'bg-[#FF6600]/20 text-[#FF6600] font-black rounded-lg' : 'text-slate-400';
+                             }
+                          }}
+                       />
+                    </div>
+                    <div className="ios-card bg-[#FF6600]/5 border-[#FF6600]/20 !p-8">
+                       <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest mb-4 italic">Next in Action</p>
+                       {sessions
+                          .filter(s => s.scheduled_date && new Date(s.scheduled_date) >= new Date())
+                          .sort((a,b) => new Date(a.scheduled_date) - new Date(b.scheduled_date))
+                          .slice(0, 1)
+                          .map(s => (
+                             <div key={s.id} className="space-y-4">
+                                <h4 className="text-3xl font-black text-white uppercase italic leading-none">{s.title}</h4>
+                                <div className="flex items-center gap-3">
+                                   <Clock className="w-4 h-4 text-slate-500" />
+                                   <span className="text-xs font-bold text-slate-300 uppercase">{s.scheduled_date} @ {s.start_time || 'TBD'}</span>
+                                </div>
+                             </div>
+                          ))
+                       }
+                    </div>
+                 </div>
+
+                 <div className="xl:col-span-2 space-y-8">
+                    <div className="flex justify-between items-end">
+                       <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Operational Schedule</h3>
+                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedDate.toDateString()}</span>
+                    </div>
+
+                    <div className="space-y-6">
+                       {sessions
+                          .filter(s => s.scheduled_date === selectedDate.toISOString().split('T')[0])
+                          .map(s => (
+                             <div key={s.id} className="ios-card bg-white/[0.01] border-white/5 !p-10 border-l-4 border-l-[#FF6600] flex gap-10 group">
+                                <div className="w-24 shrink-0">
+                                   <p className="text-2xl font-black text-[#FF6600] italic leading-none">{s.start_time || '00:00'}</p>
+                                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-2">{s.end_time || '23:59'}</p>
+                                </div>
+                                <div className="flex-1 space-y-4">
+                                   <div className="flex items-center gap-3">
+                                      <div className="px-3 py-1 bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20 rounded-lg text-[8px] font-black uppercase tracking-widest">
+                                         {s.assignment_type || 'Session'}
+                                      </div>
+                                      <h4 className="text-xl font-black text-white uppercase italic tracking-tighter group-hover:text-[#FF6600] transition-colors">{s.title}</h4>
+                                   </div>
+                                   <p className="text-sm text-slate-400 font-bold leading-relaxed italic">{s.description || 'Executing standard operational mandate.'}</p>
+                                   
+                                   <div className="pt-4 flex items-center gap-6">
+                                      <div className="flex items-center gap-2">
+                                         <Users className="w-3.5 h-3.5 text-slate-600" />
+                                         <span className="text-[9px] font-black text-slate-500 uppercase">{s.handler_name || 'No Personnel'}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                         <Target className="w-3.5 h-3.5 text-slate-600" />
+                                         <span className="text-[9px] font-black text-slate-500 uppercase">Phase {s.week_number}</span>
+                                      </div>
+                                   </div>
+                                </div>
+                             </div>
+                          ))
+                       }
+                       {sessions.filter(s => s.scheduled_date === selectedDate.toISOString().split('T')[0]).length === 0 && (
+                          <div className="ios-card border-dashed py-32 text-center text-slate-700 italic text-sm uppercase tracking-widest opacity-40">
+                             No tactical operations scheduled for this date.
+                          </div>
+                       )}
+                    </div>
+                 </div>
+              </div>
+           )}
+
            {activeTab === 'curriculum' && (
               <div className="max-w-4xl space-y-6">
                  <div className="flex justify-between items-end mb-10">
@@ -658,9 +881,21 @@ export default function PMProgramTerminalV2({ params }) {
                                                         </div>
                                                      </div>
                                                   </div>
-                                                  <div className="flex items-center gap-3 group-hover:translate-x-3 transition-transform">
-                                                     <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic font-sans opacity-0 group-hover:opacity-100 transition-opacity">Configure Node</span>
-                                                     <ChevronRight className="w-6 h-6 text-[#FF6600]/30 group-hover:text-[#FF6600] transition-colors" />
+                                                  <div className="flex items-center gap-6">
+                                                     <div className="flex items-center gap-3">
+                                                        <label className="cursor-pointer group/file relative">
+                                                           <input type="file" className="hidden" accept=".pdf" onChange={(e) => handleFileUpload(e, session.id)} />
+                                                           <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:border-[#FF6600] transition-all">
+                                                              <FileText className="w-4 h-4 text-[#FF6600]" />
+                                                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Attach PDF</span>
+                                                           </div>
+                                                        </label>
+                                                     </div>
+
+                                                     <div className="flex items-center gap-3 group-hover:translate-x-3 transition-transform">
+                                                        <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic font-sans opacity-0 group-hover:opacity-100 transition-opacity">Configure Node</span>
+                                                        <ChevronRight className="w-6 h-6 text-[#FF6600]/30 group-hover:text-[#FF6600] transition-colors" />
+                                                     </div>
                                                   </div>
                                                </div>
 
@@ -1409,7 +1644,7 @@ export default function PMProgramTerminalV2({ params }) {
                                </div>
                             </div>
                             <div className="space-y-3 text-left">
-                                <label className="text-[12px] font-black text-[#FF6600] uppercase tracking-[0.3em] ml-2 italic">Assigned Personnel (Teacher)</label>
+                                <label className="text-[12px] font-black text-[#FF6600] uppercase tracking-[0.3em] ml-2 italic">Assigned Personnel (Team)</label>
                                 <div className="flex flex-wrap gap-3 p-6 bg-[#0d0d18] border border-white/5 rounded-3xl min-h-[100px] shadow-inner">
                                    {staffList.map(s => {
                                       const currentIds = (selectedTask.handler_id || '').split(',').filter(x => x);

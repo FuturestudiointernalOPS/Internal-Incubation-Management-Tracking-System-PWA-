@@ -16,13 +16,13 @@
     --brand-blue: #0066FF;
     
     /* THEME TOKENS (LIGHT MODE DEFAULT) */
-    --bg-primary: #F1F5F9;
-    --bg-secondary: #FFFFFF;
-    --bg-tertiary: #E2E8F0;
-    --text-primary: #0F172A;
-    --text-secondary: #475569;
-    --border-primary: #CBD5E1;
-    --border-secondary: #E2E8F0;
+    --bg-primary: #F8FAFC; /* Slate 50 - Cleaner background */
+    --bg-secondary: #FFFFFF; /* Pure white surface */
+    --bg-tertiary: #F1F5F9; /* Slate 100 - Subtle contrast */
+    --text-primary: #0F172A; /* Slate 900 */
+    --text-secondary: #64748B; /* Slate 500 - Improved readability */
+    --border-primary: #E2E8F0; /* Slate 200 - Softer borders */
+    --border-secondary: #F1F5F9; /* Slate 100 */
     --accent: var(--brand-orange);
     
     --radius-sm: 0.375rem;

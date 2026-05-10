@@ -25,7 +25,7 @@ export default function TeacherProfile() {
               setDbUser(found);
            } else {
               setDbUser({
-                 name: user.name || 'Authorized Reviewer',
+                 name: user.name || 'Authorized Team Member',
                  email: user.email || 'teacher@impactos.com',
                  role: 'teacher',
                  cid: user.cid || 'TCH-FALLBACK',
@@ -51,7 +51,7 @@ export default function TeacherProfile() {
         <div className="ios-card bg-rose-500/5 border-rose-500/20 p-12 text-center max-w-md">
            <Shield className="w-16 h-16 text-rose-500 mx-auto mb-6 opacity-50" />
            <h2 className="text-2xl font-black text-white uppercase mb-4">Profile Sync Error</h2>
-           <p className="text-slate-500 font-bold text-sm leading-relaxed mb-8">We could not synchronize your reviewer credentials with the database. Please re-authenticate.</p>
+           <p className="text-slate-500 font-bold text-sm leading-relaxed mb-8">We could not synchronize your team credentials with the database. Please re-authenticate.</p>
            <button onClick={() => window.location.href='/terminal'} className="btn-prime w-full">Re-Authenticate</button>
         </div>
      </div>
@@ -62,7 +62,7 @@ export default function TeacherProfile() {
        <div className="max-w-4xl mx-auto space-y-12">
           <header className="border-b border-white/5 pb-10">
              <div className="flex items-center gap-4 mb-4">
-                <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Reviewer Node</span>
+                <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Team Node</span>
                 <div className="h-px w-10 bg-[#FF6600]/80/30" />
              </div>
              <h1 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">My Profile</h1>
@@ -102,7 +102,7 @@ export default function TeacherProfile() {
                 <div className="ios-card bg-[#FF6600]/80/5 border-[#FF6600]/80/20 !p-12 space-y-8">
                    <div>
                       <h4 className="text-xl font-black text-white uppercase tracking-tighter">Security Settings</h4>
-                      <p className="text-xs text-slate-400 font-bold mt-2 italic">Update your review terminal access key.</p>
+                      <p className="text-xs text-slate-400 font-bold mt-2 italic">Update your team terminal access key.</p>
                    </div>
                    
                    <div className="flex flex-col sm:flex-row items-end gap-6">

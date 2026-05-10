@@ -211,9 +211,9 @@ export default function TeacherV2Dashboard() {
               <span className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em]">Review Authority</span>
               <div className="h-px w-10 bg-[#FF6600]/30" />
             </div>
-            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Teacher Evaluation HQ</h2>
+            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Team Evaluation HQ</h2>
             <p className="text-slate-400 font-bold tracking-tight">
-               {activeSection === 'submissions' ? 'Executing logic on student submissions and lifecycle progression.' : 'Compiling tactical insights on participant reception and week-over-week growth.'}
+               {activeSection === 'submissions' ? 'Executing logic on student submissions and team lifecycle progression.' : 'Compiling tactical insights on participant reception and team growth.'}
             </p>
           </div>
           <div className="flex gap-4">

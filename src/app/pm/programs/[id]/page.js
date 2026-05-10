@@ -75,7 +75,7 @@ export default function ProgramWorkspace() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id,
-          name: configNameRef.current?.value,
+          name: user.role === 'super_admin' ? configNameRef.current?.value : program?.name,
           description: configDescRef.current?.value,
           duration_weeks: parseInt(configWeeksRef.current?.value) || program?.duration_weeks,
           status: configStatusRef.current?.value,
@@ -581,7 +581,13 @@ export default function ProgramWorkspace() {
                   <div className="card space-y-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Program Name</label>
-                      <input ref={configNameRef} type="text" defaultValue={program?.name} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                      <input 
+                        ref={configNameRef} 
+                        type="text" 
+                        defaultValue={program?.name} 
+                        disabled={user.role === 'program_manager'}
+                        className={`w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold ${user.role === 'program_manager' ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                      />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Strategic Description</label>
@@ -676,7 +682,7 @@ export default function ProgramWorkspace() {
                              Week {report.week_number}
                           </div>
                           <span className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                             Submission by {report.teacher_name || 'Teacher'}
+                             Submission by {report.teacher_name || 'Team Member'}
                           </span>
                        </div>
                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { initDb } from '@/lib/db';
+import db, { initDb } from '@/lib/db';
 
 export async function GET(req) {
    try {
-      const db = await initDb();
+      await initDb();
       const { searchParams } = new URL(req.url);
       const program_id = searchParams.get('program_id');
       const week_number = searchParams.get('week_number');

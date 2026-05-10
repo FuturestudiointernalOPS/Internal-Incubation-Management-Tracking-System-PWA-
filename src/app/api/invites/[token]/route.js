@@ -16,7 +16,7 @@ export async function GET(req, { params }) {
     });
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Invalid or expired invitation link." }, { status: 404 });
+      return NextResponse.json({ error: "Invalid or expired Future Studio Invite Link." }, { status: 404 });
     }
 
     const invite = result.rows[0];
@@ -51,7 +51,7 @@ export async function POST(req, { params }) {
     });
 
     if (inviteCheck.rows.length === 0) {
-      return NextResponse.json({ error: "Invalid or expired invitation link." }, { status: 404 });
+      return NextResponse.json({ error: "Invalid or expired Future Studio Invite Link." }, { status: 404 });
     }
     const invite = inviteCheck.rows[0];
 

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { initDb } from '@/lib/db';
+import db, { initDb } from '@/lib/db';
 
 export async function GET(req) {
    try {
-      const db = await initDb();
+      await initDb();
       const { searchParams } = new URL(req.url);
       const program_id = searchParams.get('program_id');
       const week_number = searchParams.get('week_number');
@@ -31,7 +31,7 @@ export async function GET(req) {
 
 export async function POST(req) {
    try {
-      const db = await initDb();
+      await initDb();
       const body = await req.json();
       const { program_id, week_number, teacher_id, teacher_name, reception_score, progress_notes, student_reception, action_taken } = body;
 

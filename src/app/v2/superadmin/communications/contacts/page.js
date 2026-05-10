@@ -199,7 +199,9 @@ function ContactsPageContent() {
 
   const getWhatsAppLink = (c, pass = null) => {
     const phone = (c.phone || '').replace(/[^0-9]/g, '');
-    const message = `Hello ${c.name},\n\nYour access to the ImpactOS Corporate Registry has been provisioned.\n\nPortal: ${window.location.origin}\nUsername: ${c.email}\n${pass ? `Password: ${pass}\n\n` : ''}Please secure your credentials.`;
+    const isStaff = c.role?.toLowerCase() === 'staff' || c.group_name?.toLowerCase() === 'future studio' || c.group_name?.toLowerCase() === 'staff';
+    const portalUrl = `${window.location.origin}${isStaff ? '/terminal' : '/login'}`;
+    const message = `Hello ${c.name},\n\nYour access to the ImpactOS Corporate Registry has been provisioned.\n\nPortal: ${portalUrl}\nUsername: ${c.email}\n${pass ? `Password: ${pass}\n\n` : ''}Please secure your credentials.`;
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   };
 
@@ -219,6 +221,13 @@ function ContactsPageContent() {
                    <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Unit Name / Business ID</label>
                       <input value={teamForm.name} onChange={e => setTeamForm({...teamForm, name: e.target.value})} placeholder="e.g. Alpha Squad or SolarTech..." className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" />
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Group Segment</label>
+                      <select value={teamForm.group_name} onChange={e => setTeamForm({...teamForm, group_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold appearance-none">
+                         <option value="" className="bg-[#0f0f1a]">Select Group...</option>
+                         {families.map(f => <option key={f.id} value={f.name} className="bg-[#0f0f1a]">{f.name}</option>)}
+                      </select>
                    </div>
                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
@@ -265,8 +274,8 @@ function ContactsPageContent() {
                    <button 
                       disabled={isSubmittingTeam}
                       onClick={async () => {
-                         if (!teamForm.name || !teamForm.program_id) {
-                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Name and Program required.' }}));
+                         if (!teamForm.name || !teamForm.program_id || !teamForm.group_name) {
+                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Name, Program, and Group required.' }}));
                             return;
                          }
                          setIsSubmittingTeam(true);
@@ -274,7 +283,7 @@ function ContactsPageContent() {
                             const res = await fetch('/api/v2/pm/teams', {
                                method: 'POST',
                                headers: { 'Content-Type': 'application/json' },
-                               body: JSON.stringify({ ...teamForm, group_name: selectedGroup })
+                               body: JSON.stringify({ ...teamForm })
                             });
                             const data = await res.json();
                             if (data.success) {
@@ -643,8 +652,8 @@ function ContactsPageContent() {
                      <button 
                         onClick={async () => {
                            await handleCredsUpdate();
-                           const phone = (contacts.find(c => c.cid === credsForm.cid)?.phone || '').replace(/[^0-9]/g, '');
-                           const link = getWhatsAppLink({ name: credsForm.name, email: credsForm.email, phone: phone }, credsForm.password);
+                           const contact = contacts.find(c => c.cid === credsForm.cid) || {};
+                           const link = getWhatsAppLink({ ...contact, name: credsForm.name, email: credsForm.email }, credsForm.password);
                            window.open(link, '_blank');
                         }}
                         className="py-4 bg-emerald-500/10 text-emerald-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center gap-2"
@@ -686,6 +695,7 @@ function ContactsPageContent() {
                 <Upload className="w-4 h-4" /> Bulk Upload
              </label>
              <button onClick={() => setShowFamilyModal(true)} className="btn-ghost flex items-center gap-3 !px-6 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/5"><Plus className="w-4 h-4" /> Group</button>
+             <button onClick={() => { setTeamForm({ name: '', program_id: '', group_name: (selectedGroup === 'All Contacts' || selectedGroup === 'Future Studio') ? '' : selectedGroup, member_ids: [], team_type: 'group' }); setShowTeamModal(true); }} className="btn-ghost flex items-center gap-3 !px-6 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/5 text-[#FF6600]"><Plus className="w-4 h-4" /> Unit</button>
              <button onClick={() => { setForm({ cid: '', name: '', email: '', phone: '', address: '', dob: '', group_name: (selectedGroup?.toLowerCase() === 'future studio' || selectedGroup === 'All Contacts') ? '' : selectedGroup, role: 'staff', gender: '', mother_name: '', password: '' }); setShowManualModal(true); }} className="btn-prime flex items-center gap-3 !px-8 text-[10px] font-black uppercase tracking-widest shadow-2xl shadow-[#FF6600]/40"><Plus className="w-5 h-5" /> New Member</button>
           </div>
         </header>
@@ -851,13 +861,13 @@ function ContactsPageContent() {
                                                    if (data.inviteUrl) {
                                                       navigator.clipboard.writeText(data.inviteUrl);
                                                       window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                                                         detail: { type: 'success', message: `Invite Link for ${t.name} copied!` } 
+                                                         detail: { type: 'success', message: `Future Studio Invite Link for ${t.name} copied!` } 
                                                       }));
                                                    }
                                                 } catch (e) { console.error(e); }
                                              }}
                                              className="p-2 text-[#FF6600] hover:bg-[#FF6600]/10 rounded-lg transition-all"
-                                             title="Copy Team Invite Link"
+                                             title="Copy Future Studio Invite Link"
                                           >
                                              <LinkIcon className="w-3.5 h-3.5" />
                                           </button>
