@@ -247,6 +247,7 @@ export default function ProgramManagement() {
                   ))}
               </table>
           </div>
+        )}
       </div>
 
       {/* MODALS SECTION */}
