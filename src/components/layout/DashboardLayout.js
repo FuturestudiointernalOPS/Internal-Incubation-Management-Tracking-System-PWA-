@@ -119,6 +119,7 @@ const NAVIGATION_MATRIX = {
   super_admin: [
     { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/admin' },
     { id: 'programs', name: 'PROGRAMS', icon: Briefcase, subItems: [
+        { id: 'all_programs', name: 'ALL PROGRAMS', href: '/admin/programs' },
         { id: 'create_program', name: 'CREATE PROGRAM', href: '/admin/programs/new' },
     ]},
     { id: 'progress_hub', name: 'PROGRESS', icon: Activity, href: '/admin/progress' },
@@ -239,6 +240,7 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
       const progIndex = items.findIndex(i => i.id === 'programs');
       if (progIndex !== -1) {
         const baseSubItems = activeRole === 'super_admin' ? [
+          { id: 'all_programs', name: 'ALL PROGRAMS', href: '/admin/programs' },
           { id: 'create_program', name: 'CREATE PROGRAM', href: '/admin/programs/new' }
         ] : [
           { id: 'all_programs', name: 'OVERVIEW', href: '/pm/programs' }
@@ -248,11 +250,11 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
           ...items[progIndex],
           subItems: [
             ...baseSubItems,
-            ...pmPrograms.map(p => ({ 
+            ...(activeRole === 'super_admin' ? [] : pmPrograms.map(p => ({ 
               id: `prog_${p.id}`, 
               name: p.name, 
-              href: activeRole === 'super_admin' ? `/admin/programs/${p.id}` : `/pm/programs/${p.id}` 
-            }))
+              href: `/pm/programs/${p.id}` 
+            })))
           ]
         };
       }
