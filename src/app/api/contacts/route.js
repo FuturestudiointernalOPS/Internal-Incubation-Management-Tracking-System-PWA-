@@ -185,7 +185,7 @@ export async function PUT(req) {
                 sql: `UPDATE v2_notifications 
                       SET read = 1 
                       WHERE recipient_id = 'sa' 
-                      AND message LIKE ? 
+                      AND message ILIKE ? 
                       AND read = 0`,
                 args: [`%${userName}%`]
              });
