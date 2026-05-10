@@ -272,8 +272,8 @@ export default function ProgramManagement() {
     }
   };
 
-  const filtered = programs.filter(p => {
-    return p.name.toLowerCase().includes(search.toLowerCase());
+  const filtered = (programs || []).filter(p => {
+    return p && p.name && p.name.toLowerCase().includes((search || "").toLowerCase());
   });
 
   return (

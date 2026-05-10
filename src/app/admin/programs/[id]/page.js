@@ -228,8 +228,13 @@ export default function SuperAdminExecutiveView({ params }) {
                                 <div className="space-y-3">
                                    {weekSessions.map((session, sIdx) => {
                                       const sessionFollowups = followups.filter(f => f.session_id === session.id);
-                                      const materials = session.resource_links ? JSON.parse(session.resource_links) : [];
-                                      
+                                      let materials = [];
+                                      try {
+                                        materials = session.resource_links ? JSON.parse(session.resource_links) : [];
+                                      } catch (e) {
+                                        console.error("Failed to parse resource links:", e);
+                                        materials = [];
+                                      }                                      
                                       return (
                                          <div key={`session-${session.id || sIdx}-${sIdx}`} className="space-y-2">
                                             <div 

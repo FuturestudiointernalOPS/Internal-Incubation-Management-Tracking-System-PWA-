@@ -228,6 +228,7 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
   }, [role]);
 
   const toggleMenu = useCallback((id) => {
+    if (!id) return;
     setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
   }, []);
 

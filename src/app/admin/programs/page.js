@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
   Briefcase, Plus, Search, Loader2, ChevronRight, 
@@ -12,12 +12,6 @@ import { useRouter } from 'next/navigation';
 import { CardSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
 import { uploadFile } from '@/lib/storage';
 
-/**
- * IMPACTOS MISSION CONTROL — PROGRAM MANAGEMENT
- * Centralized governance for operational programs, cohorts, and personnel assignments.
- * Optimized for Supabase-PostgreSQL with progressive skeleton states.
- */
-
 export default function ProgramManagement() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,10 +22,9 @@ export default function ProgramManagement() {
   const [isUploading, setIsUploading] = useState(false);
   const [notes, setNotes] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [knowledgeItems, setKnowledgeItems] = useState([]);
 
   const router = useRouter();
-
-  const [knowledgeItems, setKnowledgeItems] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -45,18 +38,21 @@ export default function ProgramManagement() {
       ]);
       
       const [progData, managerData, segmentData, kbData] = await Promise.all([
-        progRes.json(), managerRes.json(), segmentRes.json(), kbRes.json()
+        progRes.json().catch(() => ({ success: false })), 
+        managerRes.json().catch(() => ({ success: false })), 
+        segmentRes.json().catch(() => ({ success: false })), 
+        kbRes.json().catch(() => ({ success: false }))
       ]);
       
-      if (progData.success) setPrograms(progData.programs || []);
-      if (managerData.success) {
+      if (progData?.success) setPrograms(progData.programs || []);
+      if (managerData?.success) {
         const managers = (managerData.contacts || []).filter(c => 
-          c.role === 'super_admin' || c.role === 'program_manager' || c.role === 'admin' || c.role === 'staff'
+          c && (c.role === 'super_admin' || c.role === 'program_manager' || c.role === 'admin' || c.role === 'staff')
         );
         setTeams(managers);
       }
-      if (segmentData.success) setNotes(segmentData.families || []);
-      if (kbData.success) setKnowledgeItems(kbData.conceptNotes || kbData.knowledgeItems || kbData.notes || []);
+      if (segmentData?.success) setNotes(segmentData.families || []);
+      if (kbData?.success) setKnowledgeItems(kbData.conceptNotes || kbData.knowledgeItems || kbData.notes || []);
       
     } catch (e) {
       console.error("Sync Failure:", e);
@@ -65,13 +61,13 @@ export default function ProgramManagement() {
     }
   }, [activeTab]);
 
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (!editingProgram?.id) return;
     setIsUpdating(true);
     try {
       const res = await fetch('/api/pm/programs', {
@@ -83,10 +79,13 @@ export default function ProgramManagement() {
         setEditingProgram(null);
         fetchData();
       }
-    } catch (e) {} finally { setIsUpdating(false); }
+    } catch (e) {
+      console.error("Update Failure:", e);
+    } finally { setIsUpdating(false); }
   };
 
   const handleArchiveAction = async (id, isArchiving, e) => {
+    if (!id) return;
     e.stopPropagation();
     try {
       const res = await fetch('/api/pm/programs', {
@@ -95,10 +94,13 @@ export default function ProgramManagement() {
         body: JSON.stringify({ id, is_archived: isArchiving ? 1 : 0, action: 'archive' })
       });
       if ((await res.json()).success) fetchData();
-    } catch (e) {}
+    } catch (e) {
+      console.error("Archive Failure:", e);
+    }
   };
 
   const handlePermanentDelete = async (id, e) => {
+    if (!id) return;
     e.stopPropagation();
     if (!confirm("Permanent deletion protocol initialized. Are you sure?")) return;
     try {
@@ -108,19 +110,21 @@ export default function ProgramManagement() {
         body: JSON.stringify({ id })
       });
       if ((await res.json()).success) fetchData();
-    } catch (e) {}
+    } catch (e) {
+      console.error("Delete Failure:", e);
+    }
   };
 
   const handleEditFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file || !editingProgram) return;
 
     setIsUploading(true);
     try {
       const path = `curriculum/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
       const res = await uploadFile('knowledge', path, file);
       
-      if (res.success) {
+      if (res?.success) {
         const newMaterial = {
           name: file.name,
           url: res.url,
@@ -143,14 +147,13 @@ export default function ProgramManagement() {
   };
 
   const filtered = (programs || []).filter(p => 
-    p && p.name && p.name.toLowerCase().includes((search || "").toLowerCase())
+    p?.name && p.name.toLowerCase().includes((search || "").toLowerCase())
   );
 
   return (
     <DashboardLayout role="super_admin" activeTab="programs">
       <div className="space-y-10 pb-20 animate-in text-left">
         
-        {/* HEADER SECTION */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-10">
           <div className="space-y-4">
             <button 
@@ -184,7 +187,6 @@ export default function ProgramManagement() {
           </div>
         </header>
 
-        {/* CONTROLS & TABS */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex gap-2 p-1 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
             {[
@@ -213,7 +215,6 @@ export default function ProgramManagement() {
           </div>
         </div>
 
-        {/* DYNAMIC CONTENT */}
         {loading ? (
           <TableSkeleton rows={10} />
         ) : (
@@ -229,38 +230,38 @@ export default function ProgramManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(p => (
-                    <tr key={p.id} className="group cursor-pointer hover:bg-[var(--bg-secondary)]" onClick={() => router.push(`/admin/programs/${p.id}`)}>
+                  {filtered.map((p, idx) => (
+                    <tr key={p?.id || idx} className="group cursor-pointer hover:bg-[var(--bg-secondary)]" onClick={() => p?.id && router.push(`/admin/programs/${p.id}`)}>
                       <td>
                         <div className="flex items-center gap-4">
                            <div className="w-10 h-10 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
                               <Signal className="w-5 h-5" />
                            </div>
                            <div className="flex flex-col">
-                              <span className="text-base font-bold text-[var(--text-primary)] uppercase tracking-tight">{p.name}</span>
-                              <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5 line-clamp-1 max-w-xs">{p.description}</span>
+                              <span className="text-base font-bold text-[var(--text-primary)] uppercase tracking-tight">{p?.name || 'Unnamed Mission'}</span>
+                              <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5 line-clamp-1 max-w-xs">{p?.description || 'No directive provided.'}</span>
                            </div>
                         </div>
                       </td>
                       <td>
-                        <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest ${p.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-500'}`}>
-                           {p.status}
+                        <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest ${p?.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-500'}`}>
+                           {p?.status || 'Unknown'}
                         </span>
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
                            <User className="w-3 h-3 text-[var(--brand-orange)]" />
-                           <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">{p.pm_name || 'Unassigned'}</span>
+                           <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">{p?.pm_name || 'Unassigned'}</span>
                         </div>
                       </td>
                       <td>
                          <div className="flex items-center gap-3">
                             <div className="flex flex-col">
-                               <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">{p.participants_count || 0} Members</span>
-                               <span className="text-[9px] font-bold text-[var(--brand-orange)] uppercase mt-0.5">{Math.round(p.completion_index || 0)}% Progress</span>
+                               <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">{p?.participants_count || 0} Members</span>
+                               <span className="text-[9px] font-bold text-[var(--brand-orange)] uppercase mt-0.5">{Math.round(p?.completion_index || 0) || 0}% Progress</span>
                             </div>
                             <div className="w-16 h-1 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                               <div className="h-full bg-[var(--brand-orange)]" style={{ width: `${p.completion_index || 0}%` }} />
+                               <div className="h-full bg-[var(--brand-orange)]" style={{ width: `${p?.completion_index || 0}%` }} />
                             </div>
                          </div>
                       </td>
@@ -268,13 +269,13 @@ export default function ProgramManagement() {
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
                           {activeTab === 'archived' ? (
                             <>
-                              <button onClick={(e) => handleArchiveAction(p.id, false, e)} title="Restore" className="p-2 hover:text-emerald-500"><RotateCcw className="w-4 h-4" /></button>
-                              <button onClick={(e) => handlePermanentDelete(p.id, e)} title="Delete" className="p-2 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                              <button onClick={(e) => handleArchiveAction(p?.id, false, e)} title="Restore" className="p-2 hover:text-emerald-500"><RotateCcw className="w-4 h-4" /></button>
+                              <button onClick={(e) => handlePermanentDelete(p?.id, e)} title="Delete" className="p-2 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
                             </>
                           ) : (
                             <>
                               <button onClick={(e) => { e.stopPropagation(); setEditingProgram(p); }} title="Edit" className="p-2 hover:text-[var(--brand-orange)]"><Edit3 className="w-4 h-4" /></button>
-                              <button onClick={(e) => handleArchiveAction(p.id, true, e)} title="Archive" className="p-2 hover:text-orange-500"><Archive className="w-4 h-4" /></button>
+                              <button onClick={(e) => handleArchiveAction(p?.id, true, e)} title="Archive" className="p-2 hover:text-orange-500"><Archive className="w-4 h-4" /></button>
                             </>
                           )}
                         </div>
@@ -287,14 +288,13 @@ export default function ProgramManagement() {
         )}
       </div>
 
-      {/* MODALS SECTION */}
       {editingProgram && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md overflow-y-auto">
           <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left my-auto max-h-[85vh] overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] pb-4 z-10 border-b border-[var(--border-primary)]">
               <div>
                  <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight italic">Edit Program Registry</h3>
-                 <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">Operational ID: {editingProgram.id}</p>
+                 <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">Operational ID: {editingProgram?.id}</p>
               </div>
               <button onClick={() => setEditingProgram(null)} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg text-[var(--text-secondary)] transition-all">
                 <Plus className="w-5 h-5 rotate-45" />
@@ -305,7 +305,7 @@ export default function ProgramManagement() {
               <div className="space-y-2">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Program Name</label>
                  <input 
-                    value={editingProgram.name || ''} 
+                    value={editingProgram?.name || ''} 
                     onChange={e => setEditingProgram({...editingProgram, name: e.target.value})} 
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                  />
@@ -314,22 +314,23 @@ export default function ProgramManagement() {
               <div className="space-y-2">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">PROGRAM MANAGER</label>
                  <select 
-                    value={editingProgram.assigned_pm_id || ''} 
+                    value={editingProgram?.assigned_pm_id || ''} 
                     onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} 
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
                  >
                     <option value="">Unassigned</option>
-                    {teams.map(m => <option key={m.cid} value={m.cid}>{m.name.toUpperCase()}</option>)}
+                    {(teams || []).map(m => m && <option key={m.cid} value={m.cid}>{m.name?.toUpperCase()}</option>)}
                  </select>
               </div>
 
               <div className="space-y-3">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">ASSIGNED TEAM</label>
                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
-                    {teams.filter(t => t.cid !== editingProgram.assigned_pm_id).map(member => {
-                      const assistantIds = typeof editingProgram.assigned_assistant_id === 'string' 
+                    {(teams || []).filter(t => t && t.cid !== editingProgram?.assigned_pm_id).map(member => {
+                      if (!member) return null;
+                      const assistantIds = typeof editingProgram?.assigned_assistant_id === 'string' 
                         ? editingProgram.assigned_assistant_id.split(',').filter(Boolean) 
-                        : (Array.isArray(editingProgram.assigned_assistant_id) ? editingProgram.assigned_assistant_id : []);
+                        : (Array.isArray(editingProgram?.assigned_assistant_id) ? editingProgram.assigned_assistant_id : []);
                       
                       const isActive = assistantIds.includes(member.cid);
                       
@@ -353,9 +354,9 @@ export default function ProgramManagement() {
                           }`}
                         >
                           <div className={`w-6 h-6 rounded bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black ${isActive ? 'text-[var(--brand-orange)] border-[var(--brand-orange)]/30' : ''}`}>
-                             {member.name.charAt(0)}
+                             {member.name?.charAt(0) || '?'}
                           </div>
-                          <span className="text-[9px] font-black uppercase truncate italic">{member.name}</span>
+                          <span className="text-[9px] font-black uppercase truncate italic">{member.name || 'Unknown'}</span>
                         </button>
                       );
                     })}
@@ -366,20 +367,20 @@ export default function ProgramManagement() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Knowledge Base Note</label>
                   <select 
-                    value={editingProgram.note_id || ''} 
+                    value={editingProgram?.note_id || ''} 
                     onChange={e => setEditingProgram({...editingProgram, note_id: e.target.value})} 
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
                   >
                     <option value="">None Assigned</option>
-                    {knowledgeItems.map(item => <option key={item.id} value={item.id}>{item.title?.toUpperCase() || 'UNTITLED NODE'}</option>)}
+                    {(knowledgeItems || []).map(item => item && <option key={item.id} value={item.id}>{item.title?.toUpperCase() || 'UNTITLED NODE'}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Duration (Weeks)</label>
                   <input 
                     type="number"
-                    value={editingProgram.duration_weeks || 4} 
-                    onChange={e => setEditingProgram({...editingProgram, duration_weeks: parseInt(e.target.value)})} 
+                    value={editingProgram?.duration_weeks || 4} 
+                    onChange={e => setEditingProgram({...editingProgram, duration_weeks: parseInt(e.target.value) || 4})} 
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
@@ -389,18 +390,26 @@ export default function ProgramManagement() {
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Curriculum Materials (PDF)</label>
                   <div className="grid grid-cols-1 gap-2">
                     {(() => {
-                      const mats = Array.isArray(editingProgram.materials) ? editingProgram.materials : 
-                                  (typeof editingProgram.materials === 'string' ? JSON.parse(editingProgram.materials || '[]') : []);
+                      if (!editingProgram) return null;
+                      let mats = [];
+                      try {
+                        mats = Array.isArray(editingProgram.materials) ? editingProgram.materials : 
+                                    (typeof editingProgram.materials === 'string' ? JSON.parse(editingProgram.materials || '[]') : []);
+                      } catch (e) {
+                        console.error("Materials parse failure:", e);
+                        mats = [];
+                      }
                       
                       if (mats.length === 0) return <p className="text-[10px] italic opacity-40 ml-2">No program-specific PDFs uploaded.</p>;
                       
-                      return mats.map((f, i) => (
+                      return mats.map((f, i) => f && (
                         <div key={i} className="flex items-center justify-between p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl">
                           <div className="flex items-center gap-3">
                             <FileText className="w-4 h-4 text-blue-500" />
                             <span className="text-[10px] font-bold text-white uppercase truncate max-w-[200px]">{f.name || 'Untitled PDF'}</span>
                           </div>
                           <button 
+                            type="button"
                             onClick={() => {
                               const newMats = mats.filter((_, idx) => idx !== i);
                               setEditingProgram({ ...editingProgram, materials: newMats });
@@ -418,7 +427,7 @@ export default function ProgramManagement() {
                     <button 
                        type="button"
                        disabled={isUploading}
-                       onClick={() => document.getElementById('curriculum-upload').click()}
+                       onClick={() => document.getElementById('curriculum-upload')?.click()}
                        className="btn btn-secondary px-6 py-3 flex items-center gap-2 border-dashed"
                      >
                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
@@ -437,14 +446,15 @@ export default function ProgramManagement() {
               <div className="space-y-3">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">OPERATIONAL TEAMS</label>
                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
-                    {notes.map(s => {
-                      const isActive = (editingProgram.assigned_segments || []).includes(s.id);
+                    {(notes || []).map(s => {
+                      if (!s) return null;
+                      const isActive = (editingProgram?.assigned_segments || []).includes(s.id);
                       return (
                         <button
                           key={s.id}
                           type="button"
                           onClick={() => {
-                            const current = Array.isArray(editingProgram.assigned_segments) ? editingProgram.assigned_segments : [];
+                            const current = Array.isArray(editingProgram?.assigned_segments) ? editingProgram.assigned_segments : [];
                             const next = current.includes(s.id) ? current.filter(id => id !== s.id) : [...current, s.id];
                             setEditingProgram({...editingProgram, assigned_segments: next});
                           }}
@@ -455,7 +465,7 @@ export default function ProgramManagement() {
                           }`}
                         >
                           <Users className={`w-3.5 h-3.5 ${isActive ? 'text-[var(--brand-orange)]' : 'text-[var(--text-secondary)]'}`} />
-                          <span className="text-[9px] font-black uppercase truncate italic">{s.name}</span>
+                          <span className="text-[9px] font-black uppercase truncate italic">{s.name || 'Unnamed'}</span>
                         </button>
                       );
                     })}
@@ -466,7 +476,7 @@ export default function ProgramManagement() {
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Program Description</label>
                  <textarea 
                     rows={3}
-                    value={editingProgram.description || ''} 
+                    value={editingProgram?.description || ''} 
                     onChange={e => setEditingProgram({...editingProgram, description: e.target.value})} 
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
                  />
