@@ -8,6 +8,7 @@ export async function GET(req) {
     const url = new URL(req.url);
     const assignedPmId = url.searchParams.get('assigned_pm_id');
     const showArchived = url.searchParams.get('show_archived') === 'true';
+    const status = url.searchParams.get('status');
 
     let query = `
       SELECT p.*, 
@@ -36,6 +37,12 @@ export async function GET(req) {
     `;
     
     const args = [showArchived ? 1 : 0];
+
+    if (status) {
+       query += " AND p.status = ?";
+       args.push(status);
+    }
+
     if (assignedPmId) {
        query += " AND (p.assigned_pm_id = ? OR p.assigned_assistant_id LIKE ? OR p.id IN (SELECT program_id FROM v2_program_staff WHERE staff_id = ?))";
        args.push(assignedPmId, `%${assignedPmId}%`, assignedPmId);

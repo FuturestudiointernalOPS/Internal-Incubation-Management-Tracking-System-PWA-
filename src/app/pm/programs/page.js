@@ -30,7 +30,17 @@ export default function PMProgramsRegistry() {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const identifier = user.cid || user.id;
-      const res = await fetch(`/api/v2/pm/programs?assigned_pm_id=${identifier}&show_archived=${activeTab === 'archived'}`);
+      
+      let endpoint = `/api/v2/pm/programs?assigned_pm_id=${identifier}`;
+      if (activeTab === 'archived') {
+         endpoint += '&show_archived=true';
+      } else if (activeTab === 'completed') {
+         endpoint += '&status=completed&show_archived=false';
+      } else {
+         endpoint += '&status=active&show_archived=false';
+      }
+
+      const res = await fetch(endpoint);
       const data = await res.json();
       if (data.success) {
         setPrograms(data.programs || []);
@@ -98,18 +108,24 @@ export default function PMProgramsRegistry() {
           </div>
         </header>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 overflow-x-auto pb-2">
             <button 
                onClick={() => setTab('active')}
-               className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'active' ? 'bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+               className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === 'active' ? 'bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
             >
                Active Missions
             </button>
             <button 
-               onClick={() => setTab('archived')}
-               className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${activeTab === 'archived' ? 'bg-orange-500 text-white shadow-lg' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+               onClick={() => setTab('completed')}
+               className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === 'completed' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
             >
-               Archived Repository
+               Completed Programs
+            </button>
+            <button 
+               onClick={() => setTab('archived')}
+               className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === 'archived' ? 'bg-orange-500 text-white shadow-lg' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            >
+               Archived Programs
             </button>
         </div>
 
