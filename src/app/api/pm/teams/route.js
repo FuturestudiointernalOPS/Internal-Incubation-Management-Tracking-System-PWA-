@@ -90,7 +90,7 @@ export async function POST(req) {
     return NextResponse.json({ success: true, team });
   } catch (error) {
     console.error("Team Creation Error:", error);
-    return NextResponse.json({ success: false, error: "System Security Exception" }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 

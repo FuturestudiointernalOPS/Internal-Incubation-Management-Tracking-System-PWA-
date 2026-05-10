@@ -111,7 +111,7 @@ export default function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) { 
-        notify('Squad deployed.'); 
+        notify('Student Group initialized.'); 
         setShowTeamModal(false); 
         setNewTeam({ name: '', handler_name: '' }); 
         fetchProgramData(true); 
@@ -455,9 +455,9 @@ export default function ProgramWorkspace() {
                   <span className="text-2xl font-bold">{teams.length}</span>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">Deployed Squads</p>
+                  <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">Active Student Groups</p>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">Active Operations</p>
-                  <p className="text-[9px] text-slate-500/60 font-medium mt-2 leading-relaxed">Total number of squads currently executing the curriculum. High squad counts require increased personnel oversight and tactical health monitoring.</p>
+                  <p className="text-[9px] text-slate-500/60 font-medium mt-2 leading-relaxed">Total number of student groups currently executing the curriculum. High group counts require increased personnel oversight and tactical health monitoring.</p>
                 </div>
               </div>
             </div>
@@ -517,13 +517,13 @@ export default function ProgramWorkspace() {
                    <div className="space-y-1">
                       <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
                         <Target className="w-5 h-5 text-[var(--brand-orange)]" />
-                        Operational Squads
+                        Student Groups
                       </h3>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Deployed student groupings for curriculum execution</p>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Organized student cohorts assigned for curriculum execution and graduation readiness</p>
                    </div>
                    {(user.role === 'super_admin' || user.role === 'program_manager') && (
                       <button onClick={() => setShowTeamModal(true)} className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline">
-                        + Deploy New Squad
+                        + Initialize Student Group
                       </button>
                    )}
                 </div>
@@ -552,7 +552,7 @@ export default function ProgramWorkspace() {
                   {teams.length === 0 && (
                     <button onClick={() => setShowTeamModal(true)} className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-40 hover:opacity-100 transition-all min-h-[160px] col-span-full py-8">
                        <Plus className="w-8 h-8 text-[var(--text-secondary)]" />
-                       <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">No squads deployed yet. Click to initialize.</span>
+                       <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">No student groups initialized yet. Click to start deployment.</span>
                     </button>
                   )}
                 </div>
@@ -1210,18 +1210,21 @@ export default function ProgramWorkspace() {
         <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowTeamModal(false)}>
           <div className="card w-full max-w-sm space-y-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Deploy New Squad</h3>
+              <div className="space-y-1">
+                <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Initialize Student Group</h3>
+                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Create a collaborative cohort for targeted curriculum execution.</p>
+              </div>
               <button onClick={() => setShowTeamModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Squad Name</label>
-                <input value={newTeam.name} onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Alpha Squad" />
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Group Name</label>
+                <input value={newTeam.name} onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Group Alpha" />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assigned Handler</label>
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assigned Handler (Assigned Team Member)</label>
                 <select value={newTeam.handler_name} onChange={e => setNewTeam(p => ({...p, handler_name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
-                   <option value="">Select Staff...</option>
+                   <option value="">Select Member...</option>
                    {assignedStaff.map(s => (
                      <option key={s.cid} value={s.name}>{s.name} ({s.role})</option>
                    ))}
@@ -1230,7 +1233,7 @@ export default function ProgramWorkspace() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowTeamModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
-              <button onClick={deployTeam} disabled={isSaving || !newTeam.name.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Deploying...' : 'Deploy'}</button>
+              <button onClick={deployTeam} disabled={isSaving || !newTeam.name.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Initializing...' : 'Initialize Group'}</button>
             </div>
           </div>
         </div>
