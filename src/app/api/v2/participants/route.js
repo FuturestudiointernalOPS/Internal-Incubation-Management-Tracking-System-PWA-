@@ -92,16 +92,17 @@ export async function GET(req) {
       
       UNION
       
-      -- Name-Based Fallback: Matches contacts whose group_name matches the program name
-      SELECT CAST(c.cid AS TEXT) as id, p.id as program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'fallback' as source
-      FROM contacts c
-      CROSS JOIN v2_programs p
-      WHERE p.id = ? AND UPPER(TRIM(c.group_name)) = UPPER(TRIM(p.name))
+      -- Ultimate Link-Fallback: Matches any contact whose group name is assigned to this program
+      SELECT CAST(cid AS TEXT) as id, ? as program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'link-fallback' as source
+      FROM contacts
+      WHERE UPPER(TRIM(group_name)) IN (
+        SELECT UPPER(TRIM(name)) FROM families WHERE program_id = ?
+      )
       
       ORDER BY created_at DESC
     `;
     
-    let args = [program_id, program_id, program_id, program_id];
+    let args = [program_id, program_id, program_id, program_id, program_id];
     
     if (!program_id) {
        sql = "SELECT *, 'manual' as source FROM v2_participants ORDER BY created_at DESC";
