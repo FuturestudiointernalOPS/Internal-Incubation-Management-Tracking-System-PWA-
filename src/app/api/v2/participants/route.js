@@ -80,7 +80,7 @@ export async function GET(req) {
       SELECT c.cid as id, f.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'group' as source
       FROM contacts c
       JOIN families f ON UPPER(c.group_name) = UPPER(f.name)
-      WHERE f.program_id = ? AND c.role = 'participant'
+      WHERE f.program_id = ?
       
       ORDER BY created_at DESC
     `;
