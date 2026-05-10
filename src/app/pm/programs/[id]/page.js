@@ -6,7 +6,7 @@ import {
   Users, Briefcase, Activity, CheckCircle2, ChevronRight, 
   ExternalLink, FileText, Mail, MessageCircle, MoreVertical, 
   Plus, Search, Shield, Target, Zap, Clock, AlertCircle, Trash2, LayoutDashboard, X, Save, BarChart3,
-  User, Paperclip, BookOpen, CheckSquare, Square, UserPlus
+  User, Paperclip, BookOpen, CheckSquare, Square, UserPlus, Calendar
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
@@ -56,7 +56,7 @@ export default function ProgramWorkspace() {
   const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending' });
   const [newRequirement, setNewRequirement] = useState({ title: '', description: '', allowed_format: 'pdf' });
   const [newPMReport, setNewPMReport] = useState({ summary: '', status: 'optimal' });
-  const [newStaff, setNewStaff] = useState({ staff_id: '', role: 'teacher' });
+  const [newStaff, setNewStaff] = useState({ staff_id: '', role: 'staff' });
   const [newKPI, setNewKPI] = useState({ title: '', target_value: 80 });
   const [toast, setToast] = useState(null);
   
@@ -179,14 +179,29 @@ export default function ProgramWorkspace() {
   };
 
   const updateSessionStatus = async (sessionId, status) => {
+    // Optimistic Update
+    const previousSessions = [...sessions];
+    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status } : s));
+
     try {
       const res = await fetch('/api/pm/curriculum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'toggle_status', program_id: id, id: sessionId, status })
       });
-      if ((await res.json()).success) { notify(`Status updated to ${status.toUpperCase()}`); fetchProgramData(true); }
-    } catch (e) { notify('Status update failed.', 'error'); }
+      const data = await res.json();
+      if (data.success) { 
+        notify(`Status updated to ${status.toUpperCase()}`); 
+        // Sync with server just in case
+        fetchProgramData(true); 
+      } else {
+        setSessions(previousSessions);
+        notify('Status update failed.', 'error');
+      }
+    } catch (e) { 
+      setSessions(previousSessions);
+      notify('Status update failed.', 'error'); 
+    }
   };
 
   const updateSessionField = async (sessionId, field, value, handlerName = null) => {
@@ -263,7 +278,7 @@ export default function ProgramWorkspace() {
         body: JSON.stringify({ ...newStaff, program_id: id })
       });
       const data = await res.json();
-      if (data.success) { notify('Personnel assigned.'); setShowStaffModal(false); setNewStaff({ staff_id: '', role: 'teacher' }); fetchProgramData(true); }
+      if (data.success) { notify('Personnel assigned.'); setShowStaffModal(false); setNewStaff({ staff_id: '', role: 'staff' }); fetchProgramData(true); }
       else notify(data.error || 'Assignment failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -833,7 +848,9 @@ export default function ProgramWorkspace() {
 
                                 <div className="grid grid-cols-2 gap-3">
                                    <div className="space-y-1">
-                                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">Start Date</label>
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
+                                         <Calendar className="w-2.5 h-2.5 text-white" /> Start Date
+                                      </label>
                                       <input 
                                         type="date" 
                                         value={session.scheduled_date ? new Date(session.scheduled_date).toISOString().split('T')[0] : ''} 
@@ -842,7 +859,9 @@ export default function ProgramWorkspace() {
                                       />
                                    </div>
                                    <div className="space-y-1">
-                                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">Finish Date</label>
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
+                                         <Calendar className="w-2.5 h-2.5 text-white" /> Finish Date
+                                      </label>
                                       <input 
                                         type="date" 
                                         value={session.end_date ? new Date(session.end_date).toISOString().split('T')[0] : ''} 
@@ -1118,7 +1137,9 @@ export default function ProgramWorkspace() {
 
                      <div className="grid grid-cols-2 gap-4">
                        <div className="space-y-1">
-                         <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Project Start Date</label>
+                         <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2">
+                           <Calendar className="w-3 h-3" /> Project Start Date
+                         </label>
                          <input 
                            ref={configStartRef} 
                            type="date" 
@@ -1127,7 +1148,9 @@ export default function ProgramWorkspace() {
                          />
                        </div>
                        <div className="space-y-1">
-                         <label className="text-[10px] font-black uppercase tracking-widest text-rose-500">Project Finish Date</label>
+                         <label className="text-[10px] font-black uppercase tracking-widest text-rose-500 flex items-center gap-2">
+                           <Calendar className="w-3 h-3" /> Project Finish Date
+                         </label>
                          <input 
                            ref={configEndRef} 
                            type="date" 
@@ -1197,10 +1220,10 @@ export default function ProgramWorkspace() {
                     <div className="p-4 bg-[var(--bg-tertiary)] flex justify-between items-center border-b border-[var(--border-primary)]">
                        <div className="flex items-center gap-4">
                           <div className="px-3 py-1 bg-[var(--brand-orange)] text-white text-[10px] font-black rounded uppercase">
-                             Week {report.week_number}
+                             Wk{report.week_number}
                           </div>
                           <span className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                             Submission by {report.teacher_name || 'Team Member'}
+                             Submission by {report.staff_name || report.teacher_name || 'Staff Member'}
                           </span>
                        </div>
                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">
@@ -1338,7 +1361,7 @@ export default function ProgramWorkspace() {
             <div className="flex justify-between items-center">
               <div className="space-y-1">
                 <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Initialize Student Group</h3>
-                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Create a collaborative cohort for targeted curriculum execution.</p>
+                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Create a collaborative cohort of students for targeted curriculum execution.</p>
               </div>
               <button onClick={() => setShowTeamModal(false)}><X className="w-5 h-5" /></button>
             </div>
@@ -1359,14 +1382,14 @@ export default function ProgramWorkspace() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Oversight (Staff Member)</label>
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Oversight (Staff Member / Teacher)</label>
                 <select value={newTeam.staff_id} onChange={e => {
                   const staff = assignedStaff.find(s => String(s.cid) === e.target.value);
                   setNewTeam(p => ({...p, staff_id: e.target.value, handler_name: staff?.name || ''}));
                 }} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
                    <option value="">No Staff Assigned (Optional)</option>
                    {assignedStaff.map(s => (
-                     <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
+                     <option key={s.cid} value={s.cid}>{s.name} ({s.role === 'teacher' ? 'Staff' : s.role})</option>
                    ))}
                 </select>
               </div>
