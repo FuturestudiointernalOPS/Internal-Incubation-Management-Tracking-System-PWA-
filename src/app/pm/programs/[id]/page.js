@@ -546,10 +546,11 @@ export default function ProgramWorkspace() {
                                <select 
                                  value={session.status} 
                                  onChange={(e) => updateSessionStatus(session.id, e.target.value)}
-                                 className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border outline-none transition-all ${
+                                 className={`text-[9px] font-black uppercase px-2 py-1 rounded border outline-none transition-all cursor-pointer ${
                                     session.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
-                                    session.status === 'in progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/30' :
-                                    'bg-orange-500/10 text-orange-500 border-orange-500/30'
+                                    session.status === 'in progress' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30' :
+                                    session.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
+                                    'bg-slate-500/10 text-slate-500 border-slate-500/30'
                                  }`}
                                >
                                   <option value="pending">PENDING</option>
@@ -566,31 +567,31 @@ export default function ProgramWorkspace() {
                               <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Start Date</label>
                               <input 
                                 type="date" 
-                                defaultValue={session.scheduled_date ? new Date(session.scheduled_date).toISOString().split('T')[0] : ''} 
+                                value={session.scheduled_date ? new Date(session.scheduled_date).toISOString().split('T')[0] : ''} 
                                 onChange={(e) => updateSessionField(session.id, 'scheduled_date', e.target.value)}
-                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]" 
+                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" 
                               />
                            </div>
                            <div className="space-y-1">
                               <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Finish Date</label>
                               <input 
                                 type="date" 
-                                defaultValue={session.end_date ? new Date(session.end_date).toISOString().split('T')[0] : ''} 
+                                value={session.end_date ? new Date(session.end_date).toISOString().split('T')[0] : ''} 
                                 onChange={(e) => updateSessionField(session.id, 'end_date', e.target.value)}
-                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]" 
+                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" 
                               />
                            </div>
                            <div className="space-y-1 col-span-2">
-                              <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Lead Personnel</label>
+                              <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Assign Team Member</label>
                               <select 
                                 value={session.handler_id || ''} 
                                 onChange={(e) => {
                                    const staff = assignedStaff.find(s => String(s.cid) === e.target.value);
                                    updateSessionField(session.id, 'handler_id', e.target.value, staff?.name);
                                 }}
-                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
                               >
-                                 <option value="">Select Lead...</option>
+                                 <option value="">Select Member...</option>
                                  {assignedStaff.map(s => (
                                     <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
                                  ))}
