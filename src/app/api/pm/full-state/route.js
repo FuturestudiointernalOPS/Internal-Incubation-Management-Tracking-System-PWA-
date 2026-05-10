@@ -25,7 +25,7 @@ export async function GET(req) {
                       FROM v2_sessions s WHERE s.program_id = p.id
                      ) as completion_index
               FROM v2_programs p 
-              LEFT JOIN v2_knowledge_bank k ON p.note_id = CAST(k.id AS TEXT) 
+              LEFT JOIN v2_knowledge_bank k ON CAST(p.note_id AS TEXT) = CAST(k.id AS TEXT) 
               LEFT JOIN contacts c ON p.assigned_pm_id = c.cid
               WHERE p.id = ?`, 
         args: [id] 
@@ -57,8 +57,8 @@ export async function GET(req) {
         // Fetch new Multi-PDF attachments for the linked Knowledge Note with explicit ID casting
         if (program.note_id) {
            const kbAttachmentsRes = await db.execute({
-             sql: "SELECT name, url FROM v2_knowledge_attachments WHERE CAST(note_id AS TEXT) = ?",
-             args: [String(program.note_id)]
+             sql: "SELECT name, url FROM v2_knowledge_attachments WHERE CAST(note_id AS TEXT) = CAST(? AS TEXT)",
+             args: [program.note_id]
            });
            program.knowledge_assets = kbAttachmentsRes.rows;
         } else {
