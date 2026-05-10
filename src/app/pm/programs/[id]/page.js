@@ -613,7 +613,7 @@ export default function ProgramWorkspace() {
                       </div>
                       <h3 className="text-xl font-bold mb-2">{team.name}</h3>
                       <div className="space-y-1 mb-6">
-                        <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Handler / Staff</p>
+                        <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Assigned Staff</p>
                         <p className="text-xs text-[var(--text-primary)] font-black uppercase tracking-tight">{team.handler_name || 'Unassigned'}</p>
                       </div>
                       <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
@@ -703,7 +703,7 @@ export default function ProgramWorkspace() {
                         )}
                       </div>
                       <h3 className="text-xl font-bold mb-2">{team.name}</h3>
-                      <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider font-bold mb-6">Handler: {team.handler_name || 'Unassigned'}</p>
+                      <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider font-bold mb-6">Assigned Staff: {team.handler_name || 'Unassigned'}</p>
                       <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
                         <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Healthy</span>
                         <button className="text-[var(--brand-blue)] text-xs font-bold uppercase flex items-center gap-1">
@@ -829,7 +829,7 @@ export default function ProgramWorkspace() {
                              
                              <div className="space-y-4 p-5 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)] shadow-sm">
                                 <div className="space-y-1">
-                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">Assign Team Member</label>
+                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">Assign Staff Member</label>
                                    <select 
                                      value={session.handler_id || ''} 
                                      onChange={(e) => {
