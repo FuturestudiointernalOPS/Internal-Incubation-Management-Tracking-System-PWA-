@@ -56,7 +56,7 @@ export default function ProgramManagement() {
         setTeams(managers);
       }
       if (segmentData.success) setNotes(segmentData.families || []);
-      if (kbData.success) setKnowledgeItems(kbData.knowledgeItems || kbData.notes || []);
+      if (kbData.success) setKnowledgeItems(kbData.conceptNotes || kbData.knowledgeItems || kbData.notes || []);
       
     } catch (e) {
       console.error("Sync Failure:", e);
