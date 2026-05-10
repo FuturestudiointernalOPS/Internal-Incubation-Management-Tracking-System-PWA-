@@ -39,7 +39,11 @@ export async function GET(req) {
     const args = [showArchived ? 1 : 0];
 
     if (status) {
-       query += " AND p.status = ?";
+       if (status.toLowerCase() === 'active') {
+          query += " AND (p.status ILIKE ? OR p.status IS NULL)";
+       } else {
+          query += " AND p.status ILIKE ?";
+       }
        args.push(status);
     }
 

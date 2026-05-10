@@ -33,9 +33,10 @@ export default function ProgramManagement() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    const statusParam = activeTab === 'archived' ? 'archived' : (activeTab === 'completed' ? 'completed' : 'active');
     try {
       const [progRes, managerRes, segmentRes, kbRes] = await Promise.all([
-        fetch(`/api/pm/programs?show_archived=${activeTab === 'archived'}`),
+        fetch(`/api/pm/programs?status=${statusParam}`),
         fetch('/api/contacts/full-state'),
         fetch('/api/families'),
         fetch('/api/v2/knowledge-bank')
@@ -152,8 +153,8 @@ export default function ProgramManagement() {
           <div className="flex gap-2 p-1 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
             {[
               { id: 'active', label: 'Active Programs' },
-              { id: 'archived', label: 'Archived' },
-              { id: 'cohorts', label: 'Teams' }
+              { id: 'completed', label: 'Completed Programs' },
+              { id: 'archived', label: 'Archived' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -181,8 +182,7 @@ export default function ProgramManagement() {
           <TableSkeleton rows={10} />
         ) : (
           <div className="table-container">
-            {activeTab === 'active' || activeTab === 'archived' ? (
-              <table className="data-table">
+            <table className="data-table">
                 <thead>
                   <tr>
                     <th>Program Details</th>
@@ -245,48 +245,7 @@ export default function ProgramManagement() {
                       </td>
                     </tr>
                   ))}
-                </tbody>
               </table>
-            ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Personnel</th>
-                    <th>Operational Role</th>
-                    <th>Communication</th>
-                    <th className="text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teams.map(t => (
-                    <tr key={t.cid}>
-                      <td>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-[var(--bg-secondary)] flex items-center justify-center text-indigo-400">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <span className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-tight">{t.name}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">{t.role || 'Staff Member'}</span>
-                      </td>
-                      <td>
-                        <div className="flex items-center gap-2 text-slate-500">
-                          <Mail className="w-3 h-3" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest truncate max-w-xs">{t.email}</span>
-                        </div>
-                      </td>
-                      <td className="text-right">
-                        <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest ${t.status === 'active' || t.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                           {t.status?.toUpperCase() || 'PENDING'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
           </div>
         )}
       </div>
