@@ -24,6 +24,7 @@ export async function POST(req) {
       // Mapping for Public Application Form
       const rawName = c.name || c.fullName || 'Unknown Applicant';
       const rawEmail = (c.email || '').toLowerCase().trim();
+      const rawPassword = (c.password || '').trim();
       
       if (!rawEmail) {
         errors.push({ name: rawName, error: 'Email is required' });
@@ -33,7 +34,7 @@ export async function POST(req) {
       const cid = "USER_" + uuidv4().split('-')[0].toUpperCase() + Math.floor(Math.random() * 10000);
 
       // Credential Provisioning
-      let finalPassword = c.password;
+      let finalPassword = rawPassword;
       if (!finalPassword) {
          const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
          const prefix = c.role === 'staff' ? 'FSS' : (c.role === 'participant' ? 'FSP' : 'FS');
@@ -147,15 +148,21 @@ export async function PUT(req) {
 
     for (const col of updatableColumns) {
        if (data[col] !== undefined) {
-          if (col === 'password' && data[col] === '') continue;
+          let val = data[col];
+          if (typeof val === 'string') val = val.trim();
+          
+          if (col === 'password' && val === '') continue;
           
           if (col === 'password') {
-             const hashedPassword = await bcrypt.hash(data[col], 10);
+             const hashedPassword = await bcrypt.hash(val, 10);
              fieldsToUpdate.push(`${col} = ?`);
              args.push(hashedPassword);
+          } else if (col === 'email') {
+             fieldsToUpdate.push(`${col} = ?`);
+             args.push(val.toLowerCase());
           } else {
              fieldsToUpdate.push(`${col} = ?`);
-             args.push(col === 'deleted' ? (data[col] ? 1 : 0) : data[col]);
+             args.push(col === 'deleted' ? (val ? 1 : 0) : val);
           }
        }
     }

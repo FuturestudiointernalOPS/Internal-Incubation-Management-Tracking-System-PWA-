@@ -12,6 +12,7 @@ export async function POST(req) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
     
     // Search Database for User
     const result = await db.execute({
@@ -70,9 +71,9 @@ export async function POST(req) {
       let isMatch = false;
 
       if (isHashed) {
-        isMatch = await bcrypt.compare(password, user.password);
+        isMatch = await bcrypt.compare(cleanPassword, user.password);
       } else {
-        isMatch = (password === user.password);
+        isMatch = (cleanPassword === user.password);
       }
 
       if (!isMatch) {
