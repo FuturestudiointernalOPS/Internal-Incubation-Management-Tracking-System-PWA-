@@ -299,6 +299,61 @@ export default function AdminDashboard() {
                 <span className="text-xs font-bold uppercase tracking-tight">Knowledge Bank</span>
                 <Target className="w-4 h-4 text-blue-500" />
               </button>
+
+              <div className="pt-4 mt-4 border-t border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] mb-3 ml-1">Temporary Access</p>
+                <button 
+                   onClick={async () => {
+                      try {
+                         const progRes = await fetch('/api/v2/pm/programs');
+                         const progData = await progRes.json();
+                         const program_id = progData.programs?.[0]?.id || 'SYSTEM-GENERIC';
+
+                         const res = await fetch('/api/v2/invites', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                               program_id,
+                               group_name: 'Future Studio',
+                               role: 'staff',
+                               expiresInHours: 1,
+                               created_by: 'super_admin'
+                            })
+                         });
+                         const data = await res.json();
+                         if (data.inviteUrl) {
+                            navigator.clipboard.writeText(data.inviteUrl);
+                            window.dispatchEvent(new CustomEvent('impactos:notify', { 
+                               detail: { type: 'success', message: 'Future Studio Invite copied (Expires in 1hr)' } 
+                            }));
+                         }
+                      } catch (e) {
+                         console.error(e);
+                      }
+                   }}
+                   className="w-full flex items-center justify-between p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-all group"
+                >
+                   <div className="flex items-center gap-3">
+                      <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
+                      <span className="text-xs font-black text-[var(--brand-orange)] uppercase tracking-tighter">Future Studio Link</span>
+                   </div>
+                   <Plus className="w-4 h-4 text-orange-500/50 group-hover:text-orange-500" />
+                </button>
+              </div>
+            </div>
+
+            <div className="card bg-[var(--bg-secondary)] border-[var(--border-primary)]">
+               <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-6">System Status</h4>
+               <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                     <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Supabase Database Engine</span>
+                     <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">ONLINE</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                     <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">V2 Core Systems</span>
+                     <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">ACTIVE</span>
+                  </div>
+               </div>
             </div>
           </div>
 
