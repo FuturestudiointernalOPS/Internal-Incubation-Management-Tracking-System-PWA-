@@ -79,13 +79,19 @@ export async function GET(req) {
       
       SELECT CAST(c.cid AS TEXT) as id, f.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'group' as source
       FROM contacts c
-      JOIN families f ON UPPER(c.group_name) = UPPER(f.name)
+      JOIN families f ON UPPER(TRIM(c.group_name)) = UPPER(TRIM(f.name))
       WHERE f.program_id = ?
+      
+      UNION
+      
+      SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'direct' as source
+      FROM contacts
+      WHERE program_id = ?
       
       ORDER BY created_at DESC
     `;
     
-    let args = [program_id, program_id];
+    let args = [program_id, program_id, program_id];
     
     if (!program_id) {
        sql = "SELECT *, 'manual' as source FROM v2_participants ORDER BY created_at DESC";
