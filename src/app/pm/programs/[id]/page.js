@@ -137,7 +137,7 @@ export default function ProgramWorkspace() {
     finally { setIsSaving(false); }
   };
 
-  const addRequirement = async () => {
+  const addRequirement = async (shouldClose = true) => {
     if (!newRequirement.title.trim()) return;
     setIsSaving(true);
     try {
@@ -156,7 +156,9 @@ export default function ProgramWorkspace() {
       const data = await res.json();
       if (data.success) { 
         notify('Requirement anchored.'); 
-        setShowRequirementModal(false); 
+        if (shouldClose) {
+          setShowRequirementModal(false); 
+        }
         setNewRequirement({ title: '', description: '', allowed_format: 'pdf' }); 
         fetchProgramData(true); 
       } else notify(data.error || 'Failed.', 'error');
@@ -1152,7 +1154,14 @@ export default function ProgramWorkspace() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowRequirementModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
-              <button onClick={addRequirement} disabled={isSaving || !newRequirement.title.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Anchoring...' : 'Anchor'}</button>
+              <div className="flex-1 flex flex-col gap-2">
+                 <button onClick={() => addRequirement(false)} disabled={isSaving || !newRequirement.title.trim()} className="w-full btn btn-secondary text-[9px] py-2 border-dashed">
+                   {isSaving ? 'Saving...' : 'Save & Add Another'}
+                 </button>
+                 <button onClick={() => addRequirement(true)} disabled={isSaving || !newRequirement.title.trim()} className="w-full btn btn-primary py-3">
+                   {isSaving ? 'Anchoring...' : 'Anchor & Close'}
+                 </button>
+              </div>
             </div>
           </div>
         </div>
