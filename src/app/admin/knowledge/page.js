@@ -128,13 +128,33 @@ export default function KnowledgeBank() {
     if (!editingNote.title) return;
     setIsSaving(true);
     try {
+      // 1. Upload newly staged files if any
+      const newlyUploaded = [];
+      if (editingNote.stagedFiles?.length > 0) {
+        for (const file of editingNote.stagedFiles) {
+          const path = `knowledge/${Date.now()}_${file.name}`;
+          const result = await uploadFile('knowledge', path, file);
+          if (result.success) {
+            newlyUploaded.push({ name: file.name, url: result.url });
+          }
+        }
+      }
+
+      // 2. Commit text and file updates
       const res = await fetch('/api/knowledge', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'edit', id: editingNote.id, title: editingNote.title, description: editingNote.description })
+        body: JSON.stringify({ 
+          action: 'edit', 
+          id: editingNote.id, 
+          title: editingNote.title, 
+          description: editingNote.description,
+          files: newlyUploaded 
+        })
       });
+      
       if (res.ok) {
-        notify('success', 'Node updated successfully.');
+        notify('success', 'Node and assets updated successfully.');
         setEditingNote(null);
         fetchNotes();
       }
@@ -241,7 +261,9 @@ export default function KnowledgeBank() {
                          </div>
                       </div>
                       <div className="flex gap-2">
-                         <button onClick={() => setEditingNote(viewingNote)} className="p-2 hover:text-[var(--brand-orange)] transition-colors"><Edit3 className="w-5 h-5" /></button>
+                         <button onClick={() => {
+                            setEditingNote({ ...viewingNote, stagedFiles: [] });
+                         }} className="p-2 hover:text-[var(--brand-orange)] transition-colors"><Edit3 className="w-5 h-5" /></button>
                          <button onClick={() => handleArchiveToggle(viewingNote.id, viewingNote.is_archived)} className="p-2 hover:text-orange-500 transition-colors">{viewingNote.is_archived ? <RotateCcw className="w-5 h-5" /> : <Archive className="w-5 h-5" />}</button>
                          <button onClick={() => handleDeleteNote(viewingNote.id)} className="p-2 hover:text-rose-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
                          <div className="w-px h-6 bg-[var(--border-primary)] mx-2 self-center" />
@@ -331,28 +353,86 @@ export default function KnowledgeBank() {
         </div>
       )}
 
-      {/* EDIT MODAL */}
-      {editingNote && (
+      {/* EDIT MODAL */}      {editingNote && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left">
+          <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">Edit Knowledge Node</h3>
+                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight italic">Edit Intelligence Node</h3>
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">Operational ID: {editingNote.id}</p>
               </div>
-              <button onClick={() => setEditingNote(null)} className="p-2 hover:bg-[var(--bg-primary)] rounded-lg"><X className="w-6 h-6" /></button>
+              <button onClick={() => setEditingNote(null)} className="p-2 hover:bg-[var(--bg-primary)] rounded-lg text-slate-500"><X className="w-6 h-6" /></button>
             </div>
             
             <div className="space-y-6">
-              <input value={editingNote.title} onChange={e => setEditingNote({...editingNote, title: e.target.value})} placeholder="Node Title" className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
-              <textarea value={editingNote.description} onChange={e => setEditingNote({...editingNote, description: e.target.value})} placeholder="Strategic Description..." rows={3} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">Mission Title</label>
+                <input value={editingNote.title} onChange={e => setEditingNote({...editingNote, title: e.target.value})} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">Strategic Description</label>
+                <textarea value={editingNote.description} onChange={e => setEditingNote({...editingNote, description: e.target.value})} rows={3} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
+              </div>
 
-              <button onClick={handleUpdateNote} disabled={isSaving || !editingNote.title} className="btn btn-primary w-full py-5 uppercase font-bold tracking-[0.2em]">
-                {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Changes'}
+              {/* EXISTING FILES */}
+              {editingNote.files?.length > 0 && (
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 ml-2">Existing Resources</label>
+                   <div className="space-y-2">
+                      {editingNote.files.map(f => (
+                        <div key={f.id} className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <FileCheck className="w-4 h-4 text-emerald-500" />
+                            <span className="text-[10px] font-bold text-white uppercase truncate max-w-[250px]">{f.name}</span>
+                          </div>
+                          <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded">Active</span>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              )}
+
+              {/* NEW ASSET STAGING */}
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] ml-2">Stage New Resources ({editingNote.stagedFiles?.length || 0})</label>
+                <div className="grid grid-cols-1 gap-3">
+                  {(editingNote.stagedFiles || []).map((f, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <Upload className="w-4 h-4 text-[var(--brand-orange)]" />
+                        <span className="text-[10px] font-bold text-white uppercase truncate max-w-[250px]">{f.name}</span>
+                      </div>
+                      <button onClick={() => setEditingNote(n => ({ ...n, stagedFiles: n.stagedFiles.filter((_, idx) => idx !== i) }))} className="text-rose-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                  <label className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-[var(--border-primary)] rounded-2xl cursor-pointer hover:border-[var(--brand-orange)] transition-all">
+                    <input 
+                      type="file" 
+                      accept=".pdf" 
+                      multiple 
+                      className="hidden" 
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files).filter(f => f.type === 'application/pdf');
+                        setEditingNote(prev => ({ ...prev, stagedFiles: [...(prev.stagedFiles || []), ...files] }));
+                        e.target.value = '';
+                      }} 
+                      disabled={isSaving} 
+                    />
+                    <Paperclip className="w-6 h-6 mb-2 text-[var(--brand-orange)]" />
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Attach PDF Resources</span>
+                  </label>
+                </div>
+              </div>
+
+              <button onClick={handleUpdateNote} disabled={isSaving || !editingNote.title} className="btn btn-primary w-full py-5 uppercase font-bold tracking-[0.2em] italic shadow-xl shadow-orange-500/20">
+                {isSaving ? <div className="flex items-center justify-center gap-3"><Loader2 className="w-5 h-5 animate-spin" /> <span>Syncing Intelligence Node...</span></div> : 'Update Intelligence Node'}
               </button>
             </div>
           </div>
         </div>
       )}
+
 
     </DashboardLayout>
   );

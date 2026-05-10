@@ -100,11 +100,22 @@ export async function PATCH(req) {
     }
 
     if (action === 'edit') {
-      const { title, description } = body;
+      const { title, description, files } = body;
       await db.execute({
         sql: "UPDATE v2_knowledge_bank SET title = ?, description = ? WHERE id = ?",
         args: [title, description, id]
       });
+
+      // Insert new File Associations if present
+      if (files && Array.isArray(files) && files.length > 0) {
+        for (const file of files) {
+          await db.execute({
+            sql: "INSERT INTO v2_knowledge_attachments (note_id, name, url) VALUES (?, ?, ?)",
+            args: [id, file.name, file.url]
+          });
+        }
+      }
+
       return NextResponse.json({ success: true });
     }
 
