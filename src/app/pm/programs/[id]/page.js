@@ -1121,7 +1121,12 @@ export default function ProgramWorkspace() {
                 <tbody>
                   {submissions.map(sub => (
                     <tr key={sub.id}>
-                      <td>{sub.participant_name || 'N/A'}</td>
+                      <td>
+                        <div className="flex flex-col">
+                           <span className="font-black text-[var(--text-primary)]">{sub.participant_name || 'N/A'}</span>
+                           <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">{sub.group_name || 'Individual'}</span>
+                        </div>
+                      </td>
                       <td>{sub.deliverable_title}</td>
                       <td className="text-[10px] opacity-60 font-bold">{new Date(sub.created_at).toLocaleDateString()}</td>
                       <td>
