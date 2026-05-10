@@ -86,7 +86,7 @@ export default function ProgramWorkspace() {
         })
       });
       const data = await res.json();
-      if (data.success) { notify('Configuration saved.'); fetchProgramData(); }
+      if (data.success) { notify('Configuration saved.'); fetchProgramData(true); }
       else notify(data.error || 'Save failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -106,7 +106,7 @@ export default function ProgramWorkspace() {
         notify('Squad deployed.'); 
         setShowTeamModal(false); 
         setNewTeam({ name: '', handler_name: '' }); 
-        fetchProgramData(); 
+        fetchProgramData(true); 
       }
       else notify(data.error || 'Deploy failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
@@ -129,7 +129,7 @@ export default function ProgramWorkspace() {
         })
       });
       const data = await res.json();
-      if (data.success) { notify('Session added.'); setShowSessionModal(false); setNewSession({ title: '', week_number: 1, status: 'pending' }); fetchProgramData(); }
+      if (data.success) { notify('Session added.'); setShowSessionModal(false); setNewSession({ title: '', week_number: 1, status: 'pending' }); fetchProgramData(true); }
       else notify(data.error || 'Add failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -156,7 +156,7 @@ export default function ProgramWorkspace() {
         notify('Requirement anchored.'); 
         setShowRequirementModal(false); 
         setNewRequirement({ title: '', description: '', allowed_format: 'pdf' }); 
-        fetchProgramData(); 
+        fetchProgramData(true); 
       } else notify(data.error || 'Failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -184,7 +184,7 @@ export default function ProgramWorkspace() {
         notify('Weekly report transmitted.'); 
         setShowPMReportModal(false); 
         setNewPMReport({ summary: '', status: 'optimal' }); 
-        fetchProgramData(); 
+        fetchProgramData(true); 
       } else notify(data.error || 'Failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -200,7 +200,7 @@ export default function ProgramWorkspace() {
         body: JSON.stringify({ ...newKPI, program_id: id })
       });
       const data = await res.json();
-      if (data.success) { notify('KPI defined.'); setShowKPIModal(false); setNewKPI({ title: '', target_value: 80 }); fetchProgramData(); }
+      if (data.success) { notify('KPI defined.'); setShowKPIModal(false); setNewKPI({ title: '', target_value: 80 }); fetchProgramData(true); }
       else notify(data.error || 'Failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -211,7 +211,7 @@ export default function ProgramWorkspace() {
     try {
       await fetch('/api/v2/kpis', { method: 'DELETE', body: JSON.stringify({ id: kpiId }) });
       notify('KPI removed.');
-      fetchProgramData();
+      fetchProgramData(true);
     } catch (e) {}
   };
 
@@ -225,7 +225,7 @@ export default function ProgramWorkspace() {
         body: JSON.stringify({ ...newStaff, program_id: id })
       });
       const data = await res.json();
-      if (data.success) { notify('Personnel assigned.'); setShowStaffModal(false); setNewStaff({ staff_id: '', role: 'teacher' }); fetchProgramData(); }
+      if (data.success) { notify('Personnel assigned.'); setShowStaffModal(false); setNewStaff({ staff_id: '', role: 'teacher' }); fetchProgramData(true); }
       else notify(data.error || 'Assignment failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -238,7 +238,7 @@ export default function ProgramWorkspace() {
       if (record && record.id) {
          await fetch('/api/v2/program-staff', { method: 'DELETE', body: JSON.stringify({ id: record.id }) });
          notify('Personnel removed.');
-         fetchProgramData();
+         fetchProgramData(true);
       }
     } catch (e) {}
   };
@@ -252,7 +252,7 @@ export default function ProgramWorkspace() {
          body: JSON.stringify({ id: sessionId, type: 'session' }) 
        });
        notify('Session removed.');
-       fetchProgramData();
+       fetchProgramData(true);
     } catch (e) {}
   };
 
@@ -274,7 +274,7 @@ export default function ProgramWorkspace() {
       if (data.success) {
         notify('Submission graded successfully.');
         setShowReviewModal(false);
-        fetchProgramData();
+        fetchProgramData(true);
       } else notify(data.error || 'Failed to grade', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -285,8 +285,8 @@ export default function ProgramWorkspace() {
     if (savedUser) setUser(JSON.parse(savedUser));
   }, []);
 
-  const fetchProgramData = useCallback(async () => {
-    setLoading(true);
+  const fetchProgramData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch(`/api/pm/full-state?id=${id}`).then(res => res.json());
       
