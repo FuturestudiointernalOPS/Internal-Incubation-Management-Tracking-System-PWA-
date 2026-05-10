@@ -33,10 +33,11 @@ export async function GET(req) {
       LEFT JOIN contacts c1 ON p.assigned_pm_id = c1.cid
       LEFT JOIN contacts c2 ON p.assigned_assistant_id = c2.cid
       LEFT JOIN v2_knowledge_bank k ON p.note_id = CAST(k.id AS TEXT)
-      WHERE p.is_archived = ?
+      WHERE (p.is_archived = ? OR (p.is_archived IS NULL AND ? = 0))
     `;
     
-    const args = [showArchived ? 1 : 0];
+    const archiveVal = showArchived ? 1 : 0;
+    const args = [archiveVal, archiveVal];
 
     if (status && status.toLowerCase() !== 'all') {
        if (status.toLowerCase() === 'active') {
