@@ -321,7 +321,8 @@ export default function ProgramManagement() {
               </div>
 
               <div className="space-y-3">
-                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">ASSIGNED TEAM</label>
+                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">PROGRAM PERSONNEL (STAFF)</label>
+                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">Select staff members assigned to assist the Program Manager in oversight.</p>
                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
                     {(Array.isArray(teams) ? teams : []).filter(t => t && t.cid !== editingProgram?.assigned_pm_id).map(member => {
                       if (!member) return null;
@@ -442,7 +443,8 @@ export default function ProgramManagement() {
                 </div>
 
               <div className="space-y-3">
-                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">OPERATIONAL TEAMS</label>
+                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">TARGET STUDENT GROUPS</label>
+                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">Assign this program to specific student cohorts or families.</p>
                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
                     {(Array.isArray(notes) ? notes : []).map(s => {
                       if (!s) return null;
