@@ -49,7 +49,7 @@ export default function ProgramManagement() {
       if (progData.success) setPrograms(progData.programs || []);
       if (managerData.success) {
         const managers = (managerData.contacts || []).filter(c => 
-          c.role === 'super_admin' || c.role === 'program_manager'
+          c.role === 'super_admin' || c.role === 'program_manager' || c.role === 'admin' || c.role === 'staff'
         );
         setTeams(managers);
       }
@@ -188,7 +188,7 @@ export default function ProgramManagement() {
                   <tr>
                     <th>Program Details</th>
                     <th>Status</th>
-                    <th>Lead Manager</th>
+                    <th>PROGRAM MANAGER</th>
                     <th>Engagement</th>
                     <th className="text-right">Administration</th>
                   </tr>
@@ -278,7 +278,7 @@ export default function ProgramManagement() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">LEAD MANAGER</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">PROGRAM MANAGER</label>
                   <select 
                     value={editingProgram.assigned_pm_id || ''} 
                     onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} 
