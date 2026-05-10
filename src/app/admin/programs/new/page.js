@@ -300,7 +300,7 @@ export default function NewProgram() {
 
               <div className="space-y-4">
                 <div className="space-y-1">
-                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Lead Program Manager</label>
+                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">PROGRAM MANAGER</label>
                    <select 
                     required
                     value={program.assigned_pm_id}
@@ -313,9 +313,9 @@ export default function NewProgram() {
                     ))}
                   </select>
                 </div>
-
+ 
                 <div className="space-y-1">
-                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Support Manager</label>
+                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">ASSIGNED TEAM (Collaborators)</label>
                    <select 
                     value={program.assigned_assistant_id}
                     onChange={e => setProgram({...program, assigned_assistant_id: e.target.value})}

@@ -54,11 +54,11 @@ export async function GET(req) {
       try {
         program.materials = typeof program.materials === 'string' ? JSON.parse(program.materials || '[]') : (program.materials || []);
         
-        // Fetch new Multi-PDF attachments for the linked Knowledge Note
+        // Fetch new Multi-PDF attachments for the linked Knowledge Note with explicit ID casting
         if (program.note_id) {
            const kbAttachmentsRes = await db.execute({
-             sql: "SELECT name, url FROM v2_knowledge_attachments WHERE note_id = ?",
-             args: [program.note_id]
+             sql: "SELECT name, url FROM v2_knowledge_attachments WHERE CAST(note_id AS TEXT) = ?",
+             args: [String(program.note_id)]
            });
            program.knowledge_assets = kbAttachmentsRes.rows;
         } else {

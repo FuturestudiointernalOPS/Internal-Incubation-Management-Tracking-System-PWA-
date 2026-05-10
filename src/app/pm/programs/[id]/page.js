@@ -654,20 +654,31 @@ export default function ProgramWorkspace() {
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Strategic Description</label>
                       <textarea ref={configDescRef} rows="4" defaultValue={program?.description} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Duration (Weeks)</label>
-                        <input ref={configWeeksRef} type="number" defaultValue={program?.duration_weeks} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Operational Status</label>
-                        <select ref={configStatusRef} defaultValue={program?.status} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold">
-                          <option value="active">ACTIVE</option>
-                          <option value="archived">ARCHIVED</option>
-                          <option value="draft">DRAFT</option>
-                        </select>
-                      </div>
-                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Duration (Weeks)</label>
+                         <input ref={configWeeksRef} type="number" defaultValue={program?.duration_weeks} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold" />
+                       </div>
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Operational Status</label>
+                         <select ref={configStatusRef} defaultValue={program?.status} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold">
+                           <option value="active">ACTIVE</option>
+                           <option value="archived">ARCHIVED</option>
+                           <option value="draft">DRAFT</option>
+                         </select>
+                       </div>
+                     </div>
+
+                     <div className="space-y-1 mt-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">PROGRAM MANAGER</label>
+                        <div className="w-full bg-[var(--bg-primary)]/50 border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--brand-orange)] flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                              <User className="w-4 h-4" />
+                              <span className="uppercase">{program?.pm_name || 'Not Assigned'}</span>
+                           </div>
+                           <Shield className="w-4 h-4 opacity-30" />
+                        </div>
+                     </div>
                     <button onClick={saveConfig} disabled={isSaving} className="btn btn-primary w-full py-4 mt-4 gap-2">
                       <Save className="w-4 h-4" />{isSaving ? 'Saving...' : 'Synchronize Global Settings'}
                     </button>
@@ -700,10 +711,10 @@ export default function ProgramWorkspace() {
 
                            if (!Array.isArray(materials)) materials = [materials];
                            
-                           // Merge with Knowledge Base Assets
+                           // Merge with Knowledge Base Assets with safe mapping
                            const allMaterials = [
-                             ...materials.map(m => ({ ...m, source: 'curriculum' })),
-                             ...kbAssets.map(a => ({ ...a, source: 'knowledge' }))
+                             ...materials.map(m => (typeof m === 'object' ? { ...m, source: 'curriculum' } : { url: m, name: m.split('/').pop(), source: 'curriculum' })),
+                             ...kbAssets.map(a => (typeof a === 'object' ? { ...a, source: 'knowledge' } : { url: a, name: a.split('/').pop(), source: 'knowledge' }))
                            ].filter(Boolean);
 
                            if (allMaterials.length === 0) {
