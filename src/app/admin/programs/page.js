@@ -142,7 +142,9 @@ export default function ProgramManagement() {
     }
   };
 
-  const filtered = programs.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = (programs || []).filter(p => 
+    p && p.name && p.name.toLowerCase().includes((search || "").toLowerCase())
+  );
 
   return (
     <DashboardLayout role="super_admin" activeTab="programs">
