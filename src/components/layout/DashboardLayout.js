@@ -119,8 +119,8 @@ const NAVIGATION_MATRIX = {
   super_admin: [
     { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/admin' },
     { id: 'programs', name: 'PROGRAMS', icon: Briefcase, subItems: [
-        { id: 'all_programs', name: 'ALL PROGRAMS', href: '/v2/superadmin/programs' },
-        { id: 'create_program', name: 'CREATE PROGRAM', href: '/v2/superadmin/programs/new' },
+        { id: 'all_programs', name: 'ALL PROGRAMS', href: '/admin/programs' },
+        { id: 'create_program', name: 'CREATE PROGRAM', href: '/admin/programs/new' },
     ]},
     { id: 'progress_hub', name: 'PROGRESS', icon: Activity, href: '/admin/progress' },
     { id: 'communication', name: 'COMMUNICATION', icon: Send, subItems: [
@@ -240,8 +240,8 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
       const progIndex = items.findIndex(i => i.id === 'programs');
       if (progIndex !== -1) {
         const baseSubItems = activeRole === 'super_admin' ? [
-          { id: 'all_programs', name: 'ALL PROGRAMS', href: '/v2/superadmin/programs' },
-          { id: 'create_program', name: 'CREATE PROGRAM', href: '/v2/superadmin/programs/new' }
+          { id: 'all_programs', name: 'ALL PROGRAMS', href: '/admin/programs' },
+          { id: 'create_program', name: 'CREATE PROGRAM', href: '/admin/programs/new' }
         ] : [
           { id: 'all_programs', name: 'OVERVIEW', href: '/pm/programs' }
         ];

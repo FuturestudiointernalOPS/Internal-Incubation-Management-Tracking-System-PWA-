@@ -29,7 +29,7 @@ export default function ReportResponses() {
     try {
       const [repRes, progRes] = await Promise.all([
         fetch('/api/teacher/reports'),
-        fetch('/api/pm/programs')
+        fetch('/api/v2/pm/programs')
       ]);
       const [repData, progData] = await Promise.all([repRes.json(), progRes.json()]);
 

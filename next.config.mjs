@@ -14,23 +14,13 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/admin/programs/:path*',
-        destination: '/v2/superadmin/programs/:path*',
+        source: '/sa-hq-sp-2026-v1/:path*',
+        destination: '/v2/superadmin',
         permanent: true,
       },
       {
-        source: '/api/pm/programs/:path*',
-        destination: '/api/v2/pm/programs/:path*',
-        permanent: true,
-      },
-      {
-        source: '/admin/programs',
-        destination: '/v2/superadmin/programs',
-        permanent: true,
-      },
-      {
-        source: '/api/pm/programs',
-        destination: '/api/v2/pm/programs',
+        source: '/sa-hq-sp-2026-v1',
+        destination: '/v2/superadmin',
         permanent: true,
       }
     ]

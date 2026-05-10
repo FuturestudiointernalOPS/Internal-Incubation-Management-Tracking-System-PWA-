@@ -60,7 +60,7 @@ function ContactsPageContent() {
     try {
       const [contRes, progRes] = await Promise.all([
         fetch('/api/contacts/full-state'),
-        fetch('/api/pm/programs')
+        fetch('/api/v2/pm/programs')
       ]);
       const [contData, progData] = await Promise.all([contRes.json(), progRes.json()]);
 

@@ -70,7 +70,7 @@ export default function ProgramWorkspace() {
   const saveConfig = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch('/api/pm/programs', {
+      const res = await fetch('/api/v2/pm/programs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

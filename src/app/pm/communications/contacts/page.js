@@ -32,7 +32,7 @@ export default function PMCohortOutreach() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       
       // 1. Fetch programs to identify assignments
-      const progRes = await fetch('/api/pm/programs?assigned_pm_id=' + (user.cid || user.id));
+      const progRes = await fetch('/api/v2/pm/programs?assigned_pm_id=' + (user.cid || user.id));
       const progData = await progRes.json();
       const myProgs = progData.programs || [];
       setAssignedPrograms(myProgs);

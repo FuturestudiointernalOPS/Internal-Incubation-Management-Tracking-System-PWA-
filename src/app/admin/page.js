@@ -133,7 +133,7 @@ export default function AdminDashboard() {
           
           <div className="flex gap-3">
             <button 
-              onClick={() => router.push('/v2/superadmin/programs/new')}
+              onClick={() => router.push('/admin/programs/new')}
               className="btn btn-primary gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
             icon={Layers} 
             color="text-[var(--brand-orange)]" 
             badge="LIVE" 
-            onClick={() => router.push('/v2/superadmin/programs')}
+            onClick={() => router.push('/admin/programs')}
             loading={loading}
           />
           <StatCard 
@@ -247,7 +247,7 @@ export default function AdminDashboard() {
                 Active Programs
               </h4>
               <button 
-                onClick={() => router.push('/v2/superadmin/programs')}
+                onClick={() => router.push('/admin/programs')}
                 className="text-[9px] font-bold text-[var(--brand-orange)] uppercase hover:underline"
               >
                 View All
@@ -259,7 +259,7 @@ export default function AdminDashboard() {
                 activePrograms.length > 0 ? activePrograms.map((prog, i) => (
                   <div 
                     key={prog.id} 
-                    onClick={() => router.push(`/v2/superadmin/programs/${prog.id}`)}
+                    onClick={() => router.push(`/admin/programs/${prog.id}`)}
                     className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
                   >
                     <div className="w-8 h-8 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
