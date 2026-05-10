@@ -6,7 +6,7 @@ import {
   Users, Briefcase, Activity, CheckCircle2, ChevronRight, 
   ExternalLink, FileText, Mail, MessageCircle, MoreVertical, 
   Plus, Search, Shield, Target, Zap, Clock, AlertCircle, Trash2, LayoutDashboard, X, Save, BarChart3,
-  User, Paperclip
+  User, Paperclip, BookOpen
 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
@@ -156,14 +156,34 @@ export default function ProgramWorkspace() {
       const data = await res.json();
       if (data.success) { 
         notify('Requirement anchored.'); 
-        if (shouldClose) {
-          setShowRequirementModal(false); 
-        }
+        if (shouldClose) setShowRequirementModal(false); 
         setNewRequirement({ title: '', description: '', allowed_format: 'pdf' }); 
         fetchProgramData(true); 
       } else notify(data.error || 'Failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
+  };
+
+  const updateSessionStatus = async (sessionId, status) => {
+    try {
+      const res = await fetch('/api/pm/curriculum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle_status', program_id: id, id: sessionId, status })
+      });
+      if ((await res.json()).success) { notify(`Status updated to ${status.toUpperCase()}`); fetchProgramData(true); }
+    } catch (e) { notify('Status update failed.', 'error'); }
+  };
+
+  const updateSessionField = async (sessionId, field, value, handlerName = null) => {
+    try {
+      const res = await fetch('/api/pm/curriculum', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ program_id: id, sessionId, field, value, handlerName })
+      });
+      if ((await res.json()).success) { notify('Session field synchronized.'); fetchProgramData(true); }
+    } catch (e) { notify('Field sync failed.', 'error'); }
   };
 
   const submitPMReport = async () => {
@@ -514,29 +534,84 @@ export default function ProgramWorkspace() {
               <div className="grid grid-cols-1 gap-4">
                 {sessions.map(session => (
                   <div key={session.id} className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all">
-                    <div className="p-6 bg-[var(--bg-tertiary)] flex justify-between items-center border-b border-[var(--border-primary)]">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-[var(--bg-primary)] flex flex-col items-center justify-center text-[10px] font-black border border-[var(--border-primary)]">
-                          <span className="text-[var(--brand-orange)]">W{session.week_number}</span>
+                    <div className="p-6 bg-[var(--bg-tertiary)] border-b border-[var(--border-primary)]">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] flex flex-col items-center justify-center text-[11px] font-black border border-[var(--border-primary)] shadow-sm">
+                            <span className="text-[var(--brand-orange)]">W{session.week_number}</span>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-[var(--text-primary)] uppercase tracking-tight text-lg">{session.title}</h4>
+                            <div className="flex items-center gap-3 mt-1">
+                               <select 
+                                 value={session.status} 
+                                 onChange={(e) => updateSessionStatus(session.id, e.target.value)}
+                                 className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border outline-none transition-all ${
+                                    session.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
+                                    session.status === 'in progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/30' :
+                                    'bg-orange-500/10 text-orange-500 border-orange-500/30'
+                                 }`}
+                               >
+                                  <option value="pending">PENDING</option>
+                                  <option value="in progress">IN PROGRESS</option>
+                                  <option value="completed">COMPLETED</option>
+                               </select>
+                               <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest opacity-40">Tactical Window</span>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-bold text-[var(--text-primary)] uppercase">{session.title}</h4>
-                          <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-widest">{session.status}</p>
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 flex-1 max-w-2xl">
+                           <div className="space-y-1">
+                              <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Start Date</label>
+                              <input 
+                                type="date" 
+                                defaultValue={session.scheduled_date ? new Date(session.scheduled_date).toISOString().split('T')[0] : ''} 
+                                onChange={(e) => updateSessionField(session.id, 'scheduled_date', e.target.value)}
+                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]" 
+                              />
+                           </div>
+                           <div className="space-y-1">
+                              <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Finish Date</label>
+                              <input 
+                                type="date" 
+                                defaultValue={session.end_date ? new Date(session.end_date).toISOString().split('T')[0] : ''} 
+                                onChange={(e) => updateSessionField(session.id, 'end_date', e.target.value)}
+                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]" 
+                              />
+                           </div>
+                           <div className="space-y-1 col-span-2">
+                              <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Lead Personnel</label>
+                              <select 
+                                value={session.handler_id || ''} 
+                                onChange={(e) => {
+                                   const staff = assignedStaff.find(s => String(s.cid) === e.target.value);
+                                   updateSessionField(session.id, 'handler_id', e.target.value, staff?.name);
+                                }}
+                                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                              >
+                                 <option value="">Select Lead...</option>
+                                 {assignedStaff.map(s => (
+                                    <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
+                                 ))}
+                              </select>
+                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                         <span className="px-2 py-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded text-[9px] font-bold uppercase text-[var(--text-secondary)]">
-                           {session.assignment_type || 'General'}
-                         </span>
-                         <button onClick={() => deleteSession(session.id)} className="p-2 text-rose-500 hover:text-rose-700">
-                           <Trash2 className="w-4 h-4" />
-                         </button>
+
+                        <div className="flex items-center gap-2">
+                           <button onClick={() => deleteSession(session.id)} className="p-2 text-rose-500/30 hover:text-rose-500 transition-colors">
+                             <Trash2 className="w-4 h-4" />
+                           </button>
+                        </div>
                       </div>
                     </div>
                     <div className="p-6 space-y-4">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Associated Deliverables</span>
+                          <div className="flex flex-col gap-1">
+                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] opacity-50">Associated Deliverables</span>
+                             <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Deliverables required from the student by the end of this topic for formal assessment.</p>
+                          </div>
                           <div className="flex gap-4">
                             <button 
                               onClick={() => { setSelectedSessionId(session.id); setShowPMReportModal(true); }}
@@ -613,17 +688,38 @@ export default function ProgramWorkspace() {
                                        : (session.materials || []);
                                  } catch (e) { sessionMaterials = []; }
                                  
-                                 if (sessionMaterials.length === 0) return <p className="text-[10px] italic text-[var(--text-secondary)] opacity-40">No weekly materials linked yet.</p>;
+                                 return (
+                                    <div className="grid grid-cols-1 gap-2">
+                                       {/* Institutional Knowledge Base Assets */}
+                                       {(program?.knowledge_assets || []).map((kb, kIdx) => (
+                                          <div key={`kb-${kIdx}`} className="flex items-center justify-between p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
+                                             <div className="flex items-center gap-3">
+                                                <BookOpen className="w-4 h-4 text-emerald-500" />
+                                                <div>
+                                                   <p className="text-xs font-bold text-[var(--text-primary)]">{kb.name || 'Core Asset'}</p>
+                                                   <p className="text-[8px] text-emerald-600 font-black uppercase tracking-widest">Institutional Intelligence</p>
+                                                </div>
+                                             </div>
+                                             <button onClick={() => setActivePDF({ url: kb.url, name: kb.name })} className="text-[10px] font-black text-emerald-600 uppercase hover:underline">View</button>
+                                          </div>
+                                       ))}
+                                       
+                                       {/* Session-Specific Materials */}
+                                       {sessionMaterials.map((m, idx) => (
+                                          <div key={`mat-${idx}`} className="flex items-center justify-between p-3 bg-blue-500/5 rounded-lg border border-blue-500/10">
+                                             <div className="flex items-center gap-3">
+                                                <FileText className="w-3.5 h-3.5 text-blue-500" />
+                                                <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[200px]">{m.name || m}</span>
+                                             </div>
+                                             <button className="text-[9px] font-bold text-rose-500 hover:underline">Remove</button>
+                                          </div>
+                                       ))}
 
-                                 return sessionMaterials.map((m, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-3 bg-blue-500/5 rounded-lg border border-blue-500/10">
-                                       <div className="flex items-center gap-3">
-                                          <Paperclip className="w-3.5 h-3.5 text-blue-500" />
-                                          <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[200px]">{m.name || m}</span>
-                                       </div>
-                                       <button className="text-[9px] font-bold text-rose-500 hover:underline">Remove</button>
+                                       {sessionMaterials.length === 0 && (!program?.knowledge_assets || program.knowledge_assets.length === 0) && (
+                                          <p className="text-[10px] italic text-[var(--text-secondary)] opacity-40">No weekly materials linked yet.</p>
+                                       )}
                                     </div>
-                                 ));
+                                 );
                               })()}
                            </div>
                         </div>

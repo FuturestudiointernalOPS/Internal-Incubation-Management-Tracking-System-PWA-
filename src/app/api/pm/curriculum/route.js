@@ -97,19 +97,38 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
-   try {
+    try {
       await initDb();
-      const { id, title, description, status, week_number, type, allowed_format, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name } = await req.json();
+      const payload = await req.json();
+      const { id, sessionId, field, value, handlerName, type } = payload;
       
+      const targetId = id || sessionId;
+
+      if (field && targetId) {
+        let sql = "";
+        let args = [];
+        if (field === 'scheduled_date') { sql = "UPDATE v2_sessions SET scheduled_date = ? WHERE id = ?"; args = [value || null, targetId]; }
+        else if (field === 'end_date') { sql = "UPDATE v2_sessions SET end_date = ? WHERE id = ?"; args = [value || null, targetId]; }
+        else if (field === 'handler_id') { sql = "UPDATE v2_sessions SET handler_id = ?, handler_name = ? WHERE id = ?"; args = [value || null, handlerName || null, targetId]; }
+        
+        if (sql) {
+          await db.execute({ sql, args });
+          return NextResponse.json({ success: true });
+        }
+      }
+
+      // Legacy full update support
       if (type === 'session') {
+         const { title, description, status, week_number, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name } = payload;
          await db.execute({
             sql: "UPDATE v2_sessions SET title = ?, description = ?, status = ?, week_number = ?, weight = 1, scheduled_date = ?, end_date = ?, start_time = ?, end_time = ?, assignment_type = ?, task_type = ?, handler_id = ?, handler_name = ? WHERE id = ?",
-            args: [title, description, status, week_number, scheduled_date || null, end_date || null, start_time || null, end_time || null, assignment_type || null, task_type || null, handler_id || null, handler_name || null, id]
+            args: [title, description, status, week_number, scheduled_date || null, end_date || null, start_time || null, end_time || null, assignment_type || null, task_type || null, handler_id || null, handler_name || null, targetId]
          });
       } else {
+         const { title, description, allowed_format } = payload;
          await db.execute({
             sql: "UPDATE v2_document_requirements SET title = ?, description = ?, allowed_format = ?, weight = 1 WHERE id = ?",
-            args: [title, description, allowed_format, id]
+            args: [title, description, allowed_format, targetId]
          });
       }
 
