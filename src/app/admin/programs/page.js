@@ -351,19 +351,40 @@ export default function ProgramManagement() {
               </div>
 
               <div className="space-y-2">
-                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Curriculum Materials (PDF URL)</label>
-                 <input 
-                    value={
-                      typeof editingProgram.materials === 'string' 
-                        ? editingProgram.materials 
-                        : (Array.isArray(editingProgram.materials) 
-                            ? (typeof editingProgram.materials[0] === 'object' ? editingProgram.materials[0]?.url : editingProgram.materials[0]) 
-                            : '') || ''
-                    } 
-                    onChange={e => setEditingProgram({...editingProgram, materials: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                    placeholder="https://example.com/curriculum.pdf"
-                 />
+                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Curriculum Materials (PDF)</label>
+                 <div className="flex gap-3">
+                    <div className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-secondary)] text-[11px] truncate">
+                      {(() => {
+                        const mats = editingProgram.materials;
+                        if (!mats || (Array.isArray(mats) && mats.length === 0)) return "No curriculum PDF linked.";
+                        if (typeof mats === 'string') return mats;
+                        if (Array.isArray(mats)) return mats[0]?.name || mats[0]?.url || mats[0] || "File Linked";
+                        return "Asset Linked";
+                      })()}
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => document.getElementById('curriculum-upload').click()}
+                      className="btn btn-secondary px-6 flex items-center gap-2"
+                    >
+                      <Upload className="w-4 h-4" /> <span>Upload PDF</span>
+                    </button>
+                    <input 
+                      id="curriculum-upload"
+                      type="file"
+                      accept=".pdf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        // For V1 stability, we store the filename/status while the upload handles in the background
+                        setEditingProgram({
+                          ...editingProgram, 
+                          materials: [{ name: file.name, size: file.size, lastModified: file.lastModified, status: 'staged' }]
+                        });
+                      }}
+                    />
+                 </div>
               </div>
 
               <div className="space-y-3">
