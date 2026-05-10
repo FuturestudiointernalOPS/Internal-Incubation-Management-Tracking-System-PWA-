@@ -611,6 +611,53 @@ export default function ProgramWorkspace() {
                       <Save className="w-4 h-4" />{isSaving ? 'Saving...' : 'Synchronize Global Settings'}
                     </button>
                   </div>
+
+                  {/* STRATEGIC MATERIALS (PDFs) */}
+                  <div className="space-y-6 mt-8">
+                    <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-blue-500" />
+                      Strategic Materials
+                    </h3>
+                    <div className="card space-y-4">
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Assigned Assets & Curriculum PDFs</p>
+                      <div className="grid grid-cols-1 gap-3">
+                        {(() => {
+                           let materials = [];
+                           try {
+                             materials = typeof program?.materials === 'string' 
+                               ? JSON.parse(program.materials) 
+                               : (program?.materials || []);
+                           } catch (e) { materials = []; }
+                           
+                           if (!Array.isArray(materials)) materials = [];
+
+                           if (materials.length === 0) {
+                              return <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">No strategic materials have been anchored to this program yet.</p>;
+                           }
+
+                           return materials.map((file, idx) => (
+                             <a 
+                               key={idx} 
+                               href={file.url || file} 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] hover:border-blue-500/50 transition-all group"
+                             >
+                               <div className="flex items-center gap-3">
+                                 <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg">
+                                   <FileText className="w-4 h-4" />
+                                 </div>
+                                 <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px]">
+                                   {file.name || (typeof file === 'string' ? file.split('/').pop() : 'Strategic_Document.pdf')}
+                                 </span>
+                               </div>
+                               <ExternalLink className="w-4 h-4 text-slate-600 group-hover:text-blue-500 transition-colors" />
+                             </a>
+                           ));
+                        })()}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-6">
