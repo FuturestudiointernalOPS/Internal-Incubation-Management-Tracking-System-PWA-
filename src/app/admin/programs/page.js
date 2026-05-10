@@ -54,6 +54,7 @@ export default function ProgramManagement() {
         setTeams(managers);
       }
       if (segmentData.success) setNotes(segmentData.families || []);
+      if (kbData.success) setKnowledgeItems(kbData.knowledgeItems || kbData.notes || []);
       
     } catch (e) {
       console.error("Sync Failure:", e);
@@ -253,42 +254,46 @@ export default function ProgramManagement() {
 
       {/* MODALS SECTION */}
       {editingProgram && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
-          <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left">
-            <div className="flex justify-between items-center">
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md overflow-y-auto">
+          <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left my-auto max-h-[85vh] overflow-y-auto custom-scrollbar">
+            <div className="flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] pb-4 z-10 border-b border-[var(--border-primary)]">
               <div>
-                 <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">Edit Program Details</h3>
-                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">Program ID: {editingProgram.id}</p>
+                 <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight italic">Edit Program Registry</h3>
+                 <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">Operational ID: {editingProgram.id}</p>
               </div>
-              <button onClick={() => setEditingProgram(null)} className="p-2 hover:bg-[var(--bg-primary)] rounded-lg transition-colors"><X className="w-6 h-6" /></button>
+              <button onClick={() => setEditingProgram(null)} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg text-[var(--text-secondary)] transition-all">
+                <Plus className="w-5 h-5 rotate-45" />
+              </button>
             </div>
-            <form onSubmit={handleUpdate} className="space-y-6">
+
+            <form onSubmit={handleUpdate} className="space-y-6 pt-4">
               <div className="space-y-2">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Program Name</label>
                  <input 
-                    value={editingProgram.name} 
+                    value={editingProgram.name || ''} 
                     onChange={e => setEditingProgram({...editingProgram, name: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                  />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Lead Program Manager</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">LEAD MANAGER</label>
                   <select 
                     value={editingProgram.assigned_pm_id || ''} 
                     onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
                   >
                     <option value="">Unassigned</option>
                     {teams.map(m => <option key={m.cid} value={m.cid}>{m.name.toUpperCase()}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Assistant Manager</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">ASSISTANT MANAGER</label>
                   <select 
                     value={editingProgram.assigned_assistant_id || ''} 
                     onChange={e => setEditingProgram({...editingProgram, assigned_assistant_id: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
                   >
                     <option value="">Unassigned</option>
                     {teams.map(m => <option key={m.cid} value={m.cid}>{m.name.toUpperCase()}</option>)}
@@ -296,16 +301,16 @@ export default function ProgramManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Knowledge Base Note</label>
                   <select 
                     value={editingProgram.note_id || ''} 
                     onChange={e => setEditingProgram({...editingProgram, note_id: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
                   >
-                    <option value="">No Knowledge Base Assigned</option>
-                    {knowledgeItems.map(k => <option key={k.id} value={k.id}>{k.title.toUpperCase()}</option>)}
+                    <option value="">None Assigned</option>
+                    {notes.map(n => <option key={n.id} value={n.id}>{n.name.toUpperCase()}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -314,7 +319,7 @@ export default function ProgramManagement() {
                     type="number"
                     value={editingProgram.duration_weeks || 4} 
                     onChange={e => setEditingProgram({...editingProgram, duration_weeks: parseInt(e.target.value)})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
               </div>
@@ -322,37 +327,41 @@ export default function ProgramManagement() {
               <div className="space-y-2">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Curriculum Materials (PDF URL)</label>
                  <input 
-                    value={typeof editingProgram.materials === 'string' ? editingProgram.materials : (Array.isArray(editingProgram.materials) ? (editingProgram.materials[0]?.url || editingProgram.materials[0] || '') : '')} 
-                    onChange={e => setEditingProgram({...editingProgram, materials: [{ name: 'Strategic_Curriculum.pdf', url: e.target.value }]})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                    value={
+                      typeof editingProgram.materials === 'string' 
+                        ? editingProgram.materials 
+                        : (Array.isArray(editingProgram.materials) 
+                            ? (typeof editingProgram.materials[0] === 'object' ? editingProgram.materials[0]?.url : editingProgram.materials[0]) 
+                            : '') || ''
+                    } 
+                    onChange={e => setEditingProgram({...editingProgram, materials: e.target.value})} 
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                     placeholder="https://example.com/curriculum.pdf"
                  />
               </div>
 
               <div className="space-y-3">
-                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Operational Teams (Segments)</label>
-                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-2 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]">
+                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">OPERATIONAL TEAMS</label>
+                 <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
                     {notes.map(s => {
+                      const isActive = (editingProgram.assigned_segments || []).includes(s.id);
                       return (
                         <button
                           key={s.id}
                           type="button"
                           onClick={() => {
-                            const newSegments = [...(editingProgram.assigned_segments || [])];
-                            if (newSegments.includes(s.id)) {
-                              setEditingProgram({...editingProgram, assigned_segments: newSegments.filter(id => id !== s.id)});
-                            } else {
-                              setEditingProgram({...editingProgram, assigned_segments: [...newSegments, s.id]});
-                            }
+                            const current = Array.isArray(editingProgram.assigned_segments) ? editingProgram.assigned_segments : [];
+                            const next = current.includes(s.id) ? current.filter(id => id !== s.id) : [...current, s.id];
+                            setEditingProgram({...editingProgram, assigned_segments: next});
                           }}
-                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                            (editingProgram.assigned_segments || []).includes(s.id) 
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                            isActive 
                               ? 'bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]' 
                               : 'bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)]'
                           }`}
                         >
-                          <Users className="w-3.5 h-3.5" />
-                          <span className="text-[9px] font-bold uppercase truncate">{s.name}</span>
+                          <Users className={`w-3.5 h-3.5 ${isActive ? 'text-[var(--brand-orange)]' : 'text-[var(--text-secondary)]'}`} />
+                          <span className="text-[9px] font-black uppercase truncate italic">{s.name}</span>
                         </button>
                       );
                     })}
@@ -362,14 +371,15 @@ export default function ProgramManagement() {
               <div className="space-y-2">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Program Description</label>
                  <textarea 
-                    rows={2}
-                    value={editingProgram.description} 
+                    rows={3}
+                    value={editingProgram.description || ''} 
                     onChange={e => setEditingProgram({...editingProgram, description: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
                  />
               </div>
-              <button type="submit" disabled={isUpdating} className="btn btn-primary w-full py-5 uppercase font-bold tracking-[0.2em]">
-                {isUpdating ? <div className="flex items-center justify-center gap-3"><Loader2 className="w-5 h-5 animate-spin" /> <span>Saving Changes...</span></div> : 'Save Changes'}
+
+              <button type="submit" disabled={isUpdating} className="btn btn-primary w-full py-5 uppercase font-black tracking-[0.2em] italic shadow-xl shadow-orange-500/20">
+                {isUpdating ? <div className="flex items-center justify-center gap-3"><Loader2 className="w-5 h-5 animate-spin" /> <span>Syncing Registry...</span></div> : 'Update Program Registry'}
               </button>
             </form>
           </div>
