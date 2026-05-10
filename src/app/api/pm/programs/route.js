@@ -106,12 +106,12 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const { name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, materials } = await req.json();
+    const { name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, materials, start_date, end_date } = await req.json();
     const id = "P-" + new Date().getFullYear() + "-" + uuidv4().split('-')[0].toUpperCase();
 
     await db.execute({
-      sql: `INSERT INTO v2_programs (id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, 'active', 0, JSON.stringify(materials || [])]
+      sql: `INSERT INTO v2_programs (id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [id, name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, 'active', 0, JSON.stringify(materials || []), start_date || null, end_date || null]
     });
 
     return NextResponse.json({ success: true, id });
@@ -124,15 +124,15 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const { id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, materials, assigned_segments } = await req.json();
+    const { id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, materials, assigned_segments, start_date, end_date } = await req.json();
 
     if (!id) return NextResponse.json({ success: false, error: "ID required" }, { status: 400 });
 
     await db.execute({
       sql: `UPDATE v2_programs 
-            SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, materials = ?
+            SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, materials = ?, start_date = ?, end_date = ?
             WHERE id = ?`,
-      args: [name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, status, JSON.stringify(materials || []), id]
+      args: [name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, status, JSON.stringify(materials || []), start_date || null, end_date || null, id]
     });
 
     // Handle Segment/Team Assignments

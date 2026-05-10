@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS v2_programs (
     deliverables JSONB DEFAULT '[]'::jsonb, -- List of expected submission types
     resources JSONB DEFAULT '[]'::jsonb, -- PDF links, external tools
     assigned_pm_id TEXT, -- User ID of the Project Manager
+    start_date DATE,
+    end_date DATE,
     feedback_enabled BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL

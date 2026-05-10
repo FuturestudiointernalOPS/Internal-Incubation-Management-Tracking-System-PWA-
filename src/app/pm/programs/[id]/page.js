@@ -11,6 +11,8 @@ import {
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
 
+export const dynamic = "force-dynamic";
+
 /**
  * IMPACTOS OPERATIONAL CONTROL — PROGRAM WORKSPACE
  * Performance-first, modular data loading, and clean data-first UI.
@@ -63,6 +65,8 @@ export default function ProgramWorkspace() {
   const configDescRef = useRef(null);
   const configWeeksRef = useRef(null);
   const configStatusRef = useRef(null);
+  const configStartRef = useRef(null);
+  const configEndRef = useRef(null);
 
   const notify = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -85,6 +89,8 @@ export default function ProgramWorkspace() {
           assigned_pm_id: program?.assigned_pm_id,
           assigned_assistant_id: program?.assigned_assistant_id,
           materials: program?.materials,
+          start_date: configStartRef.current?.value,
+          end_date: configEndRef.current?.value,
         })
       });
       const data = await res.json();
@@ -131,7 +137,11 @@ export default function ProgramWorkspace() {
         })
       });
       const data = await res.json();
-      if (data.success) { notify('Session added.'); setShowSessionModal(false); setNewSession({ title: '', week_number: 1, status: 'pending' }); fetchProgramData(true); }
+        if (data.success) { 
+          notify('Session added.'); 
+          setShowSessionModal(false); 
+          fetchProgramData(true); 
+        }
       else notify(data.error || 'Add failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -312,7 +322,11 @@ export default function ProgramWorkspace() {
   const fetchProgramData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await fetch(`/api/pm/full-state?id=${id}`).then(res => res.json());
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/pm/full-state?id=${id}&t=${timestamp}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      }).then(res => res.json());
       
       if (res.success) {
         setProgram(res.program);
@@ -593,7 +607,14 @@ export default function ProgramWorkspace() {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black uppercase tracking-tighter">Strategic Curriculum</h3>
-                <button onClick={() => setShowSessionModal(true)} className="btn btn-primary btn-sm gap-2">
+                <button 
+                  onClick={() => {
+                    const nextWK = sessions.length > 0 ? Math.max(...sessions.map(s => s.week_number || 0)) + 1 : 1;
+                    setNewSession({ title: '', week_number: nextWK, status: 'pending' });
+                    setShowSessionModal(true);
+                  }} 
+                  className="btn btn-primary btn-sm gap-2"
+                >
                   <Plus className="w-4 h-4" /> Add Session
                 </button>
               </div>
@@ -943,6 +964,27 @@ export default function ProgramWorkspace() {
                            <option value="archived">ARCHIVED</option>
                            <option value="draft">DRAFT</option>
                          </select>
+                       </div>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Project Start Date</label>
+                         <input 
+                           ref={configStartRef} 
+                           type="date" 
+                           defaultValue={program?.start_date ? new Date(program.start_date).toISOString().split('T')[0] : ''} 
+                           className="w-full bg-[var(--bg-primary)] border border-emerald-500/30 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 outline-none transition-all font-bold" 
+                         />
+                       </div>
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black uppercase tracking-widest text-rose-500">Project Finish Date</label>
+                         <input 
+                           ref={configEndRef} 
+                           type="date" 
+                           defaultValue={program?.end_date ? new Date(program.end_date).toISOString().split('T')[0] : ''} 
+                           className="w-full bg-[var(--bg-primary)] border border-rose-500/30 rounded-lg px-4 py-3 text-sm focus:border-rose-500 outline-none transition-all font-bold" 
+                         />
                        </div>
                      </div>
 
