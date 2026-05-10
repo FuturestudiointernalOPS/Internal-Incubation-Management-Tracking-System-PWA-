@@ -38,11 +38,12 @@ export async function POST(req) {
     const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
     const generatedUsername = `${slug}_${randomStr}`;
     const generatedPassword = `FST${randomStr}`;
+    const teamId = crypto.randomUUID(); // Use built-in crypto for UUID
 
     // 1. Create Team Record
     const result = await db.execute({
-      sql: "INSERT INTO v2_teams (program_id, name, handler_id, handler_name, password, team_username, group_name) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
-      args: [program_id, name, handler_id || null, handler_name || null, generatedPassword, generatedUsername, group_name || null]
+      sql: "INSERT INTO v2_teams (id, program_id, name, handler_id, handler_name, password, team_username, group_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
+      args: [teamId, program_id, name, handler_id || null, handler_name || null, generatedPassword, generatedUsername, group_name || null]
     });
 
     const team = result.rows[0];

@@ -1222,9 +1222,9 @@ export default function ProgramWorkspace() {
                 <input value={newTeam.name} onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Group Alpha" />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assigned Handler (Assigned Team Member)</label>
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Teacher / Lead Personnel (Mentorship & Oversight)</label>
                 <select value={newTeam.handler_name} onChange={e => setNewTeam(p => ({...p, handler_name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
-                   <option value="">Select Member...</option>
+                   <option value="">Select Staff...</option>
                    {assignedStaff.map(s => (
                      <option key={s.cid} value={s.name}>{s.name} ({s.role})</option>
                    ))}
