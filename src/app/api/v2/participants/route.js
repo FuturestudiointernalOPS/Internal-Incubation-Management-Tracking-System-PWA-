@@ -70,15 +70,27 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get('program_id');
 
-    let sql = "SELECT * FROM v2_participants";
-    let args = [];
+    let sql = `
+      SELECT id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source
+      FROM v2_participants 
+      WHERE program_id = ?
+      
+      UNION
+      
+      SELECT c.cid as id, f.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'group' as source
+      FROM contacts c
+      JOIN families f ON UPPER(c.group_name) = UPPER(f.name)
+      WHERE f.program_id = ? AND c.role = 'participant'
+      
+      ORDER BY created_at DESC
+    `;
     
-    if (program_id) {
-       sql += " WHERE program_id = ?";
-       args.push(program_id);
+    let args = [program_id, program_id];
+    
+    if (!program_id) {
+       sql = "SELECT *, 'manual' as source FROM v2_participants ORDER BY created_at DESC";
+       args = [];
     }
-    
-    sql += " ORDER BY created_at DESC";
 
     const { rows } = await db.execute({ sql, args });
     return NextResponse.json({ success: true, participants: rows });

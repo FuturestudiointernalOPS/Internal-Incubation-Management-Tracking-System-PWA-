@@ -32,7 +32,21 @@ export async function GET(req) {
               WHERE p.id = ?`, 
         args: [id] 
       }),
-      db.execute({ sql: "SELECT * FROM v2_participants WHERE program_id = ?", args: [id] }),
+      db.execute({ 
+        sql: `
+          SELECT id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source
+          FROM v2_participants 
+          WHERE program_id = ?
+          
+          UNION
+          
+          SELECT c.cid as id, f.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'group' as source
+          FROM contacts c
+          JOIN families f ON UPPER(c.group_name) = UPPER(f.name)
+          WHERE f.program_id = ? AND c.role = 'participant'
+        `, 
+        args: [id, id] 
+      }),
       db.execute({ sql: "SELECT * FROM v2_teams WHERE program_id = ?", args: [id] }),
       db.execute({ sql: "SELECT * FROM v2_sessions WHERE program_id = ?", args: [id] }),
       db.execute({ sql: "SELECT cid, name, email, phone, role FROM contacts WHERE role IN ('teacher', 'staff', 'admin') AND deleted = 0", args: [] }),
