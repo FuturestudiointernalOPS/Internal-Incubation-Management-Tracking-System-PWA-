@@ -1137,7 +1137,7 @@ export default function ProgramWorkspace() {
                      <div className="grid grid-cols-2 gap-4">
                        <div className="space-y-1">
                          <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2">
-                           <Calendar className="w-3 h-3" /> Project Start Date
+                           <Calendar className="w-3 h-3 text-white" /> Project Start Date
                          </label>
                          <input 
                            ref={configStartRef} 
@@ -1148,7 +1148,7 @@ export default function ProgramWorkspace() {
                        </div>
                        <div className="space-y-1">
                          <label className="text-[10px] font-black uppercase tracking-widest text-rose-500 flex items-center gap-2">
-                           <Calendar className="w-3 h-3" /> Project Finish Date
+                           <Calendar className="w-3 h-3 text-white" /> Project Finish Date
                          </label>
                          <input 
                            ref={configEndRef} 
@@ -1353,7 +1353,7 @@ export default function ProgramWorkspace() {
         }`}>{toast.msg}</div>
       )}
 
-      {/* DEPLOY SQUAD MODAL */}
+      {/* DEPLOY STUDENT GROUP MODAL */}
       {showTeamModal && (
         <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowTeamModal(false)}>
           <div className="card w-full max-w-sm space-y-6" onClick={e => e.stopPropagation()}>
