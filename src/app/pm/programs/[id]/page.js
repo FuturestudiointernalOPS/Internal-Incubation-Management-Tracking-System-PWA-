@@ -37,6 +37,7 @@ export default function ProgramWorkspace() {
   const [assignedStaff, setAssignedStaff] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [activePDF, setActivePDF] = useState(null);
   
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
@@ -700,23 +701,32 @@ export default function ProgramWorkspace() {
                            const kbAssets = program?.knowledge_assets || [];
                            
                            if (raw) {
-                             if (Array.isArray(raw)) materials = [...raw];
+                             if (Array.isArray(raw)) materials = raw.filter(i => i && i !== "[]" && i !== "");
                              else if (typeof raw === 'string') {
                                if (raw.startsWith('[') || raw.startsWith('{')) {
-                                 try { materials = JSON.parse(raw); } catch (e) { materials = [raw]; }
+                                 try { 
+                                    const parsed = JSON.parse(raw);
+                                    materials = Array.isArray(parsed) ? parsed.filter(i => i && i !== "[]" && i !== "") : [parsed];
+                                 } catch (e) { materials = raw === "[]" ? [] : [raw]; }
                                } else {
-                                 materials = [raw];
+                                 materials = raw === "" || raw === "[]" ? [] : [raw];
                                }
                              }
                            }
 
-                           if (!Array.isArray(materials)) materials = [materials];
-                           
                            // Merge with Knowledge Base Assets with safe mapping
                            const allMaterials = [
-                             ...materials.map(m => (typeof m === 'object' ? { ...m, source: 'curriculum' } : { url: m, name: m.split('/').pop(), source: 'curriculum' })),
-                             ...kbAssets.map(a => (typeof a === 'object' ? { ...a, source: 'knowledge' } : { url: a, name: a.split('/').pop(), source: 'knowledge' }))
-                           ].filter(Boolean);
+                             ...materials.map(m => {
+                                if (typeof m === 'object' && m !== null) return { ...m, source: 'curriculum' };
+                                if (typeof m === 'string' && m.trim()) return { url: m, name: m.split('/').pop(), source: 'curriculum' };
+                                return null;
+                             }),
+                             ...kbAssets.map(a => {
+                                if (typeof a === 'object' && a !== null) return { ...a, source: 'knowledge' };
+                                if (typeof a === 'string' && a.trim()) return { url: a, name: a.split('/').pop(), source: 'knowledge' };
+                                return null;
+                             })
+                           ].filter(item => item && (item.url || item.path) && item.url !== "#" && item.url !== "");
 
                            if (allMaterials.length === 0) {
                                return <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">No strategic materials have been anchored to this program yet.</p>;
@@ -724,18 +734,19 @@ export default function ProgramWorkspace() {
 
                            return allMaterials.map((file, idx) => {
                              const url = typeof file === 'object' ? (file.url || file.path) : file;
-                             const name = typeof file === 'object' ? (file.name || file.title) : (typeof file === 'string' ? file.split('/').pop() : 'Strategic_Document.pdf');
+                             const name = typeof file === 'object' ? (file.name || file.title || (typeof file.url === 'string' ? file.url.split('/').pop() : 'Document')) : (typeof file === 'string' ? file.split('/').pop() : 'Strategic_Document.pdf');
                              const isKB = file.source === 'knowledge';
                              
-                             if (!url) return null;
+                             if (!url || url === "#") return null;
 
                              return (
-                               <a 
+                               <button 
                                  key={idx} 
-                                 href={url} 
-                                 target="_blank" 
-                                 rel="noopener noreferrer"
-                                 className={`flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border transition-all group ${isKB ? 'border-emerald-500/30 hover:border-emerald-500' : 'border-[var(--border-primary)] hover:border-blue-500/50'}`}
+                                 onClick={(e) => {
+                                    e.preventDefault();
+                                    setActivePDF({ url, name });
+                                 }}
+                                 className={`w-full flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border transition-all group text-left ${isKB ? 'border-emerald-500/30 hover:border-emerald-500' : 'border-[var(--border-primary)] hover:border-blue-500/50'}`}
                                >
                                  <div className="flex items-center gap-3">
                                    <div className={`p-2 rounded-lg ${isKB ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
@@ -750,8 +761,8 @@ export default function ProgramWorkspace() {
                                      </span>
                                    </div>
                                  </div>
-                                 <ExternalLink className={`w-4 h-4 transition-colors ${isKB ? 'text-emerald-600 group-hover:text-emerald-400' : 'text-slate-600 group-hover:text-blue-500'}`} />
-                               </a>
+                                 <ChevronRight className={`w-4 h-4 transition-colors ${isKB ? 'text-emerald-600 group-hover:text-emerald-400' : 'text-slate-600 group-hover:text-blue-500'}`} />
+                               </button>
                              );
                            });
                         })()}
@@ -863,6 +874,33 @@ export default function ProgramWorkspace() {
                              </div>
                           </div>
                        </div>
+
+                       {activePDF && (
+                          <div className="mt-8 space-y-4 animate-in slide-in-from-bottom-4">
+                             <div className="flex items-center justify-between bg-[var(--bg-tertiary)] p-4 rounded-xl border border-[var(--brand-orange)]/30">
+                                <div className="flex items-center gap-3">
+                                   <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500">
+                                      <FileText className="w-4 h-4" />
+                                   </div>
+                                   <div>
+                                      <h4 className="text-[10px] font-black uppercase text-white">{activePDF.name}</h4>
+                                      <p className="text-[8px] font-bold text-orange-500 uppercase tracking-widest">Active Operational View</p>
+                                   </div>
+                                </div>
+                                <div className="flex gap-2">
+                                   <a href={activePDF.url} target="_blank" rel="noreferrer" className="btn btn-secondary !py-2 text-[9px] gap-2">
+                                      <ExternalLink className="w-3 h-3" /> Full Screen
+                                   </a>
+                                   <button onClick={() => setActivePDF(null)} className="btn btn-secondary !py-2 text-[9px] hover:bg-rose-500/10 hover:text-rose-500">
+                                      Close Viewer
+                                   </button>
+                                </div>
+                             </div>
+                             <div className="card !p-0 h-[600px] overflow-hidden rounded-2xl border-[var(--border-primary)] shadow-2xl">
+                                <iframe src={`${activePDF.url}#toolbar=0`} className="w-full h-full" title="PDF Viewer" />
+                             </div>
+                          </div>
+                       )}
                     </div>
                   </div>
                 ))}
