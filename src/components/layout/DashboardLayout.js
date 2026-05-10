@@ -251,7 +251,7 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
           ...items[progIndex],
           subItems: [
             ...baseSubItems,
-            ...(activeRole === 'super_admin' ? [] : pmPrograms.map(p => ({ 
+            ...(activeRole === 'super_admin' ? [] : (Array.isArray(pmPrograms) ? pmPrograms : []).map(p => ({ 
               id: `prog_${p.id}`, 
               name: p.name, 
               href: `/pm/programs/${p.id}` 

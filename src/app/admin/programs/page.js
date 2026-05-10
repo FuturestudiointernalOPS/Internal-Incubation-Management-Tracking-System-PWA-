@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
-  Briefcase, Plus, Search, Loader2, ChevronRight, 
-  User, Shield, Users, Calendar, Activity, X, Edit3, BookOpen, 
-  Archive, RotateCcw, Trash2, Settings, ArrowLeft,
-  Zap, MessageSquare, Upload, FileText, Copy, Signal, Info, Globe, Mail
+  Plus, Search, Loader2, ChevronRight, 
+  User, Shield, Users, Edit3, Archive, RotateCcw, Trash2, Settings, ArrowLeft,
+  Signal, FileText, Upload
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { CardSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 import { uploadFile } from '@/lib/storage';
 
 export default function ProgramManagement() {
@@ -44,15 +43,18 @@ export default function ProgramManagement() {
         kbRes.json().catch(() => ({ success: false }))
       ]);
       
-      if (progData?.success) setPrograms(progData.programs || []);
+      if (progData?.success) setPrograms(Array.isArray(progData.programs) ? progData.programs : []);
       if (managerData?.success) {
-        const managers = (managerData.contacts || []).filter(c => 
+        const managers = (Array.isArray(managerData.contacts) ? managerData.contacts : []).filter(c => 
           c && (c.role === 'super_admin' || c.role === 'program_manager' || c.role === 'admin' || c.role === 'staff')
         );
         setTeams(managers);
       }
-      if (segmentData?.success) setNotes(segmentData.families || []);
-      if (kbData?.success) setKnowledgeItems(kbData.conceptNotes || kbData.knowledgeItems || kbData.notes || []);
+      if (segmentData?.success) setNotes(Array.isArray(segmentData.families) ? segmentData.families : []);
+      if (kbData?.success) {
+        const items = kbData.conceptNotes || kbData.knowledgeItems || kbData.notes || [];
+        setKnowledgeItems(Array.isArray(items) ? items : []);
+      }
       
     } catch (e) {
       console.error("Sync Failure:", e);
@@ -146,7 +148,8 @@ export default function ProgramManagement() {
     }
   };
 
-  const filtered = (programs || []).filter(p => 
+  const safePrograms = Array.isArray(programs) ? programs : [];
+  const filtered = safePrograms.filter(p => 
     p?.name && p.name.toLowerCase().includes((search || "").toLowerCase())
   );
 
@@ -158,7 +161,7 @@ export default function ProgramManagement() {
           <div className="space-y-4">
             <button 
                onClick={() => router.push('/admin')}
-               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
+               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
                <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
             </button>
@@ -172,16 +175,10 @@ export default function ProgramManagement() {
           </div>
           
           <div className="flex gap-3">
-             <button 
-                onClick={() => router.push('/admin/standardization')}
-                className="btn btn-secondary gap-2"
-             >
+             <button onClick={() => router.push('/admin/standardization')} className="btn btn-secondary gap-2">
                 <Settings className="w-4 h-4" /> Settings
              </button>
-             <button 
-                onClick={() => router.push('/admin/programs/new')}
-                className="btn btn-primary gap-2"
-             >
+             <button onClick={() => router.push('/admin/programs/new')} className="btn btn-primary gap-2">
                 <Plus className="w-4 h-4" /> Create Program
              </button>
           </div>
@@ -197,7 +194,7 @@ export default function ProgramManagement() {
               <button
                 key={tab.id}
                 onClick={() => setTab(tab.id)}
-                className={`px-6 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                className={`px-6 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-[var(--brand-orange)] text-black' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
               >
                 {tab.label}
               </button>
@@ -319,14 +316,14 @@ export default function ProgramManagement() {
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
                  >
                     <option value="">Unassigned</option>
-                    {(teams || []).map(m => m && <option key={m.cid} value={m.cid}>{m.name?.toUpperCase()}</option>)}
+                    {(Array.isArray(teams) ? teams : []).map(m => m && <option key={m.cid} value={m.cid}>{m.name?.toUpperCase()}</option>)}
                  </select>
               </div>
 
               <div className="space-y-3">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">ASSIGNED TEAM</label>
                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
-                    {(teams || []).filter(t => t && t.cid !== editingProgram?.assigned_pm_id).map(member => {
+                    {(Array.isArray(teams) ? teams : []).filter(t => t && t.cid !== editingProgram?.assigned_pm_id).map(member => {
                       if (!member) return null;
                       const assistantIds = typeof editingProgram?.assigned_assistant_id === 'string' 
                         ? editingProgram.assigned_assistant_id.split(',').filter(Boolean) 
@@ -372,7 +369,7 @@ export default function ProgramManagement() {
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
                   >
                     <option value="">None Assigned</option>
-                    {(knowledgeItems || []).map(item => item && <option key={item.id} value={item.id}>{item.title?.toUpperCase() || 'UNTITLED NODE'}</option>)}
+                    {(Array.isArray(knowledgeItems) ? knowledgeItems : []).map(item => item && <option key={item.id} value={item.id}>{item.title?.toUpperCase() || 'UNTITLED NODE'}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -393,8 +390,9 @@ export default function ProgramManagement() {
                       if (!editingProgram) return null;
                       let mats = [];
                       try {
-                        mats = Array.isArray(editingProgram.materials) ? editingProgram.materials : 
+                        const raw = Array.isArray(editingProgram.materials) ? editingProgram.materials : 
                                     (typeof editingProgram.materials === 'string' ? JSON.parse(editingProgram.materials || '[]') : []);
+                        mats = Array.isArray(raw) ? raw : [];
                       } catch (e) {
                         console.error("Materials parse failure:", e);
                         mats = [];
@@ -446,9 +444,10 @@ export default function ProgramManagement() {
               <div className="space-y-3">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">OPERATIONAL TEAMS</label>
                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
-                    {(notes || []).map(s => {
+                    {(Array.isArray(notes) ? notes : []).map(s => {
                       if (!s) return null;
-                      const isActive = (editingProgram?.assigned_segments || []).includes(s.id);
+                      const assignedSegments = Array.isArray(editingProgram?.assigned_segments) ? editingProgram.assigned_segments : [];
+                      const isActive = assignedSegments.includes(s.id);
                       return (
                         <button
                           key={s.id}
