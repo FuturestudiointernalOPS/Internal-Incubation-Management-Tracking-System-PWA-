@@ -276,29 +276,55 @@ export default function ProgramManagement() {
                  />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">PROGRAM MANAGER</label>
-                  <select 
+              <div className="space-y-2">
+                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">PROGRAM MANAGER</label>
+                 <select 
                     value={editingProgram.assigned_pm_id || ''} 
                     onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} 
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
-                  >
+                 >
                     <option value="">Unassigned</option>
                     {teams.map(m => <option key={m.cid} value={m.cid}>{m.name.toUpperCase()}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">ASSISTANT MANAGER</label>
-                  <select 
-                    value={editingProgram.assigned_assistant_id || ''} 
-                    onChange={e => setEditingProgram({...editingProgram, assigned_assistant_id: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
-                  >
-                    <option value="">Unassigned</option>
-                    {teams.map(m => <option key={m.cid} value={m.cid}>{m.name.toUpperCase()}</option>)}
-                  </select>
-                </div>
+                 </select>
+              </div>
+
+              <div className="space-y-3">
+                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">ASSIGNED TEAM</label>
+                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
+                    {teams.filter(t => t.cid !== editingProgram.assigned_pm_id).map(member => {
+                      const assistantIds = typeof editingProgram.assigned_assistant_id === 'string' 
+                        ? editingProgram.assigned_assistant_id.split(',').filter(Boolean) 
+                        : (Array.isArray(editingProgram.assigned_assistant_id) ? editingProgram.assigned_assistant_id : []);
+                      
+                      const isActive = assistantIds.includes(member.cid);
+                      
+                      return (
+                        <button
+                          key={member.cid}
+                          type="button"
+                          onClick={() => {
+                            let next;
+                            if (isActive) {
+                              next = assistantIds.filter(id => id !== member.cid);
+                            } else {
+                              next = [...assistantIds, member.cid];
+                            }
+                            setEditingProgram({...editingProgram, assigned_assistant_id: next.join(',')});
+                          }}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                            isActive 
+                              ? 'bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]' 
+                              : 'bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          <div className={`w-6 h-6 rounded bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black ${isActive ? 'text-[var(--brand-orange)] border-[var(--brand-orange)]/30' : ''}`}>
+                             {member.name.charAt(0)}
+                          </div>
+                          <span className="text-[9px] font-black uppercase truncate italic">{member.name}</span>
+                        </button>
+                      );
+                    })}
+                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
