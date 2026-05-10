@@ -45,7 +45,10 @@ export default function ProgramManagement() {
       if (progData.success) setPrograms(progData.programs || []);
       if (managerData.success) {
         const managers = (managerData.contacts || []).filter(c => 
-          c.role === 'super_admin' || c.role === 'program_manager'
+          c.role === 'super_admin' || 
+          c.role === 'program_manager' || 
+          c.role === 'staff' || 
+          c.role === 'teacher'
         );
         setTeams(managers); // Used for managers list
       }
