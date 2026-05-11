@@ -132,7 +132,7 @@ export async function POST(req) {
           });
         } else {
           await db.execute({
-            sql: "UPDATE families SET program_id = ? WHERE name = ?",
+            sql: "UPDATE families SET program_id = ? WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
             args: [id, segmentId]
           });
         }
@@ -180,7 +180,7 @@ export async function PUT(req) {
             });
           } else {
             await db.execute({
-              sql: "UPDATE families SET program_id = ? WHERE name = ?",
+              sql: "UPDATE families SET program_id = ? WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
               args: [id, segmentId]
             });
           }
