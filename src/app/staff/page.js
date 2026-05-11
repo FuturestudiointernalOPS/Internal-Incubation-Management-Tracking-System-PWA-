@@ -19,11 +19,23 @@ export default function StaffDashboard() {
       return;
     }
     const parsedUser = JSON.parse(userString);
-    if (parsedUser.role !== 'staff' && parsedUser.role !== 'super_admin') {
+    if (parsedUser.role !== 'staff' && parsedUser.role !== 'super_admin' && parsedUser.role !== 'teacher') {
       router.replace('/terminal');
       return;
     }
+
+    const checkAssignments = async () => {
+      try {
+        const res = await fetch(`/api/teacher/full-state?cid=${parsedUser.cid || parsedUser.id}`);
+        const data = await res.json();
+        if (data.success && (data.programs?.length > 0 || data.teams?.length > 0)) {
+           router.replace('/teacher');
+        }
+      } catch (e) {}
+    };
+
     setUser(parsedUser);
+    checkAssignments();
   }, [router]);
 
   return (

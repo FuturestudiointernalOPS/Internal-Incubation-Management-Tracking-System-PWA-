@@ -99,18 +99,11 @@ export default function TeacherV2Dashboard() {
       if (data.success) {
          setSubmissions(data.submissions || []);
          setSessions(data.sessions || []);
+         setMyPrograms(data.programs || []);
          
-         // Extract unique programs
-         const uniqueProgs = [];
-         const progIds = new Set();
-         (data.sessions || []).forEach(s => {
-            if (!progIds.has(s.program_id)) {
-               progIds.add(s.program_id);
-               uniqueProgs.push({ id: s.program_id, name: s.program_name });
-            }
-         });
-         setMyPrograms(uniqueProgs);
-         if (uniqueProgs.length > 0 && !selectedProgramId) setSelectedProgramId(uniqueProgs[0].id);
+         if (data.programs?.length > 0 && !selectedProgramId) {
+            setSelectedProgramId(data.programs[0].id);
+         }
       }
       setIsLoading(false);
     } catch (e) { 
