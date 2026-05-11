@@ -151,124 +151,107 @@ export default function ReportsV2Page() {
 
   return (
     <DashboardLayout role="teacher" activeTab="v2">
-      <div className="max-w-5xl mx-auto space-y-12 pb-40">
+      <div className="space-y-12">
         
-        {/* WIP SAFE LAYER LABEL */}
-        <div className="flex items-center justify-between bg-[#FF6600]/10 border border-[#FF6600]/20 p-6 rounded-[2rem]">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-full bg-[#FF6600] text-black animate-pulse">
-              <AlertCircle className="w-5 h-5" />
+        {/* WIP HEADER - LIGHTWEIGHT */}
+        <header className="flex flex-col lg:flex-row justify-between items-start gap-6 border-b border-white/5 pb-10">
+          <div>
+            <div className="flex items-center gap-4 mb-3">
+              <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">Advanced Reporting</span>
+              <div className="h-px w-10 bg-[#FF6600]/30" />
+              <span className="bg-[#FF6600] text-black px-2 py-0.5 rounded-md text-[8px] font-black uppercase">Work in Progress</span>
             </div>
-            <div>
-              <p className="text-xs font-black text-[#FF6600] uppercase tracking-widest leading-none">Safe Mode Active</p>
-              <h4 className="text-xl font-black text-white uppercase tracking-tighter">Work in Progress (WIP)</h4>
-            </div>
-          </div>
-          <div className="text-right">
-             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Operational Week</p>
-             <p className="text-sm font-black text-white uppercase italic">{weekData?.week_start} — {weekData?.week_end}</p>
-          </div>
-        </div>
-
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div className="space-y-4">
-            <h2 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">
-              Weekly {type === 'standup' ? 'Stand-up' : 'Retro'}
+            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2 italic">
+               {type === 'standup' ? 'Weekly Stand-up' : 'Weekly Retro'}
             </h2>
-            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.4em] italic">
-              {type === 'standup' ? 'Monday Intelligence Synchronization' : 'Friday Tactical Reflection'}
+            <p className="text-slate-400 font-bold tracking-tight uppercase text-[10px]">
+               {weekData?.week_start} ÔÇö {weekData?.week_end} ÔÇó {type === 'standup' ? 'Monday Intent Synchronization' : 'Friday Tactical Reflection'}
             </p>
           </div>
-          <div className="flex bg-white/5 p-2 rounded-2xl border border-white/5">
+          <div className="flex gap-4">
              <button 
                onClick={() => setType('standup')}
-               className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${type === 'standup' ? 'bg-[#FF6600] text-black' : 'text-slate-500 hover:text-white'}`}
+               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${type === 'standup' ? 'bg-[#FF6600] text-black shadow-xl shadow-[#FF6600]/20' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
              >
                Stand-up
              </button>
              <button 
                onClick={() => setType('retro')}
-               className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${type === 'retro' ? 'bg-[#FF6600] text-black' : 'text-slate-500 hover:text-white'}`}
+               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${type === 'retro' ? 'bg-[#FF6600] text-black shadow-xl shadow-[#FF6600]/20' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
              >
                Retro
              </button>
           </div>
         </header>
 
-        <div className="space-y-10">
+        <div className="grid grid-cols-1 gap-8">
           {blocks.map((block, idx) => (
-            <section key={idx} className="ios-card bg-white/[0.01] border-white/5 !p-12 group hover:border-[#FF6600]/20 transition-all">
-              <div className="flex items-center gap-6 mb-12">
-                <div className={`p-4 rounded-2xl ${block.context_type === 'personal' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-[#FF6600]/10 text-[#FF6600]'}`}>
-                  {block.context_type === 'personal' ? <Star className="w-6 h-6" /> : <Layout className="w-6 h-6" />}
+            <div key={idx} className="ios-card bg-white/[0.01] border-white/5 !p-10">
+              <div className="flex items-center gap-4 mb-10 border-b border-white/5 pb-6">
+                <div className={`p-3 rounded-xl ${block.context_type === 'personal' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-[#FF6600]/10 text-[#FF6600]'}`}>
+                  {block.context_type === 'personal' ? <Star className="w-5 h-5" /> : <Layout className="w-5 h-5" />}
                 </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">
-                    {block.context_type === 'personal' ? 'Identity Perspective' : 'Program Vector'}
-                  </p>
-                  <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-                    {block.context_type === 'personal' ? 'Personal Stand-up' : block.program_name}
-                  </h3>
-                </div>
+                <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">
+                  {block.context_type === 'personal' ? 'Personal Perspective' : block.program_name}
+                </h3>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                <div className="space-y-8">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <Target className="w-3 h-3 text-[#FF6600]" /> Objectives & Intent
-                    </label>
-                    {type === 'standup' ? (
-                      <div className="space-y-4">
-                         <div className="flex gap-2">
-                           <input 
-                             type="text"
-                             placeholder="Add tactical task..."
-                             className="flex-1 bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white text-sm font-bold outline-none focus:border-[#FF6600]/40 transition-all"
-                             onKeyDown={e => {
-                               if (e.key === 'Enter') {
-                                 handleAddTask(idx, e.target.value);
-                                 e.target.value = '';
-                               }
-                             }}
-                           />
-                         </div>
-                         <div className="space-y-2">
-                           {block.todo.map((task, tIdx) => (
-                             <div key={tIdx} className="flex items-center justify-between p-4 bg-black/40 rounded-xl border border-white/5 group/task">
-                               <p className="text-xs font-bold text-white uppercase tracking-tight italic">{task}</p>
-                               <button onClick={() => handleRemoveTask(idx, tIdx)} className="text-slate-700 hover:text-rose-500 transition-colors opacity-0 group-hover/task:opacity-100">
-                                 <Trash2 className="w-3.5 h-3.5" />
-                               </button>
-                             </div>
-                           ))}
-                         </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                         {block.todo.map((task, tIdx) => {
-                           const isDone = block.retro_status.find(s => s.task === task)?.completed;
-                           return (
-                             <div 
-                               key={tIdx} 
-                               onClick={() => handleToggleRetroTask(idx, tIdx)}
-                               className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${isDone ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}
-                             >
-                               <p className={`text-xs font-bold uppercase tracking-tight italic ${isDone ? 'text-emerald-400 line-through' : 'text-white'}`}>{task}</p>
-                               {isDone ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Clock className="w-4 h-4 text-slate-700" />}
-                             </div>
-                           );
-                         })}
-                      </div>
-                    )}
-                  </div>
+                {/* LEFT COLUMN: TASKS */}
+                <div className="space-y-6">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    {type === 'standup' ? 'Weekly Objectives' : 'Performance Checklist'}
+                  </label>
+                  
+                  {type === 'standup' ? (
+                    <div className="space-y-4">
+                       <input 
+                         type="text"
+                         placeholder="Press Enter to add task..."
+                         className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white text-xs font-bold outline-none focus:border-[#FF6600]/40 transition-all"
+                         onKeyDown={e => {
+                           if (e.key === 'Enter') {
+                             handleAddTask(idx, e.target.value);
+                             e.target.value = '';
+                           }
+                         }}
+                       />
+                       <div className="space-y-2">
+                         {block.todo.map((task, tIdx) => (
+                           <div key={tIdx} className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-white/5 group">
+                             <p className="text-[11px] font-bold text-white uppercase tracking-tight">{task}</p>
+                             <button onClick={() => handleRemoveTask(idx, tIdx)} className="text-slate-700 hover:text-rose-500 transition-colors">
+                               <Trash2 className="w-3.5 h-3.5" />
+                             </button>
+                           </div>
+                         ))}
+                       </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                       {block.todo.map((task, tIdx) => {
+                         const isDone = block.retro_status.find(s => s.task === task)?.completed;
+                         return (
+                           <div 
+                             key={tIdx} 
+                             onClick={() => handleToggleRetroTask(idx, tIdx)}
+                             className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${isDone ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/5 border-white/5'}`}
+                           >
+                             <p className={`text-[11px] font-bold uppercase tracking-tight ${isDone ? 'text-emerald-400 line-through' : 'text-white'}`}>{task}</p>
+                             {isDone ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Clock className="w-4 h-4 text-slate-700" />}
+                           </div>
+                         );
+                       })}
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-10">
+                {/* RIGHT COLUMN: TEXT CONTENT */}
+                <div className="space-y-6">
                    {type === 'standup' ? (
                      <>
-                        <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current State / Focus</label>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Core Focus</label>
                           <textarea 
                             value={block.current_state}
                             onChange={e => {
@@ -276,12 +259,11 @@ export default function ReportsV2Page() {
                               nb[idx].current_state = e.target.value;
                               setBlocks(nb);
                             }}
-                            placeholder="What is your primary focus this week?"
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white text-sm font-bold outline-none focus:border-[#FF6600]/40 transition-all min-h-[120px]"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white text-xs font-bold outline-none focus:border-[#FF6600]/40 transition-all min-h-[100px]"
                           />
                         </div>
-                        <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Anticipated Challenges</label>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Anticipated Blockers</label>
                           <textarea 
                             value={block.challenge}
                             onChange={e => {
@@ -289,16 +271,15 @@ export default function ReportsV2Page() {
                               nb[idx].challenge = e.target.value;
                               setBlocks(nb);
                             }}
-                            placeholder="Any blockers or risks?"
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white text-sm font-bold outline-none focus:border-[#FF6600]/40 transition-all min-h-[120px]"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white text-xs font-bold outline-none focus:border-[#FF6600]/40 transition-all min-h-[100px]"
                           />
                         </div>
                      </>
                    ) : (
                      <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                           <div className="space-y-3">
-                              <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">What Worked</label>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Wins</label>
                               <textarea 
                                 value={block.what_worked}
                                 onChange={e => {
@@ -306,11 +287,11 @@ export default function ReportsV2Page() {
                                   nb[idx].what_worked = e.target.value;
                                   setBlocks(nb);
                                 }}
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white text-sm font-bold outline-none focus:border-emerald-500/40 transition-all min-h-[100px]"
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-xs font-bold outline-none focus:border-emerald-500/40 transition-all min-h-[100px]"
                               />
                            </div>
-                           <div className="space-y-3">
-                              <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest">What Didn't</label>
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Friction</label>
                               <textarea 
                                 value={block.what_failed}
                                 onChange={e => {
@@ -318,12 +299,12 @@ export default function ReportsV2Page() {
                                   nb[idx].what_failed = e.target.value;
                                   setBlocks(nb);
                                 }}
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white text-sm font-bold outline-none focus:border-rose-500/40 transition-all min-h-[100px]"
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-xs font-bold outline-none focus:border-rose-500/40 transition-all min-h-[100px]"
                               />
                            </div>
                         </div>
-                        <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Strategic Notes</label>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Reflections & Notes</label>
                           <textarea 
                             value={block.notes}
                             onChange={e => {
@@ -331,25 +312,24 @@ export default function ReportsV2Page() {
                               nb[idx].notes = e.target.value;
                               setBlocks(nb);
                             }}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white text-sm font-bold outline-none focus:border-[#FF6600]/40 transition-all min-h-[120px]"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white text-xs font-bold outline-none focus:border-[#FF6600]/40 transition-all min-h-[100px]"
                           />
                         </div>
                      </>
                    )}
                 </div>
               </div>
-            </section>
+            </div>
           ))}
         </div>
 
-        <div className="flex justify-end gap-6 pt-10 border-t border-white/5">
+        <div className="flex justify-end border-t border-white/5 pt-12">
            <button 
              onClick={handleSubmit}
              disabled={submitting}
-             className="px-12 py-5 rounded-3xl bg-[#FF6600] text-black font-black uppercase text-xs tracking-[0.2em] hover:bg-white transition-all shadow-2xl shadow-[#FF6600]/30 disabled:opacity-50 flex items-center gap-4"
+             className="px-12 py-5 rounded-2xl bg-[#FF6600] text-black font-black uppercase text-xs tracking-[0.2em] hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 disabled:opacity-50"
            >
-             {submitting ? 'Synchronizing Node...' : `Finalize ${type === 'standup' ? 'Stand-up' : 'Retro'}`}
-             <ArrowRight className="w-4 h-4" />
+             {submitting ? 'Syncing...' : `Finalize ${type === 'standup' ? 'Stand-up' : 'Retro'}`}
            </button>
         </div>
       </div>
