@@ -46,6 +46,8 @@ export default function ProgramWorkspace() {
   const [families, setFamilies] = useState([]);
   
   const [showTeamModal, setShowTeamModal] = useState(false);
+  const [teamAssignmentMode, setTeamAssignmentMode] = useState('new'); // 'new' or 'existing'
+  const [selectedExistingTeamId, setSelectedExistingTeamId] = useState('');
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [showKPIModal, setShowKPIModal] = useState(false);
@@ -106,25 +108,40 @@ export default function ProgramWorkspace() {
   };
 
   const deployTeam = async () => {
-    if (!newTeam.name.trim()) return;
+    if (teamAssignmentMode === 'new' && !newTeam.name.trim()) return;
+    if (teamAssignmentMode === 'existing' && !selectedExistingTeamId) return;
+    
     setIsSaving(true);
     try {
-      const res = await fetch('/api/pm/teams', {
-        method: 'POST',
+      const endpoint = teamAssignmentMode === 'new' ? '/api/pm/teams' : '/api/pm/teams';
+      const method = teamAssignmentMode === 'new' ? 'POST' : 'PATCH';
+      
+      // Auto-detect group_name from selected participants
+      const firstPar = participants.find(p => p.id === selectedParticipants[0]);
+      const detectedGroupName = firstPar?.group_name || 'Individual';
+
+      const payload = teamAssignmentMode === 'new' 
+        ? { ...newTeam, group_name: detectedGroupName, program_id: id, member_ids: selectedParticipants }
+        : { team_id: selectedExistingTeamId, member_ids: selectedParticipants };
+
+      const res = await fetch(endpoint, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newTeam, program_id: id })
+        body: JSON.stringify(payload)
       });
+      
       const data = await res.json();
-        if (data.success) { 
-          notify('Student Group initialized.'); 
-          setShowTeamModal(false); 
-          setNewTeam({ name: '', group_name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' }); 
-          fetchProgramData(true); 
-          setSelectedParticipants([]);
-          setActiveTab('teams');
-          setActiveSubTab('groups');
-        }
-      else notify(data.error || 'Deploy failed.', 'error');
+      if (data.success) { 
+        notify(teamAssignmentMode === 'new' ? 'Student Group initialized.' : 'Students added to group.'); 
+        setShowTeamModal(false); 
+        setNewTeam({ name: '', group_name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' }); 
+        setSelectedExistingTeamId('');
+        fetchProgramData(true); 
+        setSelectedParticipants([]);
+        setActiveTab('teams');
+        setActiveSubTab('groups');
+      }
+      else notify(data.error || 'Operation failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
   };
@@ -1336,33 +1353,45 @@ export default function ProgramWorkspace() {
               <button onClick={() => setShowTeamModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Select Primary Segment (Contact Group)</label>
-                <select 
-                  value={newTeam.group_name} 
-                  onChange={e => setNewTeam(p => ({...p, group_name: e.target.value}))} 
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" 
-                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
-                >
-                  <option value="">Select Segment...</option>
-                  {families.map(f => (
-                    <option key={f.id} value={f.name}>{f.name.toUpperCase()}</option>
-                  ))}
-                </select>
-                <p className="text-[8px] font-bold text-blue-500 uppercase mt-1">This anchors the sub-team to a global contact group (e.g. T4S).</p>
+              <div className="flex bg-[var(--bg-primary)] p-1 rounded-xl border border-[var(--border-primary)]">
+                <button 
+                  onClick={() => setTeamAssignmentMode('new')}
+                  className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === 'new' ? 'bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20' : 'text-[var(--text-secondary)] opacity-50'}`}
+                >Create New</button>
+                <button 
+                  onClick={() => setTeamAssignmentMode('existing')}
+                  className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === 'existing' ? 'bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20' : 'text-[var(--text-secondary)] opacity-50'}`}
+                >Add to Existing</button>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Internal Team Name (Sub-group)</label>
-                <input 
-                  value={newTeam.name} 
-                  onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} 
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" 
-                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} 
-                  placeholder="e.g. Group Teh" 
-                />
-                <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase mt-1 opacity-60">Internal name used for curriculum tracking.</p>
-              </div>
+              {teamAssignmentMode === 'new' ? (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Internal Team Name (Sub-group)</label>
+                  <input 
+                    value={newTeam.name} 
+                    onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} 
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" 
+                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} 
+                    placeholder="e.g. Group Teh" 
+                  />
+                  <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase mt-1">Note: This will be anchored to the parent contact group automatically.</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Select Target Group</label>
+                  <select 
+                    value={selectedExistingTeamId}
+                    onChange={e => setSelectedExistingTeamId(e.target.value)}
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" 
+                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="">Select an existing team...</option>
+                    {teams.map(t => (
+                      <option key={t.id} value={t.id}>{t.name.toUpperCase()} (Anchor: {t.group_name})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Group Lead (Student)</label>

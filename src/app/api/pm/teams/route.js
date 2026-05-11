@@ -127,6 +127,89 @@ export async function POST(req) {
   }
 }
 
+export async function PATCH(req) {
+  try {
+    await initDb();
+    const { team_id, member_ids } = await req.json();
+
+    if (!team_id || !member_ids || !Array.isArray(member_ids)) {
+      return NextResponse.json({ success: false, error: "Missing parameters." }, { status: 400 });
+    }
+
+    // Fetch team details for email notification
+    const teamRes = await db.execute({
+      sql: "SELECT * FROM v2_teams WHERE id = ?",
+      args: [team_id]
+    });
+    const team = teamRes.rows[0];
+    if (!team) return NextResponse.json({ success: false, error: "Team not found." }, { status: 404 });
+
+    // Link Members to Team (Copied Logic from POST)
+    const intIds = member_ids.filter(id => id && !isNaN(id) && !id.toString().startsWith('USER_'));
+    const strIds = member_ids.filter(id => id && id.toString().startsWith('USER_'));
+
+    if (intIds.length > 0) {
+      const placeholders = intIds.map(() => "?").join(",");
+      await db.execute({
+        sql: `UPDATE v2_participants SET v2_team_id = ? WHERE id IN (${placeholders})`,
+        args: [team.id, ...intIds]
+      });
+    }
+
+    if (strIds.length > 0) {
+      const placeholders = strIds.map(() => "?").join(",");
+      await db.execute({
+        sql: `UPDATE contacts SET v2_team_id = ? WHERE cid IN (${placeholders})`,
+        args: [team.id, ...strIds]
+      });
+    }
+
+    // Send Emails (Copied Logic from POST)
+    const allMembers = [];
+    if (intIds.length > 0) {
+      const res = await db.execute({
+        sql: `SELECT email, name FROM v2_participants WHERE id IN (${intIds.map(() => "?").join(",")})`,
+        args: [...intIds]
+      });
+      allMembers.push(...res.rows);
+    }
+    if (strIds.length > 0) {
+      const res = await db.execute({
+        sql: `SELECT email, name FROM contacts WHERE cid IN (${strIds.map(() => "?").join(",")})`,
+        args: [...strIds]
+      });
+      allMembers.push(...res.rows);
+    }
+
+    for (const member of allMembers) {
+      try {
+        await sendEmail({
+          to: member.email,
+          subject: `Unit Assignment Confirmed: ${team.name}`,
+          body: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #FF6600;">Unit Assignment: ${team.name}</h2>
+              <p>Hello ${member.name},</p>
+              <p>You have been assigned to <strong>${team.name}</strong>. Here are your shared access credentials:</p>
+              <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                <p style="margin: 5px 0;"><strong>Unit Username:</strong> ${team.team_username}</p>
+                <p style="margin: 5px 0;"><strong>Unit Password:</strong> ${team.password}</p>
+              </div>
+              <p>Use these credentials to access the program dashboard.</p>
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://impactos-pwa.vercel.app'}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">Login to Command Center</a>
+            </div>
+          `,
+          isHtml: true
+        });
+      } catch (e) {}
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(req) {
   try {
     await initDb();
