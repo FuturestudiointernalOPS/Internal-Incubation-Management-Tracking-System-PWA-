@@ -296,6 +296,21 @@ export default function ProgramWorkspace() {
     } catch (e) {}
   };
 
+  const deleteTeam = async (teamId) => {
+    if (!confirm('Decommission this student group?')) return;
+    try {
+       const res = await fetch('/api/pm/teams', { 
+         method: 'DELETE', 
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ id: teamId }) 
+       });
+       if ((await res.json()).success) {
+         notify('Student Group decommissioned.');
+         fetchProgramData(true);
+       }
+    } catch (e) { notify('Failed to remove group.', 'error'); }
+  };
+
   const deleteSession = async (sessionId) => {
     if (!confirm('Decommission this node and all associated requirements?')) return;
     try {
@@ -388,7 +403,6 @@ export default function ProgramWorkspace() {
     { id: 'curriculum', name: 'Curriculum', icon: FileText },
     { id: 'reports', name: 'Reports', icon: BarChart3 },
     { id: 'participants', name: 'Participants', icon: Users },
-    { id: 'teams', name: 'Teams', icon: Target },
     { id: 'submissions', name: 'Submissions', icon: Activity },
   ];
 
@@ -491,6 +505,12 @@ export default function ProgramWorkspace() {
                   className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === 'individuals' ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100'}`}
                 >
                   Individuals ({participants.length})
+                </button>
+                <button 
+                  onClick={() => setActiveSubTab('groups')}
+                  className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === 'groups' ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100'}`}
+                >
+                  Teams ({teams.length})
                 </button>
                 <button 
                   onClick={() => setActiveSubTab('staff')}
@@ -665,100 +685,6 @@ export default function ProgramWorkspace() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {activeTab === 'teams' && (
-            <div className="space-y-12 animate-in">
-              {/* OPERATIONAL SQUADS */}
-              <div className="space-y-6">
-                <div className="flex justify-between items-end">
-                   <div className="space-y-1">
-                      <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                        <Target className="w-5 h-5 text-[var(--brand-orange)]" />
-                        Student Groups
-                      </h3>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Organized student cohorts assigned for curriculum execution and graduation readiness</p>
-                   </div>
-                   {(user.role === 'super_admin' || user.role === 'program_manager') && (
-                      <button onClick={() => setShowTeamModal(true)} className="text-[10px] font-black text-[var(--brand-orange)] uppercase hover:underline">
-                        + Initialize Student Group
-                      </button>
-                   )}
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {teams.map(team => (
-                    <div key={team.id} className="card group hover:border-[var(--brand-orange)] transition-all">
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
-                          <Target className="w-6 h-6" />
-                        </div>
-                        {(user.role === 'super_admin' || user.role === 'program_manager') && (
-                          <button className="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500"><Trash2 className="w-4 h-4" /></button>
-                        )}
-                      </div>
-                      <h3 className="text-xl font-bold mb-2">{team.name}</h3>
-                      <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider font-bold mb-6">Assigned Staff: {team.handler_name || 'Unassigned'}</p>
-                      <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
-                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Healthy</span>
-                        <button className="text-[var(--brand-blue)] text-xs font-bold uppercase flex items-center gap-1">
-                          Details <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {teams.length === 0 && (
-                    <button onClick={() => setShowTeamModal(true)} className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-40 hover:opacity-100 transition-all min-h-[160px] col-span-full py-8">
-                       <Plus className="w-8 h-8 text-[var(--text-secondary)]" />
-                       <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">No student groups initialized yet. Click to start deployment.</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* ASSIGNED PERSONNEL (TEAM MEMBERS) */}
-              <div className="space-y-6 pt-12 border-t border-[var(--border-primary)]">
-                <div className="flex justify-between items-end">
-                   <div className="space-y-1">
-                      <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                        <Users className="w-5 h-5 text-blue-500" />
-                        Assigned Personnel
-                      </h3>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Program Team Members & Teaching Staff</p>
-                   </div>
-                   {(user.role === 'super_admin' || user.role === 'program_manager') && (
-                      <button onClick={() => setShowStaffModal(true)} className="text-[10px] font-black text-blue-500 uppercase hover:underline">
-                        + Assign Personnel
-                      </button>
-                   )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {assignedStaff.map(staff => (
-                    <div key={staff.cid} className="card !p-4 border-l-4 border-blue-500 hover:bg-[var(--bg-tertiary)] transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center text-xs font-black uppercase border border-blue-500/20 shadow-sm">
-                          {staff.name?.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] truncate">{staff.name}</p>
-                          <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest">{staff.role}</p>
-                        </div>
-                        <button onClick={() => removeStaff(staff.cid)} className="p-1 text-rose-500/30 hover:text-rose-500 transition-colors">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {assignedStaff.length === 0 && (
-                    <button onClick={() => setShowStaffModal(true)} className="p-8 border border-dashed border-[var(--border-primary)] rounded-2xl flex flex-col items-center justify-center gap-3 opacity-40 hover:opacity-100 transition-all col-span-full">
-                       <UserPlus className="w-8 h-8 text-[var(--text-secondary)]" />
-                       <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">No personnel assigned to this node.</span>
-                    </button>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
