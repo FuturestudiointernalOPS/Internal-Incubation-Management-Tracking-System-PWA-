@@ -258,9 +258,15 @@ export default function TeacherV2Dashboard() {
                     />
                  ))}
                  {submissions.length === 0 && (
-                    <div className="col-span-full py-40 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
-                       <CheckCircle2 className="w-16 h-16 text-slate-800 mx-auto mb-6" />
-                       <p className="text-slate-500 font-bold max-w-xs mx-auto uppercase text-[10px] tracking-widest">Buffer Clear: All submissions currently synchronized.</p>
+                    <div className="col-span-full py-40 text-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/[0.01]">
+                       <CheckCircle2 className="w-16 h-16 text-emerald-500/20 mx-auto mb-6" />
+                       <p className="text-slate-400 font-bold max-w-xs mx-auto uppercase text-[10px] tracking-widest mb-8">Buffer Clear: All submissions currently synchronized.</p>
+                       <button 
+                          onClick={() => setActiveSection('curriculum')}
+                          className="px-8 py-3 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--brand-orange)] hover:text-white transition-all"
+                       >
+                          View Program Curriculum
+                       </button>
                     </div>
                  )}
               </div>

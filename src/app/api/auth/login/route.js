@@ -91,10 +91,12 @@ export async function POST(req) {
       }
     }
 
-    // Check Assignments
+    // Check Assignments using CID
+    const userCid = user.cid || user.id; // Fallback for legacy
+    
     const pmLeadAssignment = await db.execute({
       sql: "SELECT id FROM v2_programs WHERE assigned_pm_id = ? LIMIT 1",
-      args: [user.id || user.cid]
+      args: [userCid]
     });
 
     const activeTeammateAssignment = await db.execute({
@@ -102,7 +104,7 @@ export async function POST(req) {
             UNION 
             SELECT id FROM v2_teams WHERE handler_id = ? 
             LIMIT 1`,
-      args: [`%${user.id || user.cid}%`, user.id || user.cid]
+      args: [`%${userCid}%`, userCid]
     });
 
     // --- STRATEGIC ROLE RESOLUTION (SINGLE-ADMIN HIERARCHY) ---
