@@ -24,6 +24,7 @@ function ContactsPageContent() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('All Contacts');
+  const [selectedTeamTab, setSelectedTeamTab] = useState('All Teams');
   const [showArchived, setShowArchived] = useState(false);
   const [copiedGroup, setCopiedGroup] = useState(null);
 
@@ -55,6 +56,10 @@ function ContactsPageContent() {
       setSelectedGroup(normalized);
     }
   }, [roleParam]);
+
+  useEffect(() => {
+    setSelectedTeamTab('All Teams');
+  }, [selectedGroup]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -217,12 +222,15 @@ function ContactsPageContent() {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
     const matchesGroup = selectedGroup === 'All Contacts' || c.group_name?.toUpperCase() === selectedGroup.toUpperCase();
     
+    // Nested Sub-team Filter
+    const matchesTeam = selectedTeamTab === 'All Teams' || c.v2_team_id === selectedTeamTab;
+    
     let matchesStatus = true;
     if (statusFilter === 'Active') matchesStatus = c.status === 'active' || c.status === 'approved';
     else if (statusFilter === 'Inactive') matchesStatus = c.status === 'inactive';
     else if (statusFilter === 'Pending') matchesStatus = c.status === 'pending';
 
-    return matchesSearch && matchesGroup && matchesStatus && (!showArchived ? !c.deleted : !!c.deleted);
+    return matchesSearch && matchesGroup && matchesTeam && matchesStatus && (!showArchived ? !c.deleted : !!c.deleted);
   });
 
   const getWhatsAppLink = (c, pass) => {
@@ -365,6 +373,27 @@ function ContactsPageContent() {
                   </motion.div>
                )}
             </div>
+
+            {/* SUB-TEAM TABS (Only shown when a group is selected) */}
+            {selectedGroup !== 'All Contacts' && (
+               <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
+                  <button 
+                     onClick={() => setSelectedTeamTab('All Teams')}
+                     className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${selectedTeamTab === 'All Teams' ? 'bg-blue-500 text-white border-blue-500' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] opacity-40 hover:opacity-100'}`}
+                  >
+                     All Teams
+                  </button>
+                  {teams.filter(t => t.group_name?.toUpperCase() === selectedGroup.toUpperCase()).map(team => (
+                     <button 
+                        key={team.id}
+                        onClick={() => setSelectedTeamTab(team.id)}
+                        className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${selectedTeamTab === team.id ? 'bg-blue-500 text-white border-blue-500' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] opacity-40 hover:opacity-100'}`}
+                     >
+                        {team.name}
+                      </button>
+                  ))}
+               </div>
+            )}
 
             {loading ? <TableSkeleton rows={8} /> : (
               <div className="table-container">
