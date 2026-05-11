@@ -26,7 +26,7 @@ export default function StaffDashboard() {
 
     const checkAssignments = async () => {
       try {
-        const res = await fetch(`/api/teacher/full-state?cid=${parsedUser.cid || parsedUser.id}`);
+        const res = await fetch(`/api/v2/teacher/full-state?cid=${parsedUser.cid || parsedUser.id}`);
         const data = await res.json();
         if (data.success && (data.programs?.length > 0 || data.teams?.length > 0)) {
            router.replace('/teacher');
