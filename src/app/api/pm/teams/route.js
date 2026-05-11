@@ -40,7 +40,7 @@ export async function POST(req) {
     const generatedPassword = `FST${randomStr}`;
     const teamId = crypto.randomUUID(); // Use built-in crypto for UUID
 
-    // 1. Create Team Record
+    // 1. Create Team Record (name = sub-team, group_name = parent group)
     const result = await db.execute({
       sql: "INSERT INTO v2_teams (id, program_id, name, handler_id, handler_name, password, team_username, group_name, leader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
       args: [teamId, program_id, name, handler_id || null, handler_name || null, generatedPassword, generatedUsername, group_name || null, leader_id || null]
@@ -58,25 +58,20 @@ export async function POST(req) {
       if (intIds.length > 0) {
         const placeholders = intIds.map(() => "?").join(",");
         await db.execute({
-          sql: `UPDATE v2_participants SET team_id = ? WHERE id IN (${placeholders})`,
+          sql: `UPDATE v2_participants SET v2_team_id = ? WHERE id IN (${placeholders})`,
           args: [team.id, ...intIds]
         });
       }
 
-      // Update synced contacts
+      // Update synced contacts (DO NOT OVERWRITE group_name, update v2_team_id)
       if (strIds.length > 0) {
         const placeholders = strIds.map(() => "?").join(",");
         await db.execute({
-          sql: `UPDATE contacts SET group_name = ? WHERE cid IN (${placeholders})`,
-          args: [name, ...strIds]
-        });
-
-        // Ensure the new group name is linked to this program in families
-        await db.execute({
-          sql: "INSERT INTO families (name, program_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id = ?)",
-          args: [name, program_id, name, program_id]
+          sql: `UPDATE contacts SET v2_team_id = ? WHERE cid IN (${placeholders})`,
+          args: [team.id, ...strIds]
         });
       }
+
 
       // 3. Send Emails (Combined logic for all members)
       const allMembers = [];

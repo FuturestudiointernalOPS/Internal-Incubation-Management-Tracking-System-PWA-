@@ -19,6 +19,9 @@ export async function GET() {
     const familiesRes = await db.execute("SELECT * FROM families ORDER BY name ASC");
     let familiesList = familiesRes.rows;
 
+    // 3. Fetch All Teams (for sub-team name resolution)
+    const teamsRes = await db.execute("SELECT id, name, group_name FROM v2_teams");
+
     // NORMALIZATION: Ensure FUTURE STUDIO is in the filter list (Uppercase Protocol)
     if (!familiesList.find(f => f.name.toUpperCase() === 'FUTURE STUDIO')) {
       familiesList.unshift({ name: 'FUTURE STUDIO', registration_id: 'R-FS-001' });
@@ -33,7 +36,8 @@ export async function GET() {
     return NextResponse.json({ 
       success: true, 
       contacts: normalizedContacts,
-      families: familiesList 
+      families: familiesList,
+      teams: teamsRes.rows
     });
 
   } catch (error) {

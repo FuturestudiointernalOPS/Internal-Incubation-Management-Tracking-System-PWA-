@@ -34,14 +34,14 @@ export async function GET(req) {
       }),
       db.execute({ 
         sql: `
-          SELECT CAST(id AS TEXT) as id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source
+          SELECT CAST(id AS TEXT) as id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source, v2_team_id
           FROM v2_participants 
           WHERE program_id = ?
           
           UNION
           
           -- Self-Healing Join: Matches contacts via Family Link
-          SELECT CAST(c.cid AS TEXT) as id, f.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'group' as source
+          SELECT CAST(c.cid AS TEXT) as id, f.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.created_at, c.group_name, 'group' as source, c.v2_team_id
           FROM contacts c
           JOIN families f ON UPPER(TRIM(c.group_name)) = UPPER(TRIM(f.name))
           WHERE f.program_id = ?
@@ -49,14 +49,14 @@ export async function GET(req) {
           UNION
           
           -- Direct Profile Link: Matches contacts with program_id in their profile
-          SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'direct' as source
+          SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'direct' as source, v2_team_id
           FROM contacts
           WHERE program_id = ?
  
           UNION
  
           -- Ultimate Link-Fallback: Matches any contact whose group name is assigned to this program
-          SELECT CAST(cid AS TEXT) as id, ? as program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'link-fallback' as source
+          SELECT CAST(cid AS TEXT) as id, ? as program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'link-fallback' as source, v2_team_id
           FROM contacts
           WHERE UPPER(TRIM(group_name)) IN (
             SELECT UPPER(TRIM(name)) FROM families WHERE program_id = ?

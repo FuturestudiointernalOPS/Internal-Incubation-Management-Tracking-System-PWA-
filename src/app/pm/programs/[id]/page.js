@@ -36,7 +36,7 @@ export default function ProgramWorkspace() {
   const [reports, setReports] = useState([]);
   const [activeSubTab, setActiveSubTab] = useState('individuals');
   const [selectedParticipants, setSelectedParticipants] = useState([]);
-  const [newTeam, setNewTeam] = useState({ name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' });
+  const [newTeam, setNewTeam] = useState({ name: '', group_name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' });
   const [kpis, setKpis] = useState([]);
   const [events, setEvents] = useState([]);
   const [assignedStaff, setAssignedStaff] = useState([]);
@@ -118,10 +118,11 @@ export default function ProgramWorkspace() {
         if (data.success) { 
           notify('Student Group initialized.'); 
           setShowTeamModal(false); 
-          setNewTeam({ name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' }); 
+          setNewTeam({ name: '', group_name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' }); 
           fetchProgramData(true); 
           setSelectedParticipants([]);
           setActiveTab('teams');
+          setActiveSubTab('groups');
         }
       else notify(data.error || 'Deploy failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
@@ -615,9 +616,14 @@ export default function ProgramWorkspace() {
                               </td>
                               <td>{p.email}</td>
                               <td>
-                                <span className="px-2 py-1 bg-[var(--bg-primary)] rounded text-[10px] font-bold uppercase">
-                                  {p.group_name || 'Unassigned'}
-                                </span>
+                                 <div className="flex flex-col">
+                                    <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest">
+                                       {teams.find(t => t.id === p.v2_team_id)?.name || 'Individual'}
+                                    </span>
+                                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter italic">
+                                       Segment: {p.group_name || 'N/A'}
+                                    </span>
+                                 </div>
                               </td>
                               <td>
                                 <div className="flex items-center gap-2">
@@ -652,7 +658,22 @@ export default function ProgramWorkspace() {
                           <button onClick={() => deleteTeam(team.id)} className="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500"><Trash2 className="w-4 h-4" /></button>
                         )}
                       </div>
-                      <h3 className="text-xl font-bold mb-2">{team.name}</h3>
+                      <div className="mb-4">
+                        <h3 className="text-xl font-black uppercase tracking-tighter">{team.name}</h3>
+                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mt-0.5 italic">Anchor: {team.group_name || 'N/A'}</p>
+                      </div>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="flex -space-x-2">
+                           {participants.filter(p => p.v2_team_id === team.id).slice(0, 3).map(p => (
+                             <div key={p.id} className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border-2 border-[var(--bg-secondary)] flex items-center justify-center text-[8px] font-bold">
+                               {p.name.charAt(0)}
+                             </div>
+                           ))}
+                        </div>
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
+                          {participants.filter(p => p.v2_team_id === team.id).length} Members
+                        </span>
+                      </div>
                       <div className="space-y-1 mb-6">
                         <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Assigned Staff</p>
                         <p className="text-xs text-[var(--text-primary)] font-black uppercase tracking-tight">{team.handler_name || 'Unassigned'}</p>
@@ -1316,22 +1337,31 @@ export default function ProgramWorkspace() {
             </div>
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Group / Segment (As Assigned by Admin)</label>
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Select Primary Segment (Contact Group)</label>
                 <select 
-                  value={newTeam.name} 
-                  onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} 
+                  value={newTeam.group_name} 
+                  onChange={e => setNewTeam(p => ({...p, group_name: e.target.value}))} 
                   className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" 
                   style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
                 >
-                  <option value="">Select Target Segment...</option>
+                  <option value="">Select Segment...</option>
                   {families.map(f => (
                     <option key={f.id} value={f.name}>{f.name.toUpperCase()}</option>
                   ))}
-                  {families.length === 0 && (
-                    <option disabled>No segments assigned to this program yet.</option>
-                  )}
                 </select>
-                <p className="text-[8px] font-bold text-amber-500 uppercase mt-1">Note: PMs must use segments pre-authorized by the Super Admin Office.</p>
+                <p className="text-[8px] font-bold text-blue-500 uppercase mt-1">This anchors the sub-team to a global contact group (e.g. T4S).</p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Internal Team Name (Sub-group)</label>
+                <input 
+                  value={newTeam.name} 
+                  onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} 
+                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" 
+                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} 
+                  placeholder="e.g. Group Teh" 
+                />
+                <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase mt-1 opacity-60">Internal name used for curriculum tracking.</p>
               </div>
               
               <div className="space-y-1">
@@ -1623,7 +1653,7 @@ export default function ProgramWorkspace() {
                       </tr>
                     </thead>
                     <tbody>
-                      {participants.filter(p => p.group_name === selectedTeam.name).map(p => {
+                      {participants.filter(p => p.v2_team_id === selectedTeam.id).map(p => {
                         const participantSubmissions = submissions.filter(s => String(s.participant_id) === String(p.cid || p.id));
                         const avgScore = participantSubmissions.length > 0 
                           ? Math.round(participantSubmissions.reduce((acc, s) => acc + (s.score || 0), 0) / participantSubmissions.length)
