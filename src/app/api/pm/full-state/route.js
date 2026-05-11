@@ -122,10 +122,15 @@ export async function GET(req) {
        } catch (e) {}
     }
 
+    // HARDENED DE-DUPLICATION: Ensure participants are unique by email for metrics integrity
+    const uniqueParticipants = Array.from(
+      new Map(parRes.rows.map(p => [p.email.toLowerCase(), p])).values()
+    );
+
     return NextResponse.json({
       success: true,
       program: program,
-      participants: parRes.rows,
+      participants: uniqueParticipants,
       teams: teamRes.rows,
       sessions: sesRes.rows,
       staffList: staffRes.rows,
