@@ -677,7 +677,7 @@ export default function ProgramWorkspace() {
                       </div>
                       <div className="mb-4">
                         <h3 className="text-xl font-black uppercase tracking-tighter">{team.name}</h3>
-                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mt-0.5 italic">Anchor: {team.group_name || 'N/A'}</p>
+                       <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mt-0.5 italic">Group: {team.group_name || 'N/A'}</p>
                       </div>
                       <div className="flex items-center gap-3 mb-6">
                         <div className="flex -space-x-2">
@@ -910,7 +910,7 @@ export default function ProgramWorkspace() {
                                 {requirements.filter(r => r.session_id === session.id).length === 0 && (
                                    <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
                                       <Shield className="w-10 h-10 mb-2" />
-                                      <p className="text-[10px] font-bold uppercase tracking-widest">No Deliverables Anchored</p>
+                                      <p className="text-[10px] font-bold uppercase tracking-widest">No Requirements Set</p>
                                    </div>
                                 )}
                              </div>
@@ -1374,7 +1374,7 @@ export default function ProgramWorkspace() {
                     style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} 
                     placeholder="e.g. Group Teh" 
                   />
-                  <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase mt-1">Note: This will be anchored to the parent contact group automatically.</p>
+                  <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase mt-1">Note: This will be linked to the parent group automatically.</p>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -1387,7 +1387,7 @@ export default function ProgramWorkspace() {
                   >
                     <option value="">Select an existing team...</option>
                     {teams.map(t => (
-                      <option key={t.id} value={t.id}>{t.name.toUpperCase()} (Anchor: {t.group_name})</option>
+                      <option key={t.id} value={t.id}>{t.name.toUpperCase()} (Group: {t.group_name})</option>
                     ))}
                   </select>
                 </div>
@@ -1558,7 +1558,7 @@ export default function ProgramWorkspace() {
         <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowRequirementModal(false)}>
           <div className="card w-full max-w-sm space-y-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Anchor Requirement</h3>
+              <h3 className="text-base font-black uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>Add Requirement</h3>
               <button onClick={() => setShowRequirementModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
@@ -1583,7 +1583,7 @@ export default function ProgramWorkspace() {
                    {isSaving ? 'Saving...' : 'Save & Add Another'}
                  </button>
                  <button onClick={() => addRequirement(true)} disabled={isSaving || !newRequirement.title.trim()} className="w-full btn btn-primary py-3">
-                   {isSaving ? 'Anchoring...' : 'Anchor & Close'}
+                   {isSaving ? 'Saving...' : 'Save & Close'}
                  </button>
               </div>
             </div>
@@ -1660,9 +1660,9 @@ export default function ProgramWorkspace() {
               <div>
                 <h3 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-3">
                   <Target className="w-6 h-6 text-[var(--brand-orange)]" />
-                  {selectedTeam.name} — Squad Audit
+                  {selectedTeam.name} — Team Review
                 </h3>
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-1">Operational Performance & Deliverable Registry</p>
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-1">Operational Performance & Records</p>
               </div>
               <button onClick={() => setShowTeamDetails(false)} className="p-2 hover:bg-rose-500/10 hover:text-rose-500 rounded-xl transition-all">
                 <X className="w-6 h-6" />
@@ -1676,8 +1676,8 @@ export default function ProgramWorkspace() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Squad Member</th>
-                        <th>Deliverables (Submissions)</th>
+                        <th>Team Member</th>
+                        <th>Submissions</th>
                         <th className="w-48 text-center">Marks Awarded</th>
                       </tr>
                     </thead>
@@ -1716,7 +1716,7 @@ export default function ProgramWorkspace() {
                                   </div>
                                 ))}
                                 {participantSubmissions.length === 0 && (
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-rose-500/40 italic">Zero evidence detected</span>
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-rose-500/40 italic">No submissions found</span>
                                 )}
                               </div>
                             </td>
@@ -1747,7 +1747,7 @@ export default function ProgramWorkspace() {
                 {participants.filter(p => p.group_name === selectedTeam.name).length === 0 && (
                   <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
                     <Users className="w-12 h-12 mb-4" />
-                    <p className="text-sm font-black uppercase tracking-[0.3em]">No participants anchored to this squad</p>
+                    <p className="text-sm font-black uppercase tracking-[0.3em]">No members found in this team</p>
                   </div>
                 )}
               </div>
