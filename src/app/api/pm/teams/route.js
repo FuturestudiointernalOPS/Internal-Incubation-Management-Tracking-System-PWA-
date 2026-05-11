@@ -48,21 +48,58 @@ export async function POST(req) {
 
     const team = result.rows[0];
 
-    // 2. Link Members to Team in v2_participants
+    // 2. Link Members to Team
     if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
-      const placeholders = member_ids.map(() => "?").join(",");
-      await db.execute({
-        sql: `UPDATE v2_participants SET team_id = ? WHERE id IN (${placeholders})`,
-        args: [team.id, ...member_ids]
-      });
+      // Separate IDs by type
+      const intIds = member_ids.filter(id => id && !isNaN(id) && !id.toString().startsWith('USER_'));
+      const strIds = member_ids.filter(id => id && id.toString().startsWith('USER_'));
 
-      // 3. Send Emails
-      const memberRes = await db.execute({
-        sql: `SELECT email, name FROM v2_participants WHERE id IN (${placeholders})`,
-        args: [...member_ids]
-      });
+      // Update manual participants
+      if (intIds.length > 0) {
+        const placeholders = intIds.map(() => "?").join(",");
+        await db.execute({
+          sql: `UPDATE v2_participants SET team_id = ? WHERE id IN (${placeholders})`,
+          args: [team.id, ...intIds]
+        });
+      }
 
-      for (const member of memberRes.rows) {
+      // Update synced contacts
+      if (strIds.length > 0) {
+        const placeholders = strIds.map(() => "?").join(",");
+        await db.execute({
+          sql: `UPDATE contacts SET group_name = ? WHERE cid IN (${placeholders})`,
+          args: [name, ...strIds]
+        });
+
+        // Ensure the new group name is linked to this program in families
+        await db.execute({
+          sql: "INSERT INTO families (name, program_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id = ?)",
+          args: [name, program_id, name, program_id]
+        });
+      }
+
+      // 3. Send Emails (Combined logic for all members)
+      const allMembers = [];
+      
+      if (intIds.length > 0) {
+        const placeholders = intIds.map(() => "?").join(",");
+        const res = await db.execute({
+          sql: `SELECT email, name FROM v2_participants WHERE id IN (${placeholders})`,
+          args: [...intIds]
+        });
+        allMembers.push(...res.rows);
+      }
+      
+      if (strIds.length > 0) {
+        const placeholders = strIds.map(() => "?").join(",");
+        const res = await db.execute({
+          sql: `SELECT email, name FROM contacts WHERE cid IN (${placeholders})`,
+          args: [...strIds]
+        });
+        allMembers.push(...res.rows);
+      }
+
+      for (const member of allMembers) {
         try {
           await sendEmail({
             to: member.email,
