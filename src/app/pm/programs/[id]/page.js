@@ -112,13 +112,14 @@ export default function ProgramWorkspace() {
         body: JSON.stringify({ ...newTeam, program_id: id })
       });
       const data = await res.json();
-      if (data.success) { 
-        notify('Student Group initialized.'); 
-        setShowTeamModal(false); 
-        setNewTeam({ name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' }); 
-        fetchProgramData(true); 
-        setSelectedParticipants([]);
-      }
+        if (data.success) { 
+          notify('Student Group initialized.'); 
+          setShowTeamModal(false); 
+          setNewTeam({ name: '', handler_name: '', member_ids: [], leader_id: '', staff_id: '' }); 
+          fetchProgramData(true); 
+          setSelectedParticipants([]);
+          setActiveTab('teams');
+        }
       else notify(data.error || 'Deploy failed.', 'error');
     } catch (e) { notify('Network error.', 'error'); }
     finally { setIsSaving(false); }
@@ -387,6 +388,7 @@ export default function ProgramWorkspace() {
     { id: 'curriculum', name: 'Curriculum', icon: FileText },
     { id: 'reports', name: 'Reports', icon: BarChart3 },
     { id: 'participants', name: 'Participants', icon: Users },
+    { id: 'teams', name: 'Teams', icon: Target },
     { id: 'submissions', name: 'Submissions', icon: Activity },
   ];
 
@@ -489,12 +491,6 @@ export default function ProgramWorkspace() {
                   className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === 'individuals' ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100'}`}
                 >
                   Individuals ({participants.length})
-                </button>
-                <button 
-                  onClick={() => setActiveSubTab('groups')}
-                  className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === 'groups' ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100'}`}
-                >
-                  Groups ({teams.length})
                 </button>
                 <button 
                   onClick={() => setActiveSubTab('staff')}
