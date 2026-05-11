@@ -12,7 +12,7 @@ export async function GET(req) {
     if (!id) return NextResponse.json({ success: false, error: "ID required" });
 
     // Parallel Database Execution on the EDGE/Cloud
-    const [progRes, parRes, teamRes, sesRes, staffRes, eventRes, kpiRes, docRes, folRes, assignedStaffRes, subRes, repRes] = await Promise.all([
+    const [progRes, parRes, teamRes, sesRes, staffRes, eventRes, kpiRes, docRes, folRes, assignedStaffRes, subRes, repRes, famRes] = await Promise.all([
       db.execute({ 
         sql: `SELECT p.*, 
                      k.title as note_title, k.url as note_files, k.description as note_description,
@@ -52,9 +52,9 @@ export async function GET(req) {
           SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'direct' as source
           FROM contacts
           WHERE program_id = ?
-
+ 
           UNION
-
+ 
           -- Ultimate Link-Fallback: Matches any contact whose group name is assigned to this program
           SELECT CAST(cid AS TEXT) as id, ? as program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'link-fallback' as source
           FROM contacts
@@ -79,7 +79,8 @@ export async function GET(req) {
         args: [id] 
       }),
       db.execute({ sql: "SELECT * FROM v2_submissions WHERE program_id = ?", args: [id] }),
-      db.execute({ sql: "SELECT * FROM v2_weekly_reports WHERE program_id = ? ORDER BY week_number DESC", args: [id] })
+      db.execute({ sql: "SELECT * FROM v2_weekly_reports WHERE program_id = ? ORDER BY week_number DESC", args: [id] }),
+      db.execute({ sql: "SELECT * FROM families WHERE program_id = ?", args: [id] })
     ]);
 
     const program = progRes.rows[0];
@@ -140,7 +141,8 @@ export async function GET(req) {
       followups: folRes.rows,
       assignedStaff: assignedStaff,
       submissions: subRes.rows,
-      reports: repRes.rows
+      reports: repRes.rows,
+      families: famRes.rows
     });
 
   } catch (error) {

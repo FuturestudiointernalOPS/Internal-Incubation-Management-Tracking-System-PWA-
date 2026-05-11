@@ -43,6 +43,7 @@ export default function ProgramWorkspace() {
   const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [activePDF, setActivePDF] = useState(null);
+  const [families, setFamilies] = useState([]);
   
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
@@ -397,6 +398,7 @@ export default function ProgramWorkspace() {
         setAssignedStaff(res.assignedStaff || []);
         setStaffList(res.staffList || []);
         setReports(res.reports || []);
+        setFamilies(res.families || []);
       }
     } catch (error) {
       console.error("Operational Fetch Failure:", error);
@@ -1314,8 +1316,22 @@ export default function ProgramWorkspace() {
             </div>
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Group Name</label>
-                <input value={newTeam.name} onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} placeholder="e.g. Group Alpha" />
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Group / Segment (As Assigned by Admin)</label>
+                <select 
+                  value={newTeam.name} 
+                  onChange={e => setNewTeam(p => ({...p, name: e.target.value}))} 
+                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" 
+                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+                >
+                  <option value="">Select Target Segment...</option>
+                  {families.map(f => (
+                    <option key={f.id} value={f.name}>{f.name.toUpperCase()}</option>
+                  ))}
+                  {families.length === 0 && (
+                    <option disabled>No segments assigned to this program yet.</option>
+                  )}
+                </select>
+                <p className="text-[8px] font-bold text-amber-500 uppercase mt-1">Note: PMs must use segments pre-authorized by the Super Admin Office.</p>
               </div>
               
               <div className="space-y-1">
