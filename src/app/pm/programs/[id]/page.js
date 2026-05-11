@@ -50,6 +50,8 @@ export default function ProgramWorkspace() {
   const [showKPIModal, setShowKPIModal] = useState(false);
   const [showRequirementModal, setShowRequirementModal] = useState(false);
   const [showPMReportModal, setShowPMReportModal] = useState(false);
+  const [showTeamDetails, setShowTeamDetails] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState(null);
   
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending' });
@@ -348,6 +350,27 @@ export default function ProgramWorkspace() {
     finally { setIsSaving(false); }
   };
 
+  const updateParticipantScores = async (participantId, score) => {
+    if (!score) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/submissions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          participant_id: participantId, 
+          program_id: id,
+          score: parseInt(score) 
+        })
+      });
+      if ((await res.json()).success) {
+        notify(`Synchronized ${score}% marks for participant.`);
+        fetchProgramData(true);
+      }
+    } catch (e) { notify('Sync failed.', 'error'); }
+    finally { setIsSaving(false); }
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) setUser(JSON.parse(savedUser));
@@ -634,7 +657,10 @@ export default function ProgramWorkspace() {
                       </div>
                       <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
                         <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Healthy</span>
-                        <button className="text-[var(--brand-blue)] text-xs font-bold uppercase flex items-center gap-1">
+                        <button 
+                          onClick={() => { setSelectedTeam(team); setShowTeamDetails(true); }}
+                          className="text-[var(--brand-blue)] text-xs font-bold uppercase flex items-center gap-1"
+                        >
                           Details <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
@@ -1546,6 +1572,118 @@ export default function ProgramWorkspace() {
             <div className="flex gap-3">
               <button onClick={() => setShowPMReportModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
               <button onClick={submitPMReport} disabled={isSaving || !newPMReport.summary.trim()} className="flex-1 btn btn-primary">{isSaving ? 'Transmitting...' : 'Submit to Super Admin'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TEAM DETAILS MODAL */}
+      {showTeamDetails && selectedTeam && (
+        <div className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setShowTeamDetails(false)}>
+          <div className="card w-full max-w-5xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-indigo-500/30" onClick={e => e.stopPropagation()}>
+            <div className="p-8 border-b border-[var(--border-primary)] bg-gradient-to-r from-[var(--bg-secondary)] to-[var(--bg-tertiary)] flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-3">
+                  <Target className="w-6 h-6 text-[var(--brand-orange)]" />
+                  {selectedTeam.name} — Squad Audit
+                </h3>
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-1">Operational Performance & Deliverable Registry</p>
+              </div>
+              <button onClick={() => setShowTeamDetails(false)} className="p-2 hover:bg-rose-500/10 hover:text-rose-500 rounded-xl transition-all">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+              <div className="grid grid-cols-1 gap-8">
+                {/* Participant Table */}
+                <div className="table-container !border-none !shadow-none">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Squad Member</th>
+                        <th>Deliverables (Submissions)</th>
+                        <th className="w-48 text-center">Marks Awarded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {participants.filter(p => p.group_name === selectedTeam.name).map(p => {
+                        const participantSubmissions = submissions.filter(s => String(s.participant_id) === String(p.cid || p.id));
+                        const avgScore = participantSubmissions.length > 0 
+                          ? Math.round(participantSubmissions.reduce((acc, s) => acc + (s.score || 0), 0) / participantSubmissions.length)
+                          : 0;
+
+                        return (
+                          <tr key={p.id} className="hover:bg-indigo-500/5 transition-colors">
+                            <td className="py-6">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-500/20">
+                                  {p.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{p.name}</p>
+                                  <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase opacity-60">{p.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="flex flex-wrap gap-2">
+                                {participantSubmissions.map(sub => (
+                                  <div key={sub.id} className="group relative">
+                                    <button 
+                                      onClick={() => setActivePDF({ url: sub.file_url, name: `Submission_${sub.id}` })}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-emerald-500" />
+                                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Artifact</span>
+                                      <span className="text-[10px] font-black text-emerald-500">[{sub.score || '??'}]</span>
+                                    </button>
+                                  </div>
+                                ))}
+                                {participantSubmissions.length === 0 && (
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-rose-500/40 italic">Zero evidence detected</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="text-center">
+                              <div className="inline-flex flex-col items-center gap-2">
+                                <div className={`text-2xl font-black ${avgScore >= 70 ? 'text-emerald-500' : avgScore >= 40 ? 'text-amber-500' : 'text-rose-500'}`}>
+                                  {avgScore}%
+                                </div>
+                                <select 
+                                  className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:border-indigo-500 cursor-pointer"
+                                  value={avgScore}
+                                  onChange={(e) => updateParticipantScores(p.cid || p.id, e.target.value)}
+                                >
+                                  <option value="">Audit Marks...</option>
+                                  {[100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].map(m => (
+                                    <option key={m} value={m}>{m}% Awarded</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {participants.filter(p => p.group_name === selectedTeam.name).length === 0 && (
+                  <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
+                    <Users className="w-12 h-12 mb-4" />
+                    <p className="text-sm font-black uppercase tracking-[0.3em]">No participants anchored to this squad</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 bg-[var(--bg-tertiary)] border-t border-[var(--border-primary)] flex justify-end gap-3">
+               <button onClick={() => setShowTeamDetails(false)} className="btn btn-secondary px-8">Close Audit</button>
+               <button className="btn btn-primary px-8 gap-2">
+                 <Save className="w-4 h-4" />
+                 Save Adjustments
+               </button>
             </div>
           </div>
         </div>

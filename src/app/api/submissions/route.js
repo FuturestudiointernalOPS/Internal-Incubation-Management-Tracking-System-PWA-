@@ -154,3 +154,25 @@ export async function GET(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const { participant_id, program_id, score } = await req.json();
+
+    if (!participant_id || !program_id || score === undefined) {
+      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    }
+
+    await db.execute({
+      sql: "UPDATE v2_submissions SET score = ? WHERE participant_id = ? AND program_id = ?",
+      args: [score, String(participant_id), program_id]
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Submissions PUT Error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
