@@ -6,21 +6,71 @@ import { NextResponse } from "next/server";
  * Aggregates contacts, groups, and families for the Personnel Dashboard.
  */
 
-export async function GET() {
+export async function GET(req) {
   try {
     await initDb();
+    const { searchParams } = new URL(req.url);
+    const pmId = searchParams.get('pm_id');
     
-    console.log("--- FETCHING FULL PERSONNEL STATE ---");
-
-    // 1. Fetch All Contacts (including pending)
-    const contactsRes = await db.execute("SELECT * FROM contacts ORDER BY created_at DESC");
+    console.log("--- FETCHING PERSONNEL STATE ---", pmId ? `(Scoped for PM: ${pmId})` : "(Global)");
     
-    // 2. Fetch All Groups/Families (to populate the sidebar filters)
-    const familiesRes = await db.execute("SELECT * FROM families ORDER BY name ASC");
-    let familiesList = familiesRes.rows;
+    let contactsRes;
+    let familiesList;
+    let teamsRows;
 
-    // 3. Fetch All Teams (for sub-team name resolution)
-    const teamsRes = await db.execute("SELECT id, name, group_name FROM v2_teams");
+    if (pmId) {
+      // 1. Identify assigned programs and segments
+      const progRes = await db.execute({
+        sql: "SELECT id, name FROM v2_programs WHERE assigned_pm_id = ?",
+        args: [pmId]
+      });
+      const myProgs = progRes.rows;
+      const myProgIds = myProgs.map(p => p.id);
+      const myProgNames = myProgs.map(p => p.name.toUpperCase());
+
+      // 2. Fetch scoped contacts
+      if (myProgIds.length > 0 || myProgNames.length > 0) {
+        const idPlaceholders = myProgIds.map(() => "?").join(",") || "NULL";
+        const namePlaceholders = myProgNames.map(() => "?").join(",") || "NULL";
+        
+        contactsRes = await db.execute({
+          sql: `SELECT * FROM contacts 
+                WHERE program_id IN (${idPlaceholders}) 
+                OR UPPER(TRIM(group_name)) IN (${namePlaceholders})
+                ORDER BY created_at DESC`,
+          args: [...myProgIds, ...myProgNames]
+        });
+
+        // 3. Fetch scoped families/segments
+        const famRes = await db.execute({
+          sql: `SELECT * FROM families 
+                WHERE program_id IN (${idPlaceholders})
+                OR UPPER(TRIM(name)) IN (${namePlaceholders})`,
+          args: [...myProgIds, ...myProgNames]
+        });
+        familiesList = famRes.rows;
+
+        // 4. Fetch scoped teams
+        const teamRes = await db.execute({
+          sql: `SELECT id, name, group_name, program_id FROM v2_teams 
+                WHERE program_id IN (${idPlaceholders})`,
+          args: [...myProgIds]
+        });
+        teamsRows = teamRes.rows;
+      } else {
+        contactsRes = { rows: [] };
+        familiesList = [];
+        teamsRows = [];
+      }
+
+    } else {
+      // Global View (Super Admin)
+      contactsRes = await db.execute("SELECT * FROM contacts ORDER BY created_at DESC");
+      const famRes = await db.execute("SELECT * FROM families ORDER BY name ASC");
+      familiesList = famRes.rows;
+      const teamRes = await db.execute("SELECT id, name, group_name FROM v2_teams");
+      teamsRows = teamRes.rows;
+    }
 
     // NORMALIZATION: Ensure FUTURE STUDIO is in the filter list (Uppercase Protocol)
     if (!familiesList.find(f => f.name.toUpperCase() === 'FUTURE STUDIO')) {
@@ -28,7 +78,7 @@ export async function GET() {
     }
 
     // Data Sanitization: Normalize all contact group names to uppercase
-    const normalizedContacts = contactsRes.rows.map(c => ({
+    const normalizedContacts = (contactsRes.rows || []).map(c => ({
       ...c,
       group_name: c.group_name ? c.group_name.toUpperCase() : 'UNASSIGNED'
     }));
@@ -37,11 +87,11 @@ export async function GET() {
       success: true, 
       contacts: normalizedContacts,
       families: familiesList,
-      teams: teamsRes.rows
+      teams: teamsRows
     });
 
   } catch (error) {
-    console.error("Full-State Registry Error:", error.message);
+    console.error("Registry State Error:", error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

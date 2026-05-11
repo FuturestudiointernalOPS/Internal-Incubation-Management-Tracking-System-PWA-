@@ -61,19 +61,12 @@ export default function PMCohortOutreach() {
       setTeams(Array.from(new Map(allTeams.map(t => [t.id, t])).values()));
 
       // 3. Fetch contacts 
-      const res = await fetch('/api/contacts/full-state');
+      const res = await fetch(`/api/contacts/full-state?pm_id=${user.cid || user.id}`);
       const data = await res.json();
       
       if (data.success) {
-        const myProgNames = myProgs.map(p => p.name.toUpperCase());
-        
-        const filteredToPM = (data.contacts || []).filter(c => {
-           const matchesId = myProgIds.includes(c.program_id);
-           const matchesGroupName = c.group_name && myProgNames.includes(c.group_name.toUpperCase());
-           return matchesId || matchesGroupName;
-        });
-
-        setContacts(filteredToPM);
+        setContacts(data.contacts || []);
+        setTeams(data.teams || []);
       }
     } catch (err) {
       console.error(err);
