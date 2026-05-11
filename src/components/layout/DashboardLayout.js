@@ -147,18 +147,27 @@ const NAVIGATION_MATRIX = {
     { id: 'communication', name: 'COMMUNICATION', icon: MessageSquare, href: '/pm/communications/contacts' },
     { id: 'progress_hub', name: 'PROGRESS', icon: Activity, href: '/pm/progress' },
     { id: 'knowledge', name: 'KNOWLEDGE', icon: Library, href: '#' },
-    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, subItems: [
+        { id: 'legacy_reports', name: 'PROGRAM REPORTS', href: '/admin/reports' },
+        { id: 'enhanced_reports', name: 'ENHANCED (WIP)', href: '/v2/teacher/reports-v2' },
+    ]},
   ],
   staff: [
     { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/staff' },
-    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, subItems: [
+        { id: 'legacy_reports', name: 'PROGRAM REPORTS', href: '/admin/reports' },
+        { id: 'enhanced_reports', name: 'ENHANCED (WIP)', href: '/v2/teacher/reports-v2' },
+    ]},
   ],
   teacher: [
     { id: 'dashboard', name: 'DASHBOARD', icon: LayoutDashboard, href: '/teacher' },
     { id: 'programs', name: 'PROGRAMS', icon: Briefcase, href: '/pm/programs' },
     { id: 'sessions', name: 'SESSIONS', icon: Calendar, href: '/teacher/sessions' },
     { id: 'reviews', name: 'SUBMISSIONS', icon: FileText, href: '/teacher/reviews' },
-    { id: 'reports', name: 'REPORTS', icon: BarChart3, href: '/admin/reports' },
+    { id: 'reports', name: 'REPORTS', icon: BarChart3, subItems: [
+        { id: 'legacy_reports', name: 'PROGRAM REPORTS', href: '/admin/reports' },
+        { id: 'enhanced_reports', name: 'ENHANCED (WIP)', href: '/v2/teacher/reports-v2' },
+    ]},
   ],
   participant: [
     { id: 'dashboard', name: 'DASHBOARD', icon: Briefcase, href: '/participant' },

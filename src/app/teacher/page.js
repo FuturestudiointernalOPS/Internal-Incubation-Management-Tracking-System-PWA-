@@ -233,10 +233,16 @@ export default function TeacherV2Dashboard() {
                 Submissions
              </button>
              <button 
+               onClick={() => setActiveSection('curriculum')}
+               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === 'curriculum' ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-[var(--brand-orange)]/20' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
+             >
+                Curriculum
+             </button>
+             <button 
                onClick={() => setActiveSection('reports')}
                className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === 'reports' ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-[var(--brand-orange)]/20' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
              >
-                Program Weekly Report
+                Reports
              </button>
           </div>
         </header>
@@ -295,6 +301,83 @@ export default function TeacherV2Dashboard() {
                     )}
                  </div>
               </div>
+           </div>
+        ) : activeSection === 'curriculum' ? (
+           <div className="space-y-12">
+              <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] !p-12">
+                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12">
+                    <div>
+                       <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter italic flex items-center gap-4">
+                          <Layers className="w-6 h-6 text-[var(--brand-orange)]" />
+                          Strategic Roadmap
+                       </h3>
+                       <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-2 opacity-60">Full session sequence for the selected project.</p>
+                    </div>
+                    <select 
+                       value={selectedProgramId}
+                       onChange={e => setSelectedProgramId(e.target.value)}
+                       className="bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl py-4 px-8 text-[var(--text-primary)] text-xs font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all min-w-[300px]"
+                    >
+                       {myPrograms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {sessions.filter(s => s.program_id === selectedProgramId).map(session => (
+                       <div key={session.id} className="ios-card bg-[var(--bg-tertiary)]/20 border-[var(--border-secondary)] hover:border-[var(--brand-orange)]/30 transition-all p-8 group">
+                          <div className="flex justify-between items-center mb-6">
+                             <span className="badge badge-glow-indigo text-[8px] font-black uppercase tracking-widest">W{session.week_number}</span>
+                             <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-lg ${session.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20'}`}>
+                                {session.status}
+                             </span>
+                          </div>
+                          <h4 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter mb-4 group-hover:text-[var(--brand-orange)] transition-colors">{session.title}</h4>
+                          <div className="space-y-3 opacity-60">
+                             <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                                <Calendar className="w-4 h-4" /> {session.scheduled_date || 'TBD'}
+                             </div>
+                             <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                                <Clock className="w-4 h-4" /> {session.start_time || '00:00'} - {session.end_time || '00:00'}
+                             </div>
+                          </div>
+                       </div>
+                    ))}
+                 </div>
+              </div>
+
+              {myPrograms.find(p => p.id === selectedProgramId)?.materials && (
+                 <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] !p-12">
+                    <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter italic mb-10 flex items-center gap-4">
+                       <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" />
+                       Supportive Materials
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                       {(() => {
+                          try {
+                             const materialsArray = typeof myPrograms.find(p => p.id === selectedProgramId).materials === 'string' 
+                               ? JSON.parse(myPrograms.find(p => p.id === selectedProgramId).materials || '[]')
+                               : (myPrograms.find(p => p.id === selectedProgramId).materials || []);
+                             return materialsArray.map((m, idx) => (
+                                <a 
+                                   key={idx} 
+                                   href={m.link || m.url} 
+                                   target="_blank" 
+                                   className="p-6 rounded-2xl bg-[var(--bg-tertiary)]/40 border border-[var(--border-secondary)] hover:border-[var(--brand-orange)]/30 transition-all group flex items-center gap-4"
+                                >
+                                   <div className="p-3 rounded-xl bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] group-hover:bg-[var(--brand-orange)] group-hover:text-white transition-all">
+                                      <Paperclip className="w-4 h-4" />
+                                   </div>
+                                   <div className="overflow-hidden">
+                                      <p className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-tight truncate">{m.name || 'Resource'}</p>
+                                      <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">Project Asset</p>
+                                   </div>
+                                </a>
+                             ));
+                          } catch (e) { return null; }
+                       })()}
+                    </div>
+                 </div>
+              )}
            </div>
         ) : (
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">

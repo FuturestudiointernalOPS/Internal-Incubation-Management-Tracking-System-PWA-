@@ -229,6 +229,12 @@ export default function TeacherV2Dashboard() {
              >
                 Program Weekly Report
              </button>
+             <button 
+               onClick={() => router.push('/v2/teacher/reports-v2')}
+               className="px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-white/5 text-[#FF6600] border border-[#FF6600]/20 hover:bg-[#FF6600]/10 flex items-center gap-2"
+             >
+                Enhanced Reports <span className="bg-[#FF6600] text-black px-1.5 py-0.5 rounded text-[7px]">WIP</span>
+             </button>
           </div>
         </header>
 
