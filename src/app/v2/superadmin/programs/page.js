@@ -296,7 +296,13 @@ export default function ProgramManagement() {
                 <form onSubmit={handleUpdate} className="space-y-6">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans">Program Name</label>
-                    <input required value={editingProgram.name} onChange={e => setEditingProgram({...editingProgram, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" />
+                    <input 
+                      type="text"
+                      required 
+                      value={editingProgram.name} 
+                      onChange={e => setEditingProgram({...editingProgram, name: e.target.value})} 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold" 
+                    />
                   </div>
                    <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans">Concept Note</label>
@@ -319,7 +325,7 @@ export default function ProgramManagement() {
                                <select 
                                   value={editingProgram.note_id || ''} 
                                   onChange={e => setEditingProgram({...editingProgram, note_id: e.target.value})} 
-                                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none appearance-none font-bold"
+                                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold"
                                >
                                   <option value="" className="bg-[#080810]">Link instructional Note...</option>
                                   {notes.map(n => <option key={n.id} value={n.id} className="bg-[#080810]">{n.title}</option>)}
@@ -401,7 +407,7 @@ export default function ProgramManagement() {
                       <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
                          <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans">Project Manager</label>
-                            <select value={editingProgram.assigned_pm_id || ''} onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none appearance-none font-bold">
+                            <select value={editingProgram.assigned_pm_id || ''} onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold">
                                <option value="" className="bg-[#080810]">Unassigned</option>
                                {staff.map(s => <option key={s.cid} value={s.cid} className="bg-[#080810]">{s.name}</option>)}
                             </select>
@@ -416,7 +422,7 @@ export default function ProgramManagement() {
                                      setTempAssistants([...tempAssistants, selected]);
                                   }
                                }} 
-                               className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none appearance-none font-bold"
+                               className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold"
                             >
                                <option value="" className="bg-[#080810]">Add Team Member...</option>
                                {staff.map(s => <option key={s.cid} value={s.cid} className="bg-[#080810]">{s.name}</option>)}

@@ -302,9 +302,10 @@ export default function ProgramManagement() {
               <div className="space-y-2">
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">Program Name</label>
                  <input 
+                    type="text"
                     value={editingProgram?.name || ''} 
                     onChange={e => setEditingProgram({...editingProgram, name: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] focus:ring-1 focus:ring-[var(--brand-orange)] transition-all"
                  />
               </div>
 
@@ -313,10 +314,10 @@ export default function ProgramManagement() {
                  <select 
                     value={editingProgram?.assigned_pm_id || ''} 
                     onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
                  >
                     <option value="">Unassigned</option>
-                    {(Array.isArray(teams) ? teams : []).map(m => m && <option key={m.cid} value={m.cid}>{m.name?.toUpperCase()}</option>)}
+                    {(Array.isArray(teams) ? teams : []).map(m => m && <option key={m.cid || m.id} value={m.cid || m.id}>{m.name?.toUpperCase()}</option>)}
                  </select>
               </div>
 
@@ -324,24 +325,25 @@ export default function ProgramManagement() {
                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">PROGRAM PERSONNEL (STAFF)</label>
                  <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">Select staff members assigned to assist the Program Manager in oversight.</p>
                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
-                    {(Array.isArray(teams) ? teams : []).filter(t => t && t.cid !== editingProgram?.assigned_pm_id).map(member => {
+                    {(Array.isArray(teams) ? teams : []).filter(t => t && (t.cid || t.id) !== editingProgram?.assigned_pm_id).map(member => {
                       if (!member) return null;
+                      const mId = member.cid || member.id;
                       const assistantIds = typeof editingProgram?.assigned_assistant_id === 'string' 
                         ? editingProgram.assigned_assistant_id.split(',').filter(Boolean) 
                         : (Array.isArray(editingProgram?.assigned_assistant_id) ? editingProgram.assigned_assistant_id : []);
                       
-                      const isActive = assistantIds.includes(member.cid);
+                      const isActive = assistantIds.includes(mId);
                       
                       return (
                         <button
-                          key={member.cid}
+                          key={mId}
                           type="button"
                           onClick={() => {
                             let next;
                             if (isActive) {
-                              next = assistantIds.filter(id => id !== member.cid);
+                              next = assistantIds.filter(id => id !== mId);
                             } else {
-                              next = [...assistantIds, member.cid];
+                              next = [...assistantIds, mId];
                             }
                             setEditingProgram({...editingProgram, assigned_assistant_id: next.join(',')});
                           }}
@@ -367,7 +369,7 @@ export default function ProgramManagement() {
                   <select 
                     value={editingProgram?.note_id || ''} 
                     onChange={e => setEditingProgram({...editingProgram, note_id: e.target.value})} 
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none transition-all cursor-pointer"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
                   >
                     <option value="">None Assigned</option>
                     {(Array.isArray(knowledgeItems) ? knowledgeItems : []).map(item => item && <option key={item.id} value={item.id}>{item.title?.toUpperCase() || 'UNTITLED NODE'}</option>)}
