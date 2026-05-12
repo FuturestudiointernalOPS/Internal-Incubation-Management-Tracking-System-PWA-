@@ -853,6 +853,7 @@ export default function PMProgramTerminalV2({ params }) {
                                                            
                                                            <select 
                                                               value={session.team_id || ''} 
+                                                              disabled={!isLeadPMForProject}
                                                               onChange={async (e) => {
                                                                  try {
                                                                     const tid = e.target.value;
@@ -865,7 +866,7 @@ export default function PMProgramTerminalV2({ params }) {
                                                                  } catch (e) {}
                                                               }}
                                                               onClick={e => e.stopPropagation()}
-                                                              className="bg-black/40 border border-white/10 rounded-lg px-3 py-1 text-[9px] font-black text-white uppercase tracking-widest outline-none focus:border-[#FF6600]"
+                                                              className={`bg-black/40 border border-white/10 rounded-lg px-3 py-1 text-[9px] font-black text-white uppercase tracking-widest outline-none focus:border-[#FF6600] ${!isLeadPMForProject ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                                                            >
                                                               <option value="">Unassigned Unit</option>
                                                               {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -882,15 +883,17 @@ export default function PMProgramTerminalV2({ params }) {
                                                      </div>
                                                   </div>
                                                   <div className="flex items-center gap-6">
-                                                     <div className="flex items-center gap-3">
-                                                        <label className="cursor-pointer group/file relative">
-                                                           <input type="file" className="hidden" accept=".pdf" onChange={(e) => handleFileUpload(e, session.id)} />
-                                                           <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:border-[#FF6600] transition-all">
-                                                              <FileText className="w-4 h-4 text-[#FF6600]" />
-                                                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Attach PDF</span>
-                                                           </div>
-                                                        </label>
-                                                     </div>
+                                                     {isLeadPMForProject && (
+                                                        <div className="flex items-center gap-3">
+                                                           <label className="cursor-pointer group/file relative">
+                                                              <input type="file" className="hidden" accept=".pdf" onChange={(e) => handleFileUpload(e, session.id)} />
+                                                              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:border-[#FF6600] transition-all">
+                                                                 <FileText className="w-4 h-4 text-[#FF6600]" />
+                                                                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Attach PDF</span>
+                                                              </div>
+                                                           </label>
+                                                        </div>
+                                                     )}
 
                                                      <div className="flex items-center gap-3 group-hover:translate-x-3 transition-transform">
                                                         <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic font-sans opacity-0 group-hover:opacity-100 transition-opacity">Configure Node</span>
@@ -919,12 +922,14 @@ export default function PMProgramTerminalV2({ params }) {
                                             </div>
                                          );
                                       })}
-                                      <button 
-                                         onClick={() => setSelectedTask({ week_number: wn, title: '', description: '', status: 'pending' })}
-                                         className="w-full py-6 border-2 border-dashed border-[#FF6600]/10 rounded-3xl text-[11px] font-black text-slate-600 uppercase tracking-[0.4em] hover:bg-[#FF6600]/5 hover:text-[#FF6600] hover:border-[#FF6600]/30 transition-all group flex items-center justify-center gap-4 italic"
-                                      >
-                                         <Plus className="w-4 h-4" /> Deploy Module for Phase {wn}
-                                      </button>
+                                      {isLeadPMForProject && (
+                                         <button 
+                                            onClick={() => setSelectedTask({ week_number: wn, title: '', description: '', status: 'pending' })}
+                                            className="w-full py-6 border-2 border-dashed border-[#FF6600]/10 rounded-3xl text-[11px] font-black text-slate-600 uppercase tracking-[0.4em] hover:bg-[#FF6600]/5 hover:text-[#FF6600] hover:border-[#FF6600]/30 transition-all group flex items-center justify-center gap-4 italic"
+                                         >
+                                            <Plus className="w-4 h-4" /> Deploy Module for Phase {wn}
+                                         </button>
+                                      )}
 
                                       {/* PROGRAM WEEKLY REPORT (Tactical Intel) */}
                                       {reports.filter(r => r.week_number === wn).length > 0 && (
@@ -981,18 +986,21 @@ export default function PMProgramTerminalV2({ params }) {
                                          <div className="relative group">
                                             <textarea 
                                                rows={4}
-                                               placeholder="Enter your tactical oversight report for this week... (Required for 100% Progress)"
-                                               className="w-full bg-black/40 border border-white/10 rounded-[2rem] p-8 text-slate-200 font-bold text-sm outline-none focus:border-[#FF6600]/50 transition-all resize-none shadow-inner"
+                                               readOnly={!isLeadPMForProject}
+                                               placeholder={isLeadPMForProject ? "Enter your tactical oversight report for this week... (Required for 100% Progress)" : "Mission Authority report remains restricted."}
+                                               className={`w-full bg-black/40 border border-white/10 rounded-[2rem] p-8 text-slate-200 font-bold text-sm outline-none focus:border-[#FF6600]/50 transition-all resize-none shadow-inner ${!isLeadPMForProject ? 'opacity-60 cursor-default' : ''}`}
                                                value={pmReportInputs[wn]?.notes || ''}
                                                onChange={e => setPmReportInputs(prev => ({ ...prev, [wn]: { ...prev[wn], notes: e.target.value } }))}
                                             />
-                                            <button 
-                                               onClick={() => handleSavePMReport(wn)}
-                                               disabled={pmReportInputs[wn]?.saving || !pmReportInputs[wn]?.notes}
-                                               className="absolute bottom-6 right-6 px-8 py-3 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 disabled:opacity-30 disabled:cursor-not-allowed"
-                                            >
-                                               {pmReportInputs[wn]?.saving ? 'Syncing...' : 'Lock Report'}
-                                            </button>
+                                            {isLeadPMForProject && (
+                                               <button 
+                                                  onClick={() => handleSavePMReport(wn)}
+                                                  disabled={pmReportInputs[wn]?.saving || !pmReportInputs[wn]?.notes}
+                                                  className="absolute bottom-6 right-6 px-8 py-3 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 disabled:opacity-30 disabled:cursor-not-allowed"
+                                               >
+                                                  {pmReportInputs[wn]?.saving ? 'Syncing...' : 'Lock Report'}
+                                               </button>
+                                            )}
                                          </div>
                                       </div>
 
@@ -1126,14 +1134,15 @@ export default function PMProgramTerminalV2({ params }) {
                                           {['not started', 'in progress', 'completed'].map(st => (
                                              <button 
                                                 key={st}
-                                                onClick={() => handleToggleSessionStatus(session.id, st)}
+                                                onClick={() => isLeadPMForProject && handleToggleSessionStatus(session.id, st)}
+                                                disabled={!isLeadPMForProject}
                                                 className={`px-5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
                                                    session.status === st ? (
                                                       st === 'completed' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' :
                                                       st === 'in progress' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' :
                                                       'bg-white/10 text-white shadow-lg'
                                                    ) : 'text-slate-600 hover:text-white'
-                                                }`}
+                                                } ${!isLeadPMForProject ? 'opacity-40 cursor-default' : ''}`}
                                              >
                                                 {st}
                                              </button>
@@ -1147,12 +1156,13 @@ export default function PMProgramTerminalV2({ params }) {
                                           <div key={req.id} className={`flex items-center justify-between p-5 rounded-3xl border transition-all group/item ${req.is_completed ? 'bg-[#FF6600]/10 border-[#FF6600]/40 shadow-lg shadow-[#FF6600]/5' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
                                              <div className="flex items-center gap-4">
                                                 <button 
-                                                   onClick={() => handleToggleDeliverableStatus(req.id, !req.is_completed)}
+                                                   onClick={() => isLeadPMForProject && handleToggleDeliverableStatus(req.id, !req.is_completed)}
+                                                   disabled={!isLeadPMForProject}
                                                    className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-300 ${
                                                       req.is_completed 
                                                       ? 'bg-[#FF6600] border-[#FF6600] text-black scale-105' 
                                                       : 'bg-black/40 border-white/10 hover:border-[#FF6600]'
-                                                   }`}
+                                                   } ${!isLeadPMForProject ? 'opacity-40 cursor-default' : ''}`}
                                                 >
                                                    {req.is_completed ? <CheckCircle2 className="w-4 h-4 stroke-[3px]" /> : <div className="w-1.5 h-1.5 rounded-full bg-white/10" />}
                                                 </button>
@@ -1194,18 +1204,21 @@ export default function PMProgramTerminalV2({ params }) {
                                           <div className="space-y-4">
                                              <textarea 
                                                 rows={3}
-                                                placeholder="Enter tactical oversight for this week... (Required for 100% completion)"
-                                                className="w-full bg-black/40 border border-white/10 rounded-3xl p-6 text-slate-200 font-bold text-sm outline-none focus:border-[#FF6600]/50 transition-all resize-none shadow-inner"
+                                                readOnly={!isLeadPMForProject}
+                                                placeholder={isLeadPMForProject ? "Enter tactical oversight for this week... (Required for 100% completion)" : "Awaiting PM oversight report."}
+                                                className={`w-full bg-black/40 border border-white/10 rounded-3xl p-6 text-slate-200 font-bold text-sm outline-none focus:border-[#FF6600]/50 transition-all resize-none shadow-inner ${!isLeadPMForProject ? 'opacity-60 cursor-default' : ''}`}
                                                 value={pmReportInputs[wn]?.notes || ''}
                                                 onChange={e => setPmReportInputs(prev => ({ ...prev, [wn]: { ...prev[wn], notes: e.target.value } }))}
                                              />
-                                             <button 
-                                                onClick={() => handleSavePMReport(wn)}
-                                                disabled={pmReportInputs[wn]?.saving || !pmReportInputs[wn]?.notes}
-                                                className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 disabled:opacity-20"
-                                             >
-                                                {pmReportInputs[wn]?.saving ? 'Transmitting...' : 'Synchronize Report'}
-                                             </button>
+                                             {isLeadPMForProject && (
+                                                <button 
+                                                   onClick={() => handleSavePMReport(wn)}
+                                                   disabled={pmReportInputs[wn]?.saving || !pmReportInputs[wn]?.notes}
+                                                   className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 disabled:opacity-20"
+                                                >
+                                                   {pmReportInputs[wn]?.saving ? 'Transmitting...' : 'Synchronize Report'}
+                                                </button>
+                                             )}
                                           </div>
                                        )}
                                     </div>
@@ -1285,12 +1298,14 @@ export default function PMProgramTerminalV2({ params }) {
                            <h3 className="text-2xl font-black text-white uppercase tracking-widest italic">Squad Registry</h3>
                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Active Units: {teams.length}</p>
                         </div>
-                        <button 
-                           onClick={() => setShowTeamModal(true)}
-                           className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
-                        >
-                           + Deploy New Unit
-                        </button>
+                        {isLeadPMForProject && (
+                           <button 
+                              onClick={() => setShowTeamModal(true)}
+                              className="px-10 py-4 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/10"
+                           >
+                              + Deploy New Unit
+                           </button>
+                        )}
                      </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -1311,12 +1326,14 @@ export default function PMProgramTerminalV2({ params }) {
                            <div className="mt-16 pt-8 border-t border-white/5 flex justify-between items-center relative z-10">
                               <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest italic">Unit Healthy</span>
                               <div className="flex items-center gap-3">
-                                 <button onClick={async () => {
-                                    if(confirm('Decommission this unit?')) {
-                                       await fetch('/api/v2/pm/teams', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: team.id}) });
-                                       fetchPMData();
-                                    }
-                                 }} className="p-3 rounded-xl bg-white/5 text-slate-600 hover:text-rose-500 transition-all"><Trash2 className="w-4 h-4"/></button>
+                                 {isLeadPMForProject && (
+                                    <button onClick={async () => {
+                                       if(confirm('Decommission this unit?')) {
+                                          await fetch('/api/v2/pm/teams', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: team.id}) });
+                                          fetchPMData();
+                                       }
+                                    }} className="p-3 rounded-xl bg-white/5 text-slate-600 hover:text-rose-500 transition-all"><Trash2 className="w-4 h-4"/></button>
+                                 )}
                                  <button className="p-4 rounded-2xl bg-[#FF6600]/10 text-[#FF6600] hover:bg-[#FF6600] hover:text-black transition-all"><ArrowRight className="w-5 h-5" /></button>
                               </div>
                            </div>
@@ -1364,9 +1381,11 @@ export default function PMProgramTerminalV2({ params }) {
                                  <td className="p-8">
                                     <div className="relative group/sel">
                                        <select 
-                                          className="bg-white/5 border border-white/5 rounded-lg px-4 py-2 text-[10px] font-black text-slate-400 outline-none focus:border-[#FF6600] appearance-none cursor-pointer uppercase tracking-widest hover:text-white transition-all pr-10"
+                                          disabled={!isLeadPMForProject}
+                                          className={`bg-white/5 border border-white/5 rounded-lg px-4 py-2 text-[10px] font-black text-slate-400 outline-none focus:border-[#FF6600] appearance-none cursor-pointer uppercase tracking-widest hover:text-white transition-all pr-10 ${!isLeadPMForProject ? 'opacity-40 cursor-default' : ''}`}
                                           defaultValue={p.group_name || ''}
                                           onChange={async (e) => {
+                                             if (!isLeadPMForProject) return;
                                              const newGroup = e.target.value;
                                              try {
                                                 await fetch('/api/contacts', {
@@ -1384,7 +1403,7 @@ export default function PMProgramTerminalV2({ params }) {
                                           <option value="" className="bg-[#0f0f1a]">No Squad</option>
                                           {teams.map(t => <option key={t.id} value={t.name} className="bg-[#0f0f1a]">{t.name.toUpperCase()}</option>)}
                                        </select>
-                                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600 pointer-events-none group-hover/sel:text-white" />
+                                       {isLeadPMForProject && <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600 pointer-events-none group-hover/sel:text-white" />}
                                     </div>
                                  </td>
                                  <td className="p-8">

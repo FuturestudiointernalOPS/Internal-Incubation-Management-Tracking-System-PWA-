@@ -440,14 +440,18 @@ export default function ProgramWorkspace() {
     );
   }
 
-  const tabs = [
+  const allTabs = [
     { id: 'overview', name: 'Overview', icon: LayoutDashboard },
-    { id: 'config', name: 'Configuration', icon: Shield },
+    { id: 'config', name: 'Configuration', icon: Shield, roles: ['super_admin', 'program_manager'] },
     { id: 'curriculum', name: 'Curriculum', icon: FileText },
     { id: 'reports', name: 'Reports', icon: BarChart3 },
     { id: 'participants', name: 'Participants', icon: Users },
     { id: 'submissions', name: 'Submissions', icon: Activity },
   ];
+
+  const tabs = allTabs.filter(tab => !tab.roles || tab.roles.includes(user.role));
+  
+  const canEdit = user.role === 'super_admin' || user.role === 'program_manager';
 
   return (
     <DashboardLayout role={user.role || "program_manager"}>
@@ -579,7 +583,7 @@ export default function ProgramWorkspace() {
                            onClick={() => setSelectedParticipants([])}
                            className="text-[9px] font-black uppercase text-rose-500 hover:underline"
                          >Clear</button>
-                         {selectedParticipants.length > 0 && (
+                         {selectedParticipants.length > 0 && canEdit && (
                             <button 
                               onClick={() => {
                                 setNewTeam({ name: '', handler_name: '', member_ids: selectedParticipants });
@@ -671,7 +675,7 @@ export default function ProgramWorkspace() {
                         <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
                           <Target className="w-6 h-6" />
                         </div>
-                        {(user.role === 'super_admin' || user.role === 'program_manager') && (
+                        {canEdit && (
                           <button onClick={() => deleteTeam(team.id)} className="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500"><Trash2 className="w-4 h-4" /></button>
                         )}
                       </div>
@@ -722,9 +726,11 @@ export default function ProgramWorkspace() {
                       <h3 className="text-xl font-black uppercase tracking-tighter">Program Staff</h3>
                       <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Assigned mentors, assistants, and evaluators for this program</p>
                     </div>
-                    <button onClick={() => setShowStaffModal(true)} className="btn btn-primary btn-sm px-4 gap-2">
-                      <UserPlus className="w-3 h-3" /> Assign Personnel
-                    </button>
+                    {canEdit && (
+                       <button onClick={() => setShowStaffModal(true)} className="btn btn-primary btn-sm px-4 gap-2">
+                         <UserPlus className="w-3 h-3" /> Assign Personnel
+                       </button>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -739,7 +745,7 @@ export default function ProgramWorkspace() {
                             <p className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-wider">{staff.role}</p>
                           </div>
                         </div>
-                        <button onClick={() => removeStaff(staff.cid)} className="text-rose-500 hover:scale-110 transition-transform"><Trash2 className="w-4 h-4" /></button>
+                        {canEdit && <button onClick={() => removeStaff(staff.cid)} className="text-rose-500 hover:scale-110 transition-transform"><Trash2 className="w-4 h-4" /></button>}
                       </div>
                     ))}
                     {assignedStaff.length === 0 && (
@@ -758,16 +764,18 @@ export default function ProgramWorkspace() {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black uppercase tracking-tighter">Strategic Curriculum</h3>
-                <button 
-                  onClick={() => {
-                    const nextWK = sessions.length > 0 ? Math.max(...sessions.map(s => s.week_number || 0)) + 1 : 1;
-                    setNewSession({ title: '', week_number: nextWK, status: 'pending' });
-                    setShowSessionModal(true);
-                  }} 
-                  className="btn btn-primary btn-sm gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Add Session
-                </button>
+                {canEdit && (
+                  <button 
+                    onClick={() => {
+                      const nextWK = sessions.length > 0 ? Math.max(...sessions.map(s => s.week_number || 0)) + 1 : 1;
+                      setNewSession({ title: '', week_number: nextWK, status: 'pending' });
+                      setShowSessionModal(true);
+                    }} 
+                    className="btn btn-primary btn-sm gap-2"
+                  >
+                    <Plus className="w-4 h-4" /> Add Session
+                  </button>
+                )}
               </div>
               <div className="grid grid-cols-1 gap-4">
                 {sessions.map(session => (
@@ -799,9 +807,11 @@ export default function ProgramWorkspace() {
                              <Activity className="w-3.5 h-3.5" />
                              <span className="text-[9px] font-black uppercase italic tracking-wider">Give Weekly Report</span>
                           </button>
-                          <button onClick={() => deleteSession(session.id)} className="p-2 text-rose-500/20 hover:text-rose-500 transition-all">
-                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canEdit && (
+                            <button onClick={() => deleteSession(session.id)} className="p-2 text-rose-500/20 hover:text-rose-500 transition-all">
+                               <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                        </div>
                     </div>
 
@@ -884,12 +894,14 @@ export default function ProgramWorkspace() {
                                    <div className="w-5 h-5 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 shadow-sm">2</div>
                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">Assessments & Deliverables</span>
                                 </div>
-                                <button 
-                                  onClick={() => { setSelectedSessionId(session.id); setShowRequirementModal(true); }}
-                                  className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
-                                >
-                                   <Plus className="w-3 h-3" /> Add Requirement
-                                </button>
+                                {canEdit && (
+                                   <button 
+                                     onClick={() => { setSelectedSessionId(session.id); setShowRequirementModal(true); }}
+                                     className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
+                                   >
+                                      <Plus className="w-3 h-3" /> Add Requirement
+                                   </button>
+                                )}
                              </div>
 
                              <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
@@ -904,7 +916,7 @@ export default function ProgramWorkspace() {
                                         <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic">Requirement: {req.allowed_format || 'PDF'}</p>
                                       </div>
                                     </div>
-                                    <button className="text-rose-500/10 hover:text-rose-500 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                                    {canEdit && <button className="text-rose-500/10 hover:text-rose-500 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>}
                                   </div>
                                 ))}
                                 {requirements.filter(r => r.session_id === session.id).length === 0 && (
@@ -924,22 +936,24 @@ export default function ProgramWorkspace() {
                                    <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center text-[10px] font-black text-blue-500 border border-blue-500/20 shadow-sm">3</div>
                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">Weekly Resources</span>
                                 </div>
-                                <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
-                                   <Plus className="w-3 h-3" /> Upload
-                                   <input type="file" accept=".pdf" className="hidden" onChange={async (e) => {
-                                       const file = e.target.files[0];
-                                       if (!file) return;
-                                       notify('Syncing material...', 'info');
-                                       try {
-                                          const res = await fetch('/api/pm/curriculum', {
-                                             method: 'POST',
-                                             headers: { 'Content-Type': 'application/json' },
-                                             body: JSON.stringify({ action: 'anchor_material', program_id: id, session_id: session.id, file_name: file.name })
-                                          });
-                                          if ((await res.json()).success) { notify('Material anchored.'); fetchProgramData(true); }
-                                       } catch (e) { notify('Upload failed.', 'error'); }
-                                    }} />
-                                </label>
+                                {canEdit && (
+                                   <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
+                                      <Plus className="w-3 h-3" /> Upload
+                                      <input type="file" accept=".pdf" className="hidden" onChange={async (e) => {
+                                         const file = e.target.files[0];
+                                         if (!file) return;
+                                         notify('Syncing material...', 'info');
+                                         try {
+                                            const res = await fetch('/api/pm/curriculum', {
+                                               method: 'POST',
+                                               headers: { 'Content-Type': 'application/json' },
+                                               body: JSON.stringify({ action: 'anchor_material', program_id: id, session_id: session.id, file_name: file.name })
+                                            });
+                                            if ((await res.json()).success) { notify('Material anchored.'); fetchProgramData(true); }
+                                         } catch (e) { notify('Upload failed.', 'error'); }
+                                      }} />
+                                   </label>
+                                )}
                              </div>
 
                              <div className="space-y-3">
@@ -1052,7 +1066,14 @@ export default function ProgramWorkspace() {
 
                            return allMaterials.map((file, idx) => {
                              const url = typeof file === 'object' ? (file.url || file.path) : file;
-                             const name = typeof file === 'object' ? (file.name || file.title || (typeof file.url === 'string' ? file.url.split('/').pop() : 'Document')) : (typeof file === 'string' ? file.split('/').pop() : 'Strategic_Document.pdf');
+                             const rawName = typeof file === 'object' ? (file.name || file.title || (typeof file.url === 'string' ? file.url.split('/').pop() : 'Document')) : (typeof file === 'string' ? file.split('/').pop() : 'Strategic_Document.pdf');
+                             const name = rawName
+                               .replace(/\.[^.]+$/, '')        // strip extension (.pdf, .docx…)
+                               .replace(/[_\-]+/g, ' ')        // underscores/hyphens → spaces
+                               .replace(/\s+/g, ' ')           // collapse extra spaces
+                               .trim()
+                               .toLowerCase()
+                               .replace(/\b\w/g, c => c.toUpperCase()); // Title Case
                              const isKB = file.source === 'knowledge';
                              
                              if (!url || url === "#") return null;
@@ -1404,14 +1425,14 @@ export default function ProgramWorkspace() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Oversight (Staff Member / Teacher)</label>
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Oversight (Staff Member / Instructor)</label>
                 <select value={newTeam.staff_id} onChange={e => {
                   const staff = assignedStaff.find(s => String(s.cid) === e.target.value);
                   setNewTeam(p => ({...p, staff_id: e.target.value, handler_name: staff?.name || ''}));
                 }} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
                    <option value="">No Staff Assigned (Optional)</option>
                    {assignedStaff.map(s => (
-                     <option key={s.cid} value={s.cid}>{s.name} ({s.role === 'teacher' ? 'Staff' : s.role})</option>
+                     <option key={s.cid} value={s.cid}>{s.name} ({s.role === 'teacher' ? 'Instructor' : s.role})</option>
                    ))}
                 </select>
               </div>

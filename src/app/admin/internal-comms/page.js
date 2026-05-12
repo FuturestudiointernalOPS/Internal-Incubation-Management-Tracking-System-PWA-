@@ -150,7 +150,7 @@ export default function SuperAdminComms() {
                     <div className="space-y-4 text-white font-black text-[12px] italic uppercase tracking-tighter">
                        <p className="hover:text-[#FF6600] cursor-pointer transition-colors">Program Managers</p>
                        <p className="hover:text-[#FF6600] cursor-pointer transition-colors">Group Leaders</p>
-                       <p className="hover:text-[#FF6600] cursor-pointer transition-colors">Tactical Teachers</p>
+                       <p className="hover:text-[#FF6600] cursor-pointer transition-colors">Tactical Instructors</p>
                        <p className="hover:text-[#FF6600] cursor-pointer transition-colors">Participants</p>
                     </div>
                  </div>

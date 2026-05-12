@@ -369,11 +369,11 @@ export default function SuperAdminExecutiveView({ params }) {
                                          <div className="flex items-center gap-3">
                                             <MessageSquare className={`w-4 h-4 ${report.report_type === 'pm' ? 'text-[var(--brand-orange)]' : 'text-emerald-500'}`} />
                                             <p className="text-[10px] font-black text-white uppercase tracking-widest">
-                                               {report.report_type === 'pm' ? 'PM Intelligence Report' : 'Teacher Progress Report'}
+                                               {report.report_type === 'pm' ? 'PM Intelligence Report' : 'Instructor Progress Report'}
                                             </p>
                                          </div>
                                          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">
-                                            Submitted by {report.teacher_name}
+                                            Submitted by {report.teacher_name || report.instructor_name}
                                          </span>
                                       </div>
                                       
