@@ -20,36 +20,56 @@ export default function PublicParticipantRegistration() {
     phone: '',
     projectIdea: '',
     programId: '',
+    group_id: '', // Unique Registration ID from URL
     cvFile: ''
   });
+
+  const [targetedGroup, setTargetedGroup] = useState(null);
 
   const [programs, setPrograms] = useState([]);
   const [status, setStatus] = useState({ state: 'idle', message: '' });
 
   useEffect(() => {
-    // Extract program from URL
+    // Extract program/group from URL
     const searchParams = new URLSearchParams(window.location.search);
-    const targetProgramName = searchParams.get('program') || searchParams.get('rid') || searchParams.get('group');
+    const targetGroupId = searchParams.get('group_id') || searchParams.get('rid') || searchParams.get('group');
 
-    const fetchProgramRegistry = async () => {
+    const fetchAssets = async () => {
        try {
-          const res = await fetch('/api/programs');
-          const data = await res.json();
-          const active = (data.programs || []).filter(x => x.status === 'Active');
+          const [progRes, famRes] = await Promise.all([
+             fetch('/api/programs'),
+             fetch('/api/families')
+          ]);
+          
+          const progData = await progRes.json();
+          const active = (progData.programs || []).filter(x => x.status === 'Active');
           setPrograms(active);
 
-          if (targetProgramName) {
-             const matched = active.find(p => p.name === targetProgramName);
-             if (matched) setFormData(prev => ({ ...prev, programId: matched.id }));
+          const famData = await famRes.json();
+          const allGroups = famData.families || [];
+
+          if (targetGroupId) {
+             // 1. Try matching by registration_id (UUID)
+             let group = allGroups.find(g => g.registration_id === targetGroupId);
+             
+             // 2. Fallback to name match (legacy)
+             if (!group) group = allGroups.find(g => g.name === targetGroupId);
+
+             if (group) {
+                setTargetedGroup(group);
+                setFormData(prev => ({ 
+                   ...prev, 
+                   group_id: group.registration_id,
+                   programId: group.program_id || prev.programId 
+                }));
+             }
           }
        } catch (e) {
-          // Fallback to local storage if API fails
-          const p = JSON.parse(localStorage.getItem('impactos_programs') || '[]');
-          setPrograms(p.filter(x => !x.deleted && x.status === 'Active'));
+          console.error("Registry Sync Failure:", e);
        }
     };
 
-    fetchProgramRegistry();
+    fetchAssets();
   }, []);
 
   const handleFileUpload = (e) => {
@@ -78,7 +98,7 @@ export default function PublicParticipantRegistration() {
            ...formData, 
            status: 'pending',
            role: 'participant',
-           group_name: programs.find(p => p.id === formData.programId)?.name || null
+           group_name: targetedGroup?.name || programs.find(p => p.id === formData.programId)?.name || null
         })
       });
  
@@ -126,7 +146,9 @@ export default function PublicParticipantRegistration() {
             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: ACCENT, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Program Intake</span>
           </div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '1rem', letterSpacing: '-0.02em' }}>Participant Application</h1>
-          <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>Register for an upcoming Incubation Program.</p>
+          <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>
+            {targetedGroup ? `Registering for ${targetedGroup.name.toUpperCase()}` : 'Register for an upcoming Incubation Program.'}
+          </p>
         </header>
 
         <form onSubmit={handleSubmit} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: '2.5rem', padding: '3rem', backdropFilter: 'blur(20px)' }}>
@@ -145,9 +167,10 @@ export default function PublicParticipantRegistration() {
                 <Briefcase style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', width: '18px', color: '#64748b' }} />
                 <select 
                   required
+                  disabled={!!targetedGroup?.program_id}
                   value={formData.programId} 
                   onChange={e => setFormData({...formData, programId: e.target.value})}
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`, borderRadius: '1rem', padding: '1rem 1rem 1rem 2.75rem', color: '#fff', outline: 'none', appearance: 'none', fontSize: '1rem' }}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`, borderRadius: '1rem', padding: '1rem 1rem 1rem 2.75rem', color: '#fff', outline: 'none', appearance: 'none', fontSize: '1rem', cursor: targetedGroup?.program_id ? 'not-allowed' : 'pointer' }}
                 >
                   <option value="" style={{ background: BG }}>-- Select a Target Program --</option>
                   {programs.map(p => (

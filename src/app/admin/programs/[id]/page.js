@@ -4,7 +4,8 @@ import React, { useState, useEffect, use } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
   Activity, Briefcase, ChevronRight, BookOpen, 
-  Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle, Send
+  Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle, Send,
+  Link as LinkIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -109,6 +110,21 @@ export default function SuperAdminExecutiveView({ params }) {
           </div>
 
           <div className="flex items-center gap-6">
+             {program.assigned_segments?.length > 0 && (
+                <div className="flex flex-col items-end gap-2 px-6 py-2 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
+                   <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest italic">Registration Node</p>
+                   <button 
+                      onClick={() => {
+                         const url = `${window.location.origin}/register-participant?group_id=${program.assigned_segments[0]}`;
+                         navigator.clipboard.writeText(url);
+                         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'URL Copied' } }));
+                      }}
+                      className="flex items-center gap-2 text-[10px] font-black text-white hover:text-blue-400 transition-colors uppercase italic"
+                   >
+                      <LinkIcon className="w-3 h-3" /> Copy Group URL
+                   </button>
+                </div>
+             )}
              <div className="text-right">
                 <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">Lead Program Manager</p>
                 <p className="text-sm font-black text-[var(--text-primary)] uppercase italic">{program.pm_name || 'Unassigned'}</p>

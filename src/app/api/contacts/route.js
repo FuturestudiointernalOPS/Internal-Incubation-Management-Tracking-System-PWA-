@@ -45,7 +45,12 @@ export async function POST(req) {
       // Gated Status Logic (UPPERCASE NORMALIZATION)
       const groupName = (c.group_name || 'unassigned').toUpperCase();
       const isInternal = groupName === 'FUTURE STUDIO';
-      const initialStatus = isInternal ? 'pending' : 'approved';
+      
+      // MANDATORY: Participants and Internal Staff start as PENDING
+      let initialStatus = 'approved';
+      if (isInternal || c.role === 'participant') {
+         initialStatus = 'pending';
+      }
       
       // Strict Role Normalization
       let finalRole = c.role;

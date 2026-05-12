@@ -29,14 +29,21 @@ export default function NewProgram() {
 
   // FORM STATE
   const [program, setProgram] = useState({
-    name: '',
-    description: '',
-    note_id: '',
-    assigned_pm_id: '',
-    assigned_assistant_id: '', // Will store JSON array string
     duration_weeks: 4,
-    materials: []
+    materials: [],
+    assigned_segments: []
   });
+
+  // INLINE CREATION STATES
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [newGroup, setNewGroup] = useState({ name: '', description: '', type: 'individual' });
+  const [createdGroup, setCreatedGroup] = useState(null);
+
+  const [isCreatingKB, setIsCreatingKB] = useState(false);
+  const [newKB, setNewKB] = useState({ title: '', description: '', files: [] });
+  const [createdKB, setCreatedKB] = useState(null);
+
+  const [segments, setSegments] = useState([]);
 
   const [selectedAssistants, setSelectedAssistants] = useState([]);
 
@@ -57,15 +64,18 @@ export default function NewProgram() {
     async function loadAssets() {
       setLoadingAssets(true);
       try {
-        const [knowRes, staffRes] = await Promise.all([
+        const [knowRes, staffRes, segRes] = await Promise.all([
           fetch('/api/knowledge'),
-          fetch('/api/contacts')
+          fetch('/api/contacts'),
+          fetch('/api/families')
         ]);
         
         const knowData = await knowRes.json();
         const staffData = await staffRes.json();
+        const segData = await segRes.json();
 
         if (knowData.success) setKnowledgeNodes(knowData.conceptNotes || []);
+        if (segData.success) setSegments(segData.families || []);
         // Filter: Only Future Studio Staff (role='staff' or 'admin')
         if (staffData.success) {
           const staffOnly = (staffData.contacts || []).filter(c => 
@@ -83,7 +93,7 @@ export default function NewProgram() {
     loadAssets();
   }, []);
 
-  const handleFileUpload = async (e) => {
+  const handleFileUpload = async (e, type = 'program') => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
@@ -103,16 +113,65 @@ export default function NewProgram() {
           throw new Error(`Upload failed for ${file.name}: ${res.error}`);
         }
       }
-      setProgram(prev => ({
-        ...prev,
-        materials: [...prev.materials, ...uploadedUrls]
-      }));
+
+      if (type === 'kb') {
+        setNewKB(prev => ({ ...prev, files: [...prev.files, ...uploadedUrls] }));
+      } else {
+        setProgram(prev => ({
+          ...prev,
+          materials: [...prev.materials, ...uploadedUrls]
+        }));
+      }
       notify('success', `${files.length} file(s) attached successfully.`);
     } catch (e) {
       notify('error', e.message);
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleCreateGroupInline = async () => {
+    if (!newGroup.name) return notify('error', 'Group name is required.');
+    setIsDeploying(true);
+    try {
+      const res = await fetch('/api/families', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newGroup)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCreatedGroup(data.group);
+        setProgram(p => ({ ...p, assigned_segments: [data.group.id] }));
+        setSegments(prev => [...prev, data.group]);
+        setIsCreatingGroup(false);
+        notify('success', 'Contact Group created and assigned.');
+      }
+    } catch (e) {
+      notify('error', e.message);
+    } finally { setIsDeploying(false); }
+  };
+
+  const handleCreateKBInline = async () => {
+    if (!newKB.title) return notify('error', 'Knowledge Base title is required.');
+    setIsDeploying(true);
+    try {
+      const res = await fetch('/api/knowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newKB)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCreatedKB({ id: data.id, ...newKB });
+        setProgram(p => ({ ...p, note_id: data.id }));
+        setKnowledgeNodes(prev => [...prev, { id: data.id, title: newKB.title }]);
+        setIsCreatingKB(false);
+        notify('success', 'Knowledge Base created and linked.');
+      }
+    } catch (e) {
+      notify('error', e.message);
+    } finally { setIsDeploying(false); }
   };
 
   const removeMaterial = (index) => {
@@ -239,17 +298,60 @@ export default function NewProgram() {
               
               <div className="space-y-4">
                 <div className="space-y-2">
-                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Knowledge Node Link</label>
-                   <select 
-                    value={program.note_id}
-                    onChange={e => setProgram({...program, note_id: e.target.value})}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
-                  >
-                    <option value="">Link Knowledge Node...</option>
-                    {knowledgeNodes.map(node => (
-                      <option key={node.id} value={node.id}>{node.title.toUpperCase()}</option>
-                    ))}
-                  </select>
+                   <div className="flex justify-between items-center mb-2">
+                      <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Knowledge Node Link</label>
+                      <button 
+                        type="button" 
+                        onClick={() => setIsCreatingKB(!isCreatingKB)}
+                        className="text-[8px] font-bold text-[var(--brand-orange)] uppercase tracking-widest hover:underline"
+                      >
+                        {isCreatingKB ? 'Cancel' : '+ Create New KB'}
+                      </button>
+                   </div>
+                   
+                   {!isCreatingKB ? (
+                     <select 
+                      value={program.note_id}
+                      onChange={e => setProgram({...program, note_id: e.target.value})}
+                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
+                    >
+                      <option value="">Link Knowledge Node...</option>
+                      {knowledgeNodes.map(node => (
+                        <option key={node.id} value={node.id}>{node.title.toUpperCase()}</option>
+                      ))}
+                    </select>
+                   ) : (
+                     <div className="space-y-4 p-4 bg-[var(--bg-primary)] border border-[var(--brand-orange)]/20 rounded-xl animate-in fade-in zoom-in-95">
+                        <input 
+                           value={newKB.title}
+                           onChange={e => setNewKB({...newKB, title: e.target.value})}
+                           placeholder="Knowledge Base Name..."
+                           className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+                        />
+                        <div className="relative group h-20">
+                           <input 
+                              type="file" multiple accept=".pdf"
+                              onChange={(e) => handleFileUpload(e, 'kb')}
+                              className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                           />
+                           <div className="flex flex-col items-center justify-center h-full border border-dashed border-[var(--border-primary)] rounded-lg group-hover:border-[var(--brand-orange)]">
+                              <p className="text-[8px] font-black uppercase text-white/40">Upload Documents for KB</p>
+                           </div>
+                        </div>
+                        {newKB.files.length > 0 && (
+                           <div className="text-[8px] font-bold text-emerald-400 uppercase italic">
+                              {newKB.files.length} documents attached.
+                           </div>
+                        )}
+                        <button 
+                           type="button"
+                           onClick={handleCreateKBInline}
+                           className="w-full py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[9px] font-black uppercase rounded-lg border border-[var(--brand-orange)]/20"
+                        >
+                           Initialize Knowledge Base
+                        </button>
+                     </div>
+                   )}
                 </div>
 
                 <div className="relative group">
@@ -292,6 +394,87 @@ export default function NewProgram() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* SECTION: CONTACT GROUP INTEGRATION */}
+            <div className="card space-y-6 relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-6 opacity-5">
+                 <Users className="w-16 h-16" />
+              </div>
+              <div className="flex items-center gap-3">
+                 <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                    <Users className="w-5 h-5" />
+                 </div>
+                 <h3 className="text-sm font-bold uppercase tracking-tight">Contact Group Assignment</h3>
+              </div>
+
+              <div className="space-y-4">
+                 <div className="flex justify-between items-center mb-1">
+                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Group Target</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsCreatingGroup(!isCreatingGroup)}
+                      className="text-[8px] font-bold text-blue-400 uppercase tracking-widest hover:underline"
+                    >
+                      {isCreatingGroup ? 'Cancel' : '+ Create New Group'}
+                    </button>
+                 </div>
+
+                 {!isCreatingGroup ? (
+                   <select 
+                    value={program.assigned_segments?.[0] || ''}
+                    onChange={e => setProgram({...program, assigned_segments: [e.target.value]})}
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
+                  >
+                    <option value="">Select Existing Group...</option>
+                    {segments.map(s => (
+                      <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
+                    ))}
+                  </select>
+                 ) : (
+                   <div className="space-y-4 p-4 bg-[var(--bg-primary)] border border-blue-500/20 rounded-xl animate-in fade-in zoom-in-95">
+                      <input 
+                         value={newGroup.name}
+                         onChange={e => setNewGroup({...newGroup, name: e.target.value})}
+                         placeholder="Group Name (e.g. Cohort A)..."
+                         className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-white outline-none focus:border-blue-400"
+                      />
+                      <textarea 
+                         value={newGroup.description}
+                         onChange={e => setNewGroup({...newGroup, description: e.target.value})}
+                         placeholder="Group Description (optional)..."
+                         rows={2}
+                         className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-white outline-none focus:border-blue-400 resize-none"
+                      />
+                      <button 
+                         type="button"
+                         onClick={handleCreateGroupInline}
+                         className="w-full py-2 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase rounded-lg border border-blue-500/20"
+                      >
+                         Generate Group & URL
+                      </button>
+                   </div>
+                 )}
+
+                 {createdGroup && (
+                   <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-2">
+                      <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Public Registration URL:</p>
+                      <div className="flex items-center justify-between gap-3 bg-black/40 p-2 rounded border border-white/5 overflow-hidden">
+                         <span className="text-[8px] font-mono text-white/60 truncate">{window.location.origin}/register-participant?group_id={createdGroup.registration_id}</span>
+                         <button 
+                            type="button"
+                            onClick={() => {
+                               navigator.clipboard.writeText(`${window.location.origin}/register-participant?group_id=${createdGroup.registration_id}`);
+                               notify('success', 'URL copied to clipboard.');
+                            }}
+                            className="p-1 bg-white/5 rounded hover:bg-white/10"
+                         >
+                            <Plus className="w-3 h-3 text-emerald-400 rotate-45" />
+                         </button>
+                      </div>
+                   </div>
+                 )}
               </div>
             </div>
 

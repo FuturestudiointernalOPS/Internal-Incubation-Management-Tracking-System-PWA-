@@ -16,17 +16,36 @@ export async function GET() {
 export async function POST(req) {
   try {
     await initDb();
-    const { name, program_id, type } = await req.json();
+    const { name, type, program_id, description } = await req.json();
+    
+    // Schema Migration: Ensure description exists
+    try {
+      await db.execute("ALTER TABLE families ADD COLUMN description TEXT");
+    } catch (e) {
+      // Column likely exists
+    }
+
     if (!name) return NextResponse.json({ success: false, error: "Name is required" }, { status: 400 });
 
-    const registration_id = "R-" + uuidv4().split('-')[0].toUpperCase();
+    const registration_id = "GRP-" + uuidv4().split('-')[0].toUpperCase() + Math.floor(Math.random() * 1000);
 
-    await db.execute({
-      sql: "INSERT INTO families (name, registration_id, program_id, type) VALUES (?, ?, ?, ?)",
-      args: [name, registration_id, program_id || null, type || 'individual']
+    const res = await db.execute({
+      sql: "INSERT INTO families (name, registration_id, program_id, type, description) VALUES (?, ?, ?, ?, ?) RETURNING id",
+      args: [name, registration_id, program_id || null, type || 'individual', description || null]
     });
+
+    const newId = res.lastInsertRowid;
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true, 
+      id: newId,
+      group: {
+        id: newId,
+        name,
+        registration_id,
+        description
+      }
+    });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -35,11 +54,11 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const { id, name, program_id, type, shared_email, shared_password_read, shared_password_edit } = await req.json();
+    const { id, name, program_id, type, shared_email, shared_password_read, shared_password_edit, description } = await req.json();
     if (!id) return NextResponse.json({ success: false, error: "ID is required" }, { status: 400 });
 
     await db.execute({
-      sql: "UPDATE families SET name = ?, program_id = ?, type = ?, shared_email = ?, shared_password_read = ?, shared_password_edit = ? WHERE id = ?",
+      sql: "UPDATE families SET name = ?, program_id = ?, type = ?, shared_email = ?, shared_password_read = ?, shared_password_edit = ?, description = ? WHERE id = ?",
       args: [
         name, 
         program_id || null, 
@@ -47,6 +66,7 @@ export async function PUT(req) {
         shared_email || null,
         shared_password_read || null,
         shared_password_edit || null,
+        description || null,
         id
       ]
     });

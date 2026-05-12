@@ -27,6 +27,7 @@ function ContactsPageContent() {
   const [selectedTeamTab, setSelectedTeamTab] = useState('All Teams');
   const [showArchived, setShowArchived] = useState(false);
   const [copiedGroup, setCopiedGroup] = useState(null);
+  const [isCsvUploading, setIsCsvUploading] = useState(false);
 
   // Modals
   const [showManualModal, setShowManualModal] = useState(false);
@@ -183,26 +184,75 @@ function ContactsPageContent() {
     } finally { setIsProcessing(false); }
   };
 
-  const handleBulkActivate = async () => {
-    if (selectedContacts.length === 0) return;
+  const handleBulkApprove = async (mode = 'selected') => {
+    const targets = mode === 'all' ? filtered.filter(c => c.status === 'pending').map(c => c.cid) : selectedContacts;
+    if (targets.length === 0) return;
+    
     setIsProcessing(true);
     try {
-       await Promise.all(selectedContacts.map(cid => 
+       await Promise.all(targets.map(cid => 
           fetch('/api/contacts', {
              method: 'PUT',
              headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ cid, status: 'active' })
+             body: JSON.stringify({ cid, status: 'approved' })
           })
        ));
-       setNotification({ type: 'success', message: `${selectedContacts.length} identities activated.` });
+       setNotification({ type: 'success', message: `${targets.length} members approved.` });
        setSelectedContacts([]);
        fetchData();
     } catch (e) {
-       console.error("Bulk Activation Failure:", e);
+       console.error("Approval Failure:", e);
     } finally {
        setIsProcessing(false);
        setTimeout(() => setNotification(null), 3000);
     }
+  };
+
+  const handleCsvUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsCsvUploading(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+       try {
+          const text = event.target.result;
+          const rows = text.split('\n').filter(r => r.trim());
+          const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+          
+          const nameIdx = headers.indexOf('name') !== -1 ? headers.indexOf('name') : headers.indexOf('fullname');
+          const emailIdx = headers.indexOf('email');
+          
+          if (emailIdx === -1) throw new Error("CSV must contain an 'email' column.");
+
+          const payload = rows.slice(1).map(row => {
+             const cells = row.split(',');
+             return {
+                name: nameIdx !== -1 ? cells[nameIdx]?.trim() : 'CSV Member',
+                email: cells[emailIdx]?.trim(),
+                role: 'participant',
+                group_name: selectedGroup === 'All Contacts' ? 'UNASSIGNED' : selectedGroup,
+                status: 'pending'
+             };
+          }).filter(c => c.email);
+
+          const res = await fetch('/api/contacts', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(payload)
+          });
+          
+          if ((await res.json()).success) {
+             setNotification({ type: 'success', message: `${payload.length} members uploaded as PENDING.` });
+             fetchData();
+          }
+       } catch (err) {
+          notify('error', err.message);
+       } finally {
+          setIsCsvUploading(false);
+       }
+    };
+    reader.readAsText(file);
   };
 
   const toggleSelection = (cid) => {
@@ -296,9 +346,17 @@ function ContactsPageContent() {
             </div>
           </div>
           <div className="flex gap-3">
-             <button onClick={() => setShowArchived(!showArchived)} className={`btn btn-secondary gap-2 ${showArchived ? 'border-[var(--brand-orange)] text-[var(--brand-orange)]' : ''}`}>
-                <Archive className="w-4 h-4" /> {showArchived ? 'Active Mode' : 'Archive'}
-             </button>
+             <div className="relative">
+                <input 
+                   type="file" accept=".csv" 
+                   onChange={handleCsvUpload}
+                   className="absolute inset-0 opacity-0 cursor-pointer" 
+                />
+                <button disabled={isCsvUploading} className="btn btn-secondary gap-2 border-emerald-500/30 text-emerald-500">
+                   {isCsvUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                   Bulk CSV
+                </button>
+             </div>
              <button onClick={() => { setForm({ cid: '', name: '', email: '', phone: '', group_name: '', role: 'staff', password: '' }); setShowManualModal(true); }} className="btn btn-primary gap-2">
                 <Plus className="w-4 h-4" /> Add Member
              </button>
@@ -361,18 +419,26 @@ function ContactsPageContent() {
                   ))}
                </div>
 
-               {selectedContacts.length > 0 && (
-                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
-                     <span className="text-[10px] font-black text-emerald-500 uppercase">{selectedContacts.length} Selected</span>
-                     <button onClick={handleBulkActivate} className="btn btn-primary !bg-emerald-500 !py-2 !text-[9px] gap-2">
-                        <UserCheck className="w-3 h-3" /> Activate All
-                     </button>
-                     <button onClick={() => setSelectedContacts([])} className="p-2 hover:bg-rose-500/10 text-rose-500 rounded-lg">
-                        <X className="w-4 h-4" />
-                     </button>
-                  </motion.div>
-               )}
-            </div>
+                <div className="flex items-center gap-3">
+                   {selectedContacts.length > 0 && (
+                      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
+                         <span className="text-[10px] font-black text-emerald-500 uppercase">{selectedContacts.length} Selected</span>
+                         <button onClick={() => handleBulkApprove('selected')} className="btn btn-primary !bg-emerald-500 !py-2 !text-[9px] gap-2">
+                            <UserCheck className="w-3 h-3" /> Approve Selected
+                         </button>
+                         <button onClick={() => setSelectedContacts([])} className="p-2 hover:bg-rose-500/10 text-rose-500 rounded-lg">
+                            <X className="w-4 h-4" />
+                         </button>
+                      </motion.div>
+                   )}
+
+                   {statusFilter === 'Pending' && filtered.length > 0 && (
+                      <button onClick={() => handleBulkApprove('all')} className="px-6 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[10px] font-black text-blue-500 uppercase hover:bg-blue-500 hover:text-white transition-all">
+                         Approve All ({filtered.length})
+                      </button>
+                   )}
+                </div>
+             </div>
 
             {/* SUB-TEAM TABS (Only shown when a group is selected) */}
             {selectedGroup !== 'All Contacts' && (
