@@ -33,10 +33,20 @@ export default function NewProgram() {
     description: '',
     note_id: '',
     assigned_pm_id: '',
-    assigned_assistant_id: '',
+    assigned_assistant_id: '', // Will store JSON array string
     duration_weeks: 4,
     materials: []
   });
+
+  const [selectedAssistants, setSelectedAssistants] = useState([]);
+
+  const toggleAssistant = (cid) => {
+    setSelectedAssistants(prev => {
+      const next = prev.includes(cid) ? prev.filter(id => id !== cid) : [...prev, cid];
+      setProgram(p => ({ ...p, assigned_assistant_id: JSON.stringify(next) }));
+      return next;
+    });
+  };
 
   const notify = (type, message) => {
     setNotification({ type, message });
@@ -225,7 +235,7 @@ export default function NewProgram() {
                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500">
                     <BookOpen className="w-5 h-5" />
                  </div>
-                 <h3 className="text-sm font-bold uppercase tracking-tight">Attached Concept Note</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-tight">Select from Knowledge Base</h3>
               </div>
               
               <div className="space-y-4">
@@ -314,15 +324,30 @@ export default function NewProgram() {
                   </select>
                 </div>
  
-                <div className="space-y-1">
+                <div className="space-y-3">
                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">ASSIGNED TEAM (Collaborators)</label>
+                   <div className="flex flex-wrap gap-2 mb-3">
+                     {selectedAssistants.map(cid => {
+                       const staff = staffList.find(s => s.cid === cid);
+                       return (
+                         <div key={cid} className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 rounded-lg text-[10px] font-bold text-[var(--brand-orange)]">
+                           {staff?.name.toUpperCase()}
+                           <button type="button" onClick={() => toggleAssistant(cid)}>
+                             <X className="w-3 h-3" />
+                           </button>
+                         </div>
+                       );
+                     })}
+                   </div>
                    <select 
-                    value={program.assigned_assistant_id}
-                    onChange={e => setProgram({...program, assigned_assistant_id: e.target.value})}
+                    value=""
+                    onChange={e => {
+                      if (e.target.value) toggleAssistant(e.target.value);
+                    }}
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
                     <option value="">Select Support...</option>
-                    {staffList.map(staff => (
+                    {staffList.filter(s => !selectedAssistants.includes(s.cid)).map(staff => (
                       <option key={staff.cid} value={staff.cid}>{staff.name.toUpperCase()}</option>
                     ))}
                   </select>
