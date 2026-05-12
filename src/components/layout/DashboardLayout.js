@@ -361,7 +361,7 @@ export default function DashboardLayout({ children, role = 'admin', modals }) {
               <div className="text-right hidden sm:block">
                 <p className="text-[11px] font-bold leading-none">{user?.name || 'User'}</p>
                 <p className="text-[9px] text-[var(--brand-blue)] uppercase font-bold mt-1">
-                  {(user.role || role || 'admin').replace(/_/g, ' ').replace(/\bteacher\b/gi, 'Staff')}
+                  {(user.role || role || 'admin').replace(/_/g, ' ').replace(/\bteacher\b/gi, 'Instructor')}
                 </p>
               </div>
               <div className="w-8 h-8 rounded bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center font-bold text-xs">

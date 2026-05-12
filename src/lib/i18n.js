@@ -26,7 +26,8 @@ const translations = {
     intel_feed: "Intelligence Feed",
     operational_status: "Operational Status",
     language: "Language",
-    theme: "Theme"
+    theme: "Theme",
+    instructor: "Instructor"
   },
   fr: {
     dashboard: "Tableau de Bord",
@@ -51,7 +52,8 @@ const translations = {
     intel_feed: "Flux d'Intelligence",
     operational_status: "Statut Opérationnel",
     language: "Langue",
-    theme: "Thème"
+    theme: "Thème",
+    instructor: "Instructeur"
   }
 };
 

@@ -59,7 +59,7 @@ const ReviewCard = ({ submission, onReview }) => (
   </div>
 );
 
-export default function TeacherV2Dashboard() {
+export default function InstructorDashboard() {
   const router = useRouter();
   const [submissions, setSubmissions] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -97,8 +97,18 @@ export default function TeacherV2Dashboard() {
       const data = await res.json();
       
       if (data.success) {
-         setSubmissions(data.submissions || []);
-         setSessions(data.sessions || []);
+         // Priority Sorting: Newest pending submissions first
+         const sortedSubmissions = (data.submissions || []).sort((a, b) => 
+            new Date(b.created_at) - new Date(a.created_at)
+         );
+         
+         // Priority Sorting: Most immediate upcoming sessions first
+         const sortedSessions = (data.sessions || []).sort((a, b) => 
+            new Date(a.scheduled_date) - new Date(b.scheduled_date)
+         );
+
+         setSubmissions(sortedSubmissions);
+         setSessions(sortedSessions);
          setMyPrograms(data.programs || []);
          
          if (data.programs?.length > 0 && !selectedProgramId) {
@@ -206,8 +216,8 @@ export default function TeacherV2Dashboard() {
   };
 
   if (isLoading) return (
-     <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#FF6600]/80/20 border-t-[#FF6600]/80 rounded-full animate-spin" />
+     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[var(--brand-orange)]/20 border-t-[var(--brand-orange)] rounded-full animate-spin" />
      </div>
   );
 
@@ -220,9 +230,9 @@ export default function TeacherV2Dashboard() {
               <span className="text-[var(--brand-orange)] font-black text-[10px] uppercase tracking-[0.4em]">Review Authority</span>
               <div className="h-px w-10 bg-[var(--brand-orange)]/30" />
             </div>
-            <h2 className="text-4xl font-black text-[var(--text-primary)] tracking-tighter uppercase mb-2">Team Evaluation HQ</h2>
+            <h2 className="text-4xl font-black text-[var(--text-primary)] tracking-tighter uppercase mb-2">Instructor Tactical HQ</h2>
             <p className="text-[var(--text-secondary)] font-bold tracking-tight">
-               {activeSection === 'submissions' ? 'Executing logic on student submissions and lifecycle progression.' : 'Compiling tactical insights on participant reception and week-over-week growth.'}
+               {activeSection === 'submissions' ? 'Executing evaluation logic on student submissions and lifecycle progression.' : 'Compiling tactical insights on participant reception and week-over-week growth.'}
             </p>
           </div>
           <div className="flex gap-4">
@@ -257,13 +267,13 @@ export default function TeacherV2Dashboard() {
                       onReview={handleReviewAction} 
                     />
                  ))}
-                 {submissions.length === 0 && (
-                    <div className="col-span-full py-40 text-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/[0.01]">
+                  {submissions.length === 0 && (
+                    <div className="col-span-full py-40 text-center border-2 border-dashed border-[var(--border-primary)] rounded-[3rem] bg-[var(--bg-tertiary)]/10 shadow-sm">
                        <CheckCircle2 className="w-16 h-16 text-emerald-500/20 mx-auto mb-6" />
-                       <p className="text-slate-400 font-bold max-w-xs mx-auto uppercase text-[10px] tracking-widest mb-8">Buffer Clear: All submissions currently synchronized.</p>
+                       <p className="text-[var(--text-secondary)] font-bold max-w-xs mx-auto uppercase text-[10px] tracking-widest mb-8">Queue Status: All submissions currently synchronized.</p>
                        <button 
                           onClick={() => setActiveSection('curriculum')}
-                          className="px-8 py-3 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--brand-orange)] hover:text-white transition-all"
+                          className="px-8 py-3 bg-[var(--brand-orange)] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-[var(--brand-orange)]/20"
                        >
                           View Program Curriculum
                        </button>
