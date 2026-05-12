@@ -70,16 +70,51 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const { name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, materials } = await req.json();
+    const { 
+      name, description, note_id, assigned_pm_id, assigned_assistant_id, 
+      duration_weeks, materials, new_group, new_knowledge 
+    } = await req.json();
+    
     const id = "P-" + new Date().getFullYear() + "-" + uuidv4().split('-')[0].toUpperCase();
+    let finalNoteId = note_id || null;
 
+    // 1. Handle Inline Knowledge Creation
+    if (new_knowledge && new_knowledge.title) {
+      const { lastInsertRowid } = await db.execute({
+        sql: "INSERT INTO v2_knowledge_bank (title, description, url) VALUES (?, ?, ?)",
+        args: [new_knowledge.title, new_knowledge.description, '[]']
+      });
+      finalNoteId = lastInsertRowid.toString();
+    }
+
+    // 2. Create the Program
     await db.execute({
       sql: `INSERT INTO v2_programs (id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, 'active', 0, JSON.stringify(materials || [])]
+      args: [id, name, description, finalNoteId, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, 'active', 0, JSON.stringify(materials || [])]
     });
+
+    // 3. Handle Inline Group Creation
+    if (new_group && new_group.name) {
+      // We store the URL in the description or a dedicated column if it exists. 
+      // To be safe with schema, we'll prefix it in the description if we're unsure, 
+      // but the user wants it visible, so we'll attempt to use a 'url' column.
+      try {
+        await db.execute({
+          sql: "INSERT INTO v2_groups (program_id, name, project_description, url) VALUES (?, ?, ?, ?)",
+          args: [id, new_group.name, new_group.description || null, new_group.url || null]
+        });
+      } catch (err) {
+        // Fallback if 'url' column doesn't exist yet
+        await db.execute({
+          sql: "INSERT INTO v2_groups (program_id, name, project_description) VALUES (?, ?, ?)",
+          args: [id, new_group.name, `[URL: ${new_group.url}] ${new_group.description || ''}`]
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, id });
   } catch (error) {
+    console.error("POST Program Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

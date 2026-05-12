@@ -28,6 +28,10 @@ export default function CreateProgram() {
   const [staff, setStaff] = useState([]);
   const [tempAssistants, setTempAssistants] = useState([]); // Track selected tags
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [newGroup, setNewGroup] = useState({ name: '', description: '', url: '' });
+  const [newKnowledge, setNewKnowledge] = useState({ title: '', description: '' });
+  const [createInlineGroup, setCreateInlineGroup] = useState(false);
+  const [createInlineKnowledge, setCreateInlineKnowledge] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -58,7 +62,9 @@ export default function CreateProgram() {
       const payload = { 
         ...form, 
         assigned_assistant_id: JSON.stringify(tempAssistants.map(a => a.cid)),
-        materials: uploadedFiles
+        materials: uploadedFiles,
+        new_group: createInlineGroup ? newGroup : null,
+        new_knowledge: createInlineKnowledge ? newKnowledge : null
       };
       const res = await fetch('/api/v2/pm/programs', {
         method: 'POST',
@@ -145,67 +151,144 @@ export default function CreateProgram() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <div className="ios-card !p-10 space-y-6 border-white/10">
-               <div className="flex items-center gap-4 text-[#FF6600]">
-                  <BookOpen className="w-5 h-5" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Instructional Asset</span>
-               </div>
-               <div className="space-y-4">
-                  <select 
-                    value={form.note_id}
-                    onChange={e => setForm({...form, note_id: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none appearance-none font-bold"
-                  >
-                    <option value="" className="bg-[#080810]">Link Knowledge Node...</option>
-                    {notes.map(n => <option key={n.id} value={n.id} className="bg-[#080810]">{n.title}</option>)}
-                  </select>
-                  
-                  <div className="space-y-4">
-                     <label className="flex items-center justify-center p-8 border-2 border-dashed border-white/10 rounded-2xl hover:bg-white/5 hover:border-[#FF6600]/30 transition-all cursor-pointer group">
-                        <input 
-                           type="file" 
-                           multiple 
-                           accept=".pdf,.doc,.docx"
-                           className="hidden" 
-                           onChange={(e) => {
-                              const files = Array.from(e.target.files);
-                              files.forEach(file => {
-                                 const reader = new FileReader();
-                                 reader.onload = (ev) => {
-                                    setUploadedFiles(prev => [...prev, { name: file.name, data: ev.target.result }]);
-                                 };
-                                 reader.readAsDataURL(file);
-                              });
-                           }}
-                        />
-                        <div className="flex flex-col items-center gap-3">
-                           <Upload className="w-6 h-6 text-slate-500 group-hover:text-[#FF6600] transition-colors" />
-                           <span className="text-[8px] font-black uppercase text-slate-600 tracking-widest group-hover:text-white">Click to Upload Manual Assets (PDF/DOC)</span>
-                        </div>
-                     </label>
-
-                     {uploadedFiles.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                           {uploadedFiles.map((f, i) => (
-                              <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/5">
-                                 <span className="text-[8px] font-black text-slate-400 truncate max-w-[150px] uppercase">{f.name}</span>
-                                 <button type="button" onClick={() => setUploadedFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-rose-500 hover:text-white transition-colors">
-                                    <X className="w-3 h-3" />
-                                 </button>
-                              </div>
-                           ))}
-                        </div>
-                     )}
+            <div className="ios-card !p-10 space-y-8 border-white/10">
+               <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-[#FF6600]">
+                     <BookOpen className="w-5 h-5" />
+                     <span className="text-[10px] font-black uppercase tracking-widest">Instructional Asset</span>
                   </div>
+                  <button 
+                     type="button"
+                     onClick={() => setCreateInlineKnowledge(!createInlineKnowledge)}
+                     className={`text-[8px] font-black uppercase px-3 py-1 rounded-lg border transition-all ${createInlineKnowledge ? 'bg-[#FF6600] text-black border-[#FF6600]' : 'bg-white/5 text-slate-500 border-white/10 hover:border-[#FF6600]/50'}`}
+                  >
+                     {createInlineKnowledge ? 'Cancel New Node' : '+ Create New Node'}
+                  </button>
+               </div>
+
+               {createInlineKnowledge ? (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 p-6 bg-[#FF6600]/5 border border-[#FF6600]/10 rounded-2xl">
+                     <div className="space-y-2">
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest">New Knowledge Title</label>
+                        <input 
+                           placeholder="Ex: Fundamentals of Scaling..."
+                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600] text-xs font-bold"
+                           value={newKnowledge.title}
+                           onChange={e => setNewKnowledge({...newKnowledge, title: e.target.value})}
+                        />
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Summary Description</label>
+                        <textarea 
+                           rows={3}
+                           placeholder="Brief overview of the instructional logic..."
+                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600] text-xs font-bold resize-none"
+                           value={newKnowledge.description}
+                           onChange={e => setNewKnowledge({...newKnowledge, description: e.target.value})}
+                        />
+                     </div>
+                  </motion.div>
+               ) : (
+                  <div className="space-y-4">
+                     <select 
+                       value={form.note_id}
+                       onChange={e => setForm({...form, note_id: e.target.value})}
+                       className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none appearance-none font-bold"
+                     >
+                       <option value="" className="bg-[#080810]">Link Existing Knowledge Node...</option>
+                       {notes.map(n => <option key={n.id} value={n.id} className="bg-[#080810]">{n.title}</option>)}
+                     </select>
+                  </div>
+               )}
+               
+               <div className="space-y-4 pt-4 border-t border-white/5">
+                  <label className="flex items-center justify-center p-8 border-2 border-dashed border-white/10 rounded-2xl hover:bg-white/5 hover:border-[#FF6600]/30 transition-all cursor-pointer group">
+                     <input 
+                        type="file" 
+                        multiple 
+                        accept=".pdf,.doc,.docx"
+                        className="hidden" 
+                        onChange={(e) => {
+                           const files = Array.from(e.target.files);
+                           files.forEach(file => {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                 setUploadedFiles(prev => [...prev, { name: file.name, data: ev.target.result }]);
+                              };
+                              reader.readAsDataURL(file);
+                           });
+                        }}
+                     />
+                     <div className="flex flex-col items-center gap-3">
+                        <Upload className="w-6 h-6 text-slate-500 group-hover:text-[#FF6600] transition-colors" />
+                        <span className="text-[8px] font-black uppercase text-slate-600 tracking-widest group-hover:text-white">Inject Manual Assets (PDF/DOC)</span>
+                     </div>
+                  </label>
+
+                  {uploadedFiles.length > 0 && (
+                     <div className="flex flex-wrap gap-2">
+                        {uploadedFiles.map((f, i) => (
+                           <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/5">
+                              <span className="text-[8px] font-black text-slate-400 truncate max-w-[150px] uppercase">{f.name}</span>
+                              <button type="button" onClick={() => setUploadedFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-rose-500 hover:text-white transition-colors">
+                                 <X className="w-3 h-3" />
+                              </button>
+                           </div>
+                        ))}
+                     </div>
+                  )}
                </div>
             </div>
 
-            <div className="ios-card !p-10 space-y-6 border-white/10">
-               <div className="flex items-center gap-4 text-[#FF6600]">
-                  <Users className="w-5 h-5" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Mission Command</span>
+            <div className="ios-card !p-10 space-y-8 border-white/10">
+               <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-[#FF6600]">
+                     <Users className="w-5 h-5" />
+                     <span className="text-[10px] font-black uppercase tracking-widest">Mission Command</span>
+                  </div>
+                  <button 
+                     type="button"
+                     onClick={() => setCreateInlineGroup(!createInlineGroup)}
+                     className={`text-[8px] font-black uppercase px-3 py-1 rounded-lg border transition-all ${createInlineGroup ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white/5 text-slate-500 border-white/10 hover:border-indigo-500/50'}`}
+                  >
+                     {createInlineGroup ? 'Cancel New Group' : '+ Create New Group'}
+                  </button>
                </div>
-               <div className="space-y-4">
+
+               {createInlineGroup && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 p-6 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
+                     <div className="space-y-2">
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest">New Contact Group Name</label>
+                        <input 
+                           placeholder="Ex: Cohort Omega / Alpha Team..."
+                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 text-xs font-bold"
+                           value={newGroup.name}
+                           onChange={e => setNewGroup({...newGroup, name: e.target.value})}
+                        />
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Group Communication URL</label>
+                        <input 
+                           placeholder="Ex: https://wa.me/group-link / https://slack.com/..."
+                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 text-xs font-bold"
+                           value={newGroup.url}
+                           onChange={e => setNewGroup({...newGroup, url: e.target.value})}
+                        />
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Group Description</label>
+                        <textarea 
+                           rows={2}
+                           placeholder="Mission-specific group oversight..."
+                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 text-xs font-bold resize-none"
+                           value={newGroup.description}
+                           onChange={e => setNewGroup({...newGroup, description: e.target.value})}
+                        />
+                     </div>
+                  </motion.div>
+               )}
+
+               <div className="space-y-6 pt-4 border-t border-white/5">
                   <div className="space-y-2">
                     <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest ml-2 italic">Lead Project Manager</p>
                     <select 
@@ -244,8 +327,6 @@ export default function CreateProgram() {
                           </div>
                        ))}
                     </div>
-
-                    <p className="text-[9px] font-bold text-slate-600 mt-2 ml-2 italic">These are team members that will teach during the course of this program or team members that will oversee during the course of this program.</p>
                   </div>
                </div>
             </div>

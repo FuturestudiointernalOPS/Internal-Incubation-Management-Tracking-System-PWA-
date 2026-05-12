@@ -19,7 +19,7 @@ export async function POST(req) {
     const cleanCode = accessCode.trim();
 
     // 1. HARDCODED SYSTEM MASTER (The ONLY Super Admin bypass)
-    if (cleanID === 'superadmin' && accessCode === '147369') {
+    if (cleanID === 'superadmin' && accessCode === '12345') {
       return NextResponse.json({
         success: true,
         role: 'super_admin',

@@ -86,6 +86,7 @@ export default function PMProgramTerminalV2({ params }) {
   const [sessions, setSessions] = useState([]);
   const [docRequirements, setDocRequirements] = useState([]);
   const [staffList, setStaffList] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [standardTypes, setStandardTypes] = useState({ tasks: [], assignments: [], deliverables: [], media: [] });
 
   const openMaterial = (material) => {
@@ -206,6 +207,7 @@ export default function PMProgramTerminalV2({ params }) {
         setStaffList(data.staffList || []);
         setDocRequirements(data.documents || []);
         setAssignedStaff(data.assignedStaff || []);
+        setGroups(data.groups || []);
       }
 
       // Fetch Standard Types (Expanded Categories)
@@ -696,6 +698,28 @@ export default function PMProgramTerminalV2({ params }) {
                    </div>
                 </div>
              </div>
+            {groups.length > 0 && (
+               <div className="flex flex-wrap gap-4 mt-12 pt-10 border-t border-white/5">
+                  {groups.map(g => (
+                     <div key={g.id} className="flex items-center gap-4 bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 group hover:border-[#FF6600]/30 transition-all shadow-xl">
+                        <div className="flex flex-col">
+                           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Strategic Unit</span>
+                           <span className="text-sm font-black text-white uppercase italic">{g.name}</span>
+                        </div>
+                        { (g.url || (g.project_description?.includes('[URL:'))) && (
+                           <a 
+                              href={g.url || g.project_description.match(/\[URL:\s*(.*?)\]/)?.[1]} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-3 bg-[#FF6600]/10 text-[#FF6600] rounded-xl hover:bg-[#FF6600] hover:text-black transition-all border border-[#FF6600]/20 shadow-lg shadow-[#FF6600]/10"
+                           >
+                              <LinkIcon className="w-4 h-4" />
+                           </a>
+                        )}
+                     </div>
+                  ))}
+               </div>
+            )}
           </div>
         </header>
 
