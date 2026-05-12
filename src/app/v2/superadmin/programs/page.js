@@ -532,7 +532,6 @@ export default function ProgramManagement() {
                             <p className="text-[9px] font-bold text-slate-600 mt-2 ml-2 italic">These are team members that will teach during the course of this program or team members that will oversee during the course of this program.</p>
                          </div>
                       </div>
-                   </div>
 
                   <div className="flex gap-4">
                      <button 
