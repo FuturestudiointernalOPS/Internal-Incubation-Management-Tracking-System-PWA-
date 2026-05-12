@@ -22,6 +22,8 @@ export default function ProgramManagement() {
   const [staff, setStaff] = useState([]);
   const [uploadedMaterials, setUploadedMaterials] = useState([]); 
   const [extraMaterials, setExtraMaterials] = useState([]); 
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [urlInput, setUrlInput] = useState({ primary: '', extra: '' });
   const [tempAssistants, setTempAssistants] = useState([]); 
   const [teams, setTeams] = useState([]);
   const [families, setFamilies] = useState([]);
@@ -112,7 +114,12 @@ export default function ProgramManagement() {
     try {
       const payload = { 
         ...editingProgram, 
-        materials: [...uploadedMaterials, ...extraMaterials],
+        materials: [...uploadedMaterials, ...extraMaterials].map(m => ({
+            name: m.name,
+            url: m.url,
+            type: m.type || 'file',
+            isExtra: m.isExtra || false
+        })),
         assigned_assistant_id: JSON.stringify(tempAssistants.map(a => a.cid))
       };
       const res = await fetch('/api/v2/pm/programs', {
@@ -315,96 +322,181 @@ export default function ProgramManagement() {
                     />
                    </div>
 
-                   <div className="space-y-10">
-                      <div className="space-y-4">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans flex items-center gap-2">
-                            <BookOpen className="w-3.5 h-3.5" /> Course Material (Primary Assets)
-                         </label>
-                         <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                               <select 
-                                  value={editingProgram.note_id || ''} 
-                                  onChange={e => setEditingProgram({...editingProgram, note_id: e.target.value})} 
-                                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold"
-                               >
-                                  <option value="" className="bg-[#080810]">Link instructional Note...</option>
-                                  {notes.map(n => <option key={n.id} value={n.id} className="bg-[#080810]">{n.title}</option>)}
-                                </select>
-                               
-                               <label className="flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-500 cursor-pointer hover:bg-white/10 hover:text-white transition-all border-dashed">
-                                  <input 
-                                     type="file" 
-                                     multiple 
-                                     className="hidden" 
-                                     onChange={(e) => {
-                                        const files = Array.from(e.target.files);
-                                        files.forEach(file => {
-                                           const reader = new FileReader();
-                                           reader.onload = (ev) => {
-                                              setUploadedMaterials(prev => [...prev, { name: file.name, data: ev.target.result }]);
-                                           };
-                                           reader.readAsDataURL(file);
-                                        });
-                                     }} 
-                                  />
-                                  <Upload className="w-4 h-4 text-[#FF6600]" />
-                                  <span className="text-[9px] font-black uppercase">Inject Primary</span>
-                               </label>
-                            </div>
+                       <div className="space-y-10">
+                          <div className="space-y-4">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans flex items-center gap-2">
+                                <BookOpen className="w-3.5 h-3.5" /> Course Material (Primary Assets)
+                             </label>
+                             <div className="space-y-4">
+                                {/* ROW 1: Concept Note + Upload */}
+                                <div className="grid grid-cols-2 gap-4">
+                                   <select 
+                                      value={editingProgram.note_id || ''} 
+                                      onChange={e => setEditingProgram({...editingProgram, note_id: e.target.value})} 
+                                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold"
+                                   >
+                                      <option value="" className="bg-[#080810]">Link instructional Note...</option>
+                                      {notes.map(n => <option key={n.id} value={n.id} className="bg-[#080810]">{n.title}</option>)}
+                                    </select>
+                                   
+                                   <label className={`flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-500 cursor-pointer hover:bg-white/10 hover:text-white transition-all border-dashed ${isUploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
+                                      <input 
+                                         type="file" 
+                                         multiple 
+                                         accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
+                                         className="hidden" 
+                                         onChange={async (e) => {
+                                            const files = Array.from(e.target.files);
+                                            if (!files.length) return;
+                                            setIsUploadingFile(true);
+                                            for (const file of files) {
+                                               const fd = new FormData();
+                                               fd.append('file', file);
+                                               fd.append('program_id', editingProgram.id || 'global');
+                                               fd.append('is_extra', 'false');
+                                               try {
+                                                  const res = await fetch('/api/v2/superadmin/upload-material', { method: 'POST', body: fd });
+                                                  const data = await res.json();
+                                                  if (data.success) {
+                                                     setUploadedMaterials(prev => [...prev, data.material]);
+                                                  } else {
+                                                     window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: `Upload failed: ${data.error}` } }));
+                                                  }
+                                               } catch(err) {
+                                                  window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Upload failed. Check storage configuration.' } }));
+                                               }
+                                            }
+                                            setIsUploadingFile(false);
+                                            e.target.value = '';
+                                         }} 
+                                      />
+                                      {isUploadingFile ? <Loader2 className="w-4 h-4 text-[#FF6600] animate-spin" /> : <Upload className="w-4 h-4 text-[#FF6600]" />}
+                                      <span className="text-[9px] font-black uppercase">{isUploadingFile ? 'Uploading...' : 'Upload PDF / File'}</span>
+                                   </label>
+                                </div>
 
-                            {uploadedMaterials.length > 0 && (
-                               <div className="flex flex-wrap gap-2 p-4 bg-[#FF6600]/5 border border-[#FF6600]/10 rounded-2xl">
-                                  {uploadedMaterials.map((m, idx) => (
-                                     <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-black/40 rounded-xl border border-white/5">
-                                        <FileText className="w-3 h-3 text-[#FF6600]" />
-                                        <span className="text-[8px] font-black text-white uppercase truncate max-w-[100px]">{m.name}</span>
-                                        <button type="button" onClick={() => setUploadedMaterials(prev => prev.filter((_, i) => i !== idx))} className="text-rose-500 hover:text-white transition-colors"><X className="w-3 h-3"/></button>
-                                     </div>
-                                  ))}
-                               </div>
-                            )}
-                         </div>
-                      </div>
+                                {/* URL INPUT */}
+                                <div className="flex gap-3">
+                                   <input
+                                      type="url"
+                                      value={urlInput.primary}
+                                      onChange={e => setUrlInput(prev => ({ ...prev, primary: e.target.value }))}
+                                      placeholder="Or paste a URL (Google Drive, Dropbox, YouTube...)"
+                                      className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-xs outline-none focus:border-[#FF6600]/50 font-bold placeholder:text-slate-600"
+                                   />
+                                   <button
+                                      type="button"
+                                      onClick={() => {
+                                         const url = urlInput.primary.trim();
+                                         if (!url) return;
+                                         const name = url.split('/').pop().split('?')[0] || 'Linked Resource';
+                                         setUploadedMaterials(prev => [...prev, { name, url, type: 'url', isExtra: false }]);
+                                         setUrlInput(prev => ({ ...prev, primary: '' }));
+                                      }}
+                                      className="px-5 py-3 bg-[#FF6600]/10 border border-[#FF6600]/30 rounded-2xl text-[#FF6600] text-[9px] font-black uppercase tracking-widest hover:bg-[#FF6600] hover:text-black transition-all whitespace-nowrap"
+                                   >
+                                      + Add URL
+                                   </button>
+                                </div>
 
-                      <div className="space-y-4 pt-6 border-t border-white/5">
-                         <div className="flex justify-between items-center">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans flex items-center gap-2">
-                               Extra Learning Material
-                            </label>
-                            <label className="px-5 py-2 bg-white/5 border border-white/10 rounded-xl text-slate-400 cursor-pointer hover:bg-[#FF6600]/10 hover:text-white transition-all flex items-center gap-2">
-                               <input 
-                                  type="file" 
-                                  multiple 
-                                  className="hidden" 
-                                  onChange={(e) => {
-                                     const files = Array.from(e.target.files);
-                                     files.forEach(file => {
-                                        const reader = new FileReader();
-                                        reader.onload = (ev) => {
-                                           setExtraMaterials(prev => [...prev, { name: file.name, data: ev.target.result, isExtra: true }]);
-                                        };
-                                        reader.readAsDataURL(file);
-                                     });
-                                  }} 
-                               />
-                               <Plus className="w-3 h-3 text-[#FF6600]" />
-                               <span className="text-[8px] font-black uppercase">Add Material</span>
-                            </label>
-                         </div>
+                                {/* MATERIAL PILLS */}
+                                {uploadedMaterials.length > 0 && (
+                                   <div className="flex flex-wrap gap-2 p-4 bg-[#FF6600]/5 border border-[#FF6600]/10 rounded-2xl">
+                                      {uploadedMaterials.map((m, idx) => (
+                                         <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-black/40 rounded-xl border border-white/5">
+                                            {m.type === 'url' 
+                                               ? <span className="text-[8px] font-black text-blue-400 uppercase">URL</span>
+                                               : <FileText className="w-3 h-3 text-[#FF6600]" />}
+                                            <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-[8px] font-black text-white uppercase truncate max-w-[120px] hover:text-[#FF6600] transition-colors">{m.name}</a>
+                                            <button type="button" onClick={() => setUploadedMaterials(prev => prev.filter((_, i) => i !== idx))} className="text-rose-500 hover:text-white transition-colors"><X className="w-3 h-3"/></button>
+                                         </div>
+                                      ))}
+                                   </div>
+                                )}
+                             </div>
+                          </div>
 
-                         {extraMaterials.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2">
-                               {extraMaterials.map((m, idx) => (
-                                  <div key={idx} className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-xl group hover:border-[#FF6600]/20 transition-all">
-                                     <span className="text-[8px] font-black text-slate-500 uppercase truncate max-w-[120px]">{m.name}</span>
-                                     <button type="button" onClick={() => setExtraMaterials(prev => prev.filter((_, i) => i !== idx))} className="text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><X className="w-3 h-3"/></button>
-                                  </div>
-                               ))}
-                            </div>
-                         )}
-                      </div>
+                          <div className="space-y-4 pt-6 border-t border-white/5">
+                             <div className="flex justify-between items-center">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans flex items-center gap-2">
+                                   Extra Learning Material
+                                </label>
+                                <div className="flex items-center gap-2">
+                                   <label className={`px-5 py-2 bg-white/5 border border-white/10 rounded-xl text-slate-400 cursor-pointer hover:bg-[#FF6600]/10 hover:text-white transition-all flex items-center gap-2 ${isUploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
+                                      <input 
+                                         type="file" 
+                                         multiple 
+                                         accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
+                                         className="hidden" 
+                                         onChange={async (e) => {
+                                            const files = Array.from(e.target.files);
+                                            if (!files.length) return;
+                                            setIsUploadingFile(true);
+                                            for (const file of files) {
+                                               const fd = new FormData();
+                                               fd.append('file', file);
+                                               fd.append('program_id', editingProgram.id || 'global');
+                                               fd.append('is_extra', 'true');
+                                               try {
+                                                  const res = await fetch('/api/v2/superadmin/upload-material', { method: 'POST', body: fd });
+                                                  const data = await res.json();
+                                                  if (data.success) setExtraMaterials(prev => [...prev, data.material]);
+                                                  else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: `Upload failed: ${data.error}` } }));
+                                               } catch(err) { console.error(err); }
+                                            }
+                                            setIsUploadingFile(false);
+                                            e.target.value = '';
+                                         }} 
+                                      />
+                                      <Plus className="w-3 h-3 text-[#FF6600]" />
+                                      <span className="text-[8px] font-black uppercase">Upload File</span>
+                                   </label>
+                                </div>
+                             </div>
 
-                      <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
+                             {/* Extra URL Input */}
+                             <div className="flex gap-3">
+                                <input
+                                   type="url"
+                                   value={urlInput.extra}
+                                   onChange={e => setUrlInput(prev => ({ ...prev, extra: e.target.value }))}
+                                   placeholder="Paste extra resource URL..."
+                                   className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-xs outline-none focus:border-[#FF6600]/50 font-bold placeholder:text-slate-600"
+                                />
+                                <button
+                                   type="button"
+                                   onClick={() => {
+                                      const url = urlInput.extra.trim();
+                                      if (!url) return;
+                                      const name = url.split('/').pop().split('?')[0] || 'Extra Resource';
+                                      setExtraMaterials(prev => [...prev, { name, url, type: 'url', isExtra: true }]);
+                                      setUrlInput(prev => ({ ...prev, extra: '' }));
+                                   }}
+                                   className="px-5 py-3 bg-white/5 border border-white/10 rounded-2xl text-slate-400 text-[9px] font-black uppercase tracking-widest hover:bg-[#FF6600]/10 hover:text-[#FF6600] transition-all whitespace-nowrap"
+                                >
+                                   + Add URL
+                                </button>
+                             </div>
+
+                             {extraMaterials.length > 0 && (
+                                <div className="grid grid-cols-2 gap-2">
+                                   {extraMaterials.map((m, idx) => (
+                                      <div key={idx} className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-xl group hover:border-[#FF6600]/20 transition-all">
+                                         <div className="flex items-center gap-2 min-w-0">
+                                            {m.type === 'url' 
+                                               ? <span className="text-[7px] font-black text-blue-400 uppercase shrink-0">URL</span>
+                                               : <FileText className="w-3 h-3 text-[#FF6600] shrink-0" />}
+                                            <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-[8px] font-black text-slate-400 uppercase truncate max-w-[120px] hover:text-white transition-colors">{m.name}</a>
+                                         </div>
+                                         <button type="button" onClick={() => setExtraMaterials(prev => prev.filter((_, i) => i !== idx))} className="text-rose-500 opacity-0 group-hover:opacity-100 transition-all shrink-0"><X className="w-3 h-3"/></button>
+                                      </div>
+                                   ))}
+                                </div>
+                             )}
+                          </div>
+</div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
                          <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans">Project Manager</label>
                             <select value={editingProgram.assigned_pm_id || ''} onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold">
