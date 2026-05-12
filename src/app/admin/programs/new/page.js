@@ -212,9 +212,8 @@ export default function NewProgram() {
             </div>
           </div>
 
-          {/* SECTION: CONCEPT OVERVIEW */}
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">Program Description</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">Concept Note</label>
             <textarea 
               rows={4}
               value={program.description}
