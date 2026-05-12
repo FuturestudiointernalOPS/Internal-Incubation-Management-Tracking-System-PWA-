@@ -19,19 +19,11 @@ export async function GET(req) {
              (SELECT url FROM v2_groups WHERE program_id = p.id LIMIT 1) as group_url,
              (SELECT project_description FROM v2_groups WHERE program_id = p.id LIMIT 1) as group_desc,
              (SELECT COUNT(*) FROM v2_sessions WHERE program_id = p.id) as sessions_count,
+             (SELECT COUNT(*) FROM v2_sessions WHERE program_id = p.id AND status = 'completed') as completed_sessions_count,
              (SELECT COUNT(*) FROM v2_participants WHERE program_id = p.id) as participants_count,
              (SELECT COUNT(*) FROM v2_document_requirements WHERE program_id = p.id) as docs_total,
              (SELECT COUNT(*) FROM v2_document_requirements WHERE program_id = p.id AND is_completed = 1) as docs_completed,
-             (SELECT COUNT(*) FROM v2_weekly_reports WHERE program_id = p.id) as reports_count,
-             COALESCE((SELECT 
-                ( (COUNT(CASE WHEN s.status = 'completed' THEN 1 END) * 5.0) + 
-                  (COALESCE((SELECT SUM(is_completed) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) +
-                  (COALESCE((SELECT COUNT(DISTINCT week_number) * 10.0 FROM v2_weekly_reports WHERE program_id = p.id), 0))
-                ) / 
-                ( (COUNT(s.id) * 5.0 + COALESCE((SELECT COUNT(*) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) + (p.duration_weeks * 10.0) + 0.0001
-                ) * 100.0
-              FROM v2_sessions s WHERE s.program_id = p.id
-             ), 0) as completion_index
+             (SELECT COUNT(DISTINCT week_number) FROM v2_weekly_reports WHERE program_id = p.id) as reports_count
       FROM v2_programs p
       LEFT JOIN contacts c1 ON p.assigned_pm_id = c1.cid
       LEFT JOIN contacts c2 ON p.assigned_assistant_id = c2.cid
@@ -62,8 +54,15 @@ export async function GET(req) {
       sql: query,
       args: args
     });
+
+    const rows = programs.rows.map(p => {
+       const totalPoints = (p.sessions_count * 5.0) + (p.docs_total * 2.0) + ((p.duration_weeks || 13) * 10.0);
+       const completedPoints = (p.completed_sessions_count * 5.0) + (p.docs_completed * 2.0) + (p.reports_count * 10.0);
+       const completion_index = totalPoints > 0 ? (completedPoints / totalPoints) * 100.0 : 0;
+       return { ...p, completion_index };
+    });
     
-    return NextResponse.json({ success: true, programs: programs.rows });
+    return NextResponse.json({ success: true, programs: rows });
   } catch (error) {
     console.error("GET Programs Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
