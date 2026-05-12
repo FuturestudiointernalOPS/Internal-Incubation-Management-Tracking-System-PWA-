@@ -33,7 +33,15 @@ export default function PMProgramTerminalV2({ params }) {
   
   const [isLoaded, setIsLoaded] = useState(false);
   const [user, setUser] = useState({});
-  const isLeadPMForProject = (user?.role === 'super_admin') || (user?.isLeadPM && program?.assigned_pm_id?.toLowerCase() === (user?.cid || user?.id)?.toLowerCase());
+  // SECURITY FIX (V2.8.1): Do NOT use user.isLeadPM — it is never set by the login API
+  // and can be spoofed via localStorage manipulation.
+  // Authority is derived ONLY from verified program.assigned_pm_id vs user.cid, after data loads.
+  const isLeadPMForProject = Boolean(
+    program && (
+      (user?.role === 'super_admin') ||
+      (program.assigned_pm_id?.toLowerCase() === (user?.cid || user?.id)?.toLowerCase())
+    )
+  );
   const [activeTab, setActiveTab] = useState('curriculum'); 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const searchParams = useSearchParams();
