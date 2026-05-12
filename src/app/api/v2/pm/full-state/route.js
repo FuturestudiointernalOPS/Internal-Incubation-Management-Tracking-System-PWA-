@@ -15,15 +15,11 @@ export async function GET(req) {
         sql: `SELECT p.*, 
                      k.title as note_title, k.url as note_files, k.description as note_description,
                      c.name as pm_name,
-                     (SELECT 
-                        ( (COUNT(CASE WHEN s.status = 'completed' THEN 1 END) * 5.0) + 
-                          (COALESCE((SELECT SUM(is_completed) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) +
-                          (COALESCE((SELECT COUNT(DISTINCT week_number) * 10.0 FROM v2_weekly_reports WHERE program_id = p.id), 0))
-                        ) / 
-                        ( (COUNT(s.id) * 5.0 + COALESCE((SELECT COUNT(*) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) + (p.duration_weeks * 10.0) + 0.0001
-                        ) * 100.0
-                      FROM v2_sessions s WHERE s.program_id = p.id
-                     ) as completion_index
+                     (SELECT COUNT(*) FROM v2_sessions WHERE program_id = p.id) as sessions_count,
+                     (SELECT COUNT(*) FROM v2_sessions WHERE program_id = p.id AND status = 'completed') as completed_sessions_count,
+                     (SELECT COUNT(*) FROM v2_document_requirements WHERE program_id = p.id) as docs_total,
+                     (SELECT COUNT(*) FROM v2_document_requirements WHERE program_id = p.id AND is_completed = 1) as docs_completed,
+                     (SELECT COUNT(DISTINCT week_number) FROM v2_weekly_reports WHERE program_id = p.id) as reports_count
               FROM v2_programs p 
               LEFT JOIN v2_knowledge_bank k ON p.note_id = k.id 
               LEFT JOIN contacts c ON p.assigned_pm_id = c.cid
@@ -58,6 +54,11 @@ export async function GET(req) {
         program.materials = [];
         program.note_files = [];
       }
+      
+      // Calculate Completion Index in JS
+      const totalPoints = (program.sessions_count * 5.0) + (program.docs_total * 2.0) + ((program.duration_weeks || 13) * 10.0);
+      const completedPoints = (program.completed_sessions_count * 5.0) + (program.docs_completed * 2.0) + (program.reports_count * 10.0);
+      program.completion_index = totalPoints > 0 ? (completedPoints / totalPoints) * 100.0 : 0;
     }
 
     // Capture "Assigned Team" from multiple sources
