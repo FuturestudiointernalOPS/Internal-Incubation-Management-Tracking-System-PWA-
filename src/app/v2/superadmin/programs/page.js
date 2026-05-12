@@ -32,6 +32,10 @@ export default function ProgramManagement() {
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [newTeam, setNewTeam] = useState({ name: '', program_id: '', member_ids: [] });
   const [isDeployingTeam, setIsDeployingTeam] = useState(false);
+  const [newGroup, setNewGroup] = useState({ name: '', description: '', url: '' });
+  const [newKnowledge, setNewKnowledge] = useState({ title: '', description: '' });
+  const [createInlineGroup, setCreateInlineGroup] = useState(false);
+  const [createInlineKnowledge, setCreateInlineKnowledge] = useState(false);
 
   const router = useRouter();
 
@@ -120,7 +124,9 @@ export default function ProgramManagement() {
             type: m.type || 'file',
             isExtra: m.isExtra || false
         })),
-        assigned_assistant_id: JSON.stringify(tempAssistants.map(a => a.cid))
+        assigned_assistant_id: JSON.stringify(tempAssistants.map(a => a.cid)),
+        new_group: createInlineGroup ? newGroup : null,
+        new_knowledge: createInlineKnowledge ? newKnowledge : null
       };
       const res = await fetch('/api/v2/pm/programs', {
         method: 'PUT',
@@ -330,14 +336,42 @@ export default function ProgramManagement() {
                              <div className="space-y-4">
                                 {/* ROW 1: Concept Note + Upload */}
                                 <div className="grid grid-cols-2 gap-4">
-                                   <select 
-                                      value={editingProgram.note_id || ''} 
-                                      onChange={e => setEditingProgram({...editingProgram, note_id: e.target.value})} 
-                                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold"
-                                   >
-                                      <option value="" className="bg-[#080810]">Link instructional Note...</option>
-                                      {notes.map(n => <option key={n.id} value={n.id} className="bg-[#080810]">{n.title}</option>)}
-                                    </select>
+                                   <div className="flex flex-col gap-3">
+                                      <div className="flex items-center justify-between">
+                                         <select 
+                                            value={editingProgram.note_id || ''} 
+                                            onChange={e => setEditingProgram({...editingProgram, note_id: e.target.value})} 
+                                            className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold"
+                                         >
+                                            <option value="" className="bg-[#080810]">Link instructional Note...</option>
+                                            {notes.map(n => <option key={n.id} value={n.id} className="bg-[#080810]">{n.title}</option>)}
+                                          </select>
+                                          <button 
+                                             type="button"
+                                             onClick={() => setCreateInlineKnowledge(!createInlineKnowledge)}
+                                             className={`ml-4 text-[8px] font-black uppercase px-3 py-1 rounded-lg border transition-all ${createInlineKnowledge ? 'bg-[#FF6600] text-black border-[#FF6600]' : 'bg-white/5 text-slate-500 border-white/10 hover:border-[#FF6600]/50'}`}
+                                          >
+                                             {createInlineKnowledge ? 'Cancel' : '+ New Node'}
+                                          </button>
+                                      </div>
+
+                                      {createInlineKnowledge && (
+                                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 p-6 bg-[#FF6600]/5 border border-[#FF6600]/10 rounded-2xl">
+                                            <input 
+                                               placeholder="New Knowledge Title..."
+                                               className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600] text-xs font-bold"
+                                               value={newKnowledge.title}
+                                               onChange={e => setNewKnowledge({...newKnowledge, title: e.target.value})}
+                                            />
+                                            <textarea 
+                                               placeholder="Brief description..."
+                                               className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600] text-xs font-bold resize-none"
+                                               value={newKnowledge.description}
+                                               onChange={e => setNewKnowledge({...newKnowledge, description: e.target.value})}
+                                            />
+                                         </motion.div>
+                                      )}
+                                   </div>
                                    
                                    <label className={`flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-slate-500 cursor-pointer hover:bg-white/10 hover:text-white transition-all border-dashed ${isUploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
                                       <input 
@@ -498,7 +532,34 @@ export default function ProgramManagement() {
 
                   <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans">Project Manager</label>
+                            <div className="flex justify-between items-center mb-2">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans">Project Manager</label>
+                               <button 
+                                  type="button"
+                                  onClick={() => setCreateInlineGroup(!createInlineGroup)}
+                                  className={`text-[8px] font-black uppercase px-3 py-1 rounded-lg border transition-all ${createInlineGroup ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white/5 text-slate-500 border-white/10 hover:border-indigo-500/50'}`}
+                               >
+                                  {createInlineGroup ? 'Cancel Group' : '+ New Group'}
+                               </button>
+                            </div>
+                            
+                            {createInlineGroup && (
+                               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 space-y-4 p-6 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
+                                  <input 
+                                     placeholder="New Group Name..."
+                                     className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 text-xs font-bold"
+                                     value={newGroup.name}
+                                     onChange={e => setNewGroup({...newGroup, name: e.target.value})}
+                                  />
+                                  <input 
+                                     placeholder="Group Communication URL (WhatsApp/Slack)..."
+                                     className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 text-xs font-bold"
+                                     value={newGroup.url}
+                                     onChange={e => setNewGroup({...newGroup, url: e.target.value})}
+                                  />
+                               </motion.div>
+                            )}
+
                             <select value={editingProgram.assigned_pm_id || ''} onChange={e => setEditingProgram({...editingProgram, assigned_pm_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none font-bold">
                                <option value="" className="bg-[#080810]">Unassigned</option>
                                {staff.map(s => <option key={s.cid} value={s.cid} className="bg-[#080810]">{s.name}</option>)}
@@ -864,6 +925,25 @@ export default function ProgramManagement() {
                                    <div className="mt-4 flex items-center gap-2 text-[#FF6600] bg-[#FF6600]/10 w-fit px-3 py-1.5 rounded-lg border border-[#FF6600]/20">
                                       <BookOpen className="w-3.5 h-3.5" />
                                       <span className="text-[9px] font-black uppercase tracking-widest truncate max-w-[200px]">{p.note_title}</span>
+                                   </div>
+                                )}
+
+                                {p.group_name && (
+                                   <div className="mt-2 flex items-center justify-between bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-3">
+                                      <div className="flex items-center gap-2">
+                                         <Users className="w-3.5 h-3.5 text-indigo-400" />
+                                         <span className="text-[10px] font-black text-white uppercase italic truncate max-w-[150px]">{p.group_name}</span>
+                                      </div>
+                                      {(p.group_url || (p.group_desc?.includes('[URL:'))) && (
+                                         <a 
+                                            href={p.group_url || p.group_desc.match(/\[URL:\s*(.*?)\]/)?.[1]} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500 hover:text-white transition-all"
+                                         >
+                                            <LinkIcon className="w-3 h-3" />
+                                         </a>
+                                      )}
                                    </div>
                                 )}
                              </div>
