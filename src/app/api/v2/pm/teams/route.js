@@ -27,10 +27,21 @@ export async function POST(req) {
   try {
     await initDb();
     const data = await req.json();
-    const { program_id, name, handler_id, handler_name, member_ids, group_name } = data;
-
+    const { program_id, name, handler_id, handler_name, member_ids, group_name, role, cid } = data;
+    
     if (!program_id || !name) {
       return NextResponse.json({ success: false, error: "Missing squad parameters." }, { status: 400 });
+    }
+
+    // --- RBAC ENFORCEMENT ---
+    if (role !== 'super_admin') {
+       const authCheck = await db.execute({
+          sql: "SELECT id FROM v2_programs WHERE id = ? AND assigned_pm_id = ?",
+          args: [program_id, cid]
+       });
+       if (authCheck.rows.length === 0) {
+          return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+       }
     }
 
     // Generate Team Username and Password
@@ -97,7 +108,19 @@ export async function POST(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const { id } = await req.json();
+    const { id, program_id, role, cid } = await req.json();
+
+    // --- RBAC ENFORCEMENT ---
+    if (role !== 'super_admin') {
+       const authCheck = await db.execute({
+          sql: "SELECT id FROM v2_programs WHERE id = ? AND assigned_pm_id = ?",
+          args: [program_id, cid]
+       });
+       if (authCheck.rows.length === 0) {
+          return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+       }
+    }
+
     await db.execute({
       sql: "DELETE FROM v2_teams WHERE id = ?",
       args: [id]

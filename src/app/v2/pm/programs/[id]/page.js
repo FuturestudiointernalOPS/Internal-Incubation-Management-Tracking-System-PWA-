@@ -167,6 +167,15 @@ export default function PMProgramTerminalV2({ params }) {
     fetchFollowups();
   }, [id]);
 
+  useEffect(() => {
+     if (isLoaded && program) {
+        const isAuthorized = (user?.role === 'super_admin') || (program?.assigned_pm_id?.toLowerCase() === (user?.cid || user?.id)?.toLowerCase());
+        if (!isAuthorized) {
+           router.push('/v2/teacher');
+        }
+     }
+  }, [isLoaded, program, user]);
+
   const fetchFollowups = async () => {
     try {
       const res = await fetch(`/api/v2/followups?program_id=${id}`);
@@ -230,7 +239,14 @@ export default function PMProgramTerminalV2({ params }) {
       const res = await fetch('/api/v2/pm/curriculum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ program_id: id, action: 'toggle_status', id: sessionId, status: newStatus })
+        body: JSON.stringify({ 
+           program_id: id, 
+           action: 'toggle_status', 
+           id: sessionId, 
+           status: newStatus,
+           role: user.role,
+           cid: user.cid || user.id
+        })
       });
       if ((await res.json()).success) fetchPMData();
     } catch (e) { console.error(e); }
@@ -241,7 +257,14 @@ export default function PMProgramTerminalV2({ params }) {
       const res = await fetch('/api/v2/pm/curriculum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ program_id: id, action: 'toggle_deliverable', id: delId, is_completed: isCompleted })
+        body: JSON.stringify({ 
+           program_id: id, 
+           action: 'toggle_deliverable', 
+           id: delId, 
+           is_completed: isCompleted,
+           role: user.role,
+           cid: user.cid || user.id
+        })
       });
       if ((await res.json()).success) fetchPMData();
     } catch (e) { console.error(e); }
@@ -301,7 +324,9 @@ export default function PMProgramTerminalV2({ params }) {
               title: item.title,
               session_id: sid,
               allowed_format: item.format || 'pdf',
-              weight: 1
+              weight: 1,
+              role: user.role,
+              cid: user.cid || user.id
            })
         });
      }
@@ -338,7 +363,7 @@ export default function PMProgramTerminalV2({ params }) {
       setPmReportInputs(prev => ({ ...prev, [wn]: { ...prev[wn], saving: true } }));
       try {
          const user = JSON.parse(localStorage.getItem('user') || '{}');
-         const res = await fetch('/api/v2/teacher/reports', {
+         const res = await fetch('/api/v2/instructor/reports', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -373,7 +398,13 @@ export default function PMProgramTerminalV2({ params }) {
         const res = await fetch('/api/v2/pm/curriculum', {
            method: 'DELETE',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ id: reqId, type: 'requirement' })
+           body: JSON.stringify({ 
+              id: reqId, 
+              type: 'requirement', 
+              program_id: id,
+              role: user.role,
+              cid: user.cid || user.id
+           })
         });
         if ((await res.json()).success) {
            await fetchPMData();
@@ -387,7 +418,13 @@ export default function PMProgramTerminalV2({ params }) {
         const res = await fetch('/api/v2/pm/curriculum', {
            method: 'DELETE',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ id: sessionId, type: 'session' })
+           body: JSON.stringify({ 
+              id: sessionId, 
+              type: 'session', 
+              program_id: id,
+              role: user.role,
+              cid: user.cid || user.id
+           })
         });
         if ((await res.json()).success) {
            await fetchPMData();
@@ -859,9 +896,16 @@ export default function PMProgramTerminalV2({ params }) {
                                                                     const tid = e.target.value;
                                                                     const res = await fetch('/api/v2/pm/curriculum', {
                                                                        method: 'POST',
-                                                                       headers: { 'Content-Type': 'application/json' },
-                                                                       body: JSON.stringify({ program_id: id, action: 'assign_team', id: session.id, team_id: tid })
-                                                                    });
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ 
+                                                                           program_id: id, 
+                                                                           action: 'assign_team', 
+                                                                           id: session.id, 
+                                                                           team_id: tid,
+                                                                           role: user.role,
+                                                                           cid: user.cid || user.id
+                                                                        })
+                                                                     });
                                                                     if ((await res.json()).success) fetchPMData();
                                                                  } catch (e) {}
                                                               }}
@@ -1329,7 +1373,16 @@ export default function PMProgramTerminalV2({ params }) {
                                  {isLeadPMForProject && (
                                     <button onClick={async () => {
                                        if(confirm('Decommission this unit?')) {
-                                          await fetch('/api/v2/pm/teams', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: team.id}) });
+                                          await fetch('/api/v2/pm/teams', { 
+                                             method: 'DELETE', 
+                                             headers: {'Content-Type':'application/json'}, 
+                                             body: JSON.stringify({
+                                                id: team.id, 
+                                                program_id: id,
+                                                role: user.role,
+                                                cid: user.cid || user.id
+                                             }) 
+                                          });
                                           fetchPMData();
                                        }
                                     }} className="p-3 rounded-xl bg-white/5 text-slate-600 hover:text-rose-500 transition-all"><Trash2 className="w-4 h-4"/></button>
@@ -1388,11 +1441,17 @@ export default function PMProgramTerminalV2({ params }) {
                                              if (!isLeadPMForProject) return;
                                              const newGroup = e.target.value;
                                              try {
-                                                await fetch('/api/contacts', {
-                                                   method: 'PUT',
-                                                   headers: { 'Content-Type': 'application/json' },
-                                                   body: JSON.stringify({ cid: p.cid, group_name: newGroup })
-                                                });
+                                                await fetch('/api/v2/participants', { 
+                                                    method: 'PUT', 
+                                                    headers: { 'Content-Type': 'application/json' }, 
+                                                    body: JSON.stringify({ 
+                                                       cid: p.cid, 
+                                                       group_name: newGroup,
+                                                       program_id: id,
+                                                       role: user.role,
+                                                       user_cid: user.cid || user.id
+                                                    }) 
+                                                 });
                                                 window.dispatchEvent(new CustomEvent('impactos:notify', { 
                                                    detail: { type: 'success', message: 'Squad Updated.' } 
                                                 }));

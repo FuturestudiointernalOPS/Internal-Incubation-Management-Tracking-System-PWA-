@@ -6,10 +6,21 @@ export async function POST(req) {
   try {
     await initDb();
     const body = await req.json();
-    const { program_id, name, email, phone, screening_status } = body;
+    const { program_id, name, email, phone, screening_status, role, cid } = body;
 
     if (!program_id || !name || !email) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    }
+
+    // --- RBAC ENFORCEMENT ---
+    if (role !== 'super_admin') {
+       const authCheck = await db.execute({
+          sql: "SELECT id FROM v2_programs WHERE id = ? AND assigned_pm_id = ?",
+          args: [program_id, cid]
+       });
+       if (authCheck.rows.length === 0) {
+          return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+       }
     }
 
     // 1. Fetch Program Details for Contextual Branding/Sync
@@ -115,3 +126,42 @@ export async function GET(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const { cid, group_name, program_id, role, user_cid } = await req.json();
+
+    if (!cid || !program_id) {
+       return NextResponse.json({ success: false, error: "Missing identity parameters" }, { status: 400 });
+    }
+
+    // --- RBAC ENFORCEMENT ---
+    if (role !== 'super_admin') {
+       const authCheck = await db.execute({
+          sql: "SELECT id FROM v2_programs WHERE id = ? AND assigned_pm_id = ?",
+          args: [program_id, user_cid]
+       });
+       if (authCheck.rows.length === 0) {
+          return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+       }
+    }
+
+    // Update both V1 and V2 tables for squad assignment
+    await db.execute({
+       sql: "UPDATE contacts SET group_name = ? WHERE cid = ?",
+       args: [group_name || null, cid]
+    });
+
+    // If they exist in v2_participants, update there too
+    await db.execute({
+       sql: "UPDATE v2_participants SET screening_status = 'approved' WHERE (cid = ? OR email IN (SELECT email FROM contacts WHERE cid = ?))",
+       args: [cid, cid]
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+

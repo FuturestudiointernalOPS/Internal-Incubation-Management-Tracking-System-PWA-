@@ -40,10 +40,29 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
      await initDb();
-     const { id, status, feedback } = await req.json();
+     const { id, program_id, status, feedback, role, cid } = await req.json();
 
-     if (!id || !status) {
-        return NextResponse.json({ success: false, error: "Missing ID or status" }, { status: 400 });
+     if (!id || !status || !program_id) {
+        return NextResponse.json({ success: false, error: "Missing ID, Status, or Program Context" }, { status: 400 });
+     }
+
+     // --- RBAC ENFORCEMENT ---
+     if (role !== 'super_admin') {
+        const authCheck = await db.execute({
+           sql: `
+              SELECT id FROM v2_programs 
+              WHERE id = ? 
+              AND (
+                 assigned_pm_id = ? 
+                 OR assigned_assistant_id LIKE ? 
+                 OR id IN (SELECT program_id FROM v2_teams WHERE handler_id = ?)
+              )
+           `,
+           args: [program_id, cid, `%${cid}%`, cid]
+        });
+        if (authCheck.rows.length === 0) {
+           return NextResponse.json({ success: false, error: "Unauthorized Review Attempt." }, { status: 403 });
+        }
      }
 
      // 1. Fetch current submission & participant details for notification

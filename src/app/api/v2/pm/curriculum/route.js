@@ -4,9 +4,21 @@ export async function POST(req) {
    try {
     await initDb();
       const payload = await req.json();
-      const { program_id, action } = payload;
-
+      const { program_id, action, role, cid } = payload;
+      
       if (!program_id) return NextResponse.json({ success: false, error: "Program ID missing" }, { status: 400 });
+
+      // --- RBAC ENFORCEMENT (V2.8 SECURITY) ---
+      if (role !== 'super_admin') {
+         const authCheck = await db.execute({
+            sql: "SELECT id FROM v2_programs WHERE id = ? AND assigned_pm_id = ?",
+            args: [program_id, cid]
+         });
+         if (authCheck.rows.length === 0) {
+            return NextResponse.json({ success: false, error: "Mission Authority Violation: You are not authorized to modify this curriculum." }, { status: 403 });
+         }
+      }
+
 
       if (action === 'add_session') {
          const { title, description, week_number, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name } = payload;
@@ -64,8 +76,20 @@ export async function POST(req) {
 export async function PUT(req) {
    try {
     await initDb();
-      const { id, title, description, status, week_number, type, allowed_format, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name } = await req.json();
+      const payload = await req.json();
+      const { id, program_id, role, cid, title, description, status, week_number, type, allowed_format, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name } = payload;
       
+      // --- RBAC ENFORCEMENT ---
+      if (role !== 'super_admin') {
+         const authCheck = await db.execute({
+            sql: "SELECT id FROM v2_programs WHERE id = ? AND assigned_pm_id = ?",
+            args: [program_id, cid]
+         });
+         if (authCheck.rows.length === 0) {
+            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+         }
+      }
+
       if (type === 'session') {
          await db.execute({
             sql: "UPDATE v2_sessions SET title = ?, description = ?, status = ?, week_number = ?, weight = 1, scheduled_date = ?, end_date = ?, start_time = ?, end_time = ?, assignment_type = ?, task_type = ?, handler_id = ?, handler_name = ? WHERE id = ?",
@@ -88,7 +112,18 @@ export async function PUT(req) {
 export async function DELETE(req) {
    try {
     await initDb();
-      const { id, type } = await req.json();
+      const { id, program_id, type, role, cid } = await req.json();
+
+      // --- RBAC ENFORCEMENT ---
+      if (role !== 'super_admin') {
+         const authCheck = await db.execute({
+            sql: "SELECT id FROM v2_programs WHERE id = ? AND assigned_pm_id = ?",
+            args: [program_id, cid]
+         });
+         if (authCheck.rows.length === 0) {
+            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+         }
+      }
 
       if (type === 'session') {
          await db.execute({ sql: "DELETE FROM v2_sessions WHERE id = ?", args: [id] });
