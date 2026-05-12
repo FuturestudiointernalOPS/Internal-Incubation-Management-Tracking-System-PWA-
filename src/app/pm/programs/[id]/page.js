@@ -42,6 +42,21 @@ export default function ProgramWorkspace() {
   const [assignedStaff, setAssignedStaff] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const toggleKpi = (type, kpiId) => {
+    if (type === 'session') {
+      setNewSession(prev => {
+        const ids = prev.kpi_ids || [];
+        const next = ids.includes(kpiId) ? ids.filter(id => id !== kpiId) : [...ids, kpiId];
+        return { ...prev, kpi_ids: next };
+      });
+    } else {
+      setNewRequirement(prev => {
+        const ids = prev.kpi_ids || [];
+        const next = ids.includes(kpiId) ? ids.filter(id => id !== kpiId) : [...ids, kpiId];
+        return { ...prev, kpi_ids: next };
+      });
+    }
+  };
   const [activePDF, setActivePDF] = useState(null);
   const [families, setFamilies] = useState([]);
   
@@ -57,8 +72,8 @@ export default function ProgramWorkspace() {
   const [selectedTeam, setSelectedTeam] = useState(null);
   
   const [selectedSessionId, setSelectedSessionId] = useState(null);
-  const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending' });
-  const [newRequirement, setNewRequirement] = useState({ title: '', description: '', allowed_format: 'pdf' });
+  const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending', kpi_ids: [] });
+  const [newRequirement, setNewRequirement] = useState({ title: '', description: '', allowed_format: 'pdf', kpi_ids: [] });
   const [newPMReport, setNewPMReport] = useState({ summary: '', status: 'optimal' });
   const [newStaff, setNewStaff] = useState({ staff_id: '', role: 'staff' });
   const [newKPI, setNewKPI] = useState({ title: '', target_value: 80 });
@@ -148,6 +163,10 @@ export default function ProgramWorkspace() {
 
   const addSession = async () => {
     if (!newSession.title.trim()) return;
+    if (!newSession.kpi_ids || newSession.kpi_ids.length === 0) {
+      notify('At least one KPI must be assigned.', 'error');
+      return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch('/api/pm/curriculum', {
@@ -159,6 +178,7 @@ export default function ProgramWorkspace() {
           title: newSession.title,
           week_number: newSession.week_number,
           status: newSession.status,
+          kpi_ids: newSession.kpi_ids || []
         })
       });
       const data = await res.json();
@@ -186,6 +206,7 @@ export default function ProgramWorkspace() {
           title: newRequirement.title,
           description: newRequirement.description,
           allowed_format: newRequirement.allowed_format,
+          kpi_ids: newRequirement.kpi_ids || []
         })
       });
       const data = await res.json();
@@ -265,6 +286,10 @@ export default function ProgramWorkspace() {
   };
 
   const addKPI = async () => {
+    if (user.role !== 'super_admin') {
+      notify('Only SuperAdmin can define strategic KPIs.', 'error');
+      return;
+    }
     if (!newKPI.title.trim()) return;
     setIsSaving(true);
     try {
@@ -281,6 +306,10 @@ export default function ProgramWorkspace() {
   };
 
   const removeKPI = async (kpiId) => {
+    if (user.role !== 'super_admin') {
+      notify('Only SuperAdmin can decommission KPIs.', 'error');
+      return;
+    }
     if (!confirm('Decommission this KPI?')) return;
     try {
       await fetch('/api/v2/kpis', { method: 'DELETE', body: JSON.stringify({ id: kpiId }) });
@@ -796,6 +825,18 @@ export default function ProgramWorkspace() {
                                 }`} />
                                 <span className="text-[9px] font-black uppercase tracking-widest opacity-60">State: {session.status}</span>
                              </div>
+                             <div className="flex flex-wrap gap-2 mt-3">
+                                {(() => {
+                                   try {
+                                      const ids = typeof session.kpi_ids === 'string' ? JSON.parse(session.kpi_ids) : (session.kpi_ids || []);
+                                      return kpis.filter(k => ids.includes(k.id)).map(k => (
+                                         <span key={k.id} className="px-2 py-0.5 bg-[#FF6600]/10 border border-[#FF6600]/20 text-[#FF6600] text-[8px] font-black uppercase tracking-widest rounded-md">
+                                            {k.title}
+                                         </span>
+                                      ));
+                                   } catch(e) { return null; }
+                                })()}
+                             </div>
                           </div>
                        </div>
                        
@@ -1191,6 +1232,28 @@ export default function ProgramWorkspace() {
                     Strategic KPIs
                   </h3>
                   <div className="card space-y-4">
+                    {/* READ-ONLY KNOWLEDGE BASE FOR PM */}
+                    {program?.note_title && (
+                       <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl space-y-3 mb-6">
+                          <div className="flex items-center gap-2">
+                             <BookOpen className="w-4 h-4 text-emerald-500" />
+                             <h4 className="text-[11px] font-black uppercase text-white tracking-tight">{program.note_title}</h4>
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-bold leading-relaxed">{program.note_description}</p>
+                          <div className="space-y-2 pt-2 border-t border-emerald-500/10">
+                             {program.knowledge_assets?.map((asset, idx) => (
+                                <button 
+                                   key={idx}
+                                   onClick={() => setActivePDF({ url: asset.url, name: asset.name })}
+                                   className="w-full flex items-center justify-between p-2 hover:bg-emerald-500/10 rounded-lg transition-all group"
+                                >
+                                   <span className="text-[9px] font-bold text-slate-300 uppercase truncate">{asset.name}</span>
+                                   <ExternalLink className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100" />
+                                </button>
+                             ))}
+                          </div>
+                       </div>
+                    )}
                     <div className="space-y-2">
                       {kpis.map(kpi => (
                         <div key={kpi.id} className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
@@ -1202,9 +1265,11 @@ export default function ProgramWorkspace() {
                         </div>
                       ))}
                     </div>
+                    {user.role === 'super_admin' && (
                     <button onClick={() => setShowKPIModal(true)} className="btn btn-secondary w-full py-3 gap-2 border-dashed">
                       <Plus className="w-4 h-4" /> Define KPI Target
                     </button>
+                    )}
                   </div>
 
                 </div>
@@ -1362,6 +1427,7 @@ export default function ProgramWorkspace() {
         }`}>{toast.msg}</div>
       )}
 
+      
       {/* DEPLOY STUDENT GROUP MODAL */}
       {showTeamModal && (
         <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowTeamModal(false)}>
@@ -1461,6 +1527,28 @@ export default function ProgramWorkspace() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Week Number</label>
                 <input type="number" min="1" value={newSession.week_number} onChange={e => setNewSession(p => ({...p, week_number: parseInt(e.target.value) || 1}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
+                  <Target className="w-3 h-3 text-[#FF6600]" /> Link Strategic KPIs (Required)
+                </label>
+                <div className="grid grid-cols-1 gap-2 max-h-[120px] overflow-y-auto p-1 custom-scrollbar text-left">
+                  {kpis.map(kpi => (
+                    <button 
+                      key={kpi.id}
+                      onClick={() => toggleKpi('session', kpi.id)}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                        (newSession.kpi_ids || []).includes(kpi.id) 
+                          ? 'bg-[#FF6600]/10 border-[#FF6600] text-white' 
+                          : 'bg-black/20 border-white/5 text-slate-500 hover:border-white/20'
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-tight">{kpi.title}</span>
+                      {(newSession.kpi_ids || []).includes(kpi.id) && <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="flex gap-3">
@@ -1596,6 +1684,28 @@ export default function ProgramWorkspace() {
                    <option value="video">Video Upload</option>
                 </select>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
+                  <Target className="w-3 h-3 text-[#FF6600]" /> Strategic Impact (KPIs)
+                </label>
+                <div className="grid grid-cols-1 gap-2 max-h-[100px] overflow-y-auto p-1 custom-scrollbar text-left">
+                  {kpis.map(kpi => (
+                    <button 
+                      key={kpi.id}
+                      onClick={() => toggleKpi('requirement', kpi.id)}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                        (newRequirement.kpi_ids || []).includes(kpi.id) 
+                          ? 'bg-[#FF6600]/10 border-[#FF6600] text-white' 
+                          : 'bg-black/20 border-white/5 text-slate-500 hover:border-white/20'
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-tight">{kpi.title}</span>
+                      {(newRequirement.kpi_ids || []).includes(kpi.id) && <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowRequirementModal(false)} className="flex-1 btn btn-secondary">Cancel</button>
@@ -1672,8 +1782,7 @@ export default function ProgramWorkspace() {
           </div>
         </div>
       )}
-
-      {/* TEAM DETAILS MODAL */}
+{/* TEAM DETAILS MODAL */}
       {showTeamDetails && selectedTeam && (
         <div className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setShowTeamDetails(false)}>
           <div className="card w-full max-w-5xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-indigo-500/30" onClick={e => e.stopPropagation()}>

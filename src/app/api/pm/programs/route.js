@@ -85,7 +85,8 @@ export async function GET(req) {
       const docsWeight = d.completed * 2.0;
       const reportsWeight = r_weeks * 10.0;
       
-      const totalPossibleWeight = (s.count * 5.0) + (d.count * 2.0) + (p.duration_weeks * 10.0);
+      const duration = Number(p.duration_weeks) || 4;
+      const totalPossibleWeight = (s.count * 5.0) + (d.count * 2.0) + (duration * 10.0);
       const completion_index = totalPossibleWeight > 0 
         ? ((sessionsWeight + docsWeight + reportsWeight) / totalPossibleWeight) * 100 
         : 0;

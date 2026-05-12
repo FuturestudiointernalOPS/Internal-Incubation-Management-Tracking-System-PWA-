@@ -20,11 +20,14 @@ export default function SuperAdminExecutiveView({ params }) {
   const [requirements, setRequirements] = useState([]);
   const [reports, setReports] = useState([]);
   const [followups, setFollowups] = useState([]);
+  const [kpis, setKpis] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   
   const [selectedSession, setSelectedSession] = useState(null);
   const [newFollowup, setNewFollowup] = useState({ week: null, session_id: null, comment: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditingKpi, setIsEditingKpi] = useState(null);
+  const [kpiForm, setKpiForm] = useState({ title: '', target_value: '' });
 
   useEffect(() => {
     fetchData();
@@ -39,6 +42,7 @@ export default function SuperAdminExecutiveView({ params }) {
         setProgram(progData.program);
         setSessions(progData.sessions || []);
         setRequirements(progData.documents || []);
+        setKpis(progData.kpis || []);
       }
 
       // 2. Weekly Reports
@@ -75,6 +79,43 @@ export default function SuperAdminExecutiveView({ params }) {
       if ((await res.json()).success) {
         setNewFollowup({ week: null, session_id: null, comment: '' });
         fetchData();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleKpiAction = async (action, kpiId = null) => {
+    setIsSubmitting(true);
+    try {
+      let res;
+      if (action === 'create') {
+        res = await fetch('/api/kpis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ program_id: id, ...kpiForm })
+        });
+      } else if (action === 'update') {
+        res = await fetch('/api/kpis', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: kpiId, ...kpiForm })
+        });
+      } else if (action === 'delete') {
+        res = await fetch('/api/kpis', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: kpiId })
+        });
+      }
+      
+      if (res && (await res.json()).success) {
+        setKpiForm({ title: '', target_value: '' });
+        setIsEditingKpi(null);
+        fetchData();
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: `KPI ${action}d` } }));
       }
     } catch (e) {
       console.error(e);
@@ -163,6 +204,124 @@ export default function SuperAdminExecutiveView({ params }) {
            <div className="ios-card bg-[#FF6600]/5 border-[#FF6600]/20 !p-8">
               <p className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest mb-4 italic">Admin Comments</p>
               <h4 className="text-3xl font-black text-white italic">{followups.length}</h4>
+           </div>
+        </div>
+
+        {/* PROGRAM INFRASTRUCTURE & KPI MANAGEMENT */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+           {/* KPI MANAGEMENT */}
+           <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-10 space-y-8">
+              <div className="flex justify-between items-center">
+                 <div className="flex items-center gap-3">
+                    <Target className="w-5 h-5 text-[#FF6600]" />
+                    <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Strategic KPIs</h3>
+                 </div>
+                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Defined by SuperAdmin</p>
+              </div>
+
+              <div className="space-y-4">
+                 {kpis.map(kpi => (
+                    <div key={kpi.id} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-[#FF6600]/30 transition-all">
+                       <div className="flex flex-col text-left">
+                          <p className="text-xs font-black text-white uppercase tracking-tighter">{kpi.title}</p>
+                          <p className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest mt-1">Target: {kpi.target_value}</p>
+                       </div>
+                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                             onClick={() => { setIsEditingKpi(kpi.id); setKpiForm({ title: kpi.title, target_value: kpi.target_value }); }}
+                             className="p-2 hover:text-[#FF6600] transition-colors"
+                          >
+                             <Activity className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                             onClick={() => handleKpiAction('delete', kpi.id)}
+                             className="p-2 hover:text-rose-500 transition-colors"
+                          >
+                             <AlertCircle className="w-3.5 h-3.5" />
+                          </button>
+                       </div>
+                    </div>
+                 ))}
+
+                 <div className="pt-6 border-t border-white/5 space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{isEditingKpi ? 'Edit Strategic KPI' : 'Define New KPI'}</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                       <input 
+                          type="text"
+                          placeholder="KPI Title"
+                          value={kpiForm.title}
+                          onChange={e => setKpiForm({...kpiForm, title: e.target.value})}
+                          className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all"
+                       />
+                       <input 
+                          type="text"
+                          placeholder="Target"
+                          value={kpiForm.target_value}
+                          onChange={e => setKpiForm({...kpiForm, target_value: e.target.value})}
+                          className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all"
+                       />
+                    </div>
+                    <div className="flex justify-end gap-3">
+                       {isEditingKpi && (
+                          <button onClick={() => { setIsEditingKpi(null); setKpiForm({ title: '', target_value: '' }); }} className="text-[9px] font-black text-slate-500 uppercase italic">Cancel</button>
+                       )}
+                       <button 
+                          onClick={() => handleKpiAction(isEditingKpi ? 'update' : 'create', isEditingKpi)}
+                          disabled={isSubmitting || !kpiForm.title || !kpiForm.target_value}
+                          className="px-6 py-2 bg-[#FF6600] text-black text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-white transition-all disabled:opacity-50"
+                       >
+                          {isSubmitting ? '...' : isEditingKpi ? 'Update KPI' : 'Deploy KPI'}
+                       </button>
+                    </div>
+                 </div>
+              </div>
+           </div>
+
+           {/* KNOWLEDGE BASE OVERVIEW */}
+           <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-10 space-y-8">
+              <div className="flex justify-between items-center">
+                 <div className="flex items-center gap-3">
+                    <BookOpen className="w-5 h-5 text-blue-400" />
+                    <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Knowledge Infrastructure</h3>
+                 </div>
+              </div>
+
+              <div className="space-y-6">
+                 {program.note_title ? (
+                    <div className="space-y-6">
+                       <div className="p-6 bg-blue-500/5 border border-blue-500/10 rounded-3xl text-left">
+                          <h4 className="text-lg font-black text-white uppercase italic tracking-tighter mb-2">{program.note_title}</h4>
+                          <p className="text-xs text-slate-400 font-bold leading-relaxed">{program.note_description || 'Strategic knowledge asset for this program.'}</p>
+                       </div>
+                       
+                       <div className="space-y-4">
+                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic text-left">Attached Files & Documents</p>
+                          <div className="grid grid-cols-1 gap-3">
+                             {program.knowledge_assets?.map((asset, idx) => (
+                                <a 
+                                   key={idx} 
+                                   href={asset.url} 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:border-blue-400/30 transition-all group"
+                                >
+                                   <div className="flex items-center gap-3">
+                                      <LinkIcon className="w-4 h-4 text-blue-400" />
+                                      <p className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{asset.name}</p>
+                                   </div>
+                                   <ChevronRight className="w-4 h-4 text-slate-700 group-hover:translate-x-1 transition-all" />
+                                </a>
+                             ))}
+                          </div>
+                       </div>
+                    </div>
+                 ) : (
+                    <div className="p-12 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center gap-4 opacity-40 text-left">
+                       <AlertCircle className="w-10 h-10 text-slate-700" />
+                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">No Knowledge Base Assigned</p>
+                    </div>
+                 )}
+              </div>
            </div>
         </div>
 

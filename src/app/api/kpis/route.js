@@ -21,10 +21,38 @@ export async function POST(req) {
     await initDb();
     const { program_id, title, target_value } = await req.json();
     const result = await db.execute({
-      sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?) RETURNING *",
+      sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?) RETURNING id, title, target_value",
       args: [program_id, title, target_value]
     });
     return NextResponse.json({ success: true, kpi: result.rows[0] });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const { id, title, target_value } = await req.json();
+    await db.execute({
+      sql: "UPDATE v2_kpis SET title = ?, target_value = ? WHERE id = ?",
+      args: [title, target_value, id]
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req) {
+  try {
+    await initDb();
+    const { id } = await req.json();
+    await db.execute({
+      sql: "DELETE FROM v2_kpis WHERE id = ?",
+      args: [id]
+    });
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
