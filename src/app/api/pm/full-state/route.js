@@ -17,15 +17,7 @@ export async function GET(req) {
         sql: `SELECT p.*, 
                      k.title as note_title, k.url as note_files, k.description as note_description,
                      c.name as pm_name,
-                     (SELECT 
-                        ( (COUNT(CASE WHEN s.status = 'completed' THEN 1 END) * 5.0) + 
-                          (COALESCE((SELECT SUM(is_completed) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) +
-                          (COALESCE((SELECT COUNT(DISTINCT week_number) * 10.0 FROM v2_weekly_reports WHERE program_id = p.id), 0))
-                        ) / 
-                        ( (COUNT(s.id) * 5.0 + COALESCE((SELECT COUNT(*) * 2.0 FROM v2_document_requirements WHERE program_id = p.id), 0)) + (p.duration_weeks * 10.0) + 0.0001
-                        ) * 100.0
-                      FROM v2_sessions s WHERE s.program_id = p.id
-                     ) as completion_index
+                     NULL as completion_index
               FROM v2_programs p 
               LEFT JOIN v2_knowledge_bank k ON CAST(p.note_id AS TEXT) = CAST(k.id AS TEXT) 
               LEFT JOIN contacts c ON p.assigned_pm_id = c.cid
@@ -98,9 +90,27 @@ export async function GET(req) {
         } else {
            program.knowledge_assets = [];
         }
+
+        // --- DYNAMIC PROGRESS CALCULATION (OFFLOADED FROM SQL) ---
+        const sessions = sesRes.rows || [];
+        const documents = docRes.rows || [];
+        const reports = repRes.rows || [];
+        
+        const totalSessions = sessions.length;
+        const completedSessions = sessions.filter(s => s.status === 'completed').length;
+        const totalDocs = documents.length;
+        const completedDocs = documents.filter(d => d.is_completed).length;
+        const uniqueReportWeeks = new Set(reports.map(r => r.week_number)).size;
+        
+        const totalPoints = (totalSessions * 5.0) + (totalDocs * 2.0) + ((program.duration_weeks || 13) * 10.0);
+        const completedPoints = (completedSessions * 5.0) + (completedDocs * 2.0) + (uniqueReportWeeks * 10.0);
+        
+        program.completion_index = totalPoints > 0 ? (completedPoints / totalPoints) * 100.0 : 0;
+        
       } catch (e) {
         program.materials = [];
         program.knowledge_assets = [];
+        program.completion_index = 0;
       }
     }
 
