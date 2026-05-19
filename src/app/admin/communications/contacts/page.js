@@ -6,7 +6,7 @@ import {
   Plus, Users, Mail, Phone, Search, X, Loader2, CheckCircle, 
   Edit3, Shield, Key, MessageCircle, Send, Globe, Archive, 
   ArrowLeft, RefreshCw, Link as LinkIcon,
-  Copy, Check, UserCheck, UserX, TrendingUp
+  Copy, Check, UserCheck, UserX, TrendingUp, UploadCloud
 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -247,7 +247,7 @@ function ContactsPageContent() {
              fetchData();
           }
        } catch (err) {
-          notify('error', err.message);
+           setNotification({ type: 'error', message: err.message });
        } finally {
           setIsCsvUploading(false);
        }
