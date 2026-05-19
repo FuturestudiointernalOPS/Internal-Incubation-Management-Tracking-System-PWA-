@@ -31,7 +31,7 @@ export async function GET(req) {
       if (reqIds.length > 0) {
          const placeholders = reqIds.map(() => '?').join(',');
          const subRes = await db.execute({
-            sql: `SELECT * FROM v2_submissions WHERE requirement_id IN (${placeholders})`,
+            sql: `SELECT * FROM v2_submissions WHERE document_id IN (${placeholders})`,
             args: reqIds.map(String)
          });
          submissions = subRes.rows;

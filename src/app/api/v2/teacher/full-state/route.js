@@ -20,9 +20,10 @@ export async function GET(req) {
         args: [cid] 
       }),
       db.execute({ 
-        sql: `SELECT s.*, r.title as requirement_title, r.week_number, p.name as program_name
+        sql: `SELECT s.*, r.title as requirement_title, ses.week_number, p.name as program_name
               FROM v2_submissions s 
-              JOIN v2_document_requirements r ON s.requirement_id = r.id 
+              JOIN v2_document_requirements r ON s.document_id = r.id 
+              LEFT JOIN v2_sessions ses ON r.session_id = ses.id
               JOIN v2_programs p ON s.program_id = p.id
               WHERE (p.assigned_assistant_id LIKE ? OR p.id IN (SELECT program_id FROM v2_teams WHERE handler_id = ?)) 
               AND s.status = 'pending'`, 

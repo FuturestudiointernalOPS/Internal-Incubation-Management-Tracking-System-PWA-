@@ -38,8 +38,8 @@ export async function POST(req) {
     const { participant_id, team_id, program_id, requirement_id, file_url, report_body } = await req.json();
     
     await db.execute({
-      sql: "INSERT INTO v2_submissions (participant_id, team_id, program_id, requirement_id, file_url, report_body) VALUES (?, ?, ?, ?, ?, ?)",
-      args: [participant_id || null, team_id || null, program_id, requirement_id, file_url || null, report_body || null]
+      sql: "INSERT INTO v2_submissions (participant_id, program_id, document_id, file_url, status) VALUES (?, ?, ?, ?, 'pending')",
+      args: [participant_id || null, program_id, requirement_id, file_url || null]
     });
 
     return NextResponse.json({ success: true });

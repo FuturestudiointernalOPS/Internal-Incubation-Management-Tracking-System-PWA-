@@ -54,8 +54,8 @@ export async function GET(req) {
     // 2. Parallel Cluster Fetch for scoped data
     const [subRes, sesRes, notRes, kpiRes, docRes, folRes] = await Promise.all([
       db.execute({ 
-        sql: "SELECT s.*, ses.title as session_title FROM v2_submissions s LEFT JOIN v2_sessions ses ON s.requirement_id = ses.id WHERE s.participant_id = ? OR s.team_id = ? ORDER BY s.submitted_at DESC", 
-        args: [cid, participant.team_id || 'NONE'] 
+        sql: "SELECT s.*, ses.title as session_title FROM v2_submissions s LEFT JOIN v2_document_requirements r ON s.document_id = r.id LEFT JOIN v2_sessions ses ON r.session_id = ses.id WHERE s.participant_id = ? ORDER BY s.created_at DESC", 
+        args: [cid] 
       }),
       db.execute({ 
         sql: "SELECT * FROM v2_sessions WHERE program_id = ? OR program_id = ? ORDER BY week_number ASC, created_at ASC", 

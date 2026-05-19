@@ -13,9 +13,10 @@ export async function GET(req) {
     const [teamRes, subRes, sesRes] = await Promise.all([
       db.execute({ sql: "SELECT * FROM v2_teams WHERE handler_id = ?", args: [cid] }),
       db.execute({ 
-        sql: `SELECT s.*, r.title as requirement_title, r.week_number 
+        sql: `SELECT s.*, r.title as requirement_title, ses.week_number 
               FROM v2_submissions s 
-              JOIN v2_document_requirements r ON s.requirement_id = r.id 
+              JOIN v2_document_requirements r ON s.document_id = r.id 
+              LEFT JOIN v2_sessions ses ON r.session_id = ses.id
               JOIN v2_teams t ON s.program_id = t.program_id
               WHERE t.handler_id = ? AND s.status = 'pending'`, 
         args: [cid] 
