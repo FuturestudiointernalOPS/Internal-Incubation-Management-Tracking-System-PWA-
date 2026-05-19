@@ -56,8 +56,8 @@ export default function CampaignsPage() {
       if (camps.success) {
         setCampaigns(camps.campaigns || []);
         IMPACT_CACHE.set('campaigns', camps.campaigns);
-        setLoading(false); // Move dashboard to interactive state immediately
       }
+      setLoading(false); // Move dashboard to interactive state immediately
 
       // 2. Hydrate background data units individually (so forms/families load instantly)
       fetch('/api/contacts').then(r => r.json()).then(data => {
