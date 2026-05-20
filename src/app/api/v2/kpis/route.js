@@ -29,3 +29,16 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+export async function DELETE(req) {
+  try {
+    await initDb();
+    const { id } = await req.json();
+    await db.execute({
+      sql: "DELETE FROM v2_kpis WHERE id = ?",
+      args: [id]
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}

@@ -65,7 +65,7 @@ export default function ProgramWorkspace() {
   const [selectedExistingTeamId, setSelectedExistingTeamId] = useState('');
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showStaffModal, setShowStaffModal] = useState(false);
-  const [showKPIModal, setShowKPIModal] = useState(false);
+  
   const [showRequirementModal, setShowRequirementModal] = useState(false);
   const [showPMReportModal, setShowPMReportModal] = useState(false);
   const [showTeamDetails, setShowTeamDetails] = useState(false);
@@ -76,7 +76,7 @@ export default function ProgramWorkspace() {
   const [newRequirement, setNewRequirement] = useState({ title: '', description: '', allowed_format: 'pdf', kpi_ids: [] });
   const [newPMReport, setNewPMReport] = useState({ summary: '', status: 'optimal' });
   const [newStaff, setNewStaff] = useState({ staff_id: '', role: 'staff' });
-  const [newKPI, setNewKPI] = useState({ title: '', target_value: 80 });
+  
   const [toast, setToast] = useState(null);
   
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -1283,16 +1283,12 @@ export default function ProgramWorkspace() {
                           <span className="font-bold text-sm uppercase tracking-tight">{kpi.title}</span>
                           <div className="flex items-center gap-4">
                             <span className="text-xs font-black text-[var(--brand-orange)]">{kpi.target_value}%</span>
-                            <button onClick={() => removeKPI(kpi.id)} className="text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                            
                           </div>
                         </div>
                       ))}
                     </div>
-                    {user.role === 'super_admin' && (
-                    <button onClick={() => setShowKPIModal(true)} className="btn btn-secondary w-full py-3 gap-2 border-dashed">
-                      <Plus className="w-4 h-4" /> Define KPI Target
-                    </button>
-                    )}
+                    
                   </div>
 
                 </div>
