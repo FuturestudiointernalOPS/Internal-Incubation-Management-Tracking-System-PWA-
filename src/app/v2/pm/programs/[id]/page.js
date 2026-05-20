@@ -1100,7 +1100,7 @@ export default function PMProgramTerminalV2({ params }) {
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     <div className="space-y-6 text-left">
-                       <h3 className="text-xl font-black text-[#FF6600] uppercase tracking-widest italic">Core Assets</h3>
+                       <h3 className="text-xl font-black text-[#FF6600] uppercase tracking-widest italic">Assigned Materials</h3>
                        <div className="space-y-4">
                           {program.note_files && program.note_files.length > 0 ? (
                              program.note_files.map((file, idx) => (
@@ -1115,11 +1115,11 @@ export default function PMProgramTerminalV2({ params }) {
                                       </div>
                                       <span className="text-sm font-black text-white uppercase tracking-widest italic truncate max-w-[180px]">{file.name || 'Core Asset'}</span>
                                    </div>
-                                   <ChevronRight className="w-6 h-6 text-slate-600 group-hover:text-[#FF6600]" />
+                                   <div className="px-4 py-2 bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20 rounded-xl text-[9px] font-black uppercase tracking-widest group-hover:bg-[#FF6600] group-hover:text-black transition-all">OPEN</div>
                                 </button>
                              ))
                           ) : (
-                             <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic p-10 border border-white/5 rounded-[2rem] bg-white/[0.01]">Awaiting Core Assets...</p>
+                             <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic p-10 border border-white/5 rounded-[2rem] bg-white/[0.01]">Awaiting Assigned Materials...</p>
                           )}
                        </div>
                     </div>
@@ -1140,7 +1140,7 @@ export default function PMProgramTerminalV2({ params }) {
                                       </div>
                                       <span className="text-sm font-black text-white uppercase tracking-widest italic truncate max-w-[180px]">{file.name || 'Material'}</span>
                                    </div>
-                                   <ChevronRight className="w-6 h-6 text-slate-600 group-hover:text-white" />
+                                   <div className="px-4 py-2 bg-white/5 text-slate-400 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest group-hover:bg-white group-hover:text-black transition-all">OPEN</div>
                                 </button>
                              ))
                           ) : (
