@@ -67,7 +67,7 @@ export default function ProgramWorkspace() {
   const [showStaffModal, setShowStaffModal] = useState(false);
   
   const [showRequirementModal, setShowRequirementModal] = useState(false);
-  const [showPMReportModal, setShowPMReportModal] = useState(false);
+  const [showKPIModal, setShowKPIModal] = useState(false);
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
   
