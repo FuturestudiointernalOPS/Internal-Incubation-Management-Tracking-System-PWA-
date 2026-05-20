@@ -1063,7 +1063,7 @@ export default function ProgramWorkspace() {
                   <div className="space-y-6 mb-8">
                     <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
                       <FileText className="w-5 h-5 text-blue-500" />
-                      Strategic Materials
+                      Assigned Materials
                     </h3>
                     <div className="card space-y-4">
                       <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Assigned Assets & Curriculum PDFs</p>
@@ -1142,7 +1142,7 @@ export default function ProgramWorkspace() {
                                      </span>
                                    </div>
                                  </div>
-                                 <ChevronRight className={`w-4 h-4 transition-colors ${isKB ? 'text-emerald-600 group-hover:text-emerald-400' : 'text-slate-600 group-hover:text-blue-500'}`} />
+                                 <div className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isKB ? \'bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-black border border-emerald-500/20\' : \'bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-black border border-blue-500/20\'}`}>OPEN</div>
                                </button>
                              );
                            });
