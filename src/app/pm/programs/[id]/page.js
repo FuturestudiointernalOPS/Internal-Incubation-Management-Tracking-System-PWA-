@@ -1354,23 +1354,6 @@ export default function ProgramWorkspace() {
                           </div>
                        </div>
 
-                       {activePDF && (
-                          <div className="mt-8 space-y-4 animate-in slide-in-from-bottom-4">
-                             <div className="flex items-center justify-between bg-[var(--bg-tertiary)] p-4 rounded-xl border border-[var(--brand-orange)]/30">
-                                <div className="flex items-center gap-3">
-                                   <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500">
-                                      <FileText className="w-4 h-4" />
-                                   </div>
-                                   <div>
-                                      <h4 className="text-[10px] font-black uppercase text-white">{activePDF.name}</h4>
-                                      <p className="text-[8px] font-bold text-orange-500 uppercase tracking-widest">Active Operational View</p>
-                                   </div>
-                                </div>
-                                <div className="flex gap-2">
-                                   <a href={activePDF.url} target="_blank" rel="noreferrer" className="btn btn-secondary !py-2 text-[9px] gap-2">
-                                      <ExternalLink className="w-3 h-3" /> Full Screen
-                                   </a>
-                                   <button onClick={() => setActivePDF(null)} className="btn btn-secondary !py-2 text-[9px] hover:bg-rose-500/10 hover:text-rose-500">
                                       Close Viewer
                                    </button>
                                 </div>
@@ -1440,6 +1423,36 @@ export default function ProgramWorkspace() {
           )}
         </div>
       </div>
+
+      {/* PDF VIEWER MODAL */}
+      {activePDF && (
+        <div className="fixed inset-0 z-[600] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in" onClick={() => setActivePDF(null)}>
+          <div className="card w-full max-w-5xl h-[90vh] flex flex-col space-y-4 shadow-2xl border-[var(--border-primary)]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase text-[var(--text-primary)]">{activePDF.name}</h3>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Document Preview</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                 <a href={activePDF.url} target="_blank" rel="noreferrer" className="btn btn-secondary !py-2 text-[10px] gap-2">
+                    <ExternalLink className="w-4 h-4" /> Open in New Tab
+                 </a>
+                 <button onClick={() => setActivePDF(null)} className="btn btn-secondary !py-2 hover:bg-rose-500/10 hover:text-rose-500 border-none">
+                    <X className="w-5 h-5" />
+                 </button>
+              </div>
+            </div>
+            <div className="flex-1 bg-[var(--bg-tertiary)] rounded-xl overflow-hidden border border-[var(--border-primary)]">
+               <iframe src={`${activePDF.url}#toolbar=0`} className="w-full h-full" title="PDF Viewer" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TOAST */}
       {toast && (
