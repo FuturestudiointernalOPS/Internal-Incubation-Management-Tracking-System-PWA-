@@ -1091,7 +1091,24 @@ export default function ProgramWorkspace() {
                            // Merge with Knowledge Base Assets with safe mapping
                            const allMaterials = [
                              ...materials.map(m => {
-                                if (typeof m === 'object' && m !== null) return { ...m, source: 'curriculum' };
+                                let item = m;
+                                // Handle stringified JSON inside array items
+                                if (typeof item === 'string') {
+                                   try {
+                                      let p = JSON.parse(item);
+                                      if (typeof p === 'string') p = JSON.parse(p);
+                                      if (Array.isArray(p)) item = p[0];
+                                      else item = p;
+                                   } catch(e) {}
+                                }
+                                if (Array.isArray(item)) item = item[0];
+                                if (item && typeof item === 'object') {
+                                   return {
+                                      name: item.name || item.NAME || item.title || item.TITLE || 'Program Document',
+                                      url: item.url || item.URL || item.path || item.PATH || '',
+                                      source: 'curriculum'
+                                   };
+                                }
                                 if (typeof m === 'string' && m.trim()) return { url: m, name: m.split('/').pop(), source: 'curriculum' };
                                 return null;
                              }),
@@ -1100,15 +1117,15 @@ export default function ProgramWorkspace() {
                                 if (typeof a === 'string' && a.trim()) return { url: a, name: a.split('/').pop(), source: 'knowledge' };
                                 return null;
                              })
-                           ].filter(item => item && (item.url || item.path) && item.url !== "#" && item.url !== "");
+                           ].filter(item => item && (item.name || item.url || item.path));
 
                            if (allMaterials.length === 0) {
                                return <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">No assigned materials have been anchored to this program yet.</p>;
                            }
 
                            return allMaterials.map((file, idx) => {
-                             const url = typeof file === 'object' ? (file.url || file.path) : file;
-                             const rawName = typeof file === 'object' ? (file.name || file.title || (typeof file.url === 'string' ? file.url.split('/').pop() : 'Document')) : (typeof file === 'string' ? file.split('/').pop() : 'Strategic_Document.pdf');
+                             const url = typeof file === 'object' ? (file.url || file.URL || file.path || '') : (typeof file === 'string' ? file : '');
+                             const rawName = typeof file === 'object' ? (file.name || file.NAME || file.title || file.TITLE || (typeof (file.url || file.URL) === 'string' ? (file.url || file.URL).split('/').pop() : 'Program Document')) : (typeof file === 'string' ? file.split('/').pop() : 'Program Document');
                              const name = rawName
                                .replace(/\.[^.]+$/, '')        // strip extension (.pdf, .docx…)
                                .replace(/[_\-]+/g, ' ')        // underscores/hyphens → spaces
@@ -1118,7 +1135,7 @@ export default function ProgramWorkspace() {
                                .replace(/\b\w/g, c => c.toUpperCase()); // Title Case
                              const isKB = file.source === 'knowledge';
                              
-                             if (!url || url === "#") return null;
+                             // Items without valid URL will still show name, OPEN will use in-app viewer
 
                              return (
                                <button 
