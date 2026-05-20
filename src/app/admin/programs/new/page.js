@@ -42,6 +42,8 @@ export default function NewProgram() {
   const [isCreatingKB, setIsCreatingKB] = useState(false);
   const [newKB, setNewKB] = useState({ title: '', description: '', files: [] });
   const [createdKB, setCreatedKB] = useState(null);
+  const [kpisList, setKpisList] = useState([]);
+  const [kpiInput, setKpiInput] = useState({ title: '', target_value: 80 });
 
   const [segments, setSegments] = useState([]);
 
@@ -193,7 +195,7 @@ export default function NewProgram() {
       const res = await fetch('/api/pm/programs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(program)
+        body: JSON.stringify({ ...program, kpis: kpisList })
       });
       const data = await res.json();
 
@@ -536,6 +538,82 @@ export default function NewProgram() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* STRATEGIC KPIs CONFIGURATION */}
+          <div className="card space-y-6 relative overflow-hidden">
+             <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center text-[var(--brand-orange)]">
+                      <Target className="w-5 h-5" />
+                   </div>
+                   <div className="text-left">
+                      <h3 className="text-xl font-bold text-white uppercase tracking-tight italic">Strategic KPIs Configuration</h3>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Define KPI targets for this program</p>
+                   </div>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                <div className="space-y-1 text-left md:col-span-2">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">KPI Target Title</label>
+                   <input 
+                      type="text" 
+                      placeholder="e.g. Weekly Attendance Rate, Assignment Submission..."
+                      value={kpiInput.title}
+                      onChange={e => setKpiInput({ ...kpiInput, title: e.target.value })}
+                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+                   />
+                </div>
+                <div className="space-y-1 text-left">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Target Value (%)</label>
+                   <div className="flex gap-3">
+                      <input 
+                         type="number" 
+                         min="0"
+                         max="100"
+                         placeholder="80"
+                         value={kpiInput.target_value}
+                         onChange={e => setKpiInput({ ...kpiInput, target_value: parseInt(e.target.value) || 0 })}
+                         className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+                      />
+                      <button 
+                         type="button"
+                         onClick={() => {
+                            if (!kpiInput.title.trim()) return;
+                            setKpisList([...kpisList, { title: kpiInput.title, target_value: kpiInput.target_value }]);
+                            setKpiInput({ title: '', target_value: 80 });
+                         }}
+                         className="px-6 bg-[var(--brand-orange)] text-black font-bold uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all flex items-center justify-center shrink-0"
+                      >
+                         <Plus className="w-4 h-4" /> Add
+                      </button>
+                   </div>
+                </div>
+             </div>
+
+             {kpisList.length > 0 && (
+                <div className="space-y-3 pt-4 border-t border-[var(--border-primary)]">
+                   <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic text-left">Defined KPIs ({kpisList.length})</p>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {kpisList.map((kpi, idx) => (
+                         <div key={idx} className="flex items-center justify-between p-4 bg-white/[0.02] border border-[var(--border-primary)] rounded-xl group hover:border-[var(--brand-orange)]/30 transition-all text-left">
+                            <div>
+                               <p className="text-xs font-bold text-white uppercase tracking-tighter">{kpi.title}</p>
+                               <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">Target: {kpi.target_value}%</p>
+                            </div>
+                            <button 
+                               type="button" 
+                               onClick={() => setKpisList(kpisList.filter((_, i) => i !== idx))} 
+                               className="text-slate-500 hover:text-rose-500 transition-colors p-2"
+                            >
+                               <Trash2 className="w-4 h-4" />
+                            </button>
+                         </div>
+                      ))}
+                   </div>
+                </div>
+             )}
           </div>
 
           <button 

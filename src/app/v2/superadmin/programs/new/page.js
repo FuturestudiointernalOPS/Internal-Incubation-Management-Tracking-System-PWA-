@@ -4,7 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Briefcase, Plus, Loader2, ArrowLeft,
-  CheckCircle, Shield, AlertTriangle, BookOpen, User, Users, Upload
+  CheckCircle, Shield, AlertTriangle, BookOpen, User, Users, Upload, Target, Trash2, X
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -32,6 +32,8 @@ export default function CreateProgram() {
   const [newKnowledge, setNewKnowledge] = useState({ title: '', description: '' });
   const [createInlineGroup, setCreateInlineGroup] = useState(false);
   const [createInlineKnowledge, setCreateInlineKnowledge] = useState(false);
+  const [kpisList, setKpisList] = useState([]);
+  const [kpiInput, setKpiInput] = useState({ title: '', target_value: 80 });
   const router = useRouter();
 
   useEffect(() => {
@@ -64,7 +66,8 @@ export default function CreateProgram() {
         assigned_assistant_id: JSON.stringify(tempAssistants.map(a => a.cid)),
         materials: uploadedFiles,
         new_group: createInlineGroup ? newGroup : null,
-        new_knowledge: createInlineKnowledge ? newKnowledge : null
+        new_knowledge: createInlineKnowledge ? newKnowledge : null,
+        kpis: kpisList
       };
       const res = await fetch('/api/v2/pm/programs', {
         method: 'POST',
@@ -330,6 +333,82 @@ export default function CreateProgram() {
                   </div>
                </div>
             </div>
+          </div>
+
+          {/* STRATEGIC KPIs CONFIGURATION */}
+          <div className="ios-card bg-[#0d0d18] border border-white/10 !p-12 space-y-8">
+             <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 rounded-xl bg-[#FF6600]/10 flex items-center justify-center text-[#FF6600]">
+                      <Target className="w-5 h-5" />
+                   </div>
+                   <div className="text-left">
+                      <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Strategic KPIs Configuration</h3>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Define KPI targets for this program</p>
+                   </div>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                <div className="space-y-1 text-left md:col-span-2">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">KPI Target Title</label>
+                   <input 
+                      type="text" 
+                      placeholder="e.g. Weekly Attendance Rate, Assignment Submission..."
+                      value={kpiInput.title}
+                      onChange={e => setKpiInput({ ...kpiInput, title: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold"
+                   />
+                </div>
+                <div className="space-y-1 text-left">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Target Value (%)</label>
+                   <div className="flex gap-3">
+                      <input 
+                         type="number" 
+                         min="0"
+                         max="100"
+                         placeholder="80"
+                         value={kpiInput.target_value}
+                         onChange={e => setKpiInput({ ...kpiInput, target_value: parseInt(e.target.value) || 0 })}
+                         className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#FF6600]/50 font-bold"
+                      />
+                      <button 
+                         type="button"
+                         onClick={() => {
+                            if (!kpiInput.title.trim()) return;
+                            setKpisList([...kpisList, { title: kpiInput.title, target_value: kpiInput.target_value }]);
+                            setKpiInput({ title: '', target_value: 80 });
+                         }}
+                         className="px-6 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-lg shadow-[#FF6600]/10 flex items-center justify-center shrink-0"
+                      >
+                         <Plus className="w-4 h-4" /> Add
+                      </button>
+                   </div>
+                </div>
+             </div>
+
+             {kpisList.length > 0 && (
+                <div className="space-y-3 pt-4 border-t border-white/5">
+                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic text-left">Defined KPIs ({kpisList.length})</p>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {kpisList.map((kpi, idx) => (
+                         <div key={idx} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-[#FF6600]/30 transition-all text-left">
+                            <div>
+                               <p className="text-xs font-black text-white uppercase tracking-tighter">{kpi.title}</p>
+                               <p className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest mt-1">Target: {kpi.target_value}%</p>
+                            </div>
+                            <button 
+                               type="button" 
+                               onClick={() => setKpisList(kpisList.filter((_, i) => i !== idx))} 
+                               className="text-slate-500 hover:text-rose-500 transition-colors p-2"
+                            >
+                               <Trash2 className="w-4 h-4" />
+                            </button>
+                         </div>
+                      ))}
+                   </div>
+                </div>
+             )}
           </div>
 
           <button 

@@ -113,7 +113,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const { name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, materials, start_date, end_date, assigned_segments } = await req.json();
+    const { name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, materials, start_date, end_date, assigned_segments, kpis } = await req.json();
     const id = "P-" + new Date().getFullYear() + "-" + uuidv4().split('-')[0].toUpperCase();
 
     await db.execute({
@@ -137,6 +137,17 @@ export async function POST(req) {
             args: [id, segmentId]
           });
         }
+      }
+    }
+
+    // Handle KPIs
+    if (Array.isArray(kpis) && kpis.length > 0) {
+      for (const kpi of kpis) {
+        if (!kpi.title) continue;
+        await db.execute({
+          sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?)",
+          args: [id, kpi.title, kpi.target_value || 80]
+        });
       }
     }
 

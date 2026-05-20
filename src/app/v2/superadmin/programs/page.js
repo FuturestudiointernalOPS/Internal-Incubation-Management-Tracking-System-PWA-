@@ -6,7 +6,7 @@ import {
   Briefcase, Plus, Search, Loader2, ChevronRight, 
   User, Shield, Users, Calendar, Activity, X, Edit3, BookOpen, 
   Archive, RotateCcw, Trash2, Settings, ArrowLeft,
-  Zap, MessageSquare, Upload, FileText
+  Zap, MessageSquare, Upload, FileText, Target
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -42,6 +42,74 @@ export default function ProgramManagement() {
   const [messagingProgram, setMessagingProgram] = useState(null); 
   const [signalData, setSignalData] = useState({ subject: '', body: '' });
   const [schedule, setSchedule] = useState([]);
+
+  const [editingKpis, setEditingKpis] = useState([]);
+  const [editKpiInput, setEditKpiInput] = useState({ title: '', target_value: 80 });
+  const [isKpiSubmitting, setIsKpiSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (editingProgram?.id) {
+      fetchEditingKpis(editingProgram.id);
+    } else {
+      setEditingKpis([]);
+    }
+  }, [editingProgram?.id]);
+
+  const fetchEditingKpis = async (programId) => {
+    try {
+      const res = await fetch(`/api/v2/kpis?program_id=${programId}`);
+      const data = await res.json();
+      if (data.success) {
+        setEditingKpis(data.kpis || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch KPIs:", e);
+    }
+  };
+
+  const handleAddEditKpi = async () => {
+    if (!editKpiInput.title.trim() || !editingProgram?.id) return;
+    setIsKpiSubmitting(true);
+    try {
+      const res = await fetch('/api/v2/kpis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          program_id: editingProgram.id,
+          title: editKpiInput.title,
+          target_value: editKpiInput.target_value
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditKpiInput({ title: '', target_value: 80 });
+        fetchEditingKpis(editingProgram.id);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'KPI Target added.' } }));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsKpiSubmitting(false);
+    }
+  };
+
+  const handleDeleteEditKpi = async (kpiId) => {
+    if (!confirm("Decommission this KPI target?")) return;
+    try {
+      const res = await fetch('/api/v2/kpis', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: kpiId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchEditingKpis(editingProgram.id);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'KPI Target removed.' } }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     fetchPrograms();
@@ -594,6 +662,65 @@ export default function ProgramManagement() {
                          </div>
                       </div>
 
+                  {/* STRATEGIC KPIs EDITOR */}
+                  <div className="space-y-4 pt-6 border-t border-white/5 text-left">
+                     <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 font-sans flex items-center gap-2">
+                           <Target className="w-3.5 h-3.5" /> Strategic KPIs Configuration
+                        </label>
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">SuperAdmin Only</span>
+                     </div>
+
+                     <div className="space-y-3">
+                        {editingKpis.map(kpi => (
+                           <div key={kpi.id} className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-[#FF6600]/30 transition-all">
+                              <div>
+                                 <p className="text-xs font-black text-white uppercase tracking-tighter">{kpi.title}</p>
+                                 <p className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest mt-1">Target Value: {kpi.target_value}%</p>
+                              </div>
+                              <button 
+                                 type="button" 
+                                 onClick={() => handleDeleteEditKpi(kpi.id)} 
+                                 className="text-slate-500 hover:text-rose-500 transition-colors p-2"
+                              >
+                                 <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                           </div>
+                        ))}
+
+                        <div className="p-4 bg-[#FF6600]/5 border border-[#FF6600]/10 rounded-2xl space-y-4">
+                           <p className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest">Define New Target</p>
+                           <div className="grid grid-cols-2 gap-3">
+                              <input 
+                                 placeholder="KPI Title (e.g. Attendance)..."
+                                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/50 text-xs font-bold"
+                                 value={editKpiInput.title}
+                                 onChange={e => setEditKpiInput({ ...editKpiInput, title: e.target.value })}
+                              />
+                              <div className="flex gap-2">
+                                 <input 
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    placeholder="80%"
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/50 text-xs font-bold"
+                                    value={editKpiInput.target_value}
+                                    onChange={e => setEditKpiInput({ ...editKpiInput, target_value: parseInt(e.target.value) || 0 })}
+                                 />
+                                 <button 
+                                    type="button"
+                                    onClick={handleAddEditKpi}
+                                    disabled={isKpiSubmitting || !editKpiInput.title.trim()}
+                                    className="px-4 bg-[#FF6600] text-black font-black uppercase text-[9px] tracking-widest rounded-xl hover:bg-white transition-all disabled:opacity-50"
+                                 >
+                                    Add
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
                   <div className="flex gap-4">
                      <button 
                         type="button"
@@ -918,7 +1045,12 @@ export default function ProgramManagement() {
                                       )}
                                    </div>
                                 </div>
-                                <h3 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-4 italic italic">{p.name}</h3>
+                                <h3 
+                                   onClick={() => router.push(`/v2/superadmin/programs/${p.id}`)}
+                                   className="text-3xl font-black text-white hover:text-[#FF6600] cursor-pointer transition-colors uppercase tracking-tighter leading-none mb-4 italic"
+                                >
+                                   {p.name}
+                                </h3>
                                 <p className="text-slate-500 font-bold text-xs uppercase tracking-widest line-clamp-2 leading-relaxed font-sans opacity-80">{p.description}</p>
                                 
                                 {p.note_title && (
@@ -973,6 +1105,12 @@ export default function ProgramManagement() {
                                       </div>
                                    </div>
                                 </div>
+                                <button 
+                                   onClick={() => router.push(`/v2/superadmin/programs/${p.id}`)}
+                                   className="w-full py-4 bg-[#FF6600]/10 border border-[#FF6600]/30 hover:bg-[#FF6600] text-[#FF6600] hover:text-black font-black uppercase text-[9px] tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 italic cursor-pointer"
+                                >
+                                   Launch Executive Dashboard <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
                              </div>
                           </div>
                        ))}

@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
   Plus, Search, Loader2, ChevronRight, 
   User, Shield, Users, Edit3, Archive, RotateCcw, Trash2, Settings, ArrowLeft,
-  Signal, FileText, Upload
+  Signal, FileText, Upload, Target
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { TableSkeleton } from '@/components/ui/Skeleton';
@@ -22,6 +22,72 @@ export default function ProgramManagement() {
   const [notes, setNotes] = useState([]);
   const [teams, setTeams] = useState([]);
   const [knowledgeItems, setKnowledgeItems] = useState([]);
+
+  const [editingKpis, setEditingKpis] = useState([]);
+  const [editKpiInput, setEditKpiInput] = useState({ title: '', target_value: 80 });
+  const [isKpiSubmitting, setIsKpiSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (editingProgram?.id) {
+      fetchEditingKpis(editingProgram.id);
+    } else {
+      setEditingKpis([]);
+    }
+  }, [editingProgram?.id]);
+
+  const fetchEditingKpis = async (programId) => {
+    try {
+      const res = await fetch(`/api/v2/kpis?program_id=${programId}`);
+      const data = await res.json();
+      if (data.success) {
+        setEditingKpis(data.kpis || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch KPIs:", e);
+    }
+  };
+
+  const handleAddEditKpi = async () => {
+    if (!editKpiInput.title.trim() || !editingProgram?.id) return;
+    setIsKpiSubmitting(true);
+    try {
+      const res = await fetch('/api/v2/kpis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          program_id: editingProgram.id,
+          title: editKpiInput.title,
+          target_value: editKpiInput.target_value
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditKpiInput({ title: '', target_value: 80 });
+        fetchEditingKpis(editingProgram.id);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsKpiSubmitting(false);
+    }
+  };
+
+  const handleDeleteEditKpi = async (kpiId) => {
+    if (!confirm("Decommission this KPI target?")) return;
+    try {
+      const res = await fetch('/api/v2/kpis', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: kpiId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchEditingKpis(editingProgram.id);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const router = useRouter();
 
@@ -271,6 +337,7 @@ export default function ProgramManagement() {
                             </>
                           ) : (
                             <>
+                              <button onClick={(e) => { e.stopPropagation(); router.push(`/admin/programs/${p?.id}`); }} title="Launch Executive Dashboard" className="p-2 hover:text-[var(--brand-orange)]"><ChevronRight className="w-4 h-4" /></button>
                               <button onClick={(e) => { e.stopPropagation(); setEditingProgram(p); }} title="Edit" className="p-2 hover:text-[var(--brand-orange)]"><Edit3 className="w-4 h-4" /></button>
                               <button onClick={(e) => handleArchiveAction(p?.id, true, e)} title="Archive" className="p-2 hover:text-orange-500"><Archive className="w-4 h-4" /></button>
                             </>
@@ -484,6 +551,65 @@ export default function ProgramManagement() {
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
                  />
               </div>
+
+               {/* STRATEGIC KPIs EDITOR */}
+               <div className="space-y-4 pt-6 border-t border-[var(--border-primary)] text-left">
+                  <div className="flex justify-between items-center">
+                     <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 font-sans flex items-center gap-2">
+                        <Target className="w-3.5 h-3.5" /> Strategic KPIs Configuration
+                     </label>
+                     <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest italic opacity-50">SuperAdmin Only</span>
+                  </div>
+
+                  <div className="space-y-3">
+                     {editingKpis.map(kpi => (
+                        <div key={kpi.id} className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-[var(--border-primary)] rounded-xl group hover:border-[var(--brand-orange)]/30 transition-all">
+                           <div>
+                              <p className="text-xs font-bold text-white uppercase tracking-tight">{kpi.title}</p>
+                              <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">Target Value: {kpi.target_value}%</p>
+                           </div>
+                           <button 
+                              type="button" 
+                              onClick={() => handleDeleteEditKpi(kpi.id)} 
+                              className="text-slate-500 hover:text-rose-500 transition-colors p-2"
+                           >
+                              <Trash2 className="w-3.5 h-3.5" />
+                           </button>
+                        </div>
+                     ))}
+
+                     <div className="p-4 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/10 rounded-xl space-y-4">
+                        <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">Define New Target</p>
+                        <div className="grid grid-cols-2 gap-3">
+                           <input 
+                              placeholder="KPI Title (e.g. Attendance)..."
+                              className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
+                              value={editKpiInput.title}
+                              onChange={e => setEditKpiInput({ ...editKpiInput, title: e.target.value })}
+                           />
+                           <div className="flex gap-2">
+                              <input 
+                                 type="number"
+                                 min="0"
+                                 max="100"
+                                 placeholder="80%"
+                                 className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
+                                 value={editKpiInput.target_value}
+                                 onChange={e => setEditKpiInput({ ...editKpiInput, target_value: parseInt(e.target.value) || 0 })}
+                              />
+                              <button 
+                                 type="button"
+                                 onClick={handleAddEditKpi}
+                                 disabled={isKpiSubmitting || !editKpiInput.title.trim()}
+                                 className="px-4 bg-[var(--brand-orange)] text-black font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white transition-all disabled:opacity-50"
+                              >
+                                 Add
+                              </button>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
 
               <button type="submit" disabled={isUpdating} className="btn btn-primary w-full py-5 uppercase font-black tracking-[0.2em] italic shadow-xl shadow-orange-500/20">
                 {isUpdating ? <div className="flex items-center justify-center gap-3"><Loader2 className="w-5 h-5 animate-spin" /> <span>Syncing Registry...</span></div> : 'Update Program Registry'}

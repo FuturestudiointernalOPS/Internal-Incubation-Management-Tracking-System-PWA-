@@ -74,7 +74,7 @@ export async function POST(req) {
     await initDb();
     const { 
       name, description, note_id, assigned_pm_id, assigned_assistant_id, 
-      duration_weeks, materials, new_group, new_knowledge 
+      duration_weeks, materials, new_group, new_knowledge, kpis 
     } = await req.json();
     
     const id = "P-" + new Date().getFullYear() + "-" + uuidv4().split('-')[0].toUpperCase();
@@ -110,6 +110,17 @@ export async function POST(req) {
         await db.execute({
           sql: "INSERT INTO v2_groups (program_id, name, project_description) VALUES (?, ?, ?)",
           args: [id, new_group.name, `[URL: ${new_group.url}] ${new_group.description || ''}`]
+        });
+      }
+    }
+
+    // 4. Handle KPIs
+    if (Array.isArray(kpis) && kpis.length > 0) {
+      for (const kpi of kpis) {
+        if (!kpi.title) continue;
+        await db.execute({
+          sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?)",
+          args: [id, kpi.title, kpi.target_value || 80]
         });
       }
     }
