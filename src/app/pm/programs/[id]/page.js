@@ -1354,15 +1354,7 @@ export default function ProgramWorkspace() {
                           </div>
                        </div>
 
-                                      Close Viewer
-                                   </button>
-                                </div>
-                             </div>
-                             <div className="card !p-0 h-[600px] overflow-hidden rounded-2xl border-[var(--border-primary)] shadow-2xl">
-                                <iframe src={`${activePDF.url}#toolbar=0`} className="w-full h-full" title="PDF Viewer" />
-                             </div>
-                          </div>
-                       )}
+
                     </div>
                   </div>
                 ))}
