@@ -1142,7 +1142,7 @@ export default function ProgramWorkspace() {
                                      </span>
                                    </div>
                                  </div>
-                                 <div className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isKB ? \'bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-black border border-emerald-500/20\' : \'bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-black border border-blue-500/20\'}`}>OPEN</div>
+                                 <div className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isKB ? 'bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-black border border-emerald-500/20' : 'bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-black border border-blue-500/20'}`}>OPEN</div>
                                </button>
                              );
                            });
