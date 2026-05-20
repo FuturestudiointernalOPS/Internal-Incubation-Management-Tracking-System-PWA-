@@ -1078,7 +1078,8 @@ export default function ProgramWorkspace() {
                              else if (typeof raw === 'string') {
                                if (raw.startsWith('[') || raw.startsWith('{')) {
                                  try { 
-                                    const parsed = JSON.parse(raw);
+                                    let parsed = JSON.parse(raw);
+                                     if (typeof parsed === 'string') parsed = JSON.parse(parsed);
                                     materials = Array.isArray(parsed) ? parsed.filter(i => i && i !== "[]" && i !== "") : [parsed];
                                  } catch (e) { materials = raw === "[]" ? [] : [raw]; }
                                } else {
@@ -1102,7 +1103,7 @@ export default function ProgramWorkspace() {
                            ].filter(item => item && (item.url || item.path) && item.url !== "#" && item.url !== "");
 
                            if (allMaterials.length === 0) {
-                               return <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">No strategic materials have been anchored to this program yet.</p>;
+                               return <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">No assigned materials have been anchored to this program yet.</p>;
                            }
 
                            return allMaterials.map((file, idx) => {
