@@ -1,3 +1,15 @@
+/* =====================================================================================
+   ⚠️ 🛑 WARNING: DO NOT EDIT OR USE THIS V2 FILE! 🛑 ⚠️
+   =====================================================================================
+   This Version 2 (V2) Dashboard is currently INACTIVE. 
+   We are using V1 for all live operations.
+   
+   ALL ACTIVE DEVELOPMENT MUST BE DONE IN THE V1 DIRECTORY:
+   src/app/pm/programs/[id]/page.js
+   
+   DO NOT WRITE CODE IN THIS V2 FILE SO THERE ARE NO ISSUES IN THE FUTURE!
+   ===================================================================================== */
+
 'use client';
 import { Zap as SignalIcon } from 'lucide-react';
 
