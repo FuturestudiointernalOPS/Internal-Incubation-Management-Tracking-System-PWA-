@@ -1439,8 +1439,18 @@ export default function ProgramWorkspace() {
                  </button>
               </div>
             </div>
-            <div className="flex-1 bg-[var(--bg-tertiary)] rounded-xl overflow-hidden border border-[var(--border-primary)]">
-               <iframe src={`${activePDF.url}#toolbar=0`} className="w-full h-full" title="PDF Viewer" />
+            <div className="flex-1 bg-[var(--bg-tertiary)] rounded-xl overflow-hidden border border-[var(--border-primary)] relative">
+               {(!activePDF.url || activePDF.url === '#') ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 opacity-50">
+                     <FileText className="w-16 h-16 mb-4 text-[var(--text-secondary)] opacity-20" />
+                     <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-secondary)]">No Document URL Found</h3>
+                     <p className="text-[10px] text-[var(--text-secondary)] mt-2 max-w-sm leading-relaxed">
+                        This material was registered without a valid file path or external link. The document cannot be previewed.
+                     </p>
+                  </div>
+               ) : (
+                  <iframe src={`${activePDF.url}#toolbar=0`} className="w-full h-full" title="PDF Viewer" />
+               )}
             </div>
           </div>
         </div>
