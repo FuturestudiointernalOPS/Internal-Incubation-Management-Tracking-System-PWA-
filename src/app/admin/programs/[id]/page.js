@@ -211,12 +211,17 @@ export default function SuperAdminExecutiveView({ params }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
            {/* KPI MANAGEMENT */}
            <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-10 space-y-8">
-              <div className="flex justify-between items-center">
-                 <div className="flex items-center gap-3">
-                    <Target className="w-5 h-5 text-[#FF6600]" />
-                    <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Strategic KPIs</h3>
+              <div className="flex justify-between items-start">
+                 <div>
+                    <div className="flex items-center gap-3">
+                       <Target className="w-5 h-5 text-[#FF6600]" />
+                       <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Strategic KPIs</h3>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-2 max-w-md">
+                       Targets represent the completion goal (e.g. 80%) for each metric. All KPIs are averaged together to calculate the program's overall progress.
+                    </p>
                  </div>
-                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Defined by SuperAdmin</p>
+                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic mt-2">Defined by SuperAdmin</p>
               </div>
 
               <div className="space-y-4">
@@ -224,7 +229,7 @@ export default function SuperAdminExecutiveView({ params }) {
                     <div key={kpi.id} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-[#FF6600]/30 transition-all">
                        <div className="flex flex-col text-left">
                           <p className="text-xs font-black text-white uppercase tracking-tighter">{kpi.title}</p>
-                          <p className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest mt-1">Target: {kpi.target_value}</p>
+                          <p className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest mt-1">Target: {kpi.target_value}%</p>
                        </div>
                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button 
@@ -237,7 +242,7 @@ export default function SuperAdminExecutiveView({ params }) {
                              onClick={() => handleKpiAction('delete', kpi.id)}
                              className="p-2 hover:text-rose-500 transition-colors"
                           >
-                             <AlertCircle className="w-3.5 h-3.5" />
+                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                        </div>
                     </div>

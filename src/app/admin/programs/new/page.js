@@ -550,6 +550,10 @@ export default function NewProgram() {
                    <div className="text-left">
                       <h3 className="text-xl font-bold text-white uppercase tracking-tight italic">Strategic KPIs Configuration</h3>
                       <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Define KPI targets for this program</p>
+                      <p className="text-[11px] text-slate-400 mt-3 max-w-2xl leading-relaxed">
+                        <strong className="text-white">What is a Target?</strong> A target is the percentage completion goal (e.g., 80%) you aim to achieve for a metric. 
+                        Each KPI's progress is averaged together to calculate the program's overall total percentage.
+                      </p>
                    </div>
                 </div>
              </div>

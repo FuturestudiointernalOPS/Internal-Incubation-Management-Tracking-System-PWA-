@@ -579,7 +579,12 @@ export default function ProgramManagement() {
                      ))}
 
                      <div className="p-4 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/10 rounded-xl space-y-4">
-                        <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">Define New Target</p>
+                        <div className="space-y-1">
+                           <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">Define New Target</p>
+                           <p className="text-[10px] text-[var(--text-secondary)]">
+                              Target represents the completion percentage goal (e.g. 80%) for this metric. All defined KPIs are averaged together to calculate the program's total progress.
+                           </p>
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                            <input 
                               placeholder="KPI Title (e.g. Attendance)..."
