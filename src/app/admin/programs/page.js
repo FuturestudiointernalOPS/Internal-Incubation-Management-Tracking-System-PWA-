@@ -395,9 +395,17 @@ export default function ProgramManagement() {
                     {(Array.isArray(teams) ? teams : []).filter(t => t && (t.cid || t.id) !== editingProgram?.assigned_pm_id).map(member => {
                       if (!member) return null;
                       const mId = member.cid || member.id;
-                      const assistantIds = typeof editingProgram?.assigned_assistant_id === 'string' 
-                        ? editingProgram.assigned_assistant_id.split(',').filter(Boolean) 
-                        : (Array.isArray(editingProgram?.assigned_assistant_id) ? editingProgram.assigned_assistant_id : []);
+                      let assistantIds = [];
+                      if (typeof editingProgram?.assigned_assistant_id === 'string') {
+                        try {
+                          const parsed = JSON.parse(editingProgram.assigned_assistant_id);
+                          assistantIds = Array.isArray(parsed) ? parsed : (editingProgram.assigned_assistant_id.split(',').filter(Boolean));
+                        } catch (e) {
+                          assistantIds = editingProgram.assigned_assistant_id.split(',').filter(Boolean);
+                        }
+                      } else if (Array.isArray(editingProgram?.assigned_assistant_id)) {
+                        assistantIds = editingProgram.assigned_assistant_id;
+                      }
                       
                       const isActive = assistantIds.includes(mId);
                       
