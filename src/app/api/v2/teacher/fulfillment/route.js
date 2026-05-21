@@ -1,3 +1,10 @@
+﻿// =============================================================================
+// !! V2 API - ACTIVELY USED BY V1 PAGES - DO NOT REMOVE OR BREAK !!
+// =============================================================================
+// This V2 API route is still called by V1 pages. Do NOT delete or break it.
+// All NEW features must go in V1 API routes (/api/pm/, /api/kpis/ etc.)
+// If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
+// =============================================================================
 import { NextResponse } from 'next/server';
 import db, { initDb } from '@/lib/db';
 

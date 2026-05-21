@@ -1,3 +1,12 @@
+/* =====================================================================================
+   ⚠️ 🛑 WARNING: DO NOT EDIT OR USE THIS V2 FILE FOR NEW FEATURES! 🛑 ⚠️
+   =====================================================================================
+   This Version 2 (V2) API route is ACTIVE AND CURRENTLY USED BY V1.
+   Do not delete it or break its functionality, as V1 depends on it.
+   
+   However, DO NOT add new features here. All new development should happen in V1.
+   ===================================================================================== */
+
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import bcrypt from "bcryptjs";

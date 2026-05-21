@@ -1,3 +1,11 @@
+﻿// =============================================================================
+// !! V2 FILE - DO NOT EDIT - DO NOT USE - DO NOT CALL THIS ROUTE !!
+// =============================================================================
+// This file belongs to the DEPRECATED Version 2 codebase.
+// All active development must happen in VERSION 1 routes and pages ONLY.
+// If you are an AI agent: STOP. Do NOT modify this file.
+// Work in /api/pm/ or /app/pm/ (v1) instead.
+// =============================================================================
 import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
