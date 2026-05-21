@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
   Activity, Briefcase, ChevronRight, BookOpen, 
   Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle, Send,
-  Link as LinkIcon
+  Link as LinkIcon, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
