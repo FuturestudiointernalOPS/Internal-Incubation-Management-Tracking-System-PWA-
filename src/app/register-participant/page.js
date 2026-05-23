@@ -107,7 +107,7 @@ export default function PublicParticipantRegistration() {
       if (data.success) {
         setStatus({ 
           state: 'success', 
-          message: 'Your application has been received successfully. You will be notified once your access credentials are initiated by the Program Manager.' 
+          message: 'Your application has been submitted for review! Once approved, your login credentials will be activated. You will receive your email and password from the Program Manager.' 
         });
       } else {
         setStatus({ state: 'error', message: data.error || 'Failed to submit application.' });
