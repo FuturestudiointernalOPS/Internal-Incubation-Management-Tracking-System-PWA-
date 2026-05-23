@@ -166,11 +166,11 @@ export async function PUT(req) {
     if (!id) return NextResponse.json({ success: false, error: "ID required" }, { status: 400 });
 
     await db.execute({
-      sql: `UPDATE v2_programs 
-            SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, materials = ?, start_date = ?, end_date = ?
-            WHERE id = ?`,
-      args: [name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, status, JSON.stringify(materials || []), start_date || null, end_date || null, id]
-    });
+          sql: `UPDATE v2_programs 
+                SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, materials = ?, start_date = ?, end_date = ?
+                WHERE id = ?`,
+          args: [name, description, note_id || null, assigned_pm_id || null, assigned_assistant_id || null, duration_weeks || 4, status, safeStringifyMaterials(materials), start_date || null, end_date || null, id]
+        });
 
     // Handle Segment/Team Assignments
     if (Array.isArray(assigned_segments)) {

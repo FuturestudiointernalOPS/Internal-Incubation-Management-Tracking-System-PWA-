@@ -45,16 +45,52 @@ export async function GET(req) {
       try {
         program.materials = typeof program.materials === 'string' ? JSON.parse(program.materials || '[]') : (program.materials || []);
         
-        // Fetch new Multi-PDF attachments for the linked Knowledge Note with explicit ID casting
-        if (program.note_id) {
-           const kbAttachmentsRes = await db.execute({
-             sql: "SELECT name, url FROM v2_knowledge_attachments WHERE CAST(note_id AS TEXT) = CAST(? AS TEXT)",
-             args: [program.note_id]
-           });
-           program.knowledge_assets = kbAttachmentsRes.rows;
-        } else {
-           program.knowledge_assets = [];
-        }
+                // PARSE note_files (comes from k.url in DB as a JSON string like '[]')
+                if (typeof program.note_files === 'string' && program.note_files.trim()) {
+                  try {
+                    program.note_files = JSON.parse(program.note_files);
+                  } catch (e) {
+                    // Deep-unwrap: handle triple-encoded strings from double-serialization bugs
+                    let value = program.note_files;
+                    let parsed = false;
+                    for (let i = 0; i < 3; i++) {
+                      try {
+                        value = JSON.parse(value);
+                        parsed = true;
+                      } catch {
+                        break;
+                      }
+                    }
+                    program.note_files = parsed && Array.isArray(value) ? value : [];
+                  }
+                } else {
+                  program.note_files = program.note_files || [];
+                }
+                // Normalize note_files entries: handle uppercase Name/URL keys from external imports
+                if (Array.isArray(program.note_files)) {
+                  program.note_files = program.note_files.map(f => {
+                    if (typeof f === 'object' && f !== null) {
+                      return {
+                        name: f.name || f.NAME || f.title || f.TITLE || '',
+                        url: f.url || f.URL || f.path || '',
+                        ...f
+                      };
+                    }
+                    if (typeof f === 'string') return { name: f, url: f };
+                    return f;
+                  });
+                }
+        
+                // Fetch new Multi-PDF attachments for the linked Knowledge Note with explicit ID casting
+                if (program.note_id) {
+                   const kbAttachmentsRes = await db.execute({
+                     sql: "SELECT name, url FROM v2_knowledge_attachments WHERE CAST(note_id AS TEXT) = CAST(? AS TEXT)",
+                     args: [program.note_id]
+                   });
+                   program.knowledge_assets = kbAttachmentsRes.rows;
+                } else {
+                   program.knowledge_assets = [];
+                }
 
         // --- DYNAMIC PROGRESS CALCULATION (OFFLOADED FROM SQL) ---
         const sessions = sesRes.rows || [];

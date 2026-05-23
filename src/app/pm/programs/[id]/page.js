@@ -60,6 +60,16 @@ export default function ProgramWorkspace() {
   const [activePDF, setActivePDF] = useState(null);
   const [families, setFamilies] = useState([]);
   
+  // Compute program team members from Super Admin's approved list (assigned_assistant_id)
+  const programTeamMembers = React.useMemo(() => {
+    if (!program?.assigned_assistant_id) return [];
+    try {
+      const approvedIds = JSON.parse(program.assigned_assistant_id);
+      if (!Array.isArray(approvedIds)) return [];
+      return staffList.filter(s => approvedIds.includes(s.cid));
+    } catch (e) { return []; }
+  }, [program?.assigned_assistant_id, staffList]);
+
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [teamAssignmentMode, setTeamAssignmentMode] = useState('new'); // 'new' or 'existing'
   const [selectedExistingTeamId, setSelectedExistingTeamId] = useState('');
@@ -73,7 +83,7 @@ export default function ProgramWorkspace() {
   const [selectedTeam, setSelectedTeam] = useState(null);
   
   const [selectedSessionId, setSelectedSessionId] = useState(null);
-  const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending', kpi_ids: [] });
+  const [newSession, setNewSession] = useState({ title: '', week_number: 1, status: 'pending', kpi_ids: [], handler_id: '', handler_name: '' });
   const [newRequirement, setNewRequirement] = useState({ title: '', description: '', allowed_format: 'pdf', kpi_ids: [] });
   const [newPMReport, setNewPMReport] = useState({ summary: '', status: 'optimal' });
   const [newStaff, setNewStaff] = useState({ staff_id: '', role: 'staff' });
@@ -179,6 +189,7 @@ export default function ProgramWorkspace() {
           title: newSession.title,
           week_number: newSession.week_number,
           status: newSession.status,
+          handler_id: newSession.handler_id || null, handler_name: newSession.handler_name || null,
           kpi_ids: newSession.kpi_ids || []
         })
       });
@@ -798,7 +809,7 @@ export default function ProgramWorkspace() {
                   <button 
                     onClick={() => {
                       const nextWK = sessions.length > 0 ? Math.max(...sessions.map(s => s.week_number || 0)) + 1 : 1;
-                      setNewSession({ title: '', week_number: nextWK, status: 'pending' });
+                      setNewSession({ title: '', week_number: nextWK, status: 'pending', handler_id: '', handler_name: '' });
                       setShowSessionModal(true);
                     }} 
                     className="btn btn-primary btn-sm gap-2"
@@ -879,7 +890,9 @@ export default function ProgramWorkspace() {
                                      className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
                                    >
                                       <option value="">Select Member...</option>
-                                      {assignedStaff.map(s => (
+                                      {programTeamMembers.length > 0 ? programTeamMembers.map(s => (
+                                         <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
+                                      )) : assignedStaff.map(s => (
                                          <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
                                       ))}
                                    </select>
@@ -1562,6 +1575,24 @@ export default function ProgramWorkspace() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Week Number</label>
                 <input type="number" min="1" value={newSession.week_number} onChange={e => setNewSession(p => ({...p, week_number: parseInt(e.target.value) || 1}))} className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }} />
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Assign Teacher (Program Team)</label>
+                <select 
+                  value={newSession.handler_id}
+                  onChange={e => {
+                    const staff = programTeamMembers.find(s => String(s.cid) === e.target.value);
+                    setNewSession(p => ({...p, handler_id: e.target.value, handler_name: staff?.name || ''}));
+                  }}
+                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                  style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+                >
+                  <option value="">Select Teacher...</option>
+                  {programTeamMembers.map(s => (
+                    <option key={s.cid} value={s.cid}>{s.name} ({s.role})</option>
+                  ))}
+                </select>
+              </div>
+
               </div>
               
               <div className="space-y-2">
