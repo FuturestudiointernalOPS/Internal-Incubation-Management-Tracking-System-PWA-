@@ -87,6 +87,14 @@ export default function PMCohortOutreach() {
 
     const matchesCohort = selectedProgram === 'All Assignments' || 
                           (deliveryMode === 'individuals' ? (c.program_id === selectedProgram) : (c.program_id === selectedProgram));
+
+    // Also check by group_name for contacts that matched via group name
+    if (!matchesCohort && selectedProgram !== 'All Assignments') {
+      const selectedProg = assignedPrograms.find(p => p.id === selectedProgram);
+      if (selectedProg && (c.group_name || '').toUpperCase() === selectedProg.name.toUpperCase()) {
+        return matchesSearch;
+      }
+    }
     
     return matchesSearch && matchesCohort;
   });
