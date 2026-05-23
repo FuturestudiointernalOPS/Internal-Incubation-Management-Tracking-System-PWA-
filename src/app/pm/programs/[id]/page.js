@@ -66,9 +66,11 @@ export default function ProgramWorkspace() {
     try {
       const approvedIds = JSON.parse(program.assigned_assistant_id);
       if (!Array.isArray(approvedIds)) return [];
-      return staffList.filter(s => approvedIds.includes(s.cid));
+      const allAvailable = [...staffList, ...assignedStaff];
+      const unique = Array.from(new Map(allAvailable.map(s => [s.cid, s])).values());
+      return unique.filter(s => approvedIds.includes(s.cid));
     } catch (e) { return []; }
-  }, [program?.assigned_assistant_id, staffList]);
+  }, [program?.assigned_assistant_id, staffList, assignedStaff]);
 
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [teamAssignmentMode, setTeamAssignmentMode] = useState('new'); // 'new' or 'existing'
