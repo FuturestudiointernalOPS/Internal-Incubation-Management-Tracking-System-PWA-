@@ -1244,11 +1244,11 @@ export default function ProgramWorkspace() {
                     </div>
 
                     <div className="p-6">
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                      <div className="space-y-8">
                         {/* PHASE 1: LOGISTICS (THE SETUP) */}
-                        <div className="lg:col-span-4 space-y-6">
-                          <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center text-[10px] font-black text-indigo-500 border border-indigo-500/20 shadow-sm">
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-2 pb-3 border-b border-indigo-500/20">
+                            <div className="w-6 h-6 rounded-full bg-indigo-500/10 flex items-center justify-center text-[9px] font-black text-indigo-500 border border-indigo-500/20 shadow-sm">
                               1
                             </div>
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">
@@ -1370,11 +1370,14 @@ export default function ProgramWorkspace() {
                           </div>
                         </div>
 
+                        {/* SEPARATOR */}
+                        <div className="w-full h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
+
                         {/* PHASE 2: CURRICULUM (THE CORE) */}
-                        <div className="lg:col-span-5 space-y-6">
-                          <div className="flex items-center justify-between">
+                        <div className="space-y-6">
+                          <div className="flex items-center justify-between pb-3 border-b border-[var(--brand-orange)]/20">
                             <div className="flex items-center gap-2">
-                              <div className="w-5 h-5 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 shadow-sm">
+                              <div className="w-6 h-6 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[9px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 shadow-sm">
                                 2
                               </div>
                               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
@@ -1440,11 +1443,14 @@ export default function ProgramWorkspace() {
                           </p>
                         </div>
 
+                        {/* SEPARATOR */}
+                        <div className="w-full h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
+
                         {/* PHASE 3: RESOURCES (THE SUPPORT) */}
-                        <div className="lg:col-span-3 space-y-6">
-                          <div className="flex items-center justify-between">
+                        <div className="space-y-6">
+                          <div className="flex items-center justify-between pb-3 border-b border-blue-500/20">
                             <div className="flex items-center gap-2">
-                              <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center text-[10px] font-black text-blue-500 border border-blue-500/20 shadow-sm">
+                              <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center text-[9px] font-black text-blue-500 border border-blue-500/20 shadow-sm">
                                 3
                               </div>
                               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">
