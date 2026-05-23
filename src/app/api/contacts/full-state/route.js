@@ -10,10 +10,13 @@ export async function GET(req) {
   try {
     await initDb();
     const { searchParams } = new URL(req.url);
-    const pmId = searchParams.get('pm_id');
-    
-    console.log("--- FETCHING PERSONNEL STATE ---", pmId ? `(Scoped for PM: ${pmId})` : "(Global)");
-    
+    const pmId = searchParams.get("pm_id");
+
+    console.log(
+      "--- FETCHING PERSONNEL STATE ---",
+      pmId ? `(Scoped for PM: ${pmId})` : "(Global)",
+    );
+
     let contactsRes;
     let familiesList;
     let teamsRows;
@@ -22,39 +25,70 @@ export async function GET(req) {
       // 1. Identify assigned programs and segments
       const progRes = await db.execute({
         sql: "SELECT id, name FROM v2_programs WHERE assigned_pm_id = ?",
-        args: [pmId]
+        args: [pmId],
       });
       const myProgs = progRes.rows;
-      const myProgIds = myProgs.map(p => p.id);
-      const myProgNames = myProgs.map(p => p.name.toUpperCase());
+      const myProgIds = myProgs.map((p) => p.id);
+      const myProgNames = myProgs.map((p) => p.name.toUpperCase());
 
-      // 2. Fetch scoped contacts
+      // 2. Fetch scoped contacts (include v2_participants for full registry)
       if (myProgIds.length > 0 || myProgNames.length > 0) {
         const idPlaceholders = myProgIds.map(() => "?").join(",") || "NULL";
         const namePlaceholders = myProgNames.map(() => "?").join(",") || "NULL";
-        
+
         contactsRes = await db.execute({
-          sql: `SELECT * FROM contacts 
-                WHERE program_id IN (${idPlaceholders}) 
+          sql: `SELECT * FROM contacts
+                WHERE program_id IN (${idPlaceholders})
                 OR UPPER(TRIM(group_name)) IN (${namePlaceholders})
                 ORDER BY created_at DESC`,
-          args: [...myProgIds, ...myProgNames]
+          args: [...myProgIds, ...myProgNames],
         });
+
+        // Also fetch v2_participants (they register via register-participant flow)
+        const v2ParRes = await db.execute({
+          sql: `SELECT *, CAST(id AS TEXT) as v2_participant_id FROM v2_participants
+                WHERE program_id IN (${idPlaceholders})`,
+          args: [...myProgIds],
+        });
+        const v2Rows = v2ParRes.rows || [];
+        if (v2Rows.length > 0) {
+          // Merge into contacts, avoiding duplicates by email
+          const existingEmails = new Set(
+            (contactsRes.rows || [])
+              .map((c) => c.email?.toLowerCase())
+              .filter(Boolean),
+          );
+          for (const p of v2Rows) {
+            if (!existingEmails.has(p.email?.toLowerCase())) {
+              contactsRes.rows.push({
+                ...p,
+                cid: p.id,
+                source: "v2_participants",
+                name: p.name,
+                email: p.email,
+                phone: p.phone,
+                role: "participant",
+                status: p.screening_status || "approved",
+                group_name: (p.group_name || p.program_id || "").toUpperCase(),
+              });
+            }
+          }
+        }
 
         // 3. Fetch scoped families/segments
         const famRes = await db.execute({
-          sql: `SELECT * FROM families 
+          sql: `SELECT * FROM families
                 WHERE program_id IN (${idPlaceholders})
                 OR UPPER(TRIM(name)) IN (${namePlaceholders})`,
-          args: [...myProgIds, ...myProgNames]
+          args: [...myProgIds, ...myProgNames],
         });
         familiesList = famRes.rows;
 
         // 4. Fetch scoped teams
         const teamRes = await db.execute({
-          sql: `SELECT id, name, group_name, program_id FROM v2_teams 
+          sql: `SELECT id, name, group_name, program_id FROM v2_teams
                 WHERE program_id IN (${idPlaceholders})`,
-          args: [...myProgIds]
+          args: [...myProgIds],
         });
         teamsRows = teamRes.rows;
       } else {
@@ -62,36 +96,46 @@ export async function GET(req) {
         familiesList = [];
         teamsRows = [];
       }
-
     } else {
       // Global View (Super Admin)
-      contactsRes = await db.execute("SELECT * FROM contacts ORDER BY created_at DESC");
-      const famRes = await db.execute("SELECT * FROM families ORDER BY name ASC");
+      contactsRes = await db.execute(
+        "SELECT * FROM contacts ORDER BY created_at DESC",
+      );
+      const famRes = await db.execute(
+        "SELECT * FROM families ORDER BY name ASC",
+      );
       familiesList = famRes.rows;
-      const teamRes = await db.execute("SELECT id, name, group_name FROM v2_teams");
+      const teamRes = await db.execute(
+        "SELECT id, name, group_name FROM v2_teams",
+      );
       teamsRows = teamRes.rows;
     }
 
     // NORMALIZATION: Ensure FUTURE STUDIO is in the filter list (Uppercase Protocol)
-    if (!familiesList.find(f => f.name.toUpperCase() === 'FUTURE STUDIO')) {
-      familiesList.unshift({ name: 'FUTURE STUDIO', registration_id: 'R-FS-001' });
+    if (!familiesList.find((f) => f.name.toUpperCase() === "FUTURE STUDIO")) {
+      familiesList.unshift({
+        name: "FUTURE STUDIO",
+        registration_id: "R-FS-001",
+      });
     }
 
     // Data Sanitization: Normalize all contact group names to uppercase
-    const normalizedContacts = (contactsRes.rows || []).map(c => ({
+    const normalizedContacts = (contactsRes.rows || []).map((c) => ({
       ...c,
-      group_name: c.group_name ? c.group_name.toUpperCase() : 'UNASSIGNED'
+      group_name: c.group_name ? c.group_name.toUpperCase() : "UNASSIGNED",
     }));
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       contacts: normalizedContacts,
       families: familiesList,
-      teams: teamsRows
+      teams: teamsRows,
     });
-
   } catch (error) {
     console.error("Registry State Error:", error.message);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
