@@ -64,7 +64,18 @@ export default function ProgramWorkspace() {
   const programTeamMembers = React.useMemo(() => {
     if (!program?.assigned_assistant_id) return [];
     try {
-      const approvedIds = JSON.parse(program.assigned_assistant_id);
+      const raw = program.assigned_assistant_id;
+      let approvedIds = [];
+      // Handle both JSON array string and single CID string
+      if (typeof raw === 'string') {
+        if (raw.startsWith('[')) {
+          approvedIds = JSON.parse(raw);
+        } else {
+          approvedIds = [raw];
+        }
+      } else if (Array.isArray(raw)) {
+        approvedIds = raw;
+      }
       if (!Array.isArray(approvedIds)) return [];
       const allAvailable = [...staffList, ...assignedStaff];
       const unique = Array.from(new Map(allAvailable.map(s => [s.cid, s])).values());
