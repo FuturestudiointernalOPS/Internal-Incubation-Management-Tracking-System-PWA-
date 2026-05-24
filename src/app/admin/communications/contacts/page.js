@@ -979,115 +979,120 @@ function ContactsPageContent() {
 
       {showCredsModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-lg space-y-8 border-blue-500/30 animate-in">
-            {/* Header */}
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-500">
-                <Key className="w-8 h-8" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold uppercase tracking-tight">
-                  {credsForm.name}
-                </h3>
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                  Account Credentials
-                </p>
-              </div>
-            </div>
-
-            {/* Credentials Card */}
-            <div className="bg-[var(--bg-primary)] border border-blue-500/20 rounded-2xl p-6 space-y-4 text-left">
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                    Login URL
-                  </label>
-                  <div className="flex items-center gap-2 mt-1 p-3 bg-black/40 rounded-xl border border-white/5">
-                    <Globe className="w-4 h-4 text-blue-500 shrink-0" />
-                    <code className="text-xs font-mono text-blue-400 font-bold break-all">
-                      {getPortalUrl(credsForm)}
-                    </code>
-                  </div>
+          <div className="card w-full max-w-lg border-blue-500/30 animate-in flex flex-col max-h-[90vh]">
+            {/* Scrollable Content Area */}
+            <div className="overflow-y-auto p-6 pb-2 space-y-6">
+              {/* Header */}
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-500">
+                  <Key className="w-8 h-8" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <h3 className="text-xl font-bold uppercase tracking-tight">
+                    {credsForm.name}
+                  </h3>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                    Account Credentials
+                  </p>
+                </div>
+              </div>
+
+              {/* Credentials Card */}
+              <div className="bg-[var(--bg-primary)] border border-blue-500/20 rounded-2xl p-6 space-y-4 text-left">
+                <div className="space-y-3">
                   <div>
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                      Email
+                      Login URL
                     </label>
                     <div className="flex items-center gap-2 mt-1 p-3 bg-black/40 rounded-xl border border-white/5">
-                      <Mail className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <code className="text-xs font-mono text-emerald-400 font-bold truncate">
-                        {credsForm.email}
+                      <Globe className="w-4 h-4 text-blue-500 shrink-0" />
+                      <code className="text-xs font-mono text-blue-400 font-bold break-all">
+                        {getPortalUrl(credsForm)}
                       </code>
                     </div>
                   </div>
-                  <div>
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                      Password
-                    </label>
-                    <div className="flex items-center gap-2 mt-1 p-3 bg-black/40 rounded-xl border border-amber-500/20">
-                      <Shield className="w-4 h-4 text-amber-500 shrink-0" />
-                      <code className="text-xs font-mono text-amber-400 font-bold">
-                        {credsForm.password}
-                      </code>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                        Email
+                      </label>
+                      <div className="flex items-center gap-2 mt-1 p-3 bg-black/40 rounded-xl border border-white/5">
+                        <Mail className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <code className="text-xs font-mono text-emerald-400 font-bold truncate">
+                          {credsForm.email}
+                        </code>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                        Password
+                      </label>
+                      <div className="flex items-center gap-2 mt-1 p-3 bg-black/40 rounded-xl border border-amber-500/20">
+                        <Shield className="w-4 h-4 text-amber-500 shrink-0" />
+                        <code className="text-xs font-mono text-amber-400 font-bold">
+                          {credsForm.password}
+                        </code>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Welcome Message Preview */}
-              <div className="pt-3 border-t border-white/5">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">
-                  Welcome Message Preview
-                </label>
-                <div className="p-4 bg-black/60 rounded-xl border border-white/5 text-[11px] text-slate-400 font-mono leading-relaxed whitespace-pre-wrap">
-                  {buildWelcomeMessage(credsForm, credsForm.password)}
+                {/* Welcome Message Preview */}
+                <div className="pt-3 border-t border-white/5">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">
+                    Welcome Message Preview
+                  </label>
+                  <div className="p-4 bg-black/60 rounded-xl border border-white/5 text-[11px] text-slate-400 font-mono leading-relaxed whitespace-pre-wrap">
+                    {buildWelcomeMessage(credsForm, credsForm.password)}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-3">
-                <button
-                  onClick={() =>
-                    copyWelcomeMessage(credsForm, credsForm.password)
-                  }
-                  className="btn btn-secondary flex items-center justify-center gap-2 uppercase font-bold"
-                >
-                  {copiedMessage ? (
-                    <>
-                      <Check className="w-4 h-4 text-emerald-500" /> Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" /> Copy All
-                    </>
-                  )}
-                </button>
-                {credsForm.phone && (
-                  <a
-                    href={getWhatsAppLink(credsForm, credsForm.password)}
-                    target="_blank"
-                    className="btn btn-primary bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center gap-2 uppercase font-bold"
+            {/* Sticky Actions Footer */}
+            <div className="p-6 pt-2 border-t border-white/5 shrink-0">
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    onClick={() =>
+                      copyWelcomeMessage(credsForm, credsForm.password)
+                    }
+                    className="btn btn-secondary flex items-center justify-center gap-2 uppercase font-bold"
                   >
-                    <MessageCircle className="w-4 h-4" /> WhatsApp
+                    {copiedMessage ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-500" /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" /> Copy All
+                      </>
+                    )}
+                  </button>
+                  {credsForm.phone && (
+                    <a
+                      href={getWhatsAppLink(credsForm, credsForm.password)}
+                      target="_blank"
+                      className="btn btn-primary bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center gap-2 uppercase font-bold"
+                    >
+                      <MessageCircle className="w-4 h-4" /> WhatsApp
+                    </a>
+                  )}
+                  <a
+                    href={getEmailLink(credsForm, credsForm.password)}
+                    target="_blank"
+                    className="btn btn-primary bg-blue-600 hover:bg-blue-700 flex items-center justify-center gap-2 uppercase font-bold"
+                  >
+                    <Mail className="w-4 h-4" /> Email
                   </a>
-                )}
-                <a
-                  href={getEmailLink(credsForm, credsForm.password)}
-                  target="_blank"
-                  className="btn btn-primary bg-blue-600 hover:bg-blue-700 flex items-center justify-center gap-2 uppercase font-bold"
+                </div>
+                <button
+                  onClick={() => setShowCredsModal(false)}
+                  className="btn btn-secondary w-full uppercase font-bold"
                 >
-                  <Mail className="w-4 h-4" /> Email
-                </a>
+                  Close
+                </button>
               </div>
-              <button
-                onClick={() => setShowCredsModal(false)}
-                className="btn btn-secondary w-full uppercase font-bold"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
