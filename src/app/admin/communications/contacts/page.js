@@ -388,12 +388,9 @@ function ContactsPageContent() {
     return `${window.location.origin}${isStaff ? "/terminal" : "/login"}`;
   };
 
-  const buildWelcomeMessage = (c, pass, useEmoji = true) => {
+  const buildWelcomeMessage = (c, pass) => {
     const portalUrl = getPortalUrl(c);
-    if (useEmoji) {
-      return `Welcome to ImpactOS, ${c.name}!\n\nYour account has been created. Use the credentials below to log in and access your dashboard.\n\n🔗 Login URL: ${portalUrl}\n📧 Email: ${c.email}\n🔑 Password: ${pass || "N/A"}\n\nFor security, please change your password after your first login.\n\nBest regards,\nThe ImpactOS Team`;
-    }
-    return `Welcome to ImpactOS, ${c.name}!\n\nYour account has been created. Use the credentials below to log in and access your dashboard.\n\nLogin URL: ${portalUrl}\nEmail: ${c.email}\nPassword: ${pass || "N/A"}\n\nFor security, please change your password after your first login.\n\nBest regards,\nThe ImpactOS Team`;
+    return `Welcome to ImpactOS, ${c.name}!\n\nYour account has been created. Use the credentials below to log in and access your dashboard.\n\n🔗 Login URL: ${portalUrl}\n📧 Email: ${c.email}\n🔑 Password: ${pass || "N/A"}\n\nFor security, please change your password after your first login.\n\nBest regards,\nThe ImpactOS Team`;
   };
 
   const [copiedMessage, setCopiedMessage] = useState(false);
@@ -408,7 +405,7 @@ function ContactsPageContent() {
   const getWhatsAppLink = (c, pass) => {
     const phone = c.phone?.replace(/[^0-9]/g, "");
     if (!phone) return "#";
-    const msg = buildWelcomeMessage(c, pass, false);
+    const msg = buildWelcomeMessage(c, pass);
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   };
 
