@@ -37,6 +37,8 @@ export default function ParticipantV2Dashboard() {
   const router = useRouter();
 
   // State for data
+  const [programs, setPrograms] = useState([]);
+  const [selectedProgramId, setSelectedProgramId] = useState(null);
   const [program, setProgram] = useState(null);
   const [metrics, setMetrics] = useState({
     percentComplete: 0,
@@ -100,57 +102,73 @@ export default function ParticipantV2Dashboard() {
     }
   };
 
+  // Auto-select first program when programs load or change
+  useEffect(() => {
+    if (programs.length > 0) {
+      const currentValid = programs.find((p) => p.id === selectedProgramId);
+      if (currentValid) {
+        applyProgramData(currentValid);
+      } else {
+        applyProgramData(programs[0]);
+        setSelectedProgramId(programs[0].id);
+      }
+    }
+  }, [programs]);
+
+  const applyProgramData = (prog) => {
+    if (!prog) return;
+    setProgram(prog);
+    setSessions(prog.sessions || []);
+    setDeliverables(prog.deliverables || []);
+    setSubmissions(prog.submissions || []);
+    setFollowups(prog.followups || []);
+    setMetrics(prog.metrics || { percentComplete: 0, currentWeek: 1 });
+    setSelectedWeek(null);
+  };
+
+  const handleProgramChange = (programId) => {
+    setSelectedProgramId(programId);
+    const prog = programs.find((p) => p.id === programId);
+    applyProgramData(prog);
+  };
+
   const fetchDashboardData = async () => {
     try {
       const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
       setUser(storedUser);
       const email = storedUser.email;
-      const url = `/api/participant/full-state?email=${email}&group_name=${storedUser.group_name}`;
 
-      const processData = (data) => {
-        const sesList = data.sessions || [];
-        const subList = data.submissions || [];
-        const totalSteps = sesList.length || 1;
-        const completedSteps = sesList.filter((s) => {
-          return s.status === "completed" || s.week_number === 0;
-        }).length;
-        const percent = Math.round((completedSteps / totalSteps) * 100);
+      if (!email) {
+        setIsLoading(false);
+        return;
+      }
 
-        setProgram(data.program);
-        setSubmissions(subList);
-        setMetrics({ percentComplete: percent, currentWeek: 1 });
-        setSessions(sesList);
-        setNotifications(data.notifications || []);
-        setKpis(data.kpis || []);
-        setDocRequirements(data.documents || []);
-        setFollowups(data.followups || []);
-        setTeam(data.team || null);
-        if (data.grades) setGrades(data.grades);
-      };
+      const url = `/api/participant/programs?email=${email}`;
 
       // 1. Check Prefetch Store (Zero Latency)
       const prefetched = getPrefetchedData(url);
-      if (prefetched) {
-        processData(prefetched);
+      if (prefetched?.programs?.length > 0) {
+        setPrograms(prefetched.programs);
         setIsLoading(false);
         return;
       }
 
       // 2. Check Cache (Fast Feedback)
-      const cached = IMPACT_CACHE.get("participant_dashboard");
-      if (cached) {
-        processData(cached);
+      const cached = IMPACT_CACHE.get("participant_programs");
+      if (cached?.programs?.length > 0) {
+        setPrograms(cached.programs);
         setIsLoading(false);
       }
 
-      // 3. Full-state sync
+      // 3. Full-state sync from new multi-program API
       const res = await fetch(url);
       const data = await res.json();
 
       if (!data.success) throw new Error(data.error);
 
-      processData(data);
-      IMPACT_CACHE.set("participant_dashboard", data);
+      setPrograms(data.programs || []);
+      IMPACT_CACHE.set("participant_programs", data);
+
       setIsLoading(false);
     } catch (e) {
       console.error("Dashboard sync failure", e);
@@ -308,6 +326,46 @@ export default function ParticipantV2Dashboard() {
   return (
     <DashboardLayout role="participant" activeTab="v2">
       <div className="max-w-6xl mx-auto space-y-8 pb-16">
+        {/* ─── MULTI-PROGRAM SELECTOR ─── */}
+        {programs.length > 1 && (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {programs.map((prog) => {
+              const isActive = prog.id === selectedProgramId;
+              const progMetrics = prog.metrics || {};
+              return (
+                <button
+                  key={prog.id}
+                  onClick={() => handleProgramChange(prog.id)}
+                  className={`flex-shrink-0 ios-card !p-4 border text-left transition-all ${
+                    isActive
+                      ? "bg-[#FF6600]/10 border-[#FF6600]/40"
+                      : "bg-[#0F172A] border-white/5 hover:border-white/20 opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <p className="text-xs font-black text-white uppercase tracking-tight truncate max-w-[180px]">
+                    {prog.name}
+                  </p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-[9px] font-semibold text-slate-400">
+                      {progMetrics.percentComplete || 0}%
+                    </span>
+                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          isActive ? "bg-[#FF6600]" : "bg-emerald-500/50"
+                        }`}
+                        style={{
+                          width: `${progMetrics.percentComplete || 0}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* ─── TOP HEADER: Program Name, Current Week, Progress ─── */}
         <div className="ios-card bg-[#0F172A] border-white/5 !p-6 lg:!p-8">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
