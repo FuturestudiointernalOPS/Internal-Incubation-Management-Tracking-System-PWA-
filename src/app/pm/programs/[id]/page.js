@@ -137,6 +137,7 @@ export default function ProgramWorkspace() {
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
 
+  const [expandedSessionId, setExpandedSessionId] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [newSession, setNewSession] = useState({
     title: "",
@@ -1165,8 +1166,15 @@ export default function ProgramWorkspace() {
                     key={session.id}
                     className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-[var(--bg-secondary)] group mb-4"
                   >
-                    {/* STEP 0: THE HEADER (GLOBAL STATE) */}
-                    <div className="px-6 py-4 bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-primary)]">
+                    {/* STEP 0: THE HEADER (GLOBAL STATE) — click to toggle */}
+                    <div
+                      onClick={() =>
+                        setExpandedSessionId(
+                          expandedSessionId === session.id ? null : session.id,
+                        )
+                      }
+                      className="px-6 py-4 bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer"
+                    >
                       <div className="flex items-center gap-4">
                         <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-inner">
                           <span className="text-[10px] font-black text-[var(--text-secondary)] opacity-50">
@@ -1219,9 +1227,13 @@ export default function ProgramWorkspace() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div
+                        className="flex items-center gap-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedSessionId(session.id);
                             setShowPMReportModal(true);
                           }}
@@ -1234,7 +1246,10 @@ export default function ProgramWorkspace() {
                         </button>
                         {canEdit && (
                           <button
-                            onClick={() => deleteSession(session.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSession(session.id);
+                            }}
                             className="p-2 text-rose-500/20 hover:text-rose-500 transition-all"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1243,7 +1258,9 @@ export default function ProgramWorkspace() {
                       </div>
                     </div>
 
-                    <div className="p-6">
+                    <div
+                      className={`p-6 ${expandedSessionId !== session.id ? "hidden" : ""}`}
+                    >
                       <div className="space-y-8">
                         {/* PHASE 1: LOGISTICS (THE SETUP) */}
                         <div className="space-y-6">
