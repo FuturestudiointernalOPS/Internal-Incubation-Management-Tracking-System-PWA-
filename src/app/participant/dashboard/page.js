@@ -221,12 +221,23 @@ export default function ParticipantDashboard() {
                                 </div>
                              </div>
                              <div className="flex items-center gap-6">
-                                {session.material_url && (
-                                   <a href={session.material_url} target="_blank" className="p-4 rounded-2xl bg-white/5 text-slate-500 hover:text-white transition-all flex items-center gap-3">
-                                      <BookOpen className="w-5 h-5" />
-                                      <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">Material</span>
-                                   </a>
-                                )}
+                                {(() => {
+                                   let mUrl = session.material_url;
+                                   if (!mUrl || mUrl === '[]' || mUrl === 'null') return null;
+                                   try {
+                                      const parsed = JSON.parse(mUrl);
+                                      if (Array.isArray(parsed)) {
+                                         if (parsed.length === 0) return null;
+                                         mUrl = parsed[0];
+                                      }
+                                   } catch (e) {}
+                                   return (
+                                      <a href={mUrl} target="_blank" className="p-4 rounded-2xl bg-white/5 text-slate-500 hover:text-white transition-all flex items-center gap-3">
+                                         <BookOpen className="w-5 h-5" />
+                                         <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">Material</span>
+                                      </a>
+                                   );
+                                })()}
                                 <button 
                                    onClick={() => setActiveSession(session)}
                                    className="px-8 py-4 bg-white/5 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-[#FF6600] hover:text-black transition-all"
