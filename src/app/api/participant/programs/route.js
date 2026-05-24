@@ -42,9 +42,11 @@ export async function GET(req) {
     //    - Via v2_participants table (legacy enrollment)
     const programIds = new Set();
 
-    if (contact.program_id) {
+    if (contact.program_id != null) {
+      // Safely convert to string in case PostgreSQL returns a number
+      const raw = String(contact.program_id);
       // Handle comma-separated multiple program IDs
-      contact.program_id
+      raw
         .split(",")
         .map((id) => id.trim())
         .filter(Boolean)
@@ -57,14 +59,18 @@ export async function GET(req) {
         sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
         args: [contact.group_name],
       });
-      familyRes.rows.forEach((r) => programIds.add(r.program_id));
+      familyRes.rows.forEach((r) => {
+        if (r.program_id != null) programIds.add(String(r.program_id).trim());
+      });
 
       // Also check direct program name match (legacy)
       const groupRes = await db.execute({
         sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
         args: [contact.group_name],
       });
-      groupRes.rows.forEach((r) => programIds.add(r.id));
+      groupRes.rows.forEach((r) => {
+        if (r.id != null) programIds.add(String(r.id).trim());
+      });
     }
 
     // Also check v2_participants table for this email
@@ -72,7 +78,9 @@ export async function GET(req) {
       sql: "SELECT program_id FROM v2_participants WHERE email = ?",
       args: [email],
     });
-    legacyRes.rows.forEach((r) => programIds.add(r.program_id));
+    legacyRes.rows.forEach((r) => {
+      if (r.program_id != null) programIds.add(String(r.program_id).trim());
+    });
 
     // 3. Fetch all programs with their data
     const programs = [];

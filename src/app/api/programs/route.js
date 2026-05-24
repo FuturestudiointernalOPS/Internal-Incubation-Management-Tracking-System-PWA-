@@ -1,34 +1,37 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 
 export async function POST(req) {
   try {
     await initDb();
     const body = await req.json();
-    const { 
-      name, 
-      description, 
-      duration_weeks, 
-      duration_days, 
-      topics, 
-      outcomes, 
-      deliverables, 
-      resources, 
+    const {
+      name,
+      description,
+      duration_weeks,
+      duration_days,
+      topics,
+      outcomes,
+      deliverables,
+      resources,
       assigned_pm_id,
-      feedback_enabled 
+      feedback_enabled,
     } = body;
 
     if (!name) {
-      return NextResponse.json({ success: false, error: "Program name is required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Program name is required" },
+        { status: 400 },
+      );
     }
 
     const programId = `P-2026-${uuidv4().slice(0, 8).toUpperCase()}`;
 
     const { lastInsertRowid } = await db.execute({
       sql: `INSERT INTO v2_programs (
-        id, name, description, duration_weeks, duration_days, 
+        id, name, description, duration_weeks, duration_days,
         topics, outcomes, deliverables, resources, assigned_pm_id, feedback_enabled
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
@@ -42,38 +45,46 @@ export async function POST(req) {
         JSON.stringify(deliverables || []),
         JSON.stringify(resources || []),
         assigned_pm_id || null,
-        feedback_enabled !== undefined ? (feedback_enabled ? 1 : 0) : 1
-      ]
+        feedback_enabled !== undefined ? (feedback_enabled ? 1 : 0) : 1,
+      ],
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      program: { id: programId, name, description } 
+    return NextResponse.json({
+      success: true,
+      program: { id: programId, name, description },
     });
   } catch (error) {
     console.error("V2 Program Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
 
 export async function GET() {
   try {
     await initDb();
-    const { rows } = await db.execute("SELECT * FROM v2_programs ORDER BY created_at DESC");
-    
+    const { rows } = await db.execute(
+      "SELECT * FROM v2_programs ORDER BY created_at DESC",
+    );
+
     // Parse JSON columns
-    const programs = rows.map(r => ({
-       ...r,
-       topics: r.topics ? JSON.parse(r.topics) : [],
-       outcomes: r.outcomes ? JSON.parse(r.outcomes) : [],
-       deliverables: r.deliverables ? JSON.parse(r.deliverables) : [],
-       resources: r.resources ? JSON.parse(r.resources) : [],
-       feedback_enabled: !!r.feedback_enabled
+    const programs = rows.map((r) => ({
+      ...r,
+      topics: r.topics ? JSON.parse(r.topics) : [],
+      outcomes: r.outcomes ? JSON.parse(r.outcomes) : [],
+      deliverables: r.deliverables ? JSON.parse(r.deliverables) : [],
+      resources: r.resources ? JSON.parse(r.resources) : [],
+      feedback_enabled: !!r.feedback_enabled,
     }));
 
     return NextResponse.json({ success: true, programs });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
 
@@ -81,50 +92,135 @@ export async function PUT(req) {
   try {
     await initDb();
     const data = await req.json();
-    
+
     if (!data.id) {
-       return NextResponse.json({ success: false, error: "Program ID is required for update." }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Program ID is required for update." },
+        { status: 400 },
+      );
     }
 
     const fieldsToUpdate = [];
     const args = [];
-    
+
     // Whitelist updatable fields
     const updatableColumns = [
-       'name', 'description', 'duration_weeks', 'duration_days', 
-       'topics', 'outcomes', 'deliverables', 'resources', 
-       'assigned_pm_id', 'manager_name', 'document_title', 'document_id', 
-       'feedback_enabled', 'status'
+      "name",
+      "description",
+      "duration_weeks",
+      "duration_days",
+      "topics",
+      "outcomes",
+      "deliverables",
+      "resources",
+      "assigned_pm_id",
+      "manager_name",
+      "document_title",
+      "document_id",
+      "feedback_enabled",
+      "status",
     ];
 
     for (const col of updatableColumns) {
-       if (data[col] !== undefined) {
-          fieldsToUpdate.push(`${col} = ?`);
-          
-          if (['topics', 'outcomes', 'deliverables', 'resources'].includes(col)) {
-             args.push(JSON.stringify(data[col] || []));
-          } else if (col === 'feedback_enabled') {
-             args.push(data[col] ? 1 : 0);
-          } else {
-             args.push(data[col]);
-          }
-       }
+      if (data[col] !== undefined) {
+        fieldsToUpdate.push(`${col} = ?`);
+
+        if (["topics", "outcomes", "deliverables", "resources"].includes(col)) {
+          args.push(JSON.stringify(data[col] || []));
+        } else if (col === "feedback_enabled") {
+          args.push(data[col] ? 1 : 0);
+        } else {
+          args.push(data[col]);
+        }
+      }
     }
 
     if (fieldsToUpdate.length === 0) {
-       return NextResponse.json({ success: true, message: "No fields to update." });
+      return NextResponse.json({
+        success: true,
+        message: "No fields to update.",
+      });
     }
 
     // Add ID for the WHERE clause
     args.push(data.id);
 
-    const match = await db.execute({
-       sql: `UPDATE v2_programs SET ${fieldsToUpdate.join(', ')} WHERE id = ?`,
-       args: args
+    await db.execute({
+      sql: `UPDATE v2_programs SET ${fieldsToUpdate.join(", ")} WHERE id = ?`,
+      args: args,
     });
 
-    return NextResponse.json({ success: true, rowsAffected: match.rowsAffected });
+    // ─── PERSIST GROUP-TO-PROGRAM LINKAGE ───
+    // assigned_segments is an array of family/group IDs to link to this program.
+    if (Array.isArray(data.assigned_segments)) {
+      const programId = data.id;
+      const programName = data.name;
+
+      // 1. Un-assign families no longer in the list
+      if (data.assigned_segments.length > 0) {
+        const placeholders = data.assigned_segments.map(() => "?").join(",");
+        await db.execute({
+          sql: `UPDATE families SET program_id = NULL WHERE program_id = ? AND id NOT IN (${placeholders})`,
+          args: [programId, ...data.assigned_segments],
+        });
+      } else {
+        await db.execute({
+          sql: `UPDATE families SET program_id = NULL WHERE program_id = ?`,
+          args: [programId],
+        });
+      }
+
+      // 2. Assign selected families
+      for (const familyId of data.assigned_segments) {
+        await db.execute({
+          sql: `UPDATE families SET program_id = ? WHERE id = ?`,
+          args: [programId, familyId],
+        });
+
+        // 3. Update contacts in this family
+        const familyRes = await db.execute({
+          sql: `SELECT name FROM families WHERE id = ?`,
+          args: [familyId],
+        });
+        const familyName = familyRes.rows[0]?.name;
+        if (familyName) {
+          await db.execute({
+            sql: `UPDATE contacts SET program_id = ?, program_name = ? WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))`,
+            args: [programId, programName || null, familyName],
+          });
+
+          // 4. Upsert into v2_participants
+          const contactsRes = await db.execute({
+            sql: `SELECT email, name, phone FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))`,
+            args: [familyName],
+          });
+          for (const contact of contactsRes.rows) {
+            const existing = await db.execute({
+              sql: `SELECT id FROM v2_participants WHERE email = ? AND program_id = ?`,
+              args: [contact.email, programId],
+            });
+            if (existing.rows.length > 0) {
+              await db.execute({
+                sql: `UPDATE v2_participants SET name = ?, phone = ? WHERE email = ? AND program_id = ?`,
+                args: [contact.name, contact.phone, contact.email, programId],
+              });
+            } else {
+              await db.execute({
+                sql: `INSERT INTO v2_participants (program_id, name, email, phone, screening_status)
+                      VALUES (?, ?, ?, ?, 'active')`,
+                args: [programId, contact.name, contact.email, contact.phone],
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 },
+    );
   }
 }
