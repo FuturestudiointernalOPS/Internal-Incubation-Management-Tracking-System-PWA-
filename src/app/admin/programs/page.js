@@ -173,9 +173,25 @@ export default function ProgramManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editingProgram),
       });
-      if ((await res.json()).success) {
+      const json = await res.json();
+      if (json.success) {
         setEditingProgram(null);
         fetchData();
+        // Fire success notification
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "success",
+              message: "Program saved successfully. Groups have been linked.",
+            },
+          }),
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "error", message: json.error || "Save failed." },
+          }),
+        );
       }
     } catch (e) {
       console.error("Update Failure:", e);
