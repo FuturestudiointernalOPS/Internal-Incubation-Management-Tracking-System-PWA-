@@ -105,7 +105,7 @@ export async function GET(req) {
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_deliverables WHERE program_id = ? ORDER BY week_number ASC",
+          sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
           args: [pid],
         }),
         db.execute({
