@@ -270,16 +270,65 @@ export async function PUT(req) {
         for (const segmentId of assigned_segments) {
           if (!segmentId) continue;
           const sid = !isNaN(segmentId) ? Number(segmentId) : null;
+          let familyName = "";
+
           if (sid !== null) {
             await db.execute({
               sql: "UPDATE families SET program_id = ? WHERE id = ?",
               args: [id, sid],
             });
+            const fRes = await db.execute({
+              sql: "SELECT name FROM families WHERE id = ?",
+              args: [sid],
+            });
+            if (fRes.rows && fRes.rows.length > 0) {
+              familyName = fRes.rows[0].name;
+            }
           } else {
             await db.execute({
               sql: "UPDATE families SET program_id = ? WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
               args: [id, segmentId],
             });
+            familyName = segmentId;
+          }
+
+          // 3. Update contacts and v2_participants with the new program assignment
+          if (familyName) {
+            // Update contacts
+            await db.execute({
+              sql: "UPDATE contacts SET program_id = ?, program_name = ? WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
+              args: [id, name, familyName],
+            });
+
+            // Upsert v2_participants using SELECT then INSERT/UPDATE pattern
+            const contactsRes = await db.execute({
+              sql: "SELECT name, email, phone FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
+              args: [familyName],
+            });
+
+            if (contactsRes.rows && contactsRes.rows.length > 0) {
+              for (const contact of contactsRes.rows) {
+                const { name: cName, email: cEmail, phone: cPhone } = contact;
+                if (!cEmail) continue;
+
+                const existRes = await db.execute({
+                  sql: "SELECT id FROM v2_participants WHERE email = ? AND program_id = ?",
+                  args: [cEmail, id],
+                });
+
+                if (existRes.rows && existRes.rows.length > 0) {
+                  await db.execute({
+                    sql: "UPDATE v2_participants SET name = ?, phone = ? WHERE id = ?",
+                    args: [cName, cPhone, existRes.rows[0].id],
+                  });
+                } else {
+                  await db.execute({
+                    sql: "INSERT INTO v2_participants (program_id, name, email, phone, screening_status, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+                    args: [id, cName, cEmail, cPhone, "pending"],
+                  });
+                }
+              }
+            }
           }
         }
       }
