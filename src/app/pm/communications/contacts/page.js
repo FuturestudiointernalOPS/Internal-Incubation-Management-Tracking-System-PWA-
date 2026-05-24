@@ -188,9 +188,12 @@ export default function PMCohortOutreach() {
     return `${window.location.origin}${isStaff ? "/terminal" : "/login"}`;
   };
 
-  const buildWelcomeMessage = (c, pass) => {
+  const buildWelcomeMessage = (c, pass, useEmoji = true) => {
     const portalUrl = getPortalUrl(c);
-    return `Welcome to ImpactOS, ${c.name}!\n\nYour account has been created. Use the credentials below to log in and access your dashboard.\n\n🔗 Login URL: ${portalUrl}\n📧 Email: ${c.email}\n🔑 Password: ${pass || "N/A"}\n\nFor security, please change your password after your first login.\n\nBest regards,\nThe ImpactOS Team`;
+    if (useEmoji) {
+      return `Welcome to ImpactOS, ${c.name}!\n\nYour account has been created. Use the credentials below to log in and access your dashboard.\n\n🔗 Login URL: ${portalUrl}\n📧 Email: ${c.email}\n🔑 Password: ${pass || "N/A"}\n\nFor security, please change your password after your first login.\n\nBest regards,\nThe ImpactOS Team`;
+    }
+    return `Welcome to ImpactOS, ${c.name}!\n\nYour account has been created. Use the credentials below to log in and access your dashboard.\n\nLogin URL: ${portalUrl}\nEmail: ${c.email}\nPassword: ${pass || "N/A"}\n\nFor security, please change your password after your first login.\n\nBest regards,\nThe ImpactOS Team`;
   };
 
   const copyWelcomeMessage = (c, pass) => {
@@ -203,8 +206,7 @@ export default function PMCohortOutreach() {
   const getCredsWhatsAppLink = (c, pass) => {
     const phone = c.phone?.replace(/[^0-9]/g, "");
     if (!phone) return "#";
-    const portalUrl = getPortalUrl(c);
-    const msg = `Hello ${c.name},\n\nYour ImpactOS account is ready.\n\nURL: ${portalUrl}\nUser: ${c.email}\nPass: ${pass || "N/A"}`;
+    const msg = buildWelcomeMessage(c, pass, false);
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   };
 
