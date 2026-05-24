@@ -12,10 +12,17 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const email = searchParams.get("email");
 
+    // Prevent service worker from serving stale cached empty responses
+    const headers = {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    };
+
     if (!email) {
       return NextResponse.json(
         { success: false, error: "Email required" },
-        { status: 400 },
+        { status: 400, headers },
       );
     }
 
@@ -28,7 +35,7 @@ export async function GET(req) {
     if (userRes.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Participant not found" },
-        { status: 404 },
+        { status: 404, headers },
       );
     }
 
@@ -152,17 +159,20 @@ export async function GET(req) {
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      programs,
-      count: programs.length,
-      contact,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        programs,
+        count: programs.length,
+        contact,
+      },
+      { headers },
+    );
   } catch (error) {
     console.error("Participant Programs Error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 },
+      { status: 500, headers },
     );
   }
 }
