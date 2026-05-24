@@ -74,8 +74,14 @@ export default function ParticipantV2Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-    fetchKnowledgeNotes();
   }, []);
+
+  useEffect(() => {
+    // Fetch knowledge notes once program data is available
+    if (program?.note_id) {
+      fetchKnowledgeNotes();
+    }
+  }, [program?.note_id]);
 
   const fetchKnowledgeNotes = async () => {
     try {
@@ -83,12 +89,10 @@ export default function ParticipantV2Dashboard() {
       const data = await res.json();
       if (data.success) {
         const notes = data.conceptNotes || [];
-        // Filter notes assigned to this program if program has a note_id
-        const filtered = program?.note_id
-          ? notes.filter(
-              (n) => n.id === program.note_id || n.program_id === program.id,
-            )
-          : notes;
+        // Only show the knowledge base item explicitly linked to this program via note_id
+        const filtered = notes.filter(
+          (n) => String(n.id) === String(program.note_id),
+        );
         setKnowledgeNotes(filtered);
       }
     } catch (e) {
@@ -213,6 +217,7 @@ export default function ParticipantV2Dashboard() {
       if (!weekMap.has(wn)) {
         weekMap.set(wn, {
           number: wn,
+          title: s.title || `Week ${wn}`,
           sessions: [],
           deliverables: [],
           locked: false,
@@ -223,12 +228,21 @@ export default function ParticipantV2Dashboard() {
       weekMap.get(wn).sessions.push(s);
     });
 
+    // If a week has sessions, use the first session's title as the week title
+    weekMap.forEach((week) => {
+      if (week.sessions.length > 0) {
+        // Use the most descriptive title — prefer the session title
+        week.title = week.sessions[0].title;
+      }
+    });
+
     // Add deliverables to weeks
     allDels.forEach((d) => {
       const wn = d.week_number || 1;
       if (!weekMap.has(wn)) {
         weekMap.set(wn, {
           number: wn,
+          title: d.title || `Week ${wn}`,
           sessions: [],
           deliverables: [],
           locked: false,
@@ -630,16 +644,14 @@ export default function ParticipantV2Dashboard() {
                                   : "text-white"
                             }`}
                           >
-                            Week {week.number}
+                            {week.title}
                           </p>
                           <p className="text-[9px] text-slate-500 font-semibold truncate">
-                            {week.sessions.length > 0
-                              ? week.sessions
-                                  .map((s) => s.type || "Session")
-                                  .join(", ")
-                              : week.deliverables.length > 0
-                                ? `${week.deliverables.length} deliverable(s)`
-                                : "No activities"}
+                            Week {week.number}
+                            {week.sessions.length > 0 &&
+                              ` · ${week.sessions.map((s) => s.type || "Session").join(", ")}`}
+                            {week.deliverables.length > 0 &&
+                              ` · ${week.deliverables.length} deliverable(s)`}
                           </p>
                         </div>
                       </div>
