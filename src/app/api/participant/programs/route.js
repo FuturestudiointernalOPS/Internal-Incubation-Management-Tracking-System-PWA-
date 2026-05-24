@@ -37,7 +37,8 @@ export async function GET(req) {
 
     // 2. Find all program IDs this participant is linked to
     //    - Via contacts.program_id (direct enrollment)
-    //    - Via contacts.group_name matching v2_programs.name
+    //    - Via contacts.group_name matching families.name → families.program_id
+    //    - Via contacts.group_name matching v2_programs.name (direct match)
     //    - Via v2_participants table (legacy enrollment)
     const programIds = new Set();
 
@@ -50,8 +51,15 @@ export async function GET(req) {
         .forEach((id) => programIds.add(id));
     }
 
-    // Also check group_name matching program name
+    // Check group_name via families table (group → program link)
     if (contact.group_name) {
+      const familyRes = await db.execute({
+        sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
+        args: [contact.group_name],
+      });
+      familyRes.rows.forEach((r) => programIds.add(r.program_id));
+
+      // Also check direct program name match (legacy)
       const groupRes = await db.execute({
         sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
         args: [contact.group_name],
@@ -105,7 +113,9 @@ export async function GET(req) {
       const currentWeek = program.duration_weeks
         ? Math.min(
             Math.max(
-              ...sessions.filter((s) => s.status !== "locked").map((s) => s.week_number || 1),
+              ...sessions
+                .filter((s) => s.status !== "locked")
+                .map((s) => s.week_number || 1),
               1,
             ),
             program.duration_weeks,

@@ -371,12 +371,6 @@ const NAVIGATION_MATRIX = {
       icon: FileText,
       href: "/participant/dashboard",
     },
-    {
-      id: "profile",
-      name: "PROFILE",
-      icon: User,
-      href: "/participant/profile",
-    },
   ],
 };
 

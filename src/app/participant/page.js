@@ -323,6 +323,37 @@ export default function ParticipantV2Dashboard() {
 
   const currentWeek = metrics.currentWeek || 1;
 
+  // Show empty state when no programs are found
+  if (!isLoading && programs.length === 0) {
+    return (
+      <DashboardLayout role="participant" activeTab="v2">
+        <div className="max-w-lg mx-auto mt-20 text-center space-y-6">
+          <div className="w-20 h-20 rounded-full bg-[#FF6600]/10 flex items-center justify-center mx-auto">
+            <BookOpen className="w-10 h-10 text-[#FF6600]" />
+          </div>
+          <h2 className="text-2xl font-black text-white uppercase tracking-tight">
+            No Programs Found
+          </h2>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            You are not currently enrolled in any active programs. Please
+            contact your Program Manager or Super Admin to get assigned to a
+            cohort.
+          </p>
+          <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 text-left space-y-3">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              How to get enrolled:
+            </p>
+            <ol className="text-xs text-slate-400 space-y-2 list-decimal list-inside">
+              <li>Your Admin assigns you to a group/cohort</li>
+              <li>That group is linked to an active program</li>
+              <li>Once linked, your dashboard will appear here</li>
+            </ol>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout role="participant" activeTab="v2">
       <div className="max-w-6xl mx-auto space-y-8 pb-16">
