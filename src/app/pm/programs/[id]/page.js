@@ -596,16 +596,22 @@ export default function ProgramWorkspace() {
     }
   };
 
+  const [showArchivedSessions, setShowArchivedSessions] = useState(false);
+
   const deleteSession = async (sessionId) => {
-    if (!confirm("Decommission this node and all associated requirements?"))
-      return;
+    if (!confirm("Archive this session? It can be restored later.")) return;
     try {
       await fetch("/api/pm/curriculum", {
-        method: "DELETE",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: sessionId, type: "session" }),
+        body: JSON.stringify({
+          action: "toggle_status",
+          program_id: id,
+          id: sessionId,
+          status: "archived",
+        }),
       });
-      notify("Session removed.");
+      notify("Session archived.");
       fetchProgramData(true);
     } catch (e) {}
   };
@@ -1187,14 +1193,25 @@ export default function ProgramWorkspace() {
 
           {activeTab === "curriculum" && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center flex-wrap gap-2">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
                   Strategic Curriculum
                 </h3>
-                {canEdit && (
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => {
-                      const nextWK =
+                    onClick={() => setShowArchivedSessions((p) => !p)}
+                    className={`text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${
+                      showArchivedSessions
+                        ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                        : "bg-transparent border-white/10 text-slate-600 hover:text-slate-400"
+                    }`}
+                  >
+                    {showArchivedSessions ? "Showing Archived" : "Archived"}
+                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => {
+                        const nextWK =
                         sessions.length > 0
                           ? Math.max(
                               ...sessions.map((s) => s.week_number || 0),
@@ -1222,9 +1239,11 @@ export default function ProgramWorkspace() {
                 )}
               </div>
               <div className="grid grid-cols-1 gap-4">
-                {sessions.map((session) => (
-                  <div
-                    key={session.id}
+                {(sessions || [])
+                  .filter((s) => showArchivedSessions || s.status !== "archived")
+                  .map((session) => (
+                                    <div
+                                      key={session.id}
                     className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-[var(--bg-secondary)] group mb-4"
                   >
                     {/* STEP 0: THE HEADER (GLOBAL STATE) — click to toggle */}
