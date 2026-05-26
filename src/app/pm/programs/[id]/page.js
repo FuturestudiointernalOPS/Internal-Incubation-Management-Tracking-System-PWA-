@@ -728,13 +728,12 @@ export default function ProgramWorkspace() {
 
           {(user.role === "super_admin" || user.role === "program_manager") && (
             <div className="flex gap-3">
-              <button className="btn btn-secondary gap-2">
+              <button
+                onClick={() => setActiveTab("config")}
+                className="btn btn-secondary gap-2"
+              >
                 <Shield className="w-4 h-4" />
-                Settings
-              </button>
-              <button className="btn btn-primary gap-2">
-                <Plus className="w-4 h-4" />
-                Deploy Node
+                Config
               </button>
             </div>
           )}
