@@ -317,11 +317,17 @@ export default function ProgramManagement() {
         </header>
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex gap-2 p-1 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
+          <div className="flex gap-1 p-1 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] flex-wrap">
             {[
-              { id: "active", label: "All Programs" },
-              { id: "completed", label: "Completed Programs" },
-              { id: "archived", label: "Archived" },
+              {
+                id: "active",
+                label: "All Programs",
+                color: "var(--brand-orange)",
+              },
+              { id: "in_progress", label: "In Progress", color: "#22c55e" },
+              { id: "pending", label: "Pending", color: "#a855f7" },
+              { id: "completed", label: "Completed", color: "#3b82f6" },
+              { id: "archived", label: "Archived", color: "#64748b" },
             ].map((tab) => (
               <button
                 key={tab.id}
