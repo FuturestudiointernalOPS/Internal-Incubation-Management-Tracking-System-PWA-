@@ -30,7 +30,7 @@ import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const SUB_TABS = [
-  { id: "topics", label: "Topics", icon: Calendar },
+  { id: "course", label: "Course", icon: Calendar },
   { id: "course-material", label: "Course Material", icon: BookOpen },
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "progress", label: "Progress", icon: Activity },
@@ -44,7 +44,7 @@ export default function ParticipantProjectDetail({ params }) {
   const [program, setProgram] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("topics");
+  const [activeTab, setActiveTab] = useState("course");
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [knowledgeNotes, setKnowledgeNotes] = useState([]);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -324,9 +324,9 @@ export default function ParticipantProjectDetail({ params }) {
         </div>
 
         {/* ════════════════════════════════════════════════════
-           TAB: TOPICS
+           TAB: COURSE
            ════════════════════════════════════════════════════ */}
-        {activeTab === "topics" && (
+        {activeTab === "course" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* LEFT: Week calendar */}
             <div className="lg:col-span-1 space-y-4">
