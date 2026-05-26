@@ -419,28 +419,43 @@ export default function ProgramWorkspace() {
   };
 
   const submitPMReport = async () => {
-    if (!newPMReport.summary.trim()) return;
+    const reportContent =
+      pmReportAttachments.type === "text"
+        ? newPMReport.summary
+        : pmReportAttachments.content;
+    if (!reportContent.trim()) return;
     setIsSaving(true);
     try {
+      const body = {
+        action: "submit_pm_report",
+        program_id: id,
+        session_id: selectedSessionId,
+        week_number: sessions.find((s) => s.id === selectedSessionId)
+          ?.week_number,
+        summary: reportContent,
+        status: newPMReport.status,
+        pm_id: user.cid || user.id,
+        attachment_type: pmReportAttachments.type,
+        attachment_url:
+          pmReportAttachments.type === "link"
+            ? pmReportAttachments.content
+            : null,
+        attachment_file:
+          pmReportAttachments.type === "upload"
+            ? pmReportAttachments.content
+            : null,
+      };
       const res = await fetch("/api/pm/curriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "submit_pm_report",
-          program_id: id,
-          session_id: selectedSessionId,
-          week_number: sessions.find((s) => s.id === selectedSessionId)
-            ?.week_number,
-          summary: newPMReport.summary,
-          status: newPMReport.status,
-          pm_id: user.cid || user.id,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.success) {
         notify("Weekly report transmitted.");
         setShowPMReportModal(false);
         setNewPMReport({ summary: "", status: "optimal" });
+        setPmReportAttachments({ type: "text", content: "" });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
     } catch (e) {
@@ -1239,6 +1254,20 @@ export default function ProgramWorkspace() {
                         className="flex items-center gap-3"
                         onClick={(e) => e.stopPropagation()}
                       >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedSessionId(session.id);
+                            setSelectedSessionForAttendance(session);
+                            setShowAttendanceModal(true);
+                          }}
+                          className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-indigo-500/20 text-indigo-500 hover:bg-indigo-500/5 transition-all"
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          <span className="text-[9px] font-black uppercase italic tracking-wider">
+                            Attendance
+                          </span>
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -2949,6 +2978,128 @@ export default function ProgramWorkspace() {
         </div>
       )}
 
+      {/* ATTENDANCE MODAL */}
+      {showAttendanceModal && selectedSessionForAttendance && (
+        <div
+          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+          onClick={() => setShowAttendanceModal(false)}
+        >
+          <div
+            className="card w-full max-w-2xl space-y-6 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center">
+              <h3
+                className="text-base font-black uppercase tracking-tight"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Attendance — {selectedSessionForAttendance.title}
+              </h3>
+              <button onClick={() => setShowAttendanceModal(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {participants.map((p) => {
+                const status = attendanceRecords[p.id] || "present";
+                return (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black uppercase">
+                        {p.name?.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-[var(--text-primary)]">
+                          {p.name}
+                        </p>
+                        <p className="text-[9px] text-[var(--text-secondary)]">
+                          {p.email}
+                        </p>
+                      </div>
+                    </div>
+                    <select
+                      value={status}
+                      onChange={(e) =>
+                        setAttendanceRecords((prev) => ({
+                          ...prev,
+                          [p.id]: e.target.value,
+                        }))
+                      }
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${
+                        status === "present"
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                          : status === "absent"
+                            ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                            : status === "excused"
+                              ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                              : "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                      }`}
+                    >
+                      <option value="present">Present</option>
+                      <option value="absent">Absent</option>
+                      <option value="excused">Excused</option>
+                      <option value="late">Late</option>
+                    </select>
+                  </div>
+                );
+              })}
+              {participants.length === 0 && (
+                <p className="text-center text-[var(--text-secondary)] italic py-8">
+                  No participants enrolled in this program.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAttendanceModal(false)}
+                className="flex-1 btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!selectedSessionForAttendance) return;
+                  setIsSaving(true);
+                  try {
+                    const today = new Date().toISOString().split("T")[0];
+                    for (const p of participants) {
+                      const status = attendanceRecords[p.id] || "present";
+                      await fetch("/api/attendance", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          session_id: selectedSessionForAttendance.id,
+                          program_id: id,
+                          participant_id: p.id,
+                          status,
+                          date: today,
+                        }),
+                      });
+                    }
+                    notify("Attendance recorded.");
+                    setShowAttendanceModal(false);
+                    setAttendanceRecords({});
+                  } catch (e) {
+                    notify("Failed to save attendance.", "error");
+                  } finally {
+                    setIsSaving(false);
+                  }
+                }}
+                disabled={isSaving}
+                className="flex-1 btn btn-primary"
+              >
+                {isSaving ? "Saving..." : "Save Attendance"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PM WEEKLY REPORT MODAL */}
       {showPMReportModal && (
         <div
@@ -2971,22 +3122,91 @@ export default function ProgramWorkspace() {
               </button>
             </div>
             <div className="space-y-4">
-              <div className="space-y-1">
+              {/* Attachment type selector */}
+              <div className="flex gap-1 bg-[var(--bg-primary)] rounded-lg p-1 border border-[var(--border-primary)] w-fit">
+                {[
+                  { id: "text", label: "Text", icon: FileText },
+                  { id: "link", label: "Link", icon: Plus },
+                  { id: "upload", label: "File", icon: Paperclip },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() =>
+                      setPmReportAttachments({ type: opt.id, content: "" })
+                    }
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                      pmReportAttachments.type === opt.id
+                        ? "bg-[var(--brand-orange)] text-black"
+                        : "text-slate-500 hover:text-white"
+                    }`}
+                  >
+                    <opt.icon className="w-3 h-3" />
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-2">
                 <label
                   className="text-[10px] font-black uppercase tracking-widest"
                   style={{ color: "var(--text-secondary)" }}
                 >
-                  Project Status Summary
+                  {pmReportAttachments.type === "text"
+                    ? "Weekly Summary"
+                    : pmReportAttachments.type === "link"
+                      ? "External Link"
+                      : "Uploaded File"}
                 </label>
-                <textarea
-                  value={newPMReport.summary}
-                  onChange={(e) =>
-                    setNewPMReport((p) => ({ ...p, summary: e.target.value }))
-                  }
-                  rows="5"
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]"
-                  placeholder="How did this week's topic go? Any tactical successes or blockers?"
-                />
+                {pmReportAttachments.type === "text" && (
+                  <textarea
+                    value={newPMReport.summary}
+                    onChange={(e) =>
+                      setNewPMReport((p) => ({ ...p, summary: e.target.value }))
+                    }
+                    rows="5"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]"
+                    placeholder="How did this week's topic go? Any tactical successes or blockers?"
+                  />
+                )}
+                {pmReportAttachments.type === "link" && (
+                  <input
+                    type="url"
+                    value={pmReportAttachments.content}
+                    onChange={(e) =>
+                      setPmReportAttachments({
+                        type: "link",
+                        content: e.target.value,
+                      })
+                    }
+                    placeholder="https://docs.google.com/..."
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]"
+                  />
+                )}
+                {pmReportAttachments.type === "upload" && (
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file)
+                          setPmReportAttachments({
+                            type: "upload",
+                            content: file.name,
+                          });
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[var(--border-primary)] rounded-lg hover:border-[var(--brand-orange)] transition-all">
+                      <Paperclip className="w-6 h-6 text-slate-500 mb-2" />
+                      <p className="text-[10px] font-bold text-slate-500">
+                        {pmReportAttachments.content ||
+                          "Click to attach PDF, DOC, or DOCX"}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <label
@@ -3059,7 +3279,14 @@ export default function ProgramWorkspace() {
               </button>
               <button
                 onClick={submitPMReport}
-                disabled={isSaving || !newPMReport.summary.trim()}
+                disabled={
+                  isSaving ||
+                  !(
+                    (pmReportAttachments.type === "text"
+                      ? newPMReport.summary
+                      : pmReportAttachments.content) || ""
+                  ).trim()
+                }
                 className="flex-1 btn btn-primary"
               >
                 {isSaving ? "Transmitting..." : "Submit to Super Admin"}
