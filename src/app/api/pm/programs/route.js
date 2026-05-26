@@ -54,10 +54,10 @@ export async function GET(req) {
     }
 
     // 2. Fetch Aggregate Metrics (Grouped)
-    const [sessions, participants, docs, reports, segments] = await Promise.all(
-      [
+    const [sessions, participants, docs, reports, segments, submissions] =
+      await Promise.all([
         db.execute(
-          "SELECT program_id, COUNT(*) as count, COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed FROM v2_sessions GROUP BY program_id",
+          "SELECT program_id, COUNT(*) as count, COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed FROM v2_sessions WHERE status != 'archived' GROUP BY program_id",
         ),
         db.execute(
           "SELECT program_id, COUNT(*) as count FROM v2_participants GROUP BY program_id",
@@ -71,8 +71,10 @@ export async function GET(req) {
         db.execute(
           "SELECT id, program_id FROM families WHERE program_id IS NOT NULL",
         ),
-      ],
-    );
+        db.execute(
+          "SELECT program_id, COUNT(*) as total, COUNT(CASE WHEN status = 'approved' OR status = 'completed' THEN 1 END) as approved FROM v2_submissions GROUP BY program_id",
+        ),
+      ]);
 
     // Map metrics for O(1) lookup
     const metrics = {
@@ -89,6 +91,9 @@ export async function GET(req) {
         acc[r.program_id].push(r.id);
         return acc;
       }, {}),
+      submissions: Object.fromEntries(
+        submissions.rows.map((r) => [r.program_id, r]),
+      ),
     };
 
     // 3. Assemble Final Data
@@ -96,18 +101,23 @@ export async function GET(req) {
       const s = metrics.sessions[p.id] || { count: 0, completed: 0 };
       const d = metrics.docs[p.id] || { count: 0, completed: 0 };
       const r_weeks = metrics.reports[p.id] || 0;
+      const sub = metrics.submissions[p.id] || { total: 0, approved: 0 };
 
       // Calculate Completion Index in JS to offload DB
       const sessionsWeight = s.completed * 5.0;
       const docsWeight = d.completed * 2.0;
       const reportsWeight = r_weeks * 10.0;
+      const submissionsWeight = sub.approved * 3.0;
 
       const duration = Number(p.duration_weeks) || 4;
       const totalPossibleWeight =
-        s.count * 5.0 + d.count * 2.0 + duration * 10.0;
+        s.count * 5.0 +
+        d.count * 2.0 +
+        duration * 10.0 +
+        d.count * Number(p.participants_count || 1) * 3.0;
       const completion_index =
         totalPossibleWeight > 0
-          ? ((sessionsWeight + docsWeight + reportsWeight) /
+          ? ((sessionsWeight + docsWeight + reportsWeight + submissionsWeight) /
               totalPossibleWeight) *
             100
           : 0;
@@ -121,6 +131,8 @@ export async function GET(req) {
         reports_count: r_weeks,
         completion_index: Math.round(completion_index),
         assigned_segments: metrics.segments[p.id] || [],
+        submissions_total: sub.total,
+        submissions_approved: sub.approved,
       };
     });
 
