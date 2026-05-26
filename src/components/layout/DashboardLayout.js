@@ -272,27 +272,9 @@ const NAVIGATION_MATRIX = {
     },
     {
       id: "progress_hub",
-      name: "PROGRESS",
+      name: "PROGRESS HUB",
       icon: Activity,
       href: "/pm/progress",
-    },
-    { id: "knowledge", name: "KNOWLEDGE", icon: Library, href: "#" },
-    {
-      id: "reports",
-      name: "REPORTS",
-      icon: BarChart3,
-      subItems: [
-        {
-          id: "legacy_reports",
-          name: "PROGRAM REPORTS",
-          href: "/admin/reports",
-        },
-        {
-          id: "enhanced_reports",
-          name: "ENHANCED (WIP)",
-          href: "/v2/teacher/reports-v2",
-        },
-      ],
     },
   ],
   staff: [
