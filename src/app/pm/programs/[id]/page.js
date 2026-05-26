@@ -152,8 +152,23 @@ export default function ProgramWorkspace() {
     week_number: 1,
     status: "pending",
     kpi_ids: [],
-    handler_id: "",
-    handler_name: "",
+    handler_ids: [],
+    handler_names: [],
+    scheduled_date: "",
+    start_time: "",
+    end_time: "",
+    notes: "",
+    extra_materials: [],
+  });
+
+  const [newSessionMaterial, setNewSessionMaterial] = useState({
+    type: "text",
+    content: "",
+    name: "",
+  });
+  const [newRequirementLink, setNewRequirementLink] = useState({
+    type: "text",
+    content: "",
   });
   const [newRequirement, setNewRequirement] = useState({
     title: "",
@@ -305,15 +320,33 @@ export default function ProgramWorkspace() {
           title: newSession.title,
           week_number: newSession.week_number,
           status: newSession.status,
-          handler_id: newSession.handler_id || null,
-          handler_name: newSession.handler_name || null,
+          handler_id: (newSession.handler_ids || []).join(","),
+          handler_name: (newSession.handler_names || []).join(", "),
           kpi_ids: newSession.kpi_ids || [],
+          scheduled_date: newSession.scheduled_date || null,
+          start_time: newSession.start_time || null,
+          end_time: newSession.end_time || null,
+          notes: newSession.notes || null,
+          extra_materials: newSession.extra_materials || [],
         }),
       });
       const data = await res.json();
       if (data.success) {
         notify("Session added.");
         setShowSessionModal(false);
+        setNewSession({
+          title: "",
+          week_number: maxWeek,
+          status: "pending",
+          kpi_ids: [],
+          handler_ids: [],
+          handler_names: [],
+          scheduled_date: "",
+          start_time: "",
+          end_time: "",
+          notes: "",
+          extra_materials: [],
+        });
         fetchProgramData(true);
       } else notify(data.error || "Add failed.", "error");
     } catch (e) {
@@ -1171,8 +1204,14 @@ export default function ProgramWorkspace() {
                         title: "",
                         week_number: nextWK,
                         status: "pending",
-                        handler_id: "",
-                        handler_name: "",
+                        kpi_ids: [],
+                        handler_ids: [],
+                        handler_names: [],
+                        scheduled_date: "",
+                        start_time: "",
+                        end_time: "",
+                        notes: "",
+                        extra_materials: [],
                       });
                       setShowSessionModal(true);
                     }}
@@ -1223,7 +1262,31 @@ export default function ProgramWorkspace() {
                             <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
                               State: {session.status}
                             </span>
+                            {session.scheduled_date && (
+                              <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-2">
+                                📅{" "}
+                                {new Date(
+                                  session.scheduled_date,
+                                ).toLocaleDateString()}
+                              </span>
+                            )}
+                            {session.notes && (
+                              <span
+                                className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-2"
+                                title={session.notes}
+                              >
+                                📌 Notes
+                              </span>
+                            )}
                           </div>
+                          {session.handler_name && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Users className="w-3 h-3 text-slate-500" />
+                              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                                {session.handler_name}
+                              </span>
+                            </div>
+                          )}
                           <div className="flex flex-wrap gap-2 mt-3">
                             {(() => {
                               try {
@@ -2482,16 +2545,34 @@ export default function ProgramWorkspace() {
                   className="text-[10px] font-black uppercase tracking-widest"
                   style={{ color: "var(--text-secondary)" }}
                 >
-                  Week Number
+                  Week Number (Auto)
+                </label>
+                <div
+                  className="w-full rounded-lg px-4 py-3 text-sm font-bold opacity-60"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-primary)",
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  Week {newSession.week_number}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label
+                  className="text-[10px] font-black uppercase tracking-widest"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Session Date
                 </label>
                 <input
-                  type="number"
-                  min="1"
-                  value={newSession.week_number}
+                  type="date"
+                  value={newSession.scheduled_date}
                   onChange={(e) =>
                     setNewSession((p) => ({
                       ...p,
-                      week_number: parseInt(e.target.value) || 1,
+                      scheduled_date: e.target.value,
                     }))
                   }
                   className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -2502,39 +2583,314 @@ export default function ProgramWorkspace() {
                   }}
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Start Time (Optional)
+                  </label>
+                  <input
+                    type="time"
+                    value={newSession.start_time}
+                    onChange={(e) =>
+                      setNewSession((p) => ({
+                        ...p,
+                        start_time: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    End Time (Optional)
+                  </label>
+                  <input
+                    type="time"
+                    value={newSession.end_time}
+                    onChange={(e) =>
+                      setNewSession((p) => ({
+                        ...p,
+                        end_time: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <label
                   className="text-[10px] font-black uppercase tracking-widest"
                   style={{ color: "var(--text-secondary)" }}
                 >
-                  Assign Teacher (Program Team)
+                  Assign Teachers (click to toggle)
                 </label>
-                <select
-                  value={newSession.handler_id}
-                  onChange={(e) => {
-                    const staff = programTeamMembers.find(
-                      (s) => String(s.cid) === e.target.value,
+                <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto p-1 custom-scrollbar">
+                  {programTeamMembers.map((staff) => {
+                    const isSelected = (newSession.handler_ids || []).includes(
+                      String(staff.cid),
                     );
+                    return (
+                      <button
+                        key={staff.cid}
+                        type="button"
+                        onClick={() => {
+                          const ids = newSession.handler_ids || [];
+                          const names = newSession.handler_names || [];
+                          const cidStr = String(staff.cid);
+                          if (ids.includes(cidStr)) {
+                            const idx = ids.indexOf(cidStr);
+                            setNewSession((p) => ({
+                              ...p,
+                              handler_ids: ids.filter((id) => id !== cidStr),
+                              handler_names: names.filter((_, i) => i !== idx),
+                            }));
+                          } else {
+                            setNewSession((p) => ({
+                              ...p,
+                              handler_ids: [...ids, cidStr],
+                              handler_names: [...names, staff.name],
+                            }));
+                          }
+                        }}
+                        className={`flex items-center gap-2 p-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all text-left ${
+                          isSelected
+                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
+                            : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
+                        }`}
+                      >
+                        <div className="w-5 h-5 rounded-full bg-[var(--bg-primary)] flex items-center justify-center text-[7px]">
+                          {staff.name?.charAt(0)}
+                        </div>
+                        <span className="truncate">{staff.name}</span>
+                      </button>
+                    );
+                  })}
+                  {programTeamMembers.length === 0 && (
+                    <p className="text-[10px] text-slate-600 italic col-span-full px-2">
+                      No staff assigned. Add them in the Participants tab.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label
+                  className="text-[10px] font-black uppercase tracking-widest"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Session Notes (shown to participants)
+                </label>
+                <textarea
+                  value={newSession.notes}
+                  onChange={(e) =>
                     setNewSession((p) => ({
                       ...p,
-                      handler_id: e.target.value,
-                      handler_name: staff?.name || "",
-                    }));
-                  }}
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      notes: e.target.value,
+                    }))
+                  }
+                  rows={3}
+                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold resize-none"
                   style={{
                     background: "var(--bg-primary)",
                     border: "1px solid var(--border-primary)",
                     color: "var(--text-primary)",
                   }}
+                  placeholder="e.g. Please review Chapter 3 before class..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  className="text-[10px] font-black uppercase tracking-widest"
+                  style={{ color: "var(--text-secondary)" }}
                 >
-                  <option value="">Select Teacher...</option>
-                  {programTeamMembers.map((s) => (
-                    <option key={s.cid} value={s.cid}>
-                      {s.name} ({s.role})
-                    </option>
+                  Extra Course Materials
+                </label>
+                {/* Material type selector */}
+                <div className="flex gap-1 bg-[var(--bg-primary)] rounded-lg p-1 border border-[var(--border-primary)] w-fit">
+                  {[
+                    { id: "text", label: "Text", icon: FileText },
+                    { id: "link", label: "Link", icon: Plus },
+                    { id: "upload", label: "File", icon: Paperclip },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() =>
+                        setNewSessionMaterial({
+                          type: opt.id,
+                          content: "",
+                          name: "",
+                        })
+                      }
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
+                        newSessionMaterial.type === opt.id
+                          ? "bg-[var(--brand-orange)] text-black"
+                          : "text-slate-500 hover:text-white"
+                      }`}
+                    >
+                      <opt.icon className="w-3 h-3" />
+                      {opt.label}
+                    </button>
                   ))}
-                </select>
+                </div>
+
+                {/* Material input */}
+                <div className="flex gap-2">
+                  {newSessionMaterial.type === "text" && (
+                    <input
+                      value={newSessionMaterial.content}
+                      onChange={(e) =>
+                        setNewSessionMaterial((p) => ({
+                          ...p,
+                          content: e.target.value,
+                          name: "Text Note",
+                        }))
+                      }
+                      placeholder="Enter a text note or instruction..."
+                      className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  )}
+                  {newSessionMaterial.type === "link" && (
+                    <input
+                      type="url"
+                      value={newSessionMaterial.content}
+                      onChange={(e) =>
+                        setNewSessionMaterial((p) => ({
+                          ...p,
+                          content: e.target.value,
+                          name:
+                            e.target.value.split("/").pop() || "External Link",
+                        }))
+                      }
+                      placeholder="https://..."
+                      className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  )}
+                  {newSessionMaterial.type === "upload" && (
+                    <div className="flex-1 relative group">
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file)
+                            setNewSessionMaterial((p) => ({
+                              ...p,
+                              content: file.name,
+                              name: file.name,
+                            }));
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                      />
+                      <div
+                        className="flex items-center gap-2 px-4 py-3 rounded-lg border border-dashed text-sm font-bold"
+                        style={{
+                          background: "var(--bg-primary)",
+                          borderColor: "var(--border-primary)",
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        <Paperclip className="w-4 h-4" />
+                        {newSessionMaterial.content || "Click to attach"}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newSessionMaterial.content.trim()) return;
+                      setNewSession((p) => ({
+                        ...p,
+                        extra_materials: [
+                          ...(p.extra_materials || []),
+                          { ...newSessionMaterial },
+                        ],
+                      }));
+                      setNewSessionMaterial({
+                        type: "text",
+                        content: "",
+                        name: "",
+                      });
+                    }}
+                    className="px-4 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {/* Added materials list */}
+                {(newSession.extra_materials || []).length > 0 && (
+                  <div className="space-y-1.5 mt-2">
+                    {(newSession.extra_materials || []).map((mat, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2 rounded-lg"
+                        style={{
+                          background: "var(--bg-tertiary)",
+                          border: "1px solid var(--border-primary)",
+                        }}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {mat.type === "text" && (
+                            <FileText className="w-3 h-3 text-blue-500 shrink-0" />
+                          )}
+                          {mat.type === "link" && (
+                            <Plus className="w-3 h-3 text-emerald-500 shrink-0" />
+                          )}
+                          {mat.type === "upload" && (
+                            <Paperclip className="w-3 h-3 text-[#FF6600] shrink-0" />
+                          )}
+                          <span className="text-[10px] font-bold truncate text-[var(--text-primary)]">
+                            {mat.name || mat.content}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewSession((p) => ({
+                              ...p,
+                              extra_materials: (p.extra_materials || []).filter(
+                                (_, i) => i !== idx,
+                              ),
+                            }))
+                          }
+                          className="text-rose-500 hover:scale-110 transition-all shrink-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
