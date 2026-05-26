@@ -2504,7 +2504,7 @@ export default function ProgramWorkspace() {
           onClick={() => setShowSessionModal(false)}
         >
           <div
-            className="card w-full max-w-sm space-y-6"
+            className="card w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center">
