@@ -360,16 +360,16 @@ const NAVIGATION_MATRIX = {
   ],
   participant: [
     {
-      id: "dashboard",
-      name: "DASHBOARD",
+      id: "projects",
+      name: "PROJECTS",
       icon: Briefcase,
       href: "/participant",
     },
     {
-      id: "tasks",
-      name: "MY TASKS",
-      icon: FileText,
-      href: "/participant/dashboard",
+      id: "profile",
+      name: "PROFILE",
+      icon: User,
+      href: "/participant/profile",
     },
   ],
 };
