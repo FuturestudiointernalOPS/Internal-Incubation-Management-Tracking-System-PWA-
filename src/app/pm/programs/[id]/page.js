@@ -743,6 +743,8 @@ export default function ProgramWorkspace() {
   const canEdit =
     user.role === "super_admin" || user.role === "program_manager";
 
+  // curriculum content moved inline below
+
   return (
     <DashboardLayout role={user.role || "program_manager"}>
       <div className="space-y-8 animate-in">
@@ -1191,7 +1193,8 @@ export default function ProgramWorkspace() {
             </div>
           )}
 
-          {activeTab === "curriculum" && <div className="space-y-6">
+          {activeTab === "curriculum" && (
+            <div className="space-y-6">
               <div className="flex justify-between items-center flex-wrap gap-2">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
                   Strategic Curriculum
@@ -1211,525 +1214,536 @@ export default function ProgramWorkspace() {
                     <button
                       onClick={() => {
                         const nextWK =
-                        sessions.length > 0
-                          ? Math.max(
-                              ...sessions.map((s) => s.week_number || 0),
-                            ) + 1
-                          : 1;
-                      setNewSession({
-                        title: "",
-                        week_number: nextWK,
-                        status: "pending",
-                        kpi_ids: [],
-                        handler_ids: [],
-                        handler_names: [],
-                        scheduled_date: "",
-                        start_time: "",
-                        end_time: "",
-                        notes: "",
-                        extra_materials: [],
-                      });
-                      setShowSessionModal(true);
-                    }}
-                    className="btn btn-primary btn-sm gap-2"
-                  >
-                    <Plus className="w-4 h-4" /> Add Session
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 gap-4">
-                {(sessions || [])
-                  .filter((s) => showArchivedSessions || s.status !== "archived")
-                  .map((session) => (
-                                    <div
-                                      key={session.id}
-                    className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-[var(--bg-secondary)] group mb-4"
-                  >
-                    {/* STEP 0: THE HEADER (GLOBAL STATE) — click to toggle */}
-                    <div
-                      onClick={() =>
-                        setExpandedSessionId(
-                          expandedSessionId === session.id ? null : session.id,
-                        )
-                      }
-                      className="px-6 py-4 bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer"
+                          sessions.length > 0
+                            ? Math.max(
+                                ...sessions.map((s) => s.week_number || 0),
+                              ) + 1
+                            : 1;
+                        setNewSession({
+                          title: "",
+                          week_number: nextWK,
+                          status: "pending",
+                          kpi_ids: [],
+                          handler_ids: [],
+                          handler_names: [],
+                          scheduled_date: "",
+                          start_time: "",
+                          end_time: "",
+                          notes: "",
+                          extra_materials: [],
+                        });
+                        setShowSessionModal(true);
+                      }}
+                      className="btn btn-primary btn-sm gap-2"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-inner">
-                          <span className="text-[10px] font-black text-[var(--text-secondary)] opacity-50">
-                            WK
-                          </span>
-                          <span className="text-sm font-black text-[var(--brand-orange)] -mt-1">
-                            {session.week_number}
-                          </span>
-                        </div>
-                        <div>
-                          <h4 className="text-base font-black text-[var(--text-primary)] uppercase tracking-tight">
-                            {session.title}
-                          </h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span
-                              className={`w-2 h-2 rounded-full animate-pulse ${
-                                session.status === "completed"
-                                  ? "bg-emerald-500"
-                                  : session.status === "in progress"
-                                    ? "bg-indigo-500"
-                                    : "bg-amber-500"
-                              }`}
-                            />
-                            <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
-                              State: {session.status}
-                            </span>
-                            {session.scheduled_date && (
-                              <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-2">
-                                📅{" "}
-                                {new Date(
-                                  session.scheduled_date,
-                                ).toLocaleDateString()}
-                              </span>
-                            )}
-                            {session.notes && (
-                              <span
-                                className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-2"
-                                title={session.notes}
-                              >
-                                📌 Notes
-                              </span>
-                            )}
-                          </div>
-                          {session.handler_name && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <Users className="w-3 h-3 text-slate-500" />
-                              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                                {session.handler_name}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {(() => {
-                              try {
-                                const ids =
-                                  typeof session.kpi_ids === "string"
-                                    ? JSON.parse(session.kpi_ids)
-                                    : session.kpi_ids || [];
-                                return kpis
-                                  .filter((k) => ids.includes(k.id))
-                                  .map((k) => (
-                                    <span
-                                      key={k.id}
-                                      className="px-2 py-0.5 bg-[#FF6600]/10 border border-[#FF6600]/20 text-[#FF6600] text-[8px] font-black uppercase tracking-widest rounded-md"
-                                    >
-                                      {k.title}
-                                    </span>
-                                  ));
-                              } catch (e) {
-                                return null;
-                              }
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-
+                      <Plus className="w-4 h-4" /> Add Session
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {(sessions || [])
+                    .filter(
+                      (s) => showArchivedSessions || s.status !== "archived",
+                    )
+                    .map((session) => (
                       <div
-                        className="flex items-center gap-3"
-                        onClick={(e) => e.stopPropagation()}
+                        key={session.id}
+                        className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-[var(--bg-secondary)] group mb-4"
                       >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedSessionId(session.id);
-                            setSelectedSessionForAttendance(session);
-                            setShowAttendanceModal(true);
-                          }}
-                          className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-indigo-500/20 text-indigo-500 hover:bg-indigo-500/5 transition-all"
+                        {/* STEP 0: THE HEADER (GLOBAL STATE) — click to toggle */}
+                        <div
+                          onClick={() =>
+                            setExpandedSessionId(
+                              expandedSessionId === session.id
+                                ? null
+                                : session.id,
+                            )
+                          }
+                          className="px-6 py-4 bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer"
                         >
-                          <Users className="w-3.5 h-3.5" />
-                          <span className="text-[9px] font-black uppercase italic tracking-wider">
-                            Attendance
-                          </span>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedSessionId(session.id);
-                            setShowPMReportModal(true);
-                          }}
-                          className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/5 transition-all"
-                        >
-                          <Activity className="w-3.5 h-3.5" />
-                          <span className="text-[9px] font-black uppercase italic tracking-wider">
-                            Give Weekly Report
-                          </span>
-                        </button>
-                        {canEdit && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSession(session.id);
-                            }}
-                            className="p-2 text-rose-500/20 hover:text-rose-500 transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div
-                      className={`p-6 ${expandedSessionId !== session.id ? "hidden" : ""}`}
-                    >
-                      <div className="space-y-8">
-                        {/* PHASE 1: LOGISTICS (THE SETUP) */}
-                        <div className="space-y-6">
-                          <div className="flex items-center gap-2 pb-3 border-b border-indigo-500/20">
-                            <div className="w-6 h-6 rounded-full bg-indigo-500/10 flex items-center justify-center text-[9px] font-black text-indigo-500 border border-indigo-500/20 shadow-sm">
-                              1
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">
-                              Logistics & Deployment
-                            </span>
-                          </div>
-
-                          <div className="space-y-4 p-5 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)] shadow-sm">
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                Assign Staff Member
-                              </label>
-                              <select
-                                value={session.handler_id || ""}
-                                onChange={(e) => {
-                                  const staff = assignedStaff.find(
-                                    (s) => String(s.cid) === e.target.value,
-                                  );
-                                  updateSessionField(
-                                    session.id,
-                                    "handler_id",
-                                    e.target.value,
-                                    staff?.name,
-                                  );
-                                }}
-                                className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
-                              >
-                                <option value="">Select Member...</option>
-                                {programTeamMembers.length > 0
-                                  ? programTeamMembers.map((s) => (
-                                      <option key={s.cid} value={s.cid}>
-                                        {s.name} ({s.role})
-                                      </option>
-                                    ))
-                                  : assignedStaff.map((s) => (
-                                      <option key={s.cid} value={s.cid}>
-                                        {s.name} ({s.role})
-                                      </option>
-                                    ))}
-                              </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
-                                  <Calendar className="w-2.5 h-2.5 text-white" />{" "}
-                                  Start Date
-                                </label>
-                                <input
-                                  type="date"
-                                  value={
-                                    session.scheduled_date
-                                      ? new Date(session.scheduled_date)
-                                          .toISOString()
-                                          .split("T")[0]
-                                      : ""
-                                  }
-                                  onChange={(e) =>
-                                    updateSessionField(
-                                      session.id,
-                                      "scheduled_date",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
-                                  <Calendar className="w-2.5 h-2.5 text-white" />{" "}
-                                  Finish Date
-                                </label>
-                                <input
-                                  type="date"
-                                  value={
-                                    session.end_date
-                                      ? new Date(session.end_date)
-                                          .toISOString()
-                                          .split("T")[0]
-                                      : ""
-                                  }
-                                  onChange={(e) =>
-                                    updateSessionField(
-                                      session.id,
-                                      "end_date",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="pt-2">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                Operational State
-                              </label>
-                              <select
-                                value={session.status}
-                                onChange={(e) =>
-                                  updateSessionStatus(
-                                    session.id,
-                                    e.target.value,
-                                  )
-                                }
-                                className={`w-full mt-1 px-4 py-3 rounded-xl border text-[10px] font-black uppercase outline-none transition-all cursor-pointer ${
-                                  session.status === "completed"
-                                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                                    : session.status === "in progress"
-                                      ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
-                                      : "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                                }`}
-                              >
-                                <option value="pending">PENDING</option>
-                                <option value="in progress">IN PROGRESS</option>
-                                <option value="completed">COMPLETED</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* SEPARATOR */}
-                        <div className="w-full h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
-
-                        {/* PHASE 2: CURRICULUM (THE CORE) */}
-                        <div className="space-y-6">
-                          <div className="flex items-center justify-between pb-3 border-b border-[var(--brand-orange)]/20">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[9px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 shadow-sm">
-                                2
-                              </div>
-                              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
-                                Assessments & Deliverables
+                          <div className="flex items-center gap-4">
+                            <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-inner">
+                              <span className="text-[10px] font-black text-[var(--text-secondary)] opacity-50">
+                                WK
+                              </span>
+                              <span className="text-sm font-black text-[var(--brand-orange)] -mt-1">
+                                {session.week_number}
                               </span>
                             </div>
+                            <div>
+                              <h4 className="text-base font-black text-[var(--text-primary)] uppercase tracking-tight">
+                                {session.title}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span
+                                  className={`w-2 h-2 rounded-full animate-pulse ${
+                                    session.status === "completed"
+                                      ? "bg-emerald-500"
+                                      : session.status === "in progress"
+                                        ? "bg-indigo-500"
+                                        : "bg-amber-500"
+                                  }`}
+                                />
+                                <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
+                                  State: {session.status}
+                                </span>
+                                {session.scheduled_date && (
+                                  <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-2">
+                                    📅{" "}
+                                    {new Date(
+                                      session.scheduled_date,
+                                    ).toLocaleDateString()}
+                                  </span>
+                                )}
+                                {session.notes && (
+                                  <span
+                                    className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-2"
+                                    title={session.notes}
+                                  >
+                                    📌 Notes
+                                  </span>
+                                )}
+                              </div>
+                              {session.handler_name && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <Users className="w-3 h-3 text-slate-500" />
+                                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                                    {session.handler_name}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                {(() => {
+                                  try {
+                                    const ids =
+                                      typeof session.kpi_ids === "string"
+                                        ? JSON.parse(session.kpi_ids)
+                                        : session.kpi_ids || [];
+                                    return kpis
+                                      .filter((k) => ids.includes(k.id))
+                                      .map((k) => (
+                                        <span
+                                          key={k.id}
+                                          className="px-2 py-0.5 bg-[#FF6600]/10 border border-[#FF6600]/20 text-[#FF6600] text-[8px] font-black uppercase tracking-widest rounded-md"
+                                        >
+                                          {k.title}
+                                        </span>
+                                      ));
+                                  } catch (e) {
+                                    return null;
+                                  }
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            className="flex items-center gap-3"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSessionId(session.id);
+                                setSelectedSessionForAttendance(session);
+                                setShowAttendanceModal(true);
+                              }}
+                              className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-indigo-500/20 text-indigo-500 hover:bg-indigo-500/5 transition-all"
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              <span className="text-[9px] font-black uppercase italic tracking-wider">
+                                Attendance
+                              </span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSessionId(session.id);
+                                setShowPMReportModal(true);
+                              }}
+                              className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/5 transition-all"
+                            >
+                              <Activity className="w-3.5 h-3.5" />
+                              <span className="text-[9px] font-black uppercase italic tracking-wider">
+                                Give Weekly Report
+                              </span>
+                            </button>
                             {canEdit && (
                               <button
-                                onClick={() => {
-                                  setSelectedSessionId(session.id);
-                                  setShowRequirementModal(true);
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteSession(session.id);
                                 }}
-                                className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
+                                className="p-2 text-rose-500/20 hover:text-rose-500 transition-all"
                               >
-                                <Plus className="w-3 h-3" /> Add Requirement
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             )}
                           </div>
-
-                          <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                            {requirements
-                              .filter((r) => r.session_id === session.id)
-                              .map((req) => (
-                                <div
-                                  key={req.id}
-                                  className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all shadow-sm"
-                                >
-                                  <div className="flex items-center gap-4">
-                                    <div className="w-9 h-9 rounded-xl bg-indigo-500/5 flex items-center justify-center">
-                                      <FileText className="w-5 h-5 text-indigo-500" />
-                                    </div>
-                                    <div>
-                                      <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
-                                        {req.title}
-                                      </p>
-                                      <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic">
-                                        Requirement:{" "}
-                                        {req.allowed_format || "PDF"}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  {canEdit && (
-                                    <button className="text-rose-500/10 hover:text-rose-500 transition-all">
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            {requirements.filter(
-                              (r) => r.session_id === session.id,
-                            ).length === 0 && (
-                              <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                                <Shield className="w-10 h-10 mb-2" />
-                                <p className="text-[10px] font-bold uppercase tracking-widest">
-                                  No Requirements Set
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-[8px] font-bold text-slate-500/50 uppercase tracking-widest italic text-center px-6">
-                            These items are formal evidence submitted by
-                            participants for final graduation scoring.
-                          </p>
                         </div>
 
-                        {/* SEPARATOR */}
-                        <div className="w-full h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
-
-                        {/* PHASE 3: RESOURCES (THE SUPPORT) */}
-                        <div className="space-y-6">
-                          <div className="flex items-center justify-between pb-3 border-b border-blue-500/20">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center text-[9px] font-black text-blue-500 border border-blue-500/20 shadow-sm">
-                                3
+                        <div
+                          className={`p-6 ${expandedSessionId !== session.id ? "hidden" : ""}`}
+                        >
+                          <div className="space-y-8">
+                            {/* PHASE 1: LOGISTICS (THE SETUP) */}
+                            <div className="space-y-6">
+                              <div className="flex items-center gap-2 pb-3 border-b border-indigo-500/20">
+                                <div className="w-6 h-6 rounded-full bg-indigo-500/10 flex items-center justify-center text-[9px] font-black text-indigo-500 border border-indigo-500/20 shadow-sm">
+                                  1
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">
+                                  Logistics & Deployment
+                                </span>
                               </div>
-                              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">
-                                Weekly Resources
-                              </span>
-                            </div>
-                            {canEdit && (
-                              <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
-                                <Plus className="w-3 h-3" /> Upload
-                                <input
-                                  type="file"
-                                  accept=".pdf"
-                                  className="hidden"
-                                  onChange={async (e) => {
-                                    const file = e.target.files[0];
-                                    if (!file) return;
-                                    notify("Syncing material...", "info");
-                                    try {
-                                      const res = await fetch(
-                                        "/api/pm/curriculum",
-                                        {
-                                          method: "POST",
-                                          headers: {
-                                            "Content-Type": "application/json",
-                                          },
-                                          body: JSON.stringify({
-                                            action: "anchor_material",
-                                            program_id: id,
-                                            session_id: session.id,
-                                            file_name: file.name,
-                                          }),
-                                        },
+
+                              <div className="space-y-4 p-5 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)] shadow-sm">
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
+                                    Assign Staff Member
+                                  </label>
+                                  <select
+                                    value={session.handler_id || ""}
+                                    onChange={(e) => {
+                                      const staff = assignedStaff.find(
+                                        (s) => String(s.cid) === e.target.value,
                                       );
-                                      if ((await res.json()).success) {
-                                        notify("Material anchored.");
-                                        fetchProgramData(true);
-                                      }
-                                    } catch (e) {
-                                      notify("Upload failed.", "error");
-                                    }
-                                  }}
-                                />
-                              </label>
-                            )}
-                          </div>
-
-                          <div className="space-y-3">
-                            {/* Institutional Assets */}
-                            {(program?.knowledge_assets || []).map(
-                              (kb, kIdx) => (
-                                <div
-                                  key={`kb-${kIdx}`}
-                                  className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/20 flex flex-col gap-3 group/asset shadow-sm"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <BookOpen className="w-4 h-4 text-emerald-500" />
-                                    <div className="min-w-0">
-                                      <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate leading-none">
-                                        {kb.name || "Core Asset"}
-                                      </p>
-                                      <p className="text-[7px] text-emerald-600 font-black uppercase tracking-widest mt-1">
-                                        Institutional Intelligence
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() =>
-                                      setActivePDF({
-                                        url: kb.url,
-                                        name: kb.name,
-                                      })
-                                    }
-                                    className="w-full py-2 bg-emerald-500/10 rounded-lg text-[9px] font-black text-emerald-600 uppercase hover:bg-emerald-500/20 transition-all border border-emerald-500/10"
+                                      updateSessionField(
+                                        session.id,
+                                        "handler_id",
+                                        e.target.value,
+                                        staff?.name,
+                                      );
+                                    }}
+                                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
                                   >
-                                    View Asset
-                                  </button>
+                                    <option value="">Select Member...</option>
+                                    {programTeamMembers.length > 0
+                                      ? programTeamMembers.map((s) => (
+                                          <option key={s.cid} value={s.cid}>
+                                            {s.name} ({s.role})
+                                          </option>
+                                        ))
+                                      : assignedStaff.map((s) => (
+                                          <option key={s.cid} value={s.cid}>
+                                            {s.name} ({s.role})
+                                          </option>
+                                        ))}
+                                  </select>
                                 </div>
-                              ),
-                            )}
 
-                            {/* Weekly Specific */}
-                            {(() => {
-                              let sessionMaterials = [];
-                              try {
-                                sessionMaterials =
-                                  typeof session.materials === "string"
-                                    ? JSON.parse(session.materials || "[]")
-                                    : session.materials || [];
-                              } catch (e) {
-                                sessionMaterials = [];
-                              }
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
+                                      <Calendar className="w-2.5 h-2.5 text-white" />{" "}
+                                      Start Date
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={
+                                        session.scheduled_date
+                                          ? new Date(session.scheduled_date)
+                                              .toISOString()
+                                              .split("T")[0]
+                                          : ""
+                                      }
+                                      onChange={(e) =>
+                                        updateSessionField(
+                                          session.id,
+                                          "scheduled_date",
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
+                                      <Calendar className="w-2.5 h-2.5 text-white" />{" "}
+                                      Finish Date
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={
+                                        session.end_date
+                                          ? new Date(session.end_date)
+                                              .toISOString()
+                                              .split("T")[0]
+                                          : ""
+                                      }
+                                      onChange={(e) =>
+                                        updateSessionField(
+                                          session.id,
+                                          "end_date",
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
+                                    />
+                                  </div>
+                                </div>
 
-                              return sessionMaterials.map((mat, mIdx) => (
-                                <div
-                                  key={`mat-${mIdx}`}
-                                  className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/20 flex flex-col gap-3 group/asset shadow-sm"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <Zap className="w-4 h-4 text-blue-500" />
-                                    <div className="min-w-0">
-                                      <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate leading-none">
-                                        {mat.name}
-                                      </p>
-                                      <p className="text-[7px] text-blue-600 font-black uppercase tracking-widest mt-1">
-                                        Tactical Asset
+                                <div className="pt-2">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
+                                    Operational State
+                                  </label>
+                                  <select
+                                    value={session.status}
+                                    onChange={(e) =>
+                                      updateSessionStatus(
+                                        session.id,
+                                        e.target.value,
+                                      )
+                                    }
+                                    className={`w-full mt-1 px-4 py-3 rounded-xl border text-[10px] font-black uppercase outline-none transition-all cursor-pointer ${
+                                      session.status === "completed"
+                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                                        : session.status === "in progress"
+                                          ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
+                                          : "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                    }`}
+                                  >
+                                    <option value="pending">PENDING</option>
+                                    <option value="in progress">
+                                      IN PROGRESS
+                                    </option>
+                                    <option value="completed">COMPLETED</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* SEPARATOR */}
+                            <div className="w-full h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
+
+                            {/* PHASE 2: CURRICULUM (THE CORE) */}
+                            <div className="space-y-6">
+                              <div className="flex items-center justify-between pb-3 border-b border-[var(--brand-orange)]/20">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[9px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 shadow-sm">
+                                    2
+                                  </div>
+                                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
+                                    Assessments & Deliverables
+                                  </span>
+                                </div>
+                                {canEdit && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedSessionId(session.id);
+                                      setShowRequirementModal(true);
+                                    }}
+                                    className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
+                                  >
+                                    <Plus className="w-3 h-3" /> Add Requirement
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                                {requirements
+                                  .filter((r) => r.session_id === session.id)
+                                  .map((req) => (
+                                    <div
+                                      key={req.id}
+                                      className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all shadow-sm"
+                                    >
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-9 h-9 rounded-xl bg-indigo-500/5 flex items-center justify-center">
+                                          <FileText className="w-5 h-5 text-indigo-500" />
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
+                                            {req.title}
+                                          </p>
+                                          <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic">
+                                            Requirement:{" "}
+                                            {req.allowed_format || "PDF"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      {canEdit && (
+                                        <button className="text-rose-500/10 hover:text-rose-500 transition-all">
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                {requirements.filter(
+                                  (r) => r.session_id === session.id,
+                                ).length === 0 && (
+                                  <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
+                                    <Shield className="w-10 h-10 mb-2" />
+                                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                                      No Requirements Set
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-[8px] font-bold text-slate-500/50 uppercase tracking-widest italic text-center px-6">
+                                These items are formal evidence submitted by
+                                participants for final graduation scoring.
+                              </p>
+                            </div>
+
+                            {/* SEPARATOR */}
+                            <div className="w-full h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
+
+                            {/* PHASE 3: RESOURCES (THE SUPPORT) */}
+                            <div className="space-y-6">
+                              <div className="flex items-center justify-between pb-3 border-b border-blue-500/20">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center text-[9px] font-black text-blue-500 border border-blue-500/20 shadow-sm">
+                                    3
+                                  </div>
+                                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">
+                                    Weekly Resources
+                                  </span>
+                                </div>
+                                {canEdit && (
+                                  <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
+                                    <Plus className="w-3 h-3" /> Upload
+                                    <input
+                                      type="file"
+                                      accept=".pdf"
+                                      className="hidden"
+                                      onChange={async (e) => {
+                                        const file = e.target.files[0];
+                                        if (!file) return;
+                                        notify("Syncing material...", "info");
+                                        try {
+                                          const res = await fetch(
+                                            "/api/pm/curriculum",
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                action: "anchor_material",
+                                                program_id: id,
+                                                session_id: session.id,
+                                                file_name: file.name,
+                                              }),
+                                            },
+                                          );
+                                          if ((await res.json()).success) {
+                                            notify("Material anchored.");
+                                            fetchProgramData(true);
+                                          }
+                                        } catch (e) {
+                                          notify("Upload failed.", "error");
+                                        }
+                                      }}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+
+                              <div className="space-y-3">
+                                {/* Institutional Assets */}
+                                {(program?.knowledge_assets || []).map(
+                                  (kb, kIdx) => (
+                                    <div
+                                      key={`kb-${kIdx}`}
+                                      className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/20 flex flex-col gap-3 group/asset shadow-sm"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <BookOpen className="w-4 h-4 text-emerald-500" />
+                                        <div className="min-w-0">
+                                          <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate leading-none">
+                                            {kb.name || "Core Asset"}
+                                          </p>
+                                          <p className="text-[7px] text-emerald-600 font-black uppercase tracking-widest mt-1">
+                                            Institutional Intelligence
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() =>
+                                          setActivePDF({
+                                            url: kb.url,
+                                            name: kb.name,
+                                          })
+                                        }
+                                        className="w-full py-2 bg-emerald-500/10 rounded-lg text-[9px] font-black text-emerald-600 uppercase hover:bg-emerald-500/20 transition-all border border-emerald-500/10"
+                                      >
+                                        View Asset
+                                      </button>
+                                    </div>
+                                  ),
+                                )}
+
+                                {/* Weekly Specific */}
+                                {(() => {
+                                  let sessionMaterials = [];
+                                  try {
+                                    sessionMaterials =
+                                      typeof session.materials === "string"
+                                        ? JSON.parse(session.materials || "[]")
+                                        : session.materials || [];
+                                  } catch (e) {
+                                    sessionMaterials = [];
+                                  }
+
+                                  return sessionMaterials.map((mat, mIdx) => (
+                                    <div
+                                      key={`mat-${mIdx}`}
+                                      className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/20 flex flex-col gap-3 group/asset shadow-sm"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <Zap className="w-4 h-4 text-blue-500" />
+                                        <div className="min-w-0">
+                                          <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate leading-none">
+                                            {mat.name}
+                                          </p>
+                                          <p className="text-[7px] text-blue-600 font-black uppercase tracking-widest mt-1">
+                                            Tactical Asset
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <button className="flex-1 py-2 bg-blue-500/10 rounded-lg text-[9px] font-black text-blue-600 uppercase hover:bg-blue-500/20 transition-all border border-blue-500/10">
+                                          View
+                                        </button>
+                                        <button className="px-3 py-2 bg-rose-500/5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/10">
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ));
+                                })()}
+
+                                {(() => {
+                                  const noSessionMaterials =
+                                    !session.materials ||
+                                    session.materials === "[]" ||
+                                    (Array.isArray(session.materials) &&
+                                      session.materials.length === 0);
+                                  const noKnowledgeAssets =
+                                    !program?.knowledge_assets ||
+                                    program.knowledge_assets.length === 0;
+                                  return noSessionMaterials &&
+                                    noKnowledgeAssets ? (
+                                    <div className="py-8 text-center opacity-20 italic space-y-2">
+                                      <Clock className="w-6 h-6 mx-auto" />
+                                      <p className="text-[9px] font-bold uppercase">
+                                        No Materials
                                       </p>
                                     </div>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <button className="flex-1 py-2 bg-blue-500/10 rounded-lg text-[9px] font-black text-blue-600 uppercase hover:bg-blue-500/20 transition-all border border-blue-500/10">
-                                      View
-                                    </button>
-                                    <button className="px-3 py-2 bg-rose-500/5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/10">
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ));
-                            })()}
-
-                            {(() => {
-                              const noSessionMaterials = !session.materials ||
-                                session.materials === "[]" ||
-                                (Array.isArray(session.materials) &&
-                                  session.materials.length === 0);
-                              const noKnowledgeAssets = !program?.knowledge_assets ||
-                                program.knowledge_assets.length === 0;
-                              return noSessionMaterials && noKnowledgeAssets ? (
-                                <div className="py-8 text-center opacity-20 italic space-y-2">
-                                  <Clock className="w-6 h-6 mx-auto" />
-                                  <p className="text-[9px] font-bold uppercase">
-                                    No Materials
-                                  </p>
-                                </div>
-                              ) : null;
-                            })()}
+                                  ) : null;
+                                })()}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    ))}
+                </div>
               </div>
             </div>
-          }
+          )}
 
           {activeTab === "config" && (
             <div className="space-y-8 animate-in">
@@ -2259,139 +2273,194 @@ export default function ProgramWorkspace() {
           )}
         </div>
 
-      {/* PDF VIEWER MODAL */}
-      {activePDF && (
-        <div
-          className="fixed inset-0 z-[600] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in"
-          onClick={() => setActivePDF(null)}
-        >
+        {/* PDF VIEWER MODAL */}
+        {activePDF && (
           <div
-            className="card w-full max-w-5xl h-[90vh] flex flex-col space-y-4 shadow-2xl border-[var(--border-primary)]"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[600] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in"
+            onClick={() => setActivePDF(null)}
           >
-            <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
-                  <FileText className="w-5 h-5" />
+            <div
+              className="card w-full max-w-5xl h-[90vh] flex flex-col space-y-4 shadow-2xl border-[var(--border-primary)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase text-[var(--text-primary)]">
+                      {activePDF.name}
+                    </h3>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                      Document Preview
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-black uppercase text-[var(--text-primary)]">
-                    {activePDF.name}
-                  </h3>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                    Document Preview
-                  </p>
+                <div className="flex gap-2">
+                  <a
+                    href={activePDF.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-secondary !py-2 text-[10px] gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" /> Open in New Tab
+                  </a>
+                  <button
+                    onClick={() => setActivePDF(null)}
+                    className="btn btn-secondary !py-2 hover:bg-rose-500/10 hover:text-rose-500 border-none"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <a
-                  href={activePDF.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-secondary !py-2 text-[10px] gap-2"
-                >
-                  <ExternalLink className="w-4 h-4" /> Open in New Tab
-                </a>
-                <button
-                  onClick={() => setActivePDF(null)}
-                  className="btn btn-secondary !py-2 hover:bg-rose-500/10 hover:text-rose-500 border-none"
-                >
+              <div className="flex-1 bg-[var(--bg-tertiary)] rounded-xl overflow-hidden border border-[var(--border-primary)] relative">
+                {!activePDF.url || activePDF.url === "#" ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 opacity-50">
+                    <FileText className="w-16 h-16 mb-4 text-[var(--text-secondary)] opacity-20" />
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                      No Document URL Found
+                    </h3>
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-2 max-w-sm leading-relaxed">
+                      This material was registered without a valid file path or
+                      external link. The document cannot be previewed.
+                    </p>
+                  </div>
+                ) : (
+                  <iframe
+                    src={`${activePDF.url}#toolbar=0`}
+                    className="w-full h-full"
+                    title="PDF Viewer"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TOAST */}
+        {toast && (
+          <div
+            className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${
+              toast.type === "error"
+                ? "bg-rose-50 text-rose-700 border-rose-200"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+            }`}
+          >
+            {toast.msg}
+          </div>
+        )}
+
+        {/* DEPLOY STUDENT GROUP MODAL */}
+        {showTeamModal && (
+          <div
+            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+            onClick={() => setShowTeamModal(false)}
+          >
+            <div
+              className="card w-full max-w-sm space-y-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <div className="space-y-1">
+                  <h3
+                    className="text-base font-black uppercase tracking-tight"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    Initialize Student Group
+                  </h3>
+                  <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
+                    Create a collaborative cohort of students for targeted
+                    curriculum execution.
+                  </p>
+                </div>
+                <button onClick={() => setShowTeamModal(false)}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
-            </div>
-            <div className="flex-1 bg-[var(--bg-tertiary)] rounded-xl overflow-hidden border border-[var(--border-primary)] relative">
-              {!activePDF.url || activePDF.url === "#" ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 opacity-50">
-                  <FileText className="w-16 h-16 mb-4 text-[var(--text-secondary)] opacity-20" />
-                  <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                    No Document URL Found
-                  </h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-2 max-w-sm leading-relaxed">
-                    This material was registered without a valid file path or
-                    external link. The document cannot be previewed.
-                  </p>
+              <div className="space-y-4">
+                <div className="flex bg-[var(--bg-primary)] p-1 rounded-xl border border-[var(--border-primary)]">
+                  <button
+                    onClick={() => setTeamAssignmentMode("new")}
+                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "new" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
+                  >
+                    Create New
+                  </button>
+                  <button
+                    onClick={() => setTeamAssignmentMode("existing")}
+                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "existing" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
+                  >
+                    Add to Existing
+                  </button>
                 </div>
-              ) : (
-                <iframe
-                  src={`${activePDF.url}#toolbar=0`}
-                  className="w-full h-full"
-                  title="PDF Viewer"
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* TOAST */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${
-            toast.type === "error"
-              ? "bg-rose-50 text-rose-700 border-rose-200"
-              : "bg-emerald-50 text-emerald-700 border-emerald-200"
-          }`}
-        >
-          {toast.msg}
-        </div>
-      )}
+                {teamAssignmentMode === "new" ? (
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Internal Team Name (Sub-group)
+                    </label>
+                    <input
+                      value={newTeam.name}
+                      onChange={(e) =>
+                        setNewTeam((p) => ({ ...p, name: e.target.value }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                      placeholder="e.g. Group Teh"
+                    />
+                    <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase mt-1">
+                      Note: This will be linked to the parent group
+                      automatically.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Select Target Group
+                    </label>
+                    <select
+                      value={selectedExistingTeamId}
+                      onChange={(e) =>
+                        setSelectedExistingTeamId(e.target.value)
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="">Select an existing team...</option>
+                      {teams.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name.toUpperCase()} (Group: {t.group_name})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-      {/* DEPLOY STUDENT GROUP MODAL */}
-      {showTeamModal && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowTeamModal(false)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <div className="space-y-1">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Initialize Student Group
-                </h3>
-                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
-                  Create a collaborative cohort of students for targeted
-                  curriculum execution.
-                </p>
-              </div>
-              <button onClick={() => setShowTeamModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex bg-[var(--bg-primary)] p-1 rounded-xl border border-[var(--border-primary)]">
-                <button
-                  onClick={() => setTeamAssignmentMode("new")}
-                  className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "new" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
-                >
-                  Create New
-                </button>
-                <button
-                  onClick={() => setTeamAssignmentMode("existing")}
-                  className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "existing" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
-                >
-                  Add to Existing
-                </button>
-              </div>
-
-              {teamAssignmentMode === "new" ? (
                 <div className="space-y-1">
                   <label
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Internal Team Name (Sub-group)
+                    Assign Group Lead (Student)
                   </label>
-                  <input
-                    value={newTeam.name}
+                  <select
+                    value={newTeam.leader_id}
                     onChange={(e) =>
-                      setNewTeam((p) => ({ ...p, name: e.target.value }))
+                      setNewTeam((p) => ({ ...p, leader_id: e.target.value }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
                     style={{
@@ -2399,23 +2468,37 @@ export default function ProgramWorkspace() {
                       border: "1px solid var(--border-primary)",
                       color: "var(--text-primary)",
                     }}
-                    placeholder="e.g. Group Teh"
-                  />
-                  <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase mt-1">
-                    Note: This will be linked to the parent group automatically.
-                  </p>
+                  >
+                    <option value="">Select Lead...</option>
+                    {participants
+                      .filter((p) => newTeam.member_ids.includes(p.id))
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                  </select>
                 </div>
-              ) : (
+
                 <div className="space-y-1">
                   <label
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Select Target Group
+                    Assign Oversight (Staff Member / Instructor)
                   </label>
                   <select
-                    value={selectedExistingTeamId}
-                    onChange={(e) => setSelectedExistingTeamId(e.target.value)}
+                    value={newTeam.staff_id}
+                    onChange={(e) => {
+                      const staff = assignedStaff.find(
+                        (s) => String(s.cid) === e.target.value,
+                      );
+                      setNewTeam((p) => ({
+                        ...p,
+                        staff_id: e.target.value,
+                        handler_name: staff?.name || "",
+                      }));
+                    }}
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
                     style={{
                       background: "var(--bg-primary)",
@@ -2423,202 +2506,111 @@ export default function ProgramWorkspace() {
                       color: "var(--text-primary)",
                     }}
                   >
-                    <option value="">Select an existing team...</option>
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name.toUpperCase()} (Group: {t.group_name})
+                    <option value="">No Staff Assigned (Optional)</option>
+                    {assignedStaff.map((s) => (
+                      <option key={s.cid} value={s.cid}>
+                        {s.name} ({s.role === "teacher" ? "Instructor" : s.role}
+                        )
                       </option>
                     ))}
                   </select>
                 </div>
-              )}
-
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Assign Group Lead (Student)
-                </label>
-                <select
-                  value={newTeam.leader_id}
-                  onChange={(e) =>
-                    setNewTeam((p) => ({ ...p, leader_id: e.target.value }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <option value="">Select Lead...</option>
-                  {participants
-                    .filter((p) => newTeam.member_ids.includes(p.id))
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                </select>
               </div>
-
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowTeamModal(false)}
+                  className="flex-1 btn btn-secondary"
                 >
-                  Assign Oversight (Staff Member / Instructor)
-                </label>
-                <select
-                  value={newTeam.staff_id}
-                  onChange={(e) => {
-                    const staff = assignedStaff.find(
-                      (s) => String(s.cid) === e.target.value,
-                    );
-                    setNewTeam((p) => ({
-                      ...p,
-                      staff_id: e.target.value,
-                      handler_name: staff?.name || "",
-                    }));
-                  }}
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
+                  Cancel
+                </button>
+                <button
+                  onClick={deployTeam}
+                  disabled={isSaving || !newTeam.name.trim()}
+                  className="flex-1 btn btn-primary"
                 >
-                  <option value="">No Staff Assigned (Optional)</option>
-                  {assignedStaff.map((s) => (
-                    <option key={s.cid} value={s.cid}>
-                      {s.name} ({s.role === "teacher" ? "Instructor" : s.role})
-                    </option>
-                  ))}
-                </select>
+                  {isSaving ? "Initializing..." : "Initialize Group"}
+                </button>
               </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowTeamModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={deployTeam}
-                disabled={isSaving || !newTeam.name.trim()}
-                className="flex-1 btn btn-primary"
-              >
-                {isSaving ? "Initializing..." : "Initialize Group"}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ADD SESSION MODAL */}
-      {showSessionModal && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowSessionModal(false)}
-        >
+        {/* ADD SESSION MODAL */}
+        {showSessionModal && (
           <div
-            className="card w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+            onClick={() => setShowSessionModal(false)}
           >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Add Session
-              </h3>
-              <button onClick={() => setShowSessionModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
+            <div
+              className="card w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <h3
+                  className="text-base font-black uppercase tracking-tight"
+                  style={{ color: "var(--text-primary)" }}
                 >
-                  Session Title
-                </label>
-                <input
-                  value={newSession.title}
-                  onChange={(e) =>
-                    setNewSession((p) => ({ ...p, title: e.target.value }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                  placeholder="e.g. Orientation Week"
-                />
+                  Add Session
+                </h3>
+                <button onClick={() => setShowSessionModal(false)}>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Week Number (Auto)
-                </label>
-                <div
-                  className="w-full rounded-lg px-4 py-3 text-sm font-bold opacity-60"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  Week {newSession.week_number}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Session Date
-                </label>
-                <input
-                  type="date"
-                  value={newSession.scheduled_date}
-                  onChange={(e) =>
-                    setNewSession((p) => ({
-                      ...p,
-                      scheduled_date: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-4">
                 <div className="space-y-1">
                   <label
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Start Time (Optional)
+                    Session Title
                   </label>
                   <input
-                    type="time"
-                    value={newSession.start_time}
+                    value={newSession.title}
+                    onChange={(e) =>
+                      setNewSession((p) => ({ ...p, title: e.target.value }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                    placeholder="e.g. Orientation Week"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Week Number (Auto)
+                  </label>
+                  <div
+                    className="w-full rounded-lg px-4 py-3 text-sm font-bold opacity-60"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    Week {newSession.week_number}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Session Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newSession.scheduled_date}
                     onChange={(e) =>
                       setNewSession((p) => ({
                         ...p,
-                        start_time: e.target.value,
+                        scheduled_date: e.target.value,
                       }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -2629,122 +2621,907 @@ export default function ProgramWorkspace() {
                     }}
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Start Time (Optional)
+                    </label>
+                    <input
+                      type="time"
+                      value={newSession.start_time}
+                      onChange={(e) =>
+                        setNewSession((p) => ({
+                          ...p,
+                          start_time: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      End Time (Optional)
+                    </label>
+                    <input
+                      type="time"
+                      value={newSession.end_time}
+                      onChange={(e) =>
+                        setNewSession((p) => ({
+                          ...p,
+                          end_time: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    End Time (Optional)
+                    Assign Teachers (click to toggle)
                   </label>
-                  <input
-                    type="time"
-                    value={newSession.end_time}
+                  <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto p-1 custom-scrollbar">
+                    {programTeamMembers.map((staff) => {
+                      const isSelected = (
+                        newSession.handler_ids || []
+                      ).includes(String(staff.cid));
+                      return (
+                        <button
+                          key={staff.cid}
+                          type="button"
+                          onClick={() => {
+                            const ids = newSession.handler_ids || [];
+                            const names = newSession.handler_names || [];
+                            const cidStr = String(staff.cid);
+                            if (ids.includes(cidStr)) {
+                              const idx = ids.indexOf(cidStr);
+                              setNewSession((p) => ({
+                                ...p,
+                                handler_ids: ids.filter((id) => id !== cidStr),
+                                handler_names: names.filter(
+                                  (_, i) => i !== idx,
+                                ),
+                              }));
+                            } else {
+                              setNewSession((p) => ({
+                                ...p,
+                                handler_ids: [...ids, cidStr],
+                                handler_names: [...names, staff.name],
+                              }));
+                            }
+                          }}
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all text-left ${
+                            isSelected
+                              ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
+                              : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
+                          }`}
+                        >
+                          <div className="w-5 h-5 rounded-full bg-[var(--bg-primary)] flex items-center justify-center text-[7px]">
+                            {staff.name?.charAt(0)}
+                          </div>
+                          <span className="truncate">{staff.name}</span>
+                        </button>
+                      );
+                    })}
+                    {programTeamMembers.length === 0 && (
+                      <p className="text-[10px] text-slate-600 italic col-span-full px-2">
+                        No staff assigned. Add them in the Participants tab.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Session Notes (shown to participants)
+                  </label>
+                  <textarea
+                    value={newSession.notes}
                     onChange={(e) =>
                       setNewSession((p) => ({
                         ...p,
-                        end_time: e.target.value,
+                        notes: e.target.value,
                       }))
                     }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    rows={3}
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold resize-none"
                     style={{
                       background: "var(--bg-primary)",
                       border: "1px solid var(--border-primary)",
                       color: "var(--text-primary)",
                     }}
+                    placeholder="e.g. Please review Chapter 3 before class..."
                   />
                 </div>
-              </div>
 
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Assign Teachers (click to toggle)
-                </label>
-                <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto p-1 custom-scrollbar">
-                  {programTeamMembers.map((staff) => {
-                    const isSelected = (newSession.handler_ids || []).includes(
-                      String(staff.cid),
-                    );
-                    return (
+                <div className="space-y-2">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Extra Course Materials
+                  </label>
+                  {/* Material type selector */}
+                  <div className="flex gap-1 bg-[var(--bg-primary)] rounded-lg p-1 border border-[var(--border-primary)] w-fit">
+                    {[
+                      { id: "text", label: "Text", icon: FileText },
+                      { id: "link", label: "Link", icon: Plus },
+                      { id: "upload", label: "File", icon: Paperclip },
+                    ].map((opt) => (
                       <button
-                        key={staff.cid}
+                        key={opt.id}
                         type="button"
-                        onClick={() => {
-                          const ids = newSession.handler_ids || [];
-                          const names = newSession.handler_names || [];
-                          const cidStr = String(staff.cid);
-                          if (ids.includes(cidStr)) {
-                            const idx = ids.indexOf(cidStr);
-                            setNewSession((p) => ({
-                              ...p,
-                              handler_ids: ids.filter((id) => id !== cidStr),
-                              handler_names: names.filter((_, i) => i !== idx),
-                            }));
-                          } else {
-                            setNewSession((p) => ({
-                              ...p,
-                              handler_ids: [...ids, cidStr],
-                              handler_names: [...names, staff.name],
-                            }));
-                          }
+                        onClick={() =>
+                          setNewSessionMaterial({
+                            type: opt.id,
+                            content: "",
+                            name: "",
+                          })
+                        }
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
+                          newSessionMaterial.type === opt.id
+                            ? "bg-[var(--brand-orange)] text-black"
+                            : "text-slate-500 hover:text-white"
+                        }`}
+                      >
+                        <opt.icon className="w-3 h-3" />
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Material input */}
+                  <div className="flex gap-2">
+                    {newSessionMaterial.type === "text" && (
+                      <input
+                        value={newSessionMaterial.content}
+                        onChange={(e) =>
+                          setNewSessionMaterial((p) => ({
+                            ...p,
+                            content: e.target.value,
+                            name: "Text Note",
+                          }))
+                        }
+                        placeholder="Enter a text note or instruction..."
+                        className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                        style={{
+                          background: "var(--bg-primary)",
+                          border: "1px solid var(--border-primary)",
+                          color: "var(--text-primary)",
                         }}
-                        className={`flex items-center gap-2 p-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all text-left ${
-                          isSelected
+                      />
+                    )}
+                    {newSessionMaterial.type === "link" && (
+                      <input
+                        type="url"
+                        value={newSessionMaterial.content}
+                        onChange={(e) =>
+                          setNewSessionMaterial((p) => ({
+                            ...p,
+                            content: e.target.value,
+                            name:
+                              e.target.value.split("/").pop() ||
+                              "External Link",
+                          }))
+                        }
+                        placeholder="https://..."
+                        className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                        style={{
+                          background: "var(--bg-primary)",
+                          border: "1px solid var(--border-primary)",
+                          color: "var(--text-primary)",
+                        }}
+                      />
+                    )}
+                    {newSessionMaterial.type === "upload" && (
+                      <div className="flex-1 relative group">
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file)
+                              setNewSessionMaterial((p) => ({
+                                ...p,
+                                content: file.name,
+                                name: file.name,
+                              }));
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                        />
+                        <div
+                          className="flex items-center gap-2 px-4 py-3 rounded-lg border border-dashed text-sm font-bold"
+                          style={{
+                            background: "var(--bg-primary)",
+                            borderColor: "var(--border-primary)",
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          <Paperclip className="w-4 h-4" />
+                          {newSessionMaterial.content || "Click to attach"}
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newSessionMaterial.content.trim()) return;
+                        setNewSession((p) => ({
+                          ...p,
+                          extra_materials: [
+                            ...(p.extra_materials || []),
+                            { ...newSessionMaterial },
+                          ],
+                        }));
+                        setNewSessionMaterial({
+                          type: "text",
+                          content: "",
+                          name: "",
+                        });
+                      }}
+                      className="px-4 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {/* Added materials list */}
+                  {(newSession.extra_materials || []).length > 0 && (
+                    <div className="space-y-1.5 mt-2">
+                      {(newSession.extra_materials || []).map((mat, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-2 rounded-lg"
+                          style={{
+                            background: "var(--bg-tertiary)",
+                            border: "1px solid var(--border-primary)",
+                          }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {mat.type === "text" && (
+                              <FileText className="w-3 h-3 text-blue-500 shrink-0" />
+                            )}
+                            {mat.type === "link" && (
+                              <Plus className="w-3 h-3 text-emerald-500 shrink-0" />
+                            )}
+                            {mat.type === "upload" && (
+                              <Paperclip className="w-3 h-3 text-[#FF6600] shrink-0" />
+                            )}
+                            <span className="text-[10px] font-bold truncate text-[var(--text-primary)]">
+                              {mat.name || mat.content}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewSession((p) => ({
+                                ...p,
+                                extra_materials: (
+                                  p.extra_materials || []
+                                ).filter((_, i) => i !== idx),
+                              }))
+                            }
+                            className="text-rose-500 hover:scale-110 transition-all shrink-0"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
+                    <Target className="w-3 h-3 text-[#FF6600]" /> Link Strategic
+                    KPIs (Required)
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 max-h-[120px] overflow-y-auto p-1 custom-scrollbar text-left">
+                    {kpis.map((kpi) => (
+                      <button
+                        key={kpi.id}
+                        onClick={() => toggleKpi("session", kpi.id)}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                          (newSession.kpi_ids || []).includes(kpi.id)
                             ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
                             : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
                         }`}
                       >
-                        <div className="w-5 h-5 rounded-full bg-[var(--bg-primary)] flex items-center justify-center text-[7px]">
-                          {staff.name?.charAt(0)}
-                        </div>
-                        <span className="truncate">{staff.name}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-tight">
+                          {kpi.title}
+                        </span>
+                        {(newSession.kpi_ids || []).includes(kpi.id) && (
+                          <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />
+                        )}
                       </button>
-                    );
-                  })}
-                  {programTeamMembers.length === 0 && (
-                    <p className="text-[10px] text-slate-600 italic col-span-full px-2">
-                      No staff assigned. Add them in the Participants tab.
-                    </p>
-                  )}
+                    ))}
+                  </div>
                 </div>
               </div>
-
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSessionModal(false)}
+                  className="flex-1 btn btn-secondary"
                 >
-                  Session Notes (shown to participants)
-                </label>
-                <textarea
-                  value={newSession.notes}
-                  onChange={(e) =>
-                    setNewSession((p) => ({
-                      ...p,
-                      notes: e.target.value,
-                    }))
-                  }
-                  rows={3}
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold resize-none"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                  placeholder="e.g. Please review Chapter 3 before class..."
-                />
+                  Cancel
+                </button>
+                <button
+                  onClick={addSession}
+                  disabled={isSaving || !newSession.title.trim()}
+                  className="flex-1 btn btn-primary"
+                >
+                  {isSaving ? "Adding..." : "Add Session"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* REVIEW & GRADE MODAL */}
+        {showReviewModal && (
+          <div
+            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+            onClick={() => setShowReviewModal(false)}
+          >
+            <div
+              className="card w-full max-w-md space-y-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <h3
+                  className="text-base font-black uppercase tracking-tight"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Grade Submission
+                </h3>
+                <button onClick={() => setShowReviewModal(false)}>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="space-y-2">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
+              <div className="p-4 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl space-y-2">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
+                  Participant
+                </p>
+                <p className="text-sm font-black text-[var(--text-primary)]">
+                  {selectedSubmission?.participant_name || "Group Submission"}
+                </p>
+                <a
+                  href={selectedSubmission?.submission_link}
+                  target="_blank"
+                  className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2"
                 >
-                  Extra Course Materials
-                </label>
-                {/* Material type selector */}
+                  <ExternalLink className="w-3 h-3" /> View Source Material
+                </a>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Numerical Grade (Score)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={reviewScore}
+                    onChange={(e) => setReviewScore(e.target.value)}
+                    className="w-full rounded-lg px-4 py-3 text-2xl outline-none font-black text-center text-[var(--brand-orange)]"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "2px solid var(--border-primary)",
+                    }}
+                    placeholder="e.g. 70"
+                  />
+                  <p className="text-[9px] font-bold text-slate-500 text-center uppercase mt-2">
+                    This score will be synchronized to the global graduation
+                    aggregation engine.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowReviewModal(false)}
+                  className="flex-1 btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReviewSubmission}
+                  disabled={isSaving || reviewScore === ""}
+                  className="flex-1 btn btn-primary"
+                >
+                  {isSaving ? "Grading..." : "Approve & Grade"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ASSIGN STAFF MODAL */}
+        {showStaffModal && (
+          <div
+            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+            onClick={() => setShowStaffModal(false)}
+          >
+            <div
+              className="card w-full max-w-sm space-y-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <h3
+                  className="text-base font-black uppercase tracking-tight"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Assign Personnel
+                </h3>
+                <button onClick={() => setShowStaffModal(false)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Select Staff Member
+                  </label>
+                  <select
+                    value={newStaff.staff_id}
+                    onChange={(e) =>
+                      setNewStaff((p) => ({ ...p, staff_id: e.target.value }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <option value="">Select Member...</option>
+                    {staffList.map((s) => (
+                      <option key={s.cid} value={s.cid}>
+                        {s.name} ({s.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Assigned Role
+                  </label>
+                  <select
+                    value={newStaff.role}
+                    onChange={(e) =>
+                      setNewStaff((p) => ({ ...p, role: e.target.value }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <option value="staff">Staff Member</option>
+                    <option value="assistant">Assistant</option>
+                    <option value="evaluator">Evaluator</option>
+                    <option value="handler">Handler</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowStaffModal(false)}
+                  className="flex-1 btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={assignStaff}
+                  disabled={isSaving || !newStaff.staff_id}
+                  className="flex-1 btn btn-primary"
+                >
+                  {isSaving ? "Assigning..." : "Assign"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DEFINE KPI MODAL */}
+        {showKPIModal && (
+          <div
+            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+            onClick={() => setShowKPIModal(false)}
+          >
+            <div
+              className="card w-full max-w-sm space-y-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <h3
+                  className="text-base font-black uppercase tracking-tight"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Define KPI Target
+                </h3>
+                <button onClick={() => setShowKPIModal(false)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    KPI Title
+                  </label>
+                  <input
+                    value={newKPI.title}
+                    onChange={(e) =>
+                      setNewKPI((p) => ({ ...p, title: e.target.value }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                    placeholder="e.g. Weekly Engagement"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Target Value (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newKPI.target_value}
+                    onChange={(e) =>
+                      setNewKPI((p) => ({
+                        ...p,
+                        target_value: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowKPIModal(false)}
+                  className="flex-1 btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addKPI}
+                  disabled={isSaving || !newKPI.title.trim()}
+                  className="flex-1 btn btn-primary"
+                >
+                  {isSaving ? "Defining..." : "Define"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ANCHOR REQUIREMENT MODAL */}
+        {showRequirementModal && (
+          <div
+            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+            onClick={() => setShowRequirementModal(false)}
+          >
+            <div
+              className="card w-full max-w-sm space-y-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <h3
+                  className="text-base font-black uppercase tracking-tight"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Add Requirement
+                </h3>
+                <button onClick={() => setShowRequirementModal(false)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Requirement Title
+                  </label>
+                  <input
+                    value={newRequirement.title}
+                    onChange={(e) =>
+                      setNewRequirement((p) => ({
+                        ...p,
+                        title: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                    placeholder="e.g. Project Proposal PDF"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Allowed Format
+                  </label>
+                  <select
+                    value={newRequirement.allowed_format}
+                    onChange={(e) =>
+                      setNewRequirement((p) => ({
+                        ...p,
+                        allowed_format: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <option value="pdf">PDF Document</option>
+                    <option value="image">Image File</option>
+                    <option value="link">External Link</option>
+                    <option value="video">Video Upload</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
+                    <Target className="w-3 h-3 text-[#FF6600]" /> Strategic
+                    Impact (KPIs)
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 max-h-[100px] overflow-y-auto p-1 custom-scrollbar text-left">
+                    {kpis.map((kpi) => (
+                      <button
+                        key={kpi.id}
+                        onClick={() => toggleKpi("requirement", kpi.id)}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                          (newRequirement.kpi_ids || []).includes(kpi.id)
+                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
+                            : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-tight">
+                          {kpi.title}
+                        </span>
+                        {(newRequirement.kpi_ids || []).includes(kpi.id) && (
+                          <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRequirementModal(false)}
+                  className="flex-1 btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <div className="flex-1 flex flex-col gap-2">
+                  <button
+                    onClick={() => addRequirement(false)}
+                    disabled={isSaving || !newRequirement.title.trim()}
+                    className="w-full btn btn-secondary text-[9px] py-2 border-dashed"
+                  >
+                    {isSaving ? "Saving..." : "Save & Add Another"}
+                  </button>
+                  <button
+                    onClick={() => addRequirement(true)}
+                    disabled={isSaving || !newRequirement.title.trim()}
+                    className="w-full btn btn-primary py-3"
+                  >
+                    {isSaving ? "Saving..." : "Save & Close"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ATTENDANCE MODAL */}
+        {showAttendanceModal && selectedSessionForAttendance && (
+          <div
+            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+            onClick={() => setShowAttendanceModal(false)}
+          >
+            <div
+              className="card w-full max-w-2xl space-y-6 max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <h3
+                  className="text-base font-black uppercase tracking-tight"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Attendance — {selectedSessionForAttendance.title}
+                </h3>
+                <button onClick={() => setShowAttendanceModal(false)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {participants.map((p) => {
+                  const status = attendanceRecords[p.id] || "present";
+                  return (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black uppercase">
+                          {p.name?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">
+                            {p.name}
+                          </p>
+                          <p className="text-[9px] text-[var(--text-secondary)]">
+                            {p.email}
+                          </p>
+                        </div>
+                      </div>
+                      <select
+                        value={status}
+                        onChange={(e) =>
+                          setAttendanceRecords((prev) => ({
+                            ...prev,
+                            [p.id]: e.target.value,
+                          }))
+                        }
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${
+                          status === "present"
+                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                            : status === "absent"
+                              ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                              : status === "excused"
+                                ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                : "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                        }`}
+                      >
+                        <option value="present">Present</option>
+                        <option value="absent">Absent</option>
+                        <option value="excused">Excused</option>
+                        <option value="late">Late</option>
+                      </select>
+                    </div>
+                  );
+                })}
+                {participants.length === 0 && (
+                  <p className="text-center text-[var(--text-secondary)] italic py-8">
+                    No participants enrolled in this program.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowAttendanceModal(false)}
+                  className="flex-1 btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!selectedSessionForAttendance) return;
+                    setIsSaving(true);
+                    try {
+                      const today = new Date().toISOString().split("T")[0];
+                      for (const p of participants) {
+                        const status = attendanceRecords[p.id] || "present";
+                        await fetch("/api/attendance", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            session_id: selectedSessionForAttendance.id,
+                            program_id: id,
+                            participant_id: p.id,
+                            status,
+                            date: today,
+                          }),
+                        });
+                      }
+                      notify("Attendance recorded.");
+                      setShowAttendanceModal(false);
+                      setAttendanceRecords({});
+                    } catch (e) {
+                      notify("Failed to save attendance.", "error");
+                    } finally {
+                      setIsSaving(false);
+                    }
+                  }}
+                  disabled={isSaving}
+                  className="flex-1 btn btn-primary"
+                >
+                  {isSaving ? "Saving..." : "Save Attendance"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PM WEEKLY REPORT MODAL */}
+        {showPMReportModal && (
+          <div
+            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+            onClick={() => setShowPMReportModal(false)}
+          >
+            <div
+              className="card w-full max-w-sm space-y-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <h3
+                  className="text-base font-black uppercase tracking-tight"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Weekly PM Intelligence
+                </h3>
+                <button onClick={() => setShowPMReportModal(false)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                {/* Attachment type selector */}
                 <div className="flex gap-1 bg-[var(--bg-primary)] rounded-lg p-1 border border-[var(--border-primary)] w-fit">
                   {[
                     { id: "text", label: "Text", icon: FileText },
@@ -2755,14 +3532,10 @@ export default function ProgramWorkspace() {
                       key={opt.id}
                       type="button"
                       onClick={() =>
-                        setNewSessionMaterial({
-                          type: opt.id,
-                          content: "",
-                          name: "",
-                        })
+                        setPmReportAttachments({ type: opt.id, content: "" })
                       }
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
-                        newSessionMaterial.type === opt.id
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                        pmReportAttachments.type === opt.id
                           ? "bg-[var(--brand-orange)] text-black"
                           : "text-slate-500 hover:text-white"
                       }`}
@@ -2773,1078 +3546,333 @@ export default function ProgramWorkspace() {
                   ))}
                 </div>
 
-                {/* Material input */}
-                <div className="flex gap-2">
-                  {newSessionMaterial.type === "text" && (
-                    <input
-                      value={newSessionMaterial.content}
+                <div className="space-y-2">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {pmReportAttachments.type === "text"
+                      ? "Weekly Summary"
+                      : pmReportAttachments.type === "link"
+                        ? "External Link"
+                        : "Uploaded File"}
+                  </label>
+                  {pmReportAttachments.type === "text" && (
+                    <textarea
+                      value={newPMReport.summary}
                       onChange={(e) =>
-                        setNewSessionMaterial((p) => ({
+                        setNewPMReport((p) => ({
                           ...p,
-                          content: e.target.value,
-                          name: "Text Note",
+                          summary: e.target.value,
                         }))
                       }
-                      placeholder="Enter a text note or instruction..."
-                      className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
+                      rows="5"
+                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]"
+                      placeholder="How did this week's topic go? Any tactical successes or blockers?"
                     />
                   )}
-                  {newSessionMaterial.type === "link" && (
+                  {pmReportAttachments.type === "link" && (
                     <input
                       type="url"
-                      value={newSessionMaterial.content}
+                      value={pmReportAttachments.content}
                       onChange={(e) =>
-                        setNewSessionMaterial((p) => ({
-                          ...p,
+                        setPmReportAttachments({
+                          type: "link",
                           content: e.target.value,
-                          name:
-                            e.target.value.split("/").pop() || "External Link",
-                        }))
+                        })
                       }
-                      placeholder="https://..."
-                      className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
+                      placeholder="https://docs.google.com/..."
+                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]"
                     />
                   )}
-                  {newSessionMaterial.type === "upload" && (
-                    <div className="flex-1 relative group">
+                  {pmReportAttachments.type === "upload" && (
+                    <div className="relative group">
                       <input
                         type="file"
                         accept=".pdf,.doc,.docx"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file)
-                            setNewSessionMaterial((p) => ({
-                              ...p,
+                            setPmReportAttachments({
+                              type: "upload",
                               content: file.name,
-                              name: file.name,
-                            }));
+                            });
                         }}
                         className="absolute inset-0 opacity-0 cursor-pointer z-10"
                       />
-                      <div
-                        className="flex items-center gap-2 px-4 py-3 rounded-lg border border-dashed text-sm font-bold"
-                        style={{
-                          background: "var(--bg-primary)",
-                          borderColor: "var(--border-primary)",
-                          color: "var(--text-secondary)",
-                        }}
-                      >
-                        <Paperclip className="w-4 h-4" />
-                        {newSessionMaterial.content || "Click to attach"}
+                      <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[var(--border-primary)] rounded-lg hover:border-[var(--brand-orange)] transition-all">
+                        <Paperclip className="w-6 h-6 text-slate-500 mb-2" />
+                        <p className="text-[10px] font-bold text-slate-500">
+                          {pmReportAttachments.content ||
+                            "Click to attach PDF, DOC, or DOCX"}
+                        </p>
                       </div>
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!newSessionMaterial.content.trim()) return;
-                      setNewSession((p) => ({
-                        ...p,
-                        extra_materials: [
-                          ...(p.extra_materials || []),
-                          { ...newSessionMaterial },
-                        ],
-                      }));
-                      setNewSessionMaterial({
-                        type: "text",
-                        content: "",
-                        name: "",
-                      });
+                </div>
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Strategic Health
+                  </label>
+                  <select
+                    value={newPMReport.status}
+                    onChange={(e) =>
+                      setNewPMReport((p) => ({ ...p, status: e.target.value }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
                     }}
-                    className="px-4 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                   >
-                    Add
-                  </button>
-                </div>
+                    <option value="optimal">OPTIMAL</option>
+                    <option value="stable">STABLE</option>
+                    <option value="at_risk">AT RISK</option>
+                    <option value="critical">CRITICAL</option>
+                  </select>
 
-                {/* Added materials list */}
-                {(newSession.extra_materials || []).length > 0 && (
-                  <div className="space-y-1.5 mt-2">
-                    {(newSession.extra_materials || []).map((mat, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-2 rounded-lg"
-                        style={{
-                          background: "var(--bg-tertiary)",
-                          border: "1px solid var(--border-primary)",
-                        }}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          {mat.type === "text" && (
-                            <FileText className="w-3 h-3 text-blue-500 shrink-0" />
-                          )}
-                          {mat.type === "link" && (
-                            <Plus className="w-3 h-3 text-emerald-500 shrink-0" />
-                          )}
-                          {mat.type === "upload" && (
-                            <Paperclip className="w-3 h-3 text-[#FF6600] shrink-0" />
-                          )}
-                          <span className="text-[10px] font-bold truncate text-[var(--text-primary)]">
-                            {mat.name || mat.content}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewSession((p) => ({
-                              ...p,
-                              extra_materials: (p.extra_materials || []).filter(
-                                (_, i) => i !== idx,
-                              ),
-                            }))
-                          }
-                          className="text-rose-500 hover:scale-110 transition-all shrink-0"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                  <Target className="w-3 h-3 text-[#FF6600]" /> Link Strategic
-                  KPIs (Required)
-                </label>
-                <div className="grid grid-cols-1 gap-2 max-h-[120px] overflow-y-auto p-1 custom-scrollbar text-left">
-                  {kpis.map((kpi) => (
-                    <button
-                      key={kpi.id}
-                      onClick={() => toggleKpi("session", kpi.id)}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                        (newSession.kpi_ids || []).includes(kpi.id)
-                          ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                          : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                      }`}
-                    >
-                      <span className="text-[10px] font-bold uppercase tracking-tight">
-                        {kpi.title}
-                      </span>
-                      {(newSession.kpi_ids || []).includes(kpi.id) && (
-                        <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowSessionModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addSession}
-                disabled={isSaving || !newSession.title.trim()}
-                className="flex-1 btn btn-primary"
-              >
-                {isSaving ? "Adding..." : "Add Session"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* REVIEW & GRADE MODAL */}
-      {showReviewModal && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowReviewModal(false)}
-        >
-          <div
-            className="card w-full max-w-md space-y-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Grade Submission
-              </h3>
-              <button onClick={() => setShowReviewModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-4 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl space-y-2">
-              <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                Participant
-              </p>
-              <p className="text-sm font-black text-[var(--text-primary)]">
-                {selectedSubmission?.participant_name || "Group Submission"}
-              </p>
-              <a
-                href={selectedSubmission?.submission_link}
-                target="_blank"
-                className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2"
-              >
-                <ExternalLink className="w-3 h-3" /> View Source Material
-              </a>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Numerical Grade (Score)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={reviewScore}
-                  onChange={(e) => setReviewScore(e.target.value)}
-                  className="w-full rounded-lg px-4 py-3 text-2xl outline-none font-black text-center text-[var(--brand-orange)]"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "2px solid var(--border-primary)",
-                  }}
-                  placeholder="e.g. 70"
-                />
-                <p className="text-[9px] font-bold text-slate-500 text-center uppercase mt-2">
-                  This score will be synchronized to the global graduation
-                  aggregation engine.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3 pt-4">
-              <button
-                onClick={() => setShowReviewModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReviewSubmission}
-                disabled={isSaving || reviewScore === ""}
-                className="flex-1 btn btn-primary"
-              >
-                {isSaving ? "Grading..." : "Approve & Grade"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ASSIGN STAFF MODAL */}
-      {showStaffModal && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowStaffModal(false)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Assign Personnel
-              </h3>
-              <button onClick={() => setShowStaffModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Select Staff Member
-                </label>
-                <select
-                  value={newStaff.staff_id}
-                  onChange={(e) =>
-                    setNewStaff((p) => ({ ...p, staff_id: e.target.value }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <option value="">Select Member...</option>
-                  {staffList.map((s) => (
-                    <option key={s.cid} value={s.cid}>
-                      {s.name} ({s.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Assigned Role
-                </label>
-                <select
-                  value={newStaff.role}
-                  onChange={(e) =>
-                    setNewStaff((p) => ({ ...p, role: e.target.value }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <option value="staff">Staff Member</option>
-                  <option value="assistant">Assistant</option>
-                  <option value="evaluator">Evaluator</option>
-                  <option value="handler">Handler</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowStaffModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={assignStaff}
-                disabled={isSaving || !newStaff.staff_id}
-                className="flex-1 btn btn-primary"
-              >
-                {isSaving ? "Assigning..." : "Assign"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DEFINE KPI MODAL */}
-      {showKPIModal && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowKPIModal(false)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Define KPI Target
-              </h3>
-              <button onClick={() => setShowKPIModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  KPI Title
-                </label>
-                <input
-                  value={newKPI.title}
-                  onChange={(e) =>
-                    setNewKPI((p) => ({ ...p, title: e.target.value }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                  placeholder="e.g. Weekly Engagement"
-                />
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Target Value (%)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={newKPI.target_value}
-                  onChange={(e) =>
-                    setNewKPI((p) => ({
-                      ...p,
-                      target_value: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowKPIModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addKPI}
-                disabled={isSaving || !newKPI.title.trim()}
-                className="flex-1 btn btn-primary"
-              >
-                {isSaving ? "Defining..." : "Define"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ANCHOR REQUIREMENT MODAL */}
-      {showRequirementModal && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowRequirementModal(false)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Add Requirement
-              </h3>
-              <button onClick={() => setShowRequirementModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Requirement Title
-                </label>
-                <input
-                  value={newRequirement.title}
-                  onChange={(e) =>
-                    setNewRequirement((p) => ({ ...p, title: e.target.value }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                  placeholder="e.g. Project Proposal PDF"
-                />
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Allowed Format
-                </label>
-                <select
-                  value={newRequirement.allowed_format}
-                  onChange={(e) =>
-                    setNewRequirement((p) => ({
-                      ...p,
-                      allowed_format: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <option value="pdf">PDF Document</option>
-                  <option value="image">Image File</option>
-                  <option value="link">External Link</option>
-                  <option value="video">Video Upload</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                  <Target className="w-3 h-3 text-[#FF6600]" /> Strategic Impact
-                  (KPIs)
-                </label>
-                <div className="grid grid-cols-1 gap-2 max-h-[100px] overflow-y-auto p-1 custom-scrollbar text-left">
-                  {kpis.map((kpi) => (
-                    <button
-                      key={kpi.id}
-                      onClick={() => toggleKpi("requirement", kpi.id)}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                        (newRequirement.kpi_ids || []).includes(kpi.id)
-                          ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                          : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                      }`}
-                    >
-                      <span className="text-[10px] font-bold uppercase tracking-tight">
-                        {kpi.title}
-                      </span>
-                      {(newRequirement.kpi_ids || []).includes(kpi.id) && (
-                        <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowRequirementModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <div className="flex-1 flex flex-col gap-2">
-                <button
-                  onClick={() => addRequirement(false)}
-                  disabled={isSaving || !newRequirement.title.trim()}
-                  className="w-full btn btn-secondary text-[9px] py-2 border-dashed"
-                >
-                  {isSaving ? "Saving..." : "Save & Add Another"}
-                </button>
-                <button
-                  onClick={() => addRequirement(true)}
-                  disabled={isSaving || !newRequirement.title.trim()}
-                  className="w-full btn btn-primary py-3"
-                >
-                  {isSaving ? "Saving..." : "Save & Close"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ATTENDANCE MODAL */}
-      {showAttendanceModal && selectedSessionForAttendance && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowAttendanceModal(false)}
-        >
-          <div
-            className="card w-full max-w-2xl space-y-6 max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Attendance — {selectedSessionForAttendance.title}
-              </h3>
-              <button onClick={() => setShowAttendanceModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {participants.map((p) => {
-                const status = attendanceRecords[p.id] || "present";
-                return (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black uppercase">
-                        {p.name?.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-[var(--text-primary)]">
-                          {p.name}
-                        </p>
-                        <p className="text-[9px] text-[var(--text-secondary)]">
-                          {p.email}
-                        </p>
-                      </div>
-                    </div>
-                    <select
-                      value={status}
-                      onChange={(e) =>
-                        setAttendanceRecords((prev) => ({
-                          ...prev,
-                          [p.id]: e.target.value,
-                        }))
-                      }
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${
-                        status === "present"
-                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                          : status === "absent"
-                            ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
-                            : status === "excused"
-                              ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                              : "bg-blue-500/10 text-blue-500 border-blue-500/30"
-                      }`}
-                    >
-                      <option value="present">Present</option>
-                      <option value="absent">Absent</option>
-                      <option value="excused">Excused</option>
-                      <option value="late">Late</option>
-                    </select>
-                  </div>
-                );
-              })}
-              {participants.length === 0 && (
-                <p className="text-center text-[var(--text-secondary)] italic py-8">
-                  No participants enrolled in this program.
-                </p>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAttendanceModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  if (!selectedSessionForAttendance) return;
-                  setIsSaving(true);
-                  try {
-                    const today = new Date().toISOString().split("T")[0];
-                    for (const p of participants) {
-                      const status = attendanceRecords[p.id] || "present";
-                      await fetch("/api/attendance", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          session_id: selectedSessionForAttendance.id,
-                          program_id: id,
-                          participant_id: p.id,
-                          status,
-                          date: today,
-                        }),
-                      });
-                    }
-                    notify("Attendance recorded.");
-                    setShowAttendanceModal(false);
-                    setAttendanceRecords({});
-                  } catch (e) {
-                    notify("Failed to save attendance.", "error");
-                  } finally {
-                    setIsSaving(false);
-                  }
-                }}
-                disabled={isSaving}
-                className="flex-1 btn btn-primary"
-              >
-                {isSaving ? "Saving..." : "Save Attendance"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PM WEEKLY REPORT MODAL */}
-      {showPMReportModal && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowPMReportModal(false)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Weekly PM Intelligence
-              </h3>
-              <button onClick={() => setShowPMReportModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              {/* Attachment type selector */}
-              <div className="flex gap-1 bg-[var(--bg-primary)] rounded-lg p-1 border border-[var(--border-primary)] w-fit">
-                {[
-                  { id: "text", label: "Text", icon: FileText },
-                  { id: "link", label: "Link", icon: Plus },
-                  { id: "upload", label: "File", icon: Paperclip },
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() =>
-                      setPmReportAttachments({ type: opt.id, content: "" })
-                    }
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
-                      pmReportAttachments.type === opt.id
-                        ? "bg-[var(--brand-orange)] text-black"
-                        : "text-slate-500 hover:text-white"
-                    }`}
-                  >
-                    <opt.icon className="w-3 h-3" />
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-2">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  {pmReportAttachments.type === "text"
-                    ? "Weekly Summary"
-                    : pmReportAttachments.type === "link"
-                      ? "External Link"
-                      : "Uploaded File"}
-                </label>
-                {pmReportAttachments.type === "text" && (
-                  <textarea
-                    value={newPMReport.summary}
-                    onChange={(e) =>
-                      setNewPMReport((p) => ({ ...p, summary: e.target.value }))
-                    }
-                    rows="5"
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]"
-                    placeholder="How did this week's topic go? Any tactical successes or blockers?"
-                  />
-                )}
-                {pmReportAttachments.type === "link" && (
-                  <input
-                    type="url"
-                    value={pmReportAttachments.content}
-                    onChange={(e) =>
-                      setPmReportAttachments({
-                        type: "link",
-                        content: e.target.value,
-                      })
-                    }
-                    placeholder="https://docs.google.com/..."
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]"
-                  />
-                )}
-                {pmReportAttachments.type === "upload" && (
-                  <div className="relative group">
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file)
-                          setPmReportAttachments({
-                            type: "upload",
-                            content: file.name,
-                          });
-                      }}
-                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                    />
-                    <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[var(--border-primary)] rounded-lg hover:border-[var(--brand-orange)] transition-all">
-                      <Paperclip className="w-6 h-6 text-slate-500 mb-2" />
-                      <p className="text-[10px] font-bold text-slate-500">
-                        {pmReportAttachments.content ||
-                          "Click to attach PDF, DOC, or DOCX"}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Strategic Health
-                </label>
-                <select
-                  value={newPMReport.status}
-                  onChange={(e) =>
-                    setNewPMReport((p) => ({ ...p, status: e.target.value }))
-                  }
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <option value="optimal">OPTIMAL</option>
-                  <option value="stable">STABLE</option>
-                  <option value="at_risk">AT RISK</option>
-                  <option value="critical">CRITICAL</option>
-                </select>
-
-                <div className="mt-4 p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3">
-                  <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] border-b border-[var(--border-primary)] pb-2">
-                    Strategic Health Guide
-                  </p>
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1" />
-                      <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
-                        <span className="text-emerald-500">Optimal:</span>{" "}
-                        Performance exceeding expectations. Zero blockers.
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1" />
-                      <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
-                        <span className="text-blue-500">Stable:</span> On track.
-                        Minor hurdles managed successfully.
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1" />
-                      <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
-                        <span className="text-yellow-500">At Risk:</span>{" "}
-                        Warning signs. Emerging blockers requiring attention.
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1" />
-                      <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
-                        <span className="text-rose-500">Critical:</span> Major
-                        failure. Intervention required immediately.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowPMReportModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitPMReport}
-                disabled={
-                  isSaving ||
-                  !(
-                    (pmReportAttachments.type === "text"
-                      ? newPMReport.summary
-                      : pmReportAttachments.content) || ""
-                  ).trim()
-                }
-                className="flex-1 btn btn-primary"
-              >
-                {isSaving ? "Transmitting..." : "Submit to Super Admin"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* TEAM DETAILS MODAL */}
-      {showTeamDetails && selectedTeam && (
-        <div
-          className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
-          onClick={() => setShowTeamDetails(false)}
-        >
-          <div
-            className="card w-full max-w-5xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-indigo-500/30"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-8 border-b border-[var(--border-primary)] bg-gradient-to-r from-[var(--bg-secondary)] to-[var(--bg-tertiary)] flex justify-between items-center">
-              <div>
-                <h3 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-3">
-                  <Target className="w-6 h-6 text-[var(--brand-orange)]" />
-                  {selectedTeam.name} — Team Review
-                </h3>
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-1">
-                  Operational Performance & Records
-                </p>
-              </div>
-              <button
-                onClick={() => setShowTeamDetails(false)}
-                className="p-2 hover:bg-rose-500/10 hover:text-rose-500 rounded-xl transition-all"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-              <div className="grid grid-cols-1 gap-8">
-                {/* Participant Table */}
-                <div className="table-container !border-none !shadow-none">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Team Member</th>
-                        <th>Submissions</th>
-                        <th className="w-48 text-center">Marks Awarded</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {participants
-                        .filter((p) => p.v2_team_id === selectedTeam.id)
-                        .map((p) => {
-                          const participantSubmissions = submissions.filter(
-                            (s) =>
-                              String(s.participant_id) ===
-                              String(p.cid || p.id),
-                          );
-                          const avgScore =
-                            participantSubmissions.length > 0
-                              ? Math.round(
-                                  participantSubmissions.reduce(
-                                    (acc, s) => acc + (s.score || 0),
-                                    0,
-                                  ) / participantSubmissions.length,
-                                )
-                              : 0;
-
-                          return (
-                            <tr
-                              key={p.id}
-                              className="hover:bg-indigo-500/5 transition-colors"
-                            >
-                              <td className="py-6">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-500/20">
-                                    {p.name.charAt(0)}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                                      {p.name}
-                                    </p>
-                                    <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase opacity-60">
-                                      {p.email}
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td>
-                                <div className="flex flex-wrap gap-2">
-                                  {participantSubmissions.map((sub) => (
-                                    <div
-                                      key={sub.id}
-                                      className="group relative"
-                                    >
-                                      <button
-                                        onClick={() =>
-                                          setActivePDF({
-                                            url: sub.file_url,
-                                            name: `Submission_${sub.id}`,
-                                          })
-                                        }
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
-                                      >
-                                        <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                          Artifact
-                                        </span>
-                                        <span className="text-[10px] font-black text-emerald-500">
-                                          [{sub.score || "??"}]
-                                        </span>
-                                      </button>
-                                    </div>
-                                  ))}
-                                  {participantSubmissions.length === 0 && (
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-rose-500/40 italic">
-                                      No submissions found
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="text-center">
-                                <div className="inline-flex flex-col items-center gap-2">
-                                  <div
-                                    className={`text-2xl font-black ${avgScore >= 70 ? "text-emerald-500" : avgScore >= 40 ? "text-amber-500" : "text-rose-500"}`}
-                                  >
-                                    {avgScore}%
-                                  </div>
-                                  <select
-                                    className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:border-indigo-500 cursor-pointer"
-                                    value={avgScore}
-                                    onChange={(e) =>
-                                      updateParticipantScores(
-                                        p.cid || p.id,
-                                        e.target.value,
-                                      )
-                                    }
-                                  >
-                                    <option value="">Audit Marks...</option>
-                                    {[
-                                      100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
-                                      0,
-                                    ].map((m) => (
-                                      <option key={m} value={m}>
-                                        {m}% Awarded
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {participants.filter((p) => p.group_name === selectedTeam.name)
-                  .length === 0 && (
-                  <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                    <Users className="w-12 h-12 mb-4" />
-                    <p className="text-sm font-black uppercase tracking-[0.3em]">
-                      No members found in this team
+                  <div className="mt-4 p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3">
+                    <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] border-b border-[var(--border-primary)] pb-2">
+                      Strategic Health Guide
                     </p>
+                    <div className="grid grid-cols-1 gap-2">
+                      <div className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1" />
+                        <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
+                          <span className="text-emerald-500">Optimal:</span>{" "}
+                          Performance exceeding expectations. Zero blockers.
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1" />
+                        <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
+                          <span className="text-blue-500">Stable:</span> On
+                          track. Minor hurdles managed successfully.
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1" />
+                        <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
+                          <span className="text-yellow-500">At Risk:</span>{" "}
+                          Warning signs. Emerging blockers requiring attention.
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1" />
+                        <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
+                          <span className="text-rose-500">Critical:</span> Major
+                          failure. Intervention required immediately.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPMReportModal(false)}
+                  className="flex-1 btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitPMReport}
+                  disabled={
+                    isSaving ||
+                    !(
+                      (pmReportAttachments.type === "text"
+                        ? newPMReport.summary
+                        : pmReportAttachments.content) || ""
+                    ).trim()
+                  }
+                  className="flex-1 btn btn-primary"
+                >
+                  {isSaving ? "Transmitting..." : "Submit to Super Admin"}
+                </button>
               </div>
             </div>
+          </div>
+        )}
+        {/* TEAM DETAILS MODAL */}
+        {showTeamDetails && selectedTeam && (
+          <div
+            className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={() => setShowTeamDetails(false)}
+          >
+            <div
+              className="card w-full max-w-5xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-indigo-500/30"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-8 border-b border-[var(--border-primary)] bg-gradient-to-r from-[var(--bg-secondary)] to-[var(--bg-tertiary)] flex justify-between items-center">
+                <div>
+                  <h3 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-3">
+                    <Target className="w-6 h-6 text-[var(--brand-orange)]" />
+                    {selectedTeam.name} — Team Review
+                  </h3>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-1">
+                    Operational Performance & Records
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowTeamDetails(false)}
+                  className="p-2 hover:bg-rose-500/10 hover:text-rose-500 rounded-xl transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
 
-            <div className="p-6 bg-[var(--bg-tertiary)] border-t border-[var(--border-primary)] flex justify-end gap-3">
-              <button
-                onClick={() => setShowTeamDetails(false)}
-                className="btn btn-secondary px-8"
-              >
-                Close Audit
-              </button>
-              <button className="btn btn-primary px-8 gap-2">
-                <Save className="w-4 h-4" />
-                Save Adjustments
-              </button>
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <div className="grid grid-cols-1 gap-8">
+                  {/* Participant Table */}
+                  <div className="table-container !border-none !shadow-none">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Team Member</th>
+                          <th>Submissions</th>
+                          <th className="w-48 text-center">Marks Awarded</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {participants
+                          .filter((p) => p.v2_team_id === selectedTeam.id)
+                          .map((p) => {
+                            const participantSubmissions = submissions.filter(
+                              (s) =>
+                                String(s.participant_id) ===
+                                String(p.cid || p.id),
+                            );
+                            const avgScore =
+                              participantSubmissions.length > 0
+                                ? Math.round(
+                                    participantSubmissions.reduce(
+                                      (acc, s) => acc + (s.score || 0),
+                                      0,
+                                    ) / participantSubmissions.length,
+                                  )
+                                : 0;
+
+                            return (
+                              <tr
+                                key={p.id}
+                                className="hover:bg-indigo-500/5 transition-colors"
+                              >
+                                <td className="py-6">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-500/20">
+                                      {p.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
+                                        {p.name}
+                                      </p>
+                                      <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase opacity-60">
+                                        {p.email}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>
+                                  <div className="flex flex-wrap gap-2">
+                                    {participantSubmissions.map((sub) => (
+                                      <div
+                                        key={sub.id}
+                                        className="group relative"
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            setActivePDF({
+                                              url: sub.file_url,
+                                              name: `Submission_${sub.id}`,
+                                            })
+                                          }
+                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
+                                        >
+                                          <FileText className="w-3.5 h-3.5 text-emerald-500" />
+                                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                                            Artifact
+                                          </span>
+                                          <span className="text-[10px] font-black text-emerald-500">
+                                            [{sub.score || "??"}]
+                                          </span>
+                                        </button>
+                                      </div>
+                                    ))}
+                                    {participantSubmissions.length === 0 && (
+                                      <span className="text-[9px] font-black uppercase tracking-widest text-rose-500/40 italic">
+                                        No submissions found
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="text-center">
+                                  <div className="inline-flex flex-col items-center gap-2">
+                                    <div
+                                      className={`text-2xl font-black ${avgScore >= 70 ? "text-emerald-500" : avgScore >= 40 ? "text-amber-500" : "text-rose-500"}`}
+                                    >
+                                      {avgScore}%
+                                    </div>
+                                    <select
+                                      className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:border-indigo-500 cursor-pointer"
+                                      value={avgScore}
+                                      onChange={(e) =>
+                                        updateParticipantScores(
+                                          p.cid || p.id,
+                                          e.target.value,
+                                        )
+                                      }
+                                    >
+                                      <option value="">Audit Marks...</option>
+                                      {[
+                                        100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
+                                        0,
+                                      ].map((m) => (
+                                        <option key={m} value={m}>
+                                          {m}% Awarded
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {participants.filter(
+                    (p) => p.group_name === selectedTeam.name,
+                  ).length === 0 && (
+                    <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
+                      <Users className="w-12 h-12 mb-4" />
+                      <p className="text-sm font-black uppercase tracking-[0.3em]">
+                        No members found in this team
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6 bg-[var(--bg-tertiary)] border-t border-[var(--border-primary)] flex justify-end gap-3">
+                <button
+                  onClick={() => setShowTeamDetails(false)}
+                  className="btn btn-secondary px-8"
+                >
+                  Close Audit
+                </button>
+                <button className="btn btn-primary px-8 gap-2">
+                  <Save className="w-4 h-4" />
+                  Save Adjustments
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </DashboardLayout>
   );
