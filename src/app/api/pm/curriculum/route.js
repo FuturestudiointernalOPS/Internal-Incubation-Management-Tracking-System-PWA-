@@ -127,11 +127,61 @@ export async function POST(req) {
     }
 
     if (action === "submit_pm_report") {
-      const { session_id, week_number, summary, status, pm_id } = payload;
+      const {
+        session_id,
+        week_number,
+        summary,
+        status,
+        pm_id,
+        // New structured fields
+        week_status,
+        week_rating,
+        main_topic,
+        // KPI-linked assignment tracking
+        assignment_given,
+        assignment_kpi_ids,
+        assignment_objective,
+        assignment_outcome,
+        attendance_level,
+        participation_level,
+        participants_need_attention,
+        participants_attention_notes,
+        standout_participants,
+        standout_notes,
+        delivery_quality,
+        participant_understanding,
+        delivery_challenges,
+        delivery_challenge_note,
+        had_issues,
+        issue_types,
+        requires_admin_attention,
+        additional_issue_note,
+        program_on_track,
+        planned_adjustments,
+      } = payload;
+
       await db.execute({
         sql: `INSERT INTO v2_weekly_reports
-                  (program_id, week_number, teacher_id, teacher_name, progress_notes, reception_score)
-                  VALUES (?, ?, ?, ?, ?, ?)`,
+                  (program_id, week_number, teacher_id, teacher_name, progress_notes, reception_score,
+                   week_status, week_rating, main_topic,
+                   assignment_given, assignment_kpi_ids, assignment_objective, assignment_outcome,
+                   attendance_level, participation_level,
+                   participants_need_attention, participants_attention_notes,
+                   standout_participants, standout_notes,
+                   delivery_quality, participant_understanding,
+                   delivery_challenges, delivery_challenge_note,
+                   had_issues, issue_types, requires_admin_attention, additional_issue_note,
+                   program_on_track, planned_adjustments)
+                  VALUES (?, ?, ?, ?, ?, ?,
+                   ?, ?, ?,
+                   ?, ?, ?, ?,
+                   ?, ?,
+                   ?, ?,
+                   ?, ?,
+                   ?, ?,
+                   ?, ?,
+                   ?, ?, ?, ?,
+                   ?, ?)`,
         args: [
           program_id,
           week_number,
@@ -145,6 +195,45 @@ export async function POST(req) {
               : status === "stable"
                 ? 7
                 : 10,
+          // New structured fields
+          week_status || null,
+          week_rating || null,
+          main_topic || null,
+          // KPI-linked assignment tracking
+          assignment_given != null ? (assignment_given ? 1 : 0) : null,
+          Array.isArray(assignment_kpi_ids)
+            ? JSON.stringify(assignment_kpi_ids)
+            : null,
+          assignment_objective || null,
+          assignment_outcome || null,
+          attendance_level || null,
+          participation_level || null,
+          participants_need_attention != null
+            ? participants_need_attention
+              ? 1
+              : 0
+            : null,
+          participants_attention_notes || null,
+          standout_participants != null
+            ? standout_participants
+              ? 1
+              : 0
+            : null,
+          standout_notes || null,
+          delivery_quality || null,
+          participant_understanding || null,
+          delivery_challenges != null ? (delivery_challenges ? 1 : 0) : null,
+          delivery_challenge_note || null,
+          had_issues != null ? (had_issues ? 1 : 0) : null,
+          Array.isArray(issue_types) ? issue_types : null,
+          requires_admin_attention != null
+            ? requires_admin_attention
+              ? 1
+              : 0
+            : null,
+          additional_issue_note || null,
+          program_on_track != null ? (program_on_track ? 1 : 0) : null,
+          planned_adjustments || null,
         ],
       });
       return NextResponse.json({ success: true });

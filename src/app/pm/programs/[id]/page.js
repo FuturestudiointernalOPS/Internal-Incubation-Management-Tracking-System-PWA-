@@ -179,6 +179,31 @@ export default function ProgramWorkspace() {
   const [newPMReport, setNewPMReport] = useState({
     summary: "",
     status: "optimal",
+    // New structured fields
+    week_status: "",
+    week_rating: "",
+    main_topic: "",
+    // KPI-linked assignment tracking
+    assignment_given: false,
+    assignment_kpi_ids: [],
+    assignment_objective: "",
+    assignment_outcome: "",
+    attendance_level: "",
+    participation_level: "",
+    participants_need_attention: false,
+    participants_attention_notes: "",
+    standout_participants: false,
+    standout_notes: "",
+    delivery_quality: "",
+    participant_understanding: "",
+    delivery_challenges: false,
+    delivery_challenge_note: "",
+    had_issues: false,
+    issue_types: [],
+    requires_admin_attention: false,
+    additional_issue_note: "",
+    program_on_track: true,
+    planned_adjustments: "",
   });
   const [newStaff, setNewStaff] = useState({ staff_id: "", role: "staff" });
 
@@ -452,11 +477,18 @@ export default function ProgramWorkspace() {
   };
 
   const submitPMReport = async () => {
-    const reportContent =
-      pmReportAttachments.type === "text"
-        ? newPMReport.summary
-        : pmReportAttachments.content;
-    if (!reportContent.trim()) return;
+    // Validate required fields
+    if (
+      !newPMReport.week_status ||
+      !newPMReport.week_rating ||
+      !newPMReport.main_topic?.trim()
+    ) {
+      notify(
+        "Please fill in Week Status, Week Rating, and Main Topic (required fields).",
+        "error",
+      );
+      return;
+    }
     setIsSaving(true);
     try {
       const body = {
@@ -465,18 +497,36 @@ export default function ProgramWorkspace() {
         session_id: selectedSessionId,
         week_number: sessions.find((s) => s.id === selectedSessionId)
           ?.week_number,
-        summary: reportContent,
+        summary: newPMReport.summary,
         status: newPMReport.status,
         pm_id: user.cid || user.id,
-        attachment_type: pmReportAttachments.type,
-        attachment_url:
-          pmReportAttachments.type === "link"
-            ? pmReportAttachments.content
-            : null,
-        attachment_file:
-          pmReportAttachments.type === "upload"
-            ? pmReportAttachments.content
-            : null,
+        // New structured fields
+        week_status: newPMReport.week_status,
+        week_rating: newPMReport.week_rating,
+        main_topic: newPMReport.main_topic,
+        // KPI-linked assignment tracking
+        assignment_given: newPMReport.assignment_given,
+        assignment_kpi_ids: newPMReport.assignment_kpi_ids,
+        assignment_objective: newPMReport.assignment_objective || null,
+        assignment_outcome: newPMReport.assignment_outcome || null,
+        attendance_level: newPMReport.attendance_level || null,
+        participation_level: newPMReport.participation_level || null,
+        participants_need_attention: newPMReport.participants_need_attention,
+        participants_attention_notes:
+          newPMReport.participants_attention_notes || null,
+        standout_participants: newPMReport.standout_participants,
+        standout_notes: newPMReport.standout_notes || null,
+        delivery_quality: newPMReport.delivery_quality || null,
+        participant_understanding:
+          newPMReport.participant_understanding || null,
+        delivery_challenges: newPMReport.delivery_challenges,
+        delivery_challenge_note: newPMReport.delivery_challenge_note || null,
+        had_issues: newPMReport.had_issues,
+        issue_types: newPMReport.issue_types,
+        requires_admin_attention: newPMReport.requires_admin_attention,
+        additional_issue_note: newPMReport.additional_issue_note || null,
+        program_on_track: newPMReport.program_on_track,
+        planned_adjustments: newPMReport.planned_adjustments || null,
       };
       const res = await fetch("/api/pm/curriculum", {
         method: "POST",
@@ -487,8 +537,33 @@ export default function ProgramWorkspace() {
       if (data.success) {
         notify("Weekly report transmitted.");
         setShowPMReportModal(false);
-        setNewPMReport({ summary: "", status: "optimal" });
-        setPmReportAttachments({ type: "text", content: "" });
+        setNewPMReport({
+          summary: "",
+          status: "optimal",
+          week_status: "",
+          week_rating: "",
+          main_topic: "",
+          assignment_given: false,
+          assignment_kpi_ids: [],
+          assignment_objective: "",
+          assignment_outcome: "",
+          attendance_level: "",
+          participation_level: "",
+          participants_need_attention: false,
+          participants_attention_notes: "",
+          standout_participants: false,
+          standout_notes: "",
+          delivery_quality: "",
+          participant_understanding: "",
+          delivery_challenges: false,
+          delivery_challenge_note: "",
+          had_issues: false,
+          issue_types: [],
+          requires_admin_attention: false,
+          additional_issue_note: "",
+          program_on_track: true,
+          planned_adjustments: "",
+        });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
     } catch (e) {
@@ -3499,65 +3574,810 @@ export default function ProgramWorkspace() {
           </div>
         )}
 
-        {/* PM WEEKLY REPORT MODAL */}
+        {/* PM WEEKLY REPORT MODAL — Structured Reporting Flow */}
         {showPMReportModal && (
           <div
             className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
             onClick={() => setShowPMReportModal(false)}
           >
             <div
-              className="card w-full max-w-sm space-y-6"
+              className="card w-full max-w-lg space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] z-10 pb-4 border-b border-[var(--border-primary)]">
                 <h3
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Weekly PM Intelligence
+                  Weekly Report
                 </h3>
                 <button onClick={() => setShowPMReportModal(false)}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="space-y-4">
-                {/* Attachment type selector */}
-                <div className="flex gap-1 bg-[var(--bg-primary)] rounded-lg p-1 border border-[var(--border-primary)] w-fit">
-                  {[
-                    { id: "text", label: "Text", icon: FileText },
-                    { id: "link", label: "Link", icon: Plus },
-                    { id: "upload", label: "File", icon: Paperclip },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() =>
-                        setPmReportAttachments({ type: opt.id, content: "" })
-                      }
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
-                        pmReportAttachments.type === opt.id
-                          ? "bg-[var(--brand-orange)] text-black"
-                          : "text-slate-500 hover:text-white"
-                      }`}
-                    >
-                      <opt.icon className="w-3 h-3" />
-                      {opt.label}
-                    </button>
-                  ))}
+
+              <div className="space-y-8">
+                {/* ────────── SECTION 1: WEEKLY OVERVIEW ────────── */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-[var(--brand-orange)]/20">
+                    <div className="w-5 h-5 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[8px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20">
+                      1
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
+                      Weekly Overview
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Week Status — Required */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Week Status <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {[
+                          "successful",
+                          "partially_completed",
+                          "not_completed",
+                        ].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              setNewPMReport((p) => ({
+                                ...p,
+                                week_status: opt,
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                              newPMReport.week_status === opt
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
+                          >
+                            {opt.replace("_", " ")}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Overall Week Rating — Required */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Overall Week Rating{" "}
+                        <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {["excellent", "good", "fair", "poor"].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              setNewPMReport((p) => ({
+                                ...p,
+                                week_rating: opt,
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                              newPMReport.week_rating === opt
+                                ? opt === "excellent"
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                                  : opt === "good"
+                                    ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                                    : opt === "fair"
+                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                                      : "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Main Topic — Required */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Main Topic / Session Covered{" "}
+                        <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newPMReport.main_topic}
+                        onChange={(e) =>
+                          setNewPMReport((p) => ({
+                            ...p,
+                            main_topic: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. Introduction to JavaScript"
+                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {pmReportAttachments.type === "text"
-                      ? "Weekly Summary"
-                      : pmReportAttachments.type === "link"
-                        ? "External Link"
-                        : "Uploaded File"}
-                  </label>
-                  {pmReportAttachments.type === "text" && (
+                {/* ────────── ASSIGNMENT TRACKING ────────── */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-violet-500/20">
+                    <div className="w-5 h-5 rounded-full bg-violet-500/10 flex items-center justify-center text-[8px] font-black text-violet-500 border border-violet-500/20">
+                      +
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-violet-500">
+                      Assignment Tracking
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Was An Assignment Given? — Required */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Was An Assignment/Task Given?{" "}
+                        <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              assignment_given: true,
+                            }))
+                          }
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                            newPMReport.assignment_given === true
+                              ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              assignment_given: false,
+                              assignment_kpi_ids: [],
+                              assignment_objective: "",
+                              assignment_outcome: "",
+                            }))
+                          }
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                            newPMReport.assignment_given === false
+                              ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+
+                    {newPMReport.assignment_given && (
+                      <>
+                        {/* Select Related KPI(s) — Required */}
+                        <div className="space-y-2">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                            Select Related KPI(s){" "}
+                            <span className="text-rose-500">*</span>
+                          </label>
+                          {kpis.length === 0 ? (
+                            <p className="text-[10px] text-slate-500 italic px-2">
+                              No KPIs configured for this program. Ask a Super
+                              Admin to define them.
+                            </p>
+                          ) : (
+                            <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto p-1 custom-scrollbar">
+                              {kpis.map((kpi) => {
+                                const isSelected =
+                                  newPMReport.assignment_kpi_ids.includes(
+                                    kpi.id,
+                                  );
+                                return (
+                                  <button
+                                    key={kpi.id}
+                                    type="button"
+                                    onClick={() =>
+                                      setNewPMReport((p) => ({
+                                        ...p,
+                                        assignment_kpi_ids: isSelected
+                                          ? p.assignment_kpi_ids.filter(
+                                              (id) => id !== kpi.id,
+                                            )
+                                          : [...p.assignment_kpi_ids, kpi.id],
+                                      }))
+                                    }
+                                    className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold uppercase tracking-tight transition-all text-left ${
+                                      isSelected
+                                        ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
+                                        : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
+                                    }`}
+                                  >
+                                    <span>{kpi.title}</span>
+                                    <span className="text-[8px] opacity-50">
+                                      {kpi.target_value || 80}%
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Assignment Objective — Required */}
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                            Assignment Objective{" "}
+                            <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={newPMReport.assignment_objective}
+                            onChange={(e) =>
+                              setNewPMReport((p) => ({
+                                ...p,
+                                assignment_objective: e.target.value,
+                              }))
+                            }
+                            placeholder="e.g. Improve collaboration, Encourage product thinking, Test technical understanding"
+                            className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all"
+                          />
+                        </div>
+
+                        {/* Expected Outcome — Optional */}
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                            Expected Outcome
+                          </label>
+                          <textarea
+                            value={newPMReport.assignment_outcome}
+                            onChange={(e) =>
+                              setNewPMReport((p) => ({
+                                ...p,
+                                assignment_outcome: e.target.value,
+                              }))
+                            }
+                            rows={2}
+                            className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all resize-none"
+                            placeholder="What do you expect participants to achieve? (optional)"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* ────────── SECTION 2: PARTICIPATION ────────── */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-indigo-500/20">
+                    <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center text-[8px] font-black text-indigo-500 border border-indigo-500/20">
+                      2
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-500">
+                      Participation
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Attendance Level */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Attendance Level
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {["high", "moderate", "low"].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              setNewPMReport((p) => ({
+                                ...p,
+                                attendance_level: opt,
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                              newPMReport.attendance_level === opt
+                                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
+                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Participation Level */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Participation Level
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {["very_active", "active", "passive"].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              setNewPMReport((p) => ({
+                                ...p,
+                                participation_level: opt,
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                              newPMReport.participation_level === opt
+                                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
+                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
+                          >
+                            {opt.replace("_", " ")}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Participants/Groups Need Attention — Toggle + conditional note */}
+                    <div className="space-y-2 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                          Any Participants/Groups Need Attention?
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              participants_need_attention:
+                                !p.participants_need_attention,
+                            }))
+                          }
+                          className={`w-10 h-5 rounded-full transition-all relative ${
+                            newPMReport.participants_need_attention
+                              ? "bg-amber-500"
+                              : "bg-white/10"
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
+                              newPMReport.participants_need_attention
+                                ? "left-5"
+                                : "left-0.5"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      {newPMReport.participants_need_attention && (
+                        <textarea
+                          value={newPMReport.participants_attention_notes}
+                          onChange={(e) =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              participants_attention_notes: e.target.value,
+                            }))
+                          }
+                          rows={2}
+                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all resize-none"
+                          placeholder="Short note (optional)..."
+                        />
+                      )}
+                    </div>
+
+                    {/* Standout Participants — Toggle + conditional note */}
+                    <div className="space-y-2 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                          Any Standout Participants/Groups?
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              standout_participants: !p.standout_participants,
+                            }))
+                          }
+                          className={`w-10 h-5 rounded-full transition-all relative ${
+                            newPMReport.standout_participants
+                              ? "bg-emerald-500"
+                              : "bg-white/10"
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
+                              newPMReport.standout_participants
+                                ? "left-5"
+                                : "left-0.5"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      {newPMReport.standout_participants && (
+                        <textarea
+                          value={newPMReport.standout_notes}
+                          onChange={(e) =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              standout_notes: e.target.value,
+                            }))
+                          }
+                          rows={2}
+                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-emerald-500 transition-all resize-none"
+                          placeholder="Short note (optional)..."
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ────────── SECTION 3: DELIVERY FEEDBACK ────────── */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-blue-500/20">
+                    <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center text-[8px] font-black text-blue-500 border border-blue-500/20">
+                      3
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500">
+                      Delivery Feedback
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Session Delivery Quality */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Session Delivery Quality
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {["excellent", "good", "fair", "poor"].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              setNewPMReport((p) => ({
+                                ...p,
+                                delivery_quality: opt,
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                              newPMReport.delivery_quality === opt
+                                ? opt === "excellent"
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                                  : opt === "good"
+                                    ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                                    : opt === "fair"
+                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                                      : "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Participant Understanding */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Participant Understanding
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {["high", "moderate", "low"].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              setNewPMReport((p) => ({
+                                ...p,
+                                participant_understanding: opt,
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                              newPMReport.participant_understanding === opt
+                                ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Delivery Challenges — Toggle + conditional note */}
+                    <div className="space-y-2 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                          Any Delivery Challenges?
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              delivery_challenges: !p.delivery_challenges,
+                            }))
+                          }
+                          className={`w-10 h-5 rounded-full transition-all relative ${
+                            newPMReport.delivery_challenges
+                              ? "bg-rose-500"
+                              : "bg-white/10"
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
+                              newPMReport.delivery_challenges
+                                ? "left-5"
+                                : "left-0.5"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      {newPMReport.delivery_challenges && (
+                        <textarea
+                          value={newPMReport.delivery_challenge_note}
+                          onChange={(e) =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              delivery_challenge_note: e.target.value,
+                            }))
+                          }
+                          rows={2}
+                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
+                          placeholder="Short note (optional)..."
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ────────── SECTION 4: ISSUES & SUPPORT ────────── */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-rose-500/20">
+                    <div className="w-5 h-5 rounded-full bg-rose-500/10 flex items-center justify-center text-[8px] font-black text-rose-500 border border-rose-500/20">
+                      4
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-500">
+                      Issues & Support
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Had Issues — Toggle */}
+                    <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                          Were There Any Issues?
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              had_issues: !p.had_issues,
+                            }))
+                          }
+                          className={`w-10 h-5 rounded-full transition-all relative ${
+                            newPMReport.had_issues
+                              ? "bg-rose-500"
+                              : "bg-white/10"
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
+                              newPMReport.had_issues ? "left-5" : "left-0.5"
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {newPMReport.had_issues && (
+                        <div className="mt-3 space-y-3">
+                          {/* Issue Types — Multi-select chips */}
+                          <div>
+                            <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1.5 block">
+                              Issue Types
+                            </label>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {[
+                                "technical",
+                                "attendance",
+                                "participation",
+                                "curriculum",
+                                "behavioral",
+                                "other",
+                              ].map((type) => {
+                                const isSelected =
+                                  newPMReport.issue_types.includes(type);
+                                return (
+                                  <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() =>
+                                      setNewPMReport((p) => ({
+                                        ...p,
+                                        issue_types: isSelected
+                                          ? p.issue_types.filter(
+                                              (t) => t !== type,
+                                            )
+                                          : [...p.issue_types, type],
+                                      }))
+                                    }
+                                    className={`px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${
+                                      isSelected
+                                        ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                                        : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                                    }`}
+                                  >
+                                    {type}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Requires Super Admin Attention — Toggle */}
+                          <div className="flex items-center justify-between">
+                            <label className="text-[8px] font-black uppercase tracking-widest text-amber-500">
+                              Requires Super Admin Attention?
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setNewPMReport((p) => ({
+                                  ...p,
+                                  requires_admin_attention:
+                                    !p.requires_admin_attention,
+                                }))
+                              }
+                              className={`w-10 h-5 rounded-full transition-all relative ${
+                                newPMReport.requires_admin_attention
+                                  ? "bg-amber-500"
+                                  : "bg-white/10"
+                              }`}
+                            >
+                              <div
+                                className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
+                                  newPMReport.requires_admin_attention
+                                    ? "left-5"
+                                    : "left-0.5"
+                                }`}
+                              />
+                            </button>
+                          </div>
+
+                          {/* Additional Note */}
+                          <textarea
+                            value={newPMReport.additional_issue_note}
+                            onChange={(e) =>
+                              setNewPMReport((p) => ({
+                                ...p,
+                                additional_issue_note: e.target.value,
+                              }))
+                            }
+                            rows={2}
+                            className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
+                            placeholder="Additional note (optional)..."
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ────────── SECTION 5: NEXT WEEK ────────── */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-emerald-500/20">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-[8px] font-black text-emerald-500 border border-emerald-500/20">
+                      5
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500">
+                      Next Week
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Program On Track — Required */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Is Program On Track?{" "}
+                        <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              program_on_track: true,
+                            }))
+                          }
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                            newPMReport.program_on_track === true
+                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewPMReport((p) => ({
+                              ...p,
+                              program_on_track: false,
+                            }))
+                          }
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                            newPMReport.program_on_track === false
+                              ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Planned Adjustments */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                        Planned Adjustments for Next Week
+                      </label>
+                      <textarea
+                        value={newPMReport.planned_adjustments}
+                        onChange={(e) =>
+                          setNewPMReport((p) => ({
+                            ...p,
+                            planned_adjustments: e.target.value,
+                          }))
+                        }
+                        rows={2}
+                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
+                        placeholder="Any changes or adjustments planned?"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ────────── NOTES (free text for PM) ────────── */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-500/20">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                      Strategic Health & Notes
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                      Strategic Health
+                    </label>
+                    <select
+                      value={newPMReport.status}
+                      onChange={(e) =>
+                        setNewPMReport((p) => ({
+                          ...p,
+                          status: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="optimal">OPTIMAL</option>
+                      <option value="stable">STABLE</option>
+                      <option value="at_risk">AT RISK</option>
+                      <option value="critical">CRITICAL</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                      Additional Notes (Optional)
+                    </label>
                     <textarea
                       value={newPMReport.summary}
                       onChange={(e) =>
@@ -3566,113 +4386,15 @@ export default function ProgramWorkspace() {
                           summary: e.target.value,
                         }))
                       }
-                      rows="5"
-                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]"
-                      placeholder="How did this week's topic go? Any tactical successes or blockers?"
+                      rows={3}
+                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
+                      placeholder="Any additional context, successes, or blockers..."
                     />
-                  )}
-                  {pmReportAttachments.type === "link" && (
-                    <input
-                      type="url"
-                      value={pmReportAttachments.content}
-                      onChange={(e) =>
-                        setPmReportAttachments({
-                          type: "link",
-                          content: e.target.value,
-                        })
-                      }
-                      placeholder="https://docs.google.com/..."
-                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold text-[var(--text-primary)]"
-                    />
-                  )}
-                  {pmReportAttachments.type === "upload" && (
-                    <div className="relative group">
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file)
-                            setPmReportAttachments({
-                              type: "upload",
-                              content: file.name,
-                            });
-                        }}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                      />
-                      <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[var(--border-primary)] rounded-lg hover:border-[var(--brand-orange)] transition-all">
-                        <Paperclip className="w-6 h-6 text-slate-500 mb-2" />
-                        <p className="text-[10px] font-bold text-slate-500">
-                          {pmReportAttachments.content ||
-                            "Click to attach PDF, DOC, or DOCX"}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Strategic Health
-                  </label>
-                  <select
-                    value={newPMReport.status}
-                    onChange={(e) =>
-                      setNewPMReport((p) => ({ ...p, status: e.target.value }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="optimal">OPTIMAL</option>
-                    <option value="stable">STABLE</option>
-                    <option value="at_risk">AT RISK</option>
-                    <option value="critical">CRITICAL</option>
-                  </select>
-
-                  <div className="mt-4 p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3">
-                    <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] border-b border-[var(--border-primary)] pb-2">
-                      Strategic Health Guide
-                    </p>
-                    <div className="grid grid-cols-1 gap-2">
-                      <div className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1" />
-                        <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
-                          <span className="text-emerald-500">Optimal:</span>{" "}
-                          Performance exceeding expectations. Zero blockers.
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1" />
-                        <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
-                          <span className="text-blue-500">Stable:</span> On
-                          track. Minor hurdles managed successfully.
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1" />
-                        <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
-                          <span className="text-yellow-500">At Risk:</span>{" "}
-                          Warning signs. Emerging blockers requiring attention.
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1" />
-                        <p className="text-[9px] font-bold text-[var(--text-primary)] leading-tight uppercase tracking-tight">
-                          <span className="text-rose-500">Critical:</span> Major
-                          failure. Intervention required immediately.
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3">
+
+              <div className="flex gap-3 sticky bottom-0 bg-[var(--bg-secondary)] pt-4 border-t border-[var(--border-primary)]">
                 <button
                   onClick={() => setShowPMReportModal(false)}
                   className="flex-1 btn btn-secondary"
@@ -3681,17 +4403,10 @@ export default function ProgramWorkspace() {
                 </button>
                 <button
                   onClick={submitPMReport}
-                  disabled={
-                    isSaving ||
-                    !(
-                      (pmReportAttachments.type === "text"
-                        ? newPMReport.summary
-                        : pmReportAttachments.content) || ""
-                    ).trim()
-                  }
+                  disabled={isSaving}
                   className="flex-1 btn btn-primary"
                 >
-                  {isSaving ? "Transmitting..." : "Submit to Super Admin"}
+                  {isSaving ? "Submitting..." : "Submit Report"}
                 </button>
               </div>
             </div>
