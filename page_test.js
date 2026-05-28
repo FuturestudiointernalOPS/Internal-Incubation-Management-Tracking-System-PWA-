@@ -711,15 +711,14 @@ export default function ProgramWorkspace() {
 
   if (loading) {
     return (
-      <DashboardLayout role={user.role || "program_manager"}>
+      <><DashboardLayout role={user.role || "program_manager"}>
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
           <div className="w-12 h-12 border-4 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">
             {t("loading")}
           </p>
         </div>
-      </DashboardLayout>
-    );
+      </DashboardLayout></>);
   }
 
   const allTabs = [
@@ -1191,7 +1190,7 @@ export default function ProgramWorkspace() {
             </div>
           )}
 
-          {activeTab === "curriculum" ? (
+          {activeTab === "curriculum" && (
             <div className="space-y-6">
               <div className="flex justify-between items-center flex-wrap gap-2">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
@@ -1706,22 +1705,19 @@ export default function ProgramWorkspace() {
                               ));
                             })()}
 
-                            {(() => {
-                              const noSessionMaterials = !session.materials ||
-                                session.materials === "[]" ||
-                                (Array.isArray(session.materials) &&
-                                  session.materials.length === 0);
-                              const noKnowledgeAssets = !program?.knowledge_assets ||
-                                program.knowledge_assets.length === 0;
-                              return noSessionMaterials && noKnowledgeAssets ? (
+                            {(!session.materials ||
+                              session.materials === "[]" ||
+                              (Array.isArray(session.materials) &&
+                                session.materials.length === 0)) &&
+                              (!program?.knowledge_assets ||
+                                program.knowledge_assets.length === 0) && (
                                 <div className="py-8 text-center opacity-20 italic space-y-2">
                                   <Clock className="w-6 h-6 mx-auto" />
                                   <p className="text-[9px] font-bold uppercase">
                                     No Materials
                                   </p>
                                 </div>
-                              ) : null;
-                            })()}
+                              )}
                           </div>
                         </div>
                       </div>
@@ -1730,7 +1726,7 @@ export default function ProgramWorkspace() {
                 ))}
               </div>
             </div>
-          ) : null}
+          )}
 
           {activeTab === "config" && (
             <div className="space-y-8 animate-in">
@@ -2259,6 +2255,7 @@ export default function ProgramWorkspace() {
             </div>
           )}
         </div>
+      </div>
 
       {/* PDF VIEWER MODAL */}
       {activePDF && (
@@ -3846,7 +3843,5 @@ export default function ProgramWorkspace() {
           </div>
         </div>
       )}
-      </div>
-    </DashboardLayout>
-  );
+    </DashboardLayout></>);
 }
