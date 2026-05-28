@@ -1191,8 +1191,7 @@ export default function ProgramWorkspace() {
             </div>
           )}
 
-          {activeTab === "curriculum" ? (
-            <div className="space-y-6">
+          {activeTab === "curriculum" && <div className="space-y-6">
               <div className="flex justify-between items-center flex-wrap gap-2">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
                   Strategic Curriculum
@@ -1730,7 +1729,7 @@ export default function ProgramWorkspace() {
                 ))}
               </div>
             </div>
-          ) : null}
+          }
 
           {activeTab === "config" && (
             <div className="space-y-8 animate-in">
