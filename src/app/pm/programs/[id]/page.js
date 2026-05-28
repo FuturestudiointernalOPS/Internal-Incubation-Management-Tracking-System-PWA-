@@ -1930,7 +1930,7 @@ export default function ProgramWorkspace() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Strategic Description
+                        Concept Note
                       </label>
                       <textarea
                         ref={configDescRef}
