@@ -181,7 +181,7 @@ export default function ParticipantProjectsOverview() {
         {/* ─── THIS WEEK + UPCOMING DEADLINES WIDGETS ─── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Weekly Goals Widget */}
-          <div className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+          <div className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.2em]">
@@ -270,7 +270,7 @@ export default function ParticipantProjectsOverview() {
           </div>
 
           {/* Upcoming Deadlines Widget */}
-          <div className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+          <div className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" />
               <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">
@@ -372,7 +372,7 @@ export default function ParticipantProjectsOverview() {
         {/* ─── ACTIVITY TIMELINE + PROGRESS BREAKDOWN ─── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Activity Timeline */}
-          <div className="md:col-span-2 ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+          <div className="md:col-span-2 card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.2em]">
@@ -458,7 +458,7 @@ export default function ParticipantProjectsOverview() {
           </div>
 
           {/* Progress Breakdown */}
-          <div className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+          <div className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-[var(--brand-orange)]merald-500" />
               <span className="text-[9px] font-black text-[var(--brand-orange)]merald-500 uppercase tracking-[0.2em]">
@@ -565,7 +565,7 @@ export default function ParticipantProjectsOverview() {
           );
           if (allFollowups.length === 0) return null;
           return (
-            <div className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+            <div className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-[var(--brand-orange)]lue-500" />
                 <span className="text-[9px] font-black text-[var(--brand-orange)]lue-500 uppercase tracking-[0.2em]">
@@ -624,7 +624,7 @@ export default function ParticipantProjectsOverview() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.08 }}
                 onClick={() => router.push(`/participant/${prog.id}`)}
-                className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 hover:bg-[var(--bg-secondary)]/80 !p-6 text-left transition-all group relative overflow-hidden"
+                className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 hover:bg-[var(--bg-secondary)]/80 !p-6 text-left transition-all group relative overflow-hidden"
               >
                 {/* Hover glow */}
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-[var(--brand-orange)]/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
