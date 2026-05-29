@@ -241,6 +241,11 @@ const NAVIGATION_MATRIX = {
           name: "REPORT RESPONSES",
           href: "/admin/reports/responses",
         },
+        {
+          id: "internal_reports",
+          name: "INTERNAL REPORTS",
+          href: "/admin/op-reports",
+        },
       ],
     },
   ],
@@ -290,14 +295,9 @@ const NAVIGATION_MATRIX = {
       icon: BarChart3,
       subItems: [
         {
-          id: "legacy_reports",
-          name: "PROGRAM REPORTS",
-          href: "/admin/reports",
-        },
-        {
-          id: "enhanced_reports",
-          name: "ENHANCED (WIP)",
-          href: "/v2/teacher/reports-v2",
+          id: "internal_reports",
+          name: "INTERNAL REPORTS",
+          href: "/staff/op-report",
         },
       ],
     },
