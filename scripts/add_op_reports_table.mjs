@@ -18,7 +18,7 @@ async function migrate() {
   // Try to create the table first (harmless if it already exists)
   try {
     await db.execute({
-      CREATE TABLE IF NOT EXISTS v2_op_reports (
+      sql: `CREATE TABLE IF NOT EXISTS v2_op_reports (
           id SERIAL PRIMARY KEY,
           user_id TEXT NOT NULL,
           user_name TEXT NOT NULL,
