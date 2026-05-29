@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Zap,
   Calendar,
+  Activity,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -319,6 +320,189 @@ export default function ParticipantProjectsOverview() {
           </div>
         </div>
 
+        {/* ─── ACTIVITY TIMELINE + PROGRESS BREAKDOWN ─── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Activity Timeline */}
+          <div className="md:col-span-2 ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-[#FF6600]" />
+              <span className="text-[9px] font-black text-[#FF6600] uppercase tracking-[0.2em]">
+                Recent Activity
+              </span>
+            </div>
+            <div className="space-y-2">
+              {(() => {
+                const activities = [];
+                programs.forEach((prog) => {
+                  const week = prog.metrics?.currentWeek || 1;
+                  // Submitted submissions
+                  (prog.submissions || []).forEach((s) => {
+                    const date = s.created_at
+                      ? new Date(s.created_at)
+                      : new Date();
+                    const statusIcon =
+                      s.status === "approved"
+                        ? "✅"
+                        : s.status === "pending"
+                          ? "⏳"
+                          : "📤";
+                    activities.push({
+                      text: `${statusIcon} Submitted ${s.deliverable_title || "deliverable"} (${s.status || "pending"})`,
+                      program: prog.name,
+                      date,
+                    });
+                  });
+                  // Completed sessions
+                  (prog.sessions || [])
+                    .filter((s) => s.status === "completed")
+                    .slice(0, 2)
+                    .forEach((s) => {
+                      activities.push({
+                        text: `✅ Completed: ${s.title}`,
+                        program: prog.name,
+                        date: s.scheduled_date
+                          ? new Date(s.scheduled_date)
+                          : new Date(),
+                      });
+                    });
+                  // Current week
+                  const currentSession = (prog.sessions || []).find(
+                    (s) => s.week_number === week && s.status !== "completed",
+                  );
+                  if (currentSession) {
+                    activities.push({
+                      text: `📅 Current: ${currentSession.title}`,
+                      program: prog.name,
+                      date: new Date(),
+                    });
+                  }
+                });
+                activities.sort((a, b) => b.date - a.date);
+
+                if (activities.length === 0) {
+                  return (
+                    <p className="text-[10px] text-slate-500 italic text-center py-4">
+                      No recent activity.
+                    </p>
+                  );
+                }
+                return activities.slice(0, 6).map((act, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[10px] flex-shrink-0">
+                      {act.text.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-white leading-snug">
+                        {act.text}
+                      </p>
+                      <p className="text-[8px] text-slate-500 mt-0.5">
+                        {act.program} · {act.date.toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+
+          {/* Progress Breakdown */}
+          <div className="ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-500" />
+              <span className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em]">
+                My Progress
+              </span>
+            </div>
+            <div className="space-y-4">
+              {(() => {
+                let totalSessions = 0;
+                let completedSessions = 0;
+                let totalDels = 0;
+                let completedDels = 0;
+                let totalAttendance = 0;
+                let presentCount = 0;
+                let pendingSubs = 0;
+                let approvedSubs = 0;
+
+                programs.forEach((prog) => {
+                  const sessions = prog.sessions || [];
+                  totalSessions += sessions.length;
+                  completedSessions += sessions.filter(
+                    (s) => s.status === "completed",
+                  ).length;
+
+                  const dels = prog.deliverables || [];
+                  totalDels += dels.length;
+                  dels.forEach((d) => {
+                    const sub = (prog.submissions || []).find(
+                      (s) =>
+                        s.deliverable_id === d.id || s.document_id === d.id,
+                    );
+                    if (sub) {
+                      if (
+                        sub.status === "approved" ||
+                        sub.status === "completed"
+                      ) {
+                        completedDels++;
+                        approvedSubs++;
+                      } else {
+                        pendingSubs++;
+                      }
+                    }
+                  });
+                });
+
+                const sessionPct =
+                  totalSessions > 0
+                    ? Math.round((completedSessions / totalSessions) * 100)
+                    : 0;
+                const delsPct =
+                  totalDels > 0
+                    ? Math.round((completedDels / totalDels) * 100)
+                    : 0;
+                const totalSubs = pendingSubs + approvedSubs;
+                const approvalPct =
+                  totalSubs > 0
+                    ? Math.round((approvedSubs / totalSubs) * 100)
+                    : 0;
+
+                return (
+                  <>
+                    <ProgressBar
+                      label="Sessions"
+                      value={sessionPct}
+                      detail={`${completedSessions}/${totalSessions}`}
+                      color="bg-blue-500"
+                    />
+                    <ProgressBar
+                      label="Assignments"
+                      value={delsPct}
+                      detail={`${completedDels}/${totalDels}`}
+                      color="bg-[#FF6600]"
+                    />
+                    <ProgressBar
+                      label="Submissions"
+                      value={approvalPct}
+                      detail={`${approvedSubs} approved`}
+                      color="bg-emerald-500"
+                    />
+                    {pendingSubs > 0 && (
+                      <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20 text-center">
+                        <p className="text-[10px] font-black text-amber-500">
+                          {pendingSubs} pending review
+                        </p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+
         {/* ─── PROJECT CARDS GRID ─── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {programs.map((prog, idx) => {
@@ -414,5 +598,30 @@ export default function ParticipantProjectsOverview() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+// Progress bar sub-component
+function ProgressBar({ label, value, detail, color }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+          {label}
+        </span>
+        <span className="text-[10px] font-bold text-white">
+          {value}%
+          {detail && (
+            <span className="text-slate-500 font-normal ml-1">· {detail}</span>
+          )}
+        </span>
+      </div>
+      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${color}`}
+          style={{ width: `${value}%` }}
+        />
+      </div>
+    </div>
   );
 }
