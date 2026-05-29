@@ -232,6 +232,11 @@ export default function AdminOpReports() {
               label: "Recurring Blockers",
               icon: AlertTriangle,
             },
+            {
+              id: "trends",
+              label: "Trends & History",
+              icon: TrendingUp,
+            },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -452,6 +457,14 @@ export default function AdminOpReports() {
             )}
           </div>
         )}
+
+        {activeTab === "trends" && (
+          <TrendsDashboard
+            reports={filteredReports}
+            allReports={reports}
+            onViewReport={setViewingReport}
+          />
+        )}
       </div>
 
       {/* USER TIMELINE MODAL */}
@@ -491,20 +504,86 @@ export default function AdminOpReports() {
               </button>
             </div>
 
-            <div className="flex gap-4 text-[10px] font-bold text-slate-500">
-              <span>Total: {userReports.length} reports</span>
-              <span>
-                Stand-ups:{" "}
-                {userReports.filter((r) => r.report_type === "standup").length}
+            <div className="flex flex-wrap gap-4 text-[10px] font-bold">
+              <span className="text-slate-500">
+                Total: {userReports.length} reports
               </span>
-              <span>
-                Retros:{" "}
-                {userReports.filter((r) => r.report_type === "retro").length}
+              <span className="text-[var(--brand-orange)]">
+                {userReports.filter((r) => r.report_type === "standup").length}{" "}
+                stand-ups
               </span>
-              <span>
-                Blockers: {userReports.filter((r) => r.has_blockers).length}
+              <span className="text-emerald-500">
+                {userReports.filter((r) => r.report_type === "retro").length}{" "}
+                retros
+              </span>
+              <span className="text-rose-500">
+                {userReports.filter((r) => r.has_blockers).length} blockers
               </span>
             </div>
+
+            {/* Consistency Score */}
+            {(() => {
+              const total = userReports.length;
+              const weeks = new Set(
+                userReports.map(
+                  (r) => `${r.year}-W${String(r.week_number).padStart(2, "0")}`,
+                ),
+              );
+              const uniqueWeeks = weeks.size;
+              const maxPossible = uniqueWeeks * 2; // one standup + one retro per week
+              const reliability =
+                maxPossible > 0 ? Math.round((total / maxPossible) * 100) : 0;
+
+              // Calculate current streak (consecutive weeks with at least one report)
+              const sorted = [...userReports].sort(
+                (a, b) => b.year - a.year || b.week_number - a.week_number,
+              );
+              const weekSet = new Set(
+                sorted.map(
+                  (r) => `${r.year}-W${String(r.week_number).padStart(2, "0")}`,
+                ),
+              );
+              let streak = 0;
+              const weekList = [...weekSet].sort().reverse();
+              for (let i = 0; i < weekList.length; i++) {
+                if (i === 0) {
+                  streak = 1;
+                  continue;
+                }
+                streak++;
+              }
+
+              return (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)] text-center">
+                    <p className="text-lg font-black text-emerald-500">
+                      {reliability}%
+                    </p>
+                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                      Reliability
+                    </p>
+                  </div>
+                  <div className="p-3 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)] text-center">
+                    <p className="text-lg font-black text-[var(--brand-orange)]">
+                      {uniqueWeeks}
+                    </p>
+                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                      Active Weeks
+                    </p>
+                  </div>
+                  <div className="p-3 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)] text-center">
+                    <p className="text-lg font-black text-indigo-500">
+                      {uniqueWeeks * 2 - total > 0
+                        ? uniqueWeeks * 2 - total
+                        : 0}
+                    </p>
+                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                      Missed Reports
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="space-y-2">
               {userReports.map((r) => (
@@ -713,6 +792,180 @@ function MonthlyBreakdown({ reports }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function TrendsDashboard({ reports, allReports, onViewReport }) {
+  // Monthly report volume
+  const monthlyData = useMemo(() => {
+    const groups = {};
+    allReports.forEach((r) => {
+      const d = new Date(r.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+      if (!groups[key])
+        groups[key] = { label, key, standups: 0, retros: 0, blockers: 0 };
+      if (r.report_type === "standup") groups[key].standups++;
+      else groups[key].retros++;
+      if (r.has_blockers) groups[key].blockers++;
+    });
+    return Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
+  }, [allReports]);
+
+  const maxMonthly = Math.max(
+    ...monthlyData.map((m) => m.standups + m.retros),
+    1,
+  );
+
+  // Blocker trend
+  const blockerTrend = monthlyData.filter((m) => m.blockers > 0).slice(-6);
+  const maxBlockers = Math.max(...blockerTrend.map((m) => m.blockers), 1);
+
+  // Recent staff activity
+  const recentStaff = useMemo(() => {
+    const userMap = {};
+    allReports.forEach((r) => {
+      if (!userMap[r.user_id])
+        userMap[r.user_id] = {
+          id: r.user_id,
+          name: r.user_name,
+          role: r.user_role,
+          latest: null,
+          total: 0,
+        };
+      userMap[r.user_id].total++;
+      if (
+        !userMap[r.user_id].latest ||
+        new Date(r.created_at) > new Date(userMap[r.user_id].latest)
+      ) {
+        userMap[r.user_id].latest = r.created_at;
+      }
+    });
+    return Object.values(userMap)
+      .sort((a, b) => new Date(b.latest) - new Date(a.latest))
+      .slice(0, 8);
+  }, [allReports]);
+
+  return (
+    <div className="space-y-8">
+      {/* Monthly Report Volume Chart */}
+      <div className="card">
+        <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-6">
+          Monthly Report Volume
+        </h3>
+        <div className="space-y-3">
+          {monthlyData.slice(-6).map((m) => {
+            const total = m.standups + m.retros;
+            const pct = (total / maxMonthly) * 100;
+            return (
+              <div key={m.key}>
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-1">
+                  <span>{m.label}</span>
+                  <span className="font-black text-[var(--text-primary)]">
+                    {total} reports
+                  </span>
+                </div>
+                <div className="w-full h-5 bg-[var(--bg-primary)] rounded-lg overflow-hidden flex">
+                  <div
+                    className="h-full bg-[var(--brand-orange)] transition-all"
+                    style={{ width: `${(m.standups / maxMonthly) * 100}%` }}
+                  />
+                  <div
+                    className="h-full bg-emerald-500 transition-all"
+                    style={{ width: `${(m.retros / maxMonthly) * 100}%` }}
+                  />
+                </div>
+                <div className="flex items-center gap-3 mt-1 text-[7px] font-bold text-slate-600">
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />{" "}
+                    {m.standups} stand-ups
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{" "}
+                    {m.retros} retros
+                  </span>
+                  {m.blockers > 0 && (
+                    <span className="flex items-center gap-1 text-rose-500">
+                      <AlertTriangle className="w-2.5 h-2.5" /> {m.blockers}{" "}
+                      blockers
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Blocker Trend */}
+        <div className="card">
+          <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4">
+            Blockers Over Time
+          </h3>
+          {blockerTrend.length > 0 ? (
+            <div className="space-y-2.5">
+              {blockerTrend.map((m) => (
+                <div key={m.key}>
+                  <div className="flex items-center justify-between text-[9px] font-bold mb-1">
+                    <span className="text-slate-500">{m.label}</span>
+                    <span className="text-rose-500 font-black">
+                      {m.blockers} blocker{m.blockers > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-rose-500 rounded-full transition-all"
+                      style={{ width: `${(m.blockers / maxBlockers) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-8 text-center">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-40" />
+              <p className="text-[10px] text-slate-500 italic">
+                No blockers reported.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Recently Active Staff */}
+        <div className="card">
+          <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4">
+            Recently Active
+          </h3>
+          <div className="space-y-2">
+            {recentStaff.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[9px] font-black uppercase">
+                    {s.name?.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-tight">
+                      {s.name}
+                    </p>
+                    <p className="text-[8px] text-slate-500">
+                      {s.total} reports ·{" "}
+                      {new Date(s.latest).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`w-2 h-2 rounded-full ${new Date(s.latest) > new Date(Date.now() - 7 * 86400000) ? "bg-emerald-500" : "bg-amber-500"}`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
