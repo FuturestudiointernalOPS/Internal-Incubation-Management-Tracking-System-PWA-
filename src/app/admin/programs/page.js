@@ -390,9 +390,31 @@ export default function ProgramManagement() {
                     </td>
                     <td>
                       <span
-                        className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest ${p?.status === "active" ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-500/10 text-slate-500"}`}
+                        className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest ${
+                          p?.status === "active"
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : p?.status === "in_progress"
+                              ? "bg-blue-500/10 text-blue-500"
+                              : p?.status === "pending"
+                                ? "bg-amber-500/10 text-amber-500"
+                                : p?.status === "completed"
+                                  ? "bg-purple-500/10 text-purple-500"
+                                  : p?.status === "archived"
+                                    ? "bg-rose-500/10 text-rose-500"
+                                    : "bg-slate-500/10 text-slate-500"
+                        }`}
                       >
-                        {p?.status || "Unknown"}
+                        {p?.status === "active"
+                          ? "In Progress"
+                          : p?.status === "in_progress"
+                            ? "In Progress"
+                            : p?.status === "pending"
+                              ? "Pending"
+                              : p?.status === "completed"
+                                ? "Completed"
+                                : p?.status === "archived"
+                                  ? "Archived"
+                                  : p?.status || "Unknown"}
                       </span>
                     </td>
                     <td>
@@ -672,6 +694,45 @@ export default function ProgramManagement() {
                     className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                  Program Status
+                </label>
+                <select
+                  value={editingProgram?.status || "active"}
+                  onChange={(e) =>
+                    setEditingProgram({
+                      ...editingProgram,
+                      status: e.target.value,
+                    })
+                  }
+                  className={`w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer ${
+                    editingProgram?.status === "active"
+                      ? "text-emerald-500"
+                      : editingProgram?.status === "pending"
+                        ? "text-amber-500"
+                        : editingProgram?.status === "completed"
+                          ? "text-purple-500"
+                          : editingProgram?.status === "archived"
+                            ? "text-rose-500"
+                            : "text-[var(--text-primary)]"
+                  }`}
+                >
+                  <option value="active" className="text-emerald-500">
+                    In Progress
+                  </option>
+                  <option value="pending" className="text-amber-500">
+                    Pending
+                  </option>
+                  <option value="completed" className="text-purple-500">
+                    Completed
+                  </option>
+                  <option value="archived" className="text-rose-500">
+                    Archived
+                  </option>
+                </select>
               </div>
 
               <div className="space-y-4">
