@@ -126,7 +126,7 @@ async function seed() {
   for (const s of STAFF) {
     try {
       await db.execute({
-        sql: "INSERT OR IGNORE INTO contacts (cid, name, email, role, group_name, status, deleted) VALUES (?, ?, ?, ?, ?, 'approved', 0)",
+        sql: "INSERT INTO contacts (cid, name, email, role, group_name, status, deleted) VALUES (?, ?, ?, ?, ?, 'approved', 0)",
         args: [s.cid, s.name, s.email, s.role, "Future Studio"],
       });
     } catch (e) {
@@ -136,7 +136,7 @@ async function seed() {
   for (const p of PARTICIPANTS) {
     try {
       await db.execute({
-        sql: "INSERT OR IGNORE INTO contacts (cid, name, email, role, group_name, status, program_id, program_name, deleted) VALUES (?, ?, ?, 'participant', ?, 'approved', ?, ?, 0)",
+        sql: "INSERT INTO contacts (cid, name, email, role, group_name, status, program_id, program_name, deleted) VALUES (?, ?, ?, 'participant', ?, 'approved', ?, ?, 0)",
         args: [p.cid, p.name, p.email, p.group, PROG_ID, PROG_NAME],
       });
     } catch (e) {
@@ -149,7 +149,7 @@ async function seed() {
   console.log("[2/6] Program...");
   try {
     await db.execute({
-      sql: "INSERT OR IGNORE INTO v2_programs (id, name, description, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, 'active', 0, ?, ?, ?)",
+      sql: "INSERT INTO v2_programs (id, name, description, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, 'active', 0, ?, ?, ?)",
       args: [
         PROG_ID,
         PROG_NAME,
@@ -170,7 +170,7 @@ async function seed() {
   for (const p of PARTICIPANTS) {
     try {
       await db.execute({
-        sql: "INSERT OR IGNORE INTO v2_participants (program_id, name, email, phone, screening_status) VALUES (?, ?, ?, ?, 'approved')",
+        sql: "INSERT INTO v2_participants (program_id, name, email, phone, screening_status) VALUES (?, ?, ?, ?, 'approved')",
         args: [PROG_ID, p.name, p.email, "+2335000000"],
       });
     } catch (e) {
@@ -189,7 +189,7 @@ async function seed() {
 
     try {
       await db.execute({
-        sql: "INSERT OR IGNORE INTO v2_sessions (id, program_id, week_number, title, status, scheduled_date, end_date, handler_id, handler_name, materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        sql: "INSERT INTO v2_sessions (id, program_id, week_number, title, status, scheduled_date, end_date, handler_id, handler_name, materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         args: [
           sesId,
           PROG_ID,
@@ -216,7 +216,7 @@ async function seed() {
     const sesId = `SES-${PROG_ID}-W${w}`;
     try {
       await db.execute({
-        sql: "INSERT OR IGNORE INTO v2_document_requirements (id, program_id, session_id, title, allowed_format, is_completed) VALUES (?, ?, ?, ?, ?, ?)",
+        sql: "INSERT INTO v2_document_requirements (id, program_id, session_id, title, allowed_format, is_completed) VALUES (?, ?, ?, ?, ?, ?)",
         args: [
           reqId,
           PROG_ID,
@@ -236,7 +236,7 @@ async function seed() {
         const score = Math.floor(Math.random() * 30) + 65; // 65-95
         try {
           await db.execute({
-            sql: "INSERT OR IGNORE INTO v2_submissions (program_id, participant_id, document_id, file_url, status, score, deliverable_title, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            sql: "INSERT INTO v2_submissions (program_id, participant_id, document_id, file_url, status, score, deliverable_title, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             args: [
               PROG_ID,
               p.cid,
@@ -287,7 +287,7 @@ async function seed() {
     const healthStatus = w <= 3 ? "stable" : "at_risk";
     try {
       await db.execute({
-        sql: `INSERT OR IGNORE INTO v2_weekly_reports
+        sql: `INSERT INTO v2_weekly_reports
           (program_id, week_number, teacher_id, teacher_name, progress_notes, reception_score,
            week_status, week_rating, main_topic,
            attendance_level, participation_level,
@@ -357,7 +357,7 @@ async function seed() {
       const status = statuses[Math.floor(Math.random() * statuses.length)];
       try {
         await db.execute({
-          sql: "INSERT OR IGNORE INTO v2_attendance (session_id, program_id, participant_id, status, date) VALUES (?, ?, ?, ?, ?)",
+          sql: "INSERT INTO v2_attendance (session_id, program_id, participant_id, status, date) VALUES (?, ?, ?, ?, ?)",
           args: [
             sesId,
             PROG_ID,

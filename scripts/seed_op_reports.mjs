@@ -160,7 +160,7 @@ async function seed() {
 
       try {
         await db.execute({
-          sql: `INSERT OR REPLACE INTO v2_op_reports
+          sql: `INSERT INTO v2_op_reports
             (user_id, user_name, user_role, report_type, week_number, year, status, created_at,
              top_priorities, expected_deliverables, projects_tasks,
              has_dependencies, dependency_note, has_blockers, blocker_description,
@@ -225,7 +225,7 @@ async function seed() {
 
       try {
         await db.execute({
-          sql: `INSERT OR REPLACE INTO v2_op_reports
+          sql: `INSERT INTO v2_op_reports
             (user_id, user_name, user_role, report_type, week_number, year, status, created_at,
              completed_work, unfinished_tasks, week_status,
              had_blockers, blocker_type, blocker_desc,
