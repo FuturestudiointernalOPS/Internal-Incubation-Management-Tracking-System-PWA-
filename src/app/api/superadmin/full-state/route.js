@@ -7,25 +7,37 @@ export async function GET(req) {
     await initDb();
 
     // High-Efficiency Global Rollup
-    const [progRes, partRes, staffRes, logRes, activeProgList] = await Promise.all([
-      db.execute("SELECT COUNT(*) as count FROM v2_programs WHERE is_archived = 0"),
-      db.execute("SELECT COUNT(*) as count FROM v2_participants"),
-      db.execute("SELECT COUNT(*) as count FROM contacts WHERE role IN ('admin', 'staff', 'teacher')"),
-      db.execute("SELECT id, user_identity as user, action, module, status, created_at as timestamp FROM activity_logs ORDER BY created_at DESC LIMIT 10"),
-      db.execute("SELECT id, name, status, created_at FROM v2_programs WHERE is_archived = 0 ORDER BY created_at DESC LIMIT 5")
-    ]);
+    const [progRes, partRes, staffRes, logRes, activeProgList] =
+      await Promise.all([
+        db.execute(
+          "SELECT COUNT(*) as count FROM v2_programs WHERE is_archived = 0 AND status = 'active'",
+        ),
+        db.execute("SELECT COUNT(*) as count FROM v2_participants"),
+        db.execute(
+          "SELECT COUNT(*) as count FROM contacts WHERE role IN ('admin', 'staff', 'teacher')",
+        ),
+        db.execute(
+          "SELECT id, user_identity as user, action, module, status, created_at as timestamp FROM activity_logs ORDER BY created_at DESC LIMIT 10",
+        ),
+        db.execute(
+          "SELECT id, name, status, created_at FROM v2_programs WHERE is_archived = 0 AND status = 'active' ORDER BY created_at DESC LIMIT 5",
+        ),
+      ]);
 
     return NextResponse.json({
       success: true,
       stats: {
         programs: progRes.rows[0].count,
         participants: partRes.rows[0].count,
-        totalStaff: staffRes.rows[0].count
+        totalStaff: staffRes.rows[0].count,
       },
       activity: logRes.rows,
-      activePrograms: activeProgList.rows
+      activePrograms: activeProgList.rows,
     });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
