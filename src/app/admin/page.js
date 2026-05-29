@@ -1,83 +1,268 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Plus, Zap, Layers, Users, Activity, Shield, 
-  ChevronRight, Sparkles, Rocket, TrendingUp, Target,
-  CheckCircle2, XCircle, Bell, UserCheck, Loader2
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import { CardSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Layers,
+  Users,
+  Rocket,
+  Activity,
+  Sparkles,
+  Zap,
+  ChevronRight,
+  Plus,
+  Target,
+  Bell,
+  UserCheck,
+  Loader2,
+  Briefcase,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  BarChart3,
+  FileText,
+  Calendar,
+  Shield,
+  TrendingUp,
+  User,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { TableSkeleton } from "@/components/ui/Skeleton";
 
-/**
- * IMPACTOS OPERATIONAL COMMAND — ADMIN DASHBOARD
- * Performance-optimized state tracking and centralized program control.
- * Features: Gated Staff Approval, Real-time Notifications, Metric Intelligence.
- */
+const ICONS = {
+  Layers,
+  Users,
+  Rocket,
+  Activity,
+  Sparkles,
+  Zap,
+  ChevronRight,
+  Plus,
+  Target,
+  Bell,
+  UserCheck,
+  Loader2,
+  Briefcase,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  BarChart3,
+  FileText,
+  Calendar,
+};
 
-const StatCard = ({ title, value, icon: Icon, color, badge, onClick, loading }) => (
-  <div 
+const StatCard = ({
+  title,
+  value,
+  icon: Icon,
+  color,
+  badge,
+  onClick,
+  loading,
+  subtitle,
+}) => (
+  <div
     onClick={onClick}
-    className={`card group transition-all ${onClick ? 'cursor-pointer hover:border-[var(--brand-orange)]' : ''}`}
+    className={`card group transition-all ${onClick ? "cursor-pointer hover:border-[var(--brand-orange)]" : ""}`}
   >
-    <div className="flex justify-between items-start mb-6">
-      <div className={`p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] ${color} group-hover:scale-110 transition-transform`}>
-        <Icon className="w-6 h-6" />
+    <div className="flex justify-between items-start mb-4">
+      <div
+        className={`p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] ${color} group-hover:scale-110 transition-transform`}
+      >
+        <Icon className="w-5 h-5" />
       </div>
-      {badge && <span className="status-badge bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">{badge}</span>}
+      {badge && (
+        <span className="text-[8px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+          {badge}
+        </span>
+      )}
     </div>
-    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">{title}</p>
-    {loading ? <div className="h-9 w-20 bg-[var(--border-primary)]/20 animate-pulse rounded-lg" /> : (
-      <h3 className="text-3xl font-bold text-[var(--text-primary)] uppercase tracking-tighter">{value}</h3>
+    <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">
+      {title}
+    </p>
+    {loading ? (
+      <div className="h-8 w-16 bg-[var(--border-primary)]/20 animate-pulse rounded-lg" />
+    ) : (
+      <>
+        <h3 className="text-2xl font-bold text-[var(--text-primary)] uppercase tracking-tighter">
+          {value}
+        </h3>
+        {subtitle && (
+          <p className="text-[8px] font-bold text-slate-500 mt-1">{subtitle}</p>
+        )}
+      </>
     )}
+  </div>
+);
+
+const SectionHeader = ({
+  number,
+  title,
+  subtitle,
+  icon: Icon,
+  color,
+  action,
+}) => (
+  <div className="flex items-center justify-between mb-6">
+    <div className="flex items-center gap-3">
+      <div
+        className={`w-8 h-8 rounded-xl ${color} flex items-center justify-center text-sm font-black border border-white/10`}
+      >
+        {number}
+      </div>
+      <div>
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="w-4 h-4 text-[var(--brand-orange)]" />}
+          <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
+            {title}
+          </h2>
+        </div>
+        {subtitle && (
+          <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
+            {subtitle}
+          </p>
+        )}
+      </div>
+    </div>
+    {action && action}
   </div>
 );
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ programs: 0, participants: 0, totalStaff: 0 });
+  const [stats, setStats] = useState({
+    programs: 0,
+    participants: 0,
+    totalStaff: 0,
+  });
   const [activity, setActivity] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [activePrograms, setActivePrograms] = useState([]);
+  const [opStats, setOpStats] = useState({
+    standups: 0,
+    retros: 0,
+    blockers: 0,
+    support: 0,
+    totalUsers: 0,
+  });
+  const [staffReports, setStaffReports] = useState([]);
+  const [blockerTypes, setBlockerTypes] = useState([]);
   const [processingId, setProcessingId] = useState(null);
-  
+  const [expandedSections, setExpandedSections] = useState({});
   const router = useRouter();
+
+  const toggleSection = (id) => {
+    setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [stateRes, notifRes] = await Promise.all([
-        fetch('/api/superadmin/full-state'),
-        fetch('/api/notifications?recipient_id=sa')
+      const [stateRes, notifRes, opRes] = await Promise.all([
+        fetch("/api/superadmin/full-state"),
+        fetch("/api/notifications?recipient_id=sa"),
+        fetch("/api/op-reports"),
       ]);
-      
+
       const stateData = await stateRes.json();
       const notifData = await notifRes.json();
-      
+      const opData = await opRes.json();
+
       if (stateData.success) {
-         setStats(stateData.stats || {});
-         setActivity(stateData.activity || []);
-         setActivePrograms(stateData.activePrograms || []);
+        setStats(stateData.stats || {});
+        setActivity(stateData.activity || []);
+        setActivePrograms(stateData.activePrograms || []);
       }
       if (notifData.success) {
-         setNotifications(notifData.notifications || []);
+        setNotifications(notifData.notifications || []);
+      }
+      if (opData.success) {
+        const reports = opData.reports || [];
+
+        // Calculate op stats
+        const standups = reports.filter((r) => r.report_type === "standup");
+        const retros = reports.filter((r) => r.report_type === "retro");
+        const blockers = reports.filter((r) => r.has_blockers);
+        const support = reports.filter((r) => r.needs_support);
+
+        setOpStats({
+          standups: standups.length,
+          retros: retros.length,
+          blockers: blockers.length,
+          support: support.length,
+          totalUsers: new Set(reports.map((r) => r.user_id)).size,
+        });
+
+        // Per-staff reporting stats
+        const userMap = {};
+        reports.forEach((r) => {
+          if (!userMap[r.user_id]) {
+            userMap[r.user_id] = {
+              id: r.user_id,
+              name: r.user_name,
+              role: r.user_role,
+              standups: 0,
+              retros: 0,
+              blockers: 0,
+              latest: null,
+              weeks: new Set(),
+            };
+          }
+          if (r.report_type === "standup") userMap[r.user_id].standups++;
+          else userMap[r.user_id].retros++;
+          if (r.has_blockers) userMap[r.user_id].blockers++;
+          if (
+            !userMap[r.user_id].latest ||
+            new Date(r.created_at) > new Date(userMap[r.user_id].latest)
+          ) {
+            userMap[r.user_id].latest = r.created_at;
+          }
+          userMap[r.user_id].weeks.add(
+            `${r.year}-W${String(r.week_number).padStart(2, "0")}`,
+          );
+        });
+        setStaffReports(Object.values(userMap));
+
+        // Blocker type aggregation
+        const blockerAgg = {};
+        standups
+          .filter((r) => r.has_blockers && r.blocker_description)
+          .forEach((r) => {
+            const desc = r.blocker_description || "Other";
+            blockerAgg[desc] = (blockerAgg[desc] || 0) + 1;
+          });
+        retros
+          .filter((r) => r.had_blockers && r.blocker_type)
+          .forEach((r) => {
+            const type = r.blocker_type || "Other";
+            blockerAgg[formatLabel(type)] =
+              (blockerAgg[formatLabel(type)] || 0) + 1;
+          });
+        setBlockerTypes(
+          Object.entries(blockerAgg)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6),
+        );
       }
     } catch (err) {
-      console.error("Operational Command Sync Failure:", err);
+      console.error("Dashboard sync failure:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const userString = localStorage.getItem('user');
+    const userString = localStorage.getItem("user");
     if (!userString) {
-      router.replace('/terminal');
+      router.replace("/terminal");
       return;
     }
     const user = JSON.parse(userString);
-    if (user.role !== 'super_admin') {
-      router.replace('/terminal');
+    if (user.role !== "super_admin") {
+      router.replace("/terminal");
       return;
     }
     fetchDashboardData();
@@ -86,279 +271,873 @@ export default function AdminDashboard() {
   const handleApproval = async (notif) => {
     setProcessingId(notif.id);
     try {
-       // 1. Identify the user from the message (In a real app, we'd have a userId in the notification)
-       // For now, we'll find the pending staff from contacts
-       const contactsRes = await fetch('/api/contacts');
-       const contactsData = await contactsRes.json();
-       const pendingUser = contactsData.contacts.find(c => 
-          c.status === 'pending' && notif.message.includes(c.name)
-       );
-
-       if (pendingUser) {
-          // 2. Approve the user
-          await fetch('/api/contacts', {
-             method: 'PUT',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ cid: pendingUser.cid, status: 'approved' })
-          });
-       }
-
-       // 3. Mark notification as read
-       await fetch('/api/notifications', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: notif.id, action: 'read' })
-       });
-
-       fetchDashboardData();
+      const contactsRes = await fetch("/api/contacts");
+      const contactsData = await contactsRes.json();
+      const pendingUser = contactsData.contacts.find(
+        (c) => c.status === "pending" && notif.message.includes(c.name),
+      );
+      if (pendingUser) {
+        await fetch("/api/contacts", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cid: pendingUser.cid, status: "approved" }),
+        });
+      }
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: notif.id, action: "read" }),
+      });
+      fetchDashboardData();
     } catch (e) {
-       console.error("Approval Failed:", e);
+      console.error("Approval Failed:", e);
     } finally {
-       setProcessingId(null);
+      setProcessingId(null);
     }
   };
 
   return (
     <DashboardLayout role="super_admin">
-      <div className="space-y-10 animate-in text-left">
-        
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+      <div className="space-y-10 pb-20 text-left">
+        {/* ──────── GLOBAL HEADER ──────── */}
+        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">Operational Intelligence</span>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                Operational Intelligence
+              </span>
             </div>
-            <h1 className="text-4xl font-bold tracking-tight text-[var(--text-primary)]">ADMIN COMMAND</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-[var(--text-primary)]">
+              ADMIN COMMAND
+            </h1>
           </div>
-          
           <div className="flex gap-3">
-            <button 
-              onClick={() => router.push('/admin/programs/new')}
+            <button
+              onClick={() => router.push("/admin/programs/new")}
               className="btn btn-primary gap-2"
             >
-              <Plus className="w-4 h-4" />
-              New Program
+              <Plus className="w-4 h-4" /> New Program
             </button>
           </div>
         </header>
 
-        {/* NOTIFICATION HUB — ONLY VISIBLE WHEN ALERTED */}
-        {notifications.filter(n => !n.read).length > 0 && (
-          <div className="grid grid-cols-1 gap-6">
-            {notifications.filter(n => !n.read).map(notif => (
-              <div key={notif.id} className="card border-orange-500/30 bg-orange-500/5 flex flex-col md:flex-row justify-between items-center gap-6 animate-pulse hover:animate-none">
-                <div className="flex items-center gap-5">
-                   <div className="p-3 rounded-xl bg-orange-500/20 text-orange-500">
+        {/* ──────── NOTIFICATIONS ──────── */}
+        {notifications.filter((n) => !n.read).length > 0 && (
+          <div className="space-y-4">
+            {notifications
+              .filter((n) => !n.read)
+              .map((notif) => (
+                <div
+                  key={notif.id}
+                  className="card border-orange-500/30 bg-orange-500/5 flex flex-col md:flex-row justify-between items-center gap-6 animate-pulse hover:animate-none"
+                >
+                  <div className="flex items-center gap-5">
+                    <div className="p-3 rounded-xl bg-orange-500/20 text-orange-500">
                       <Bell className="w-6 h-6" />
-                   </div>
-                   <div>
-                      <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">{notif.title}</h4>
-                      <p className="text-[11px] font-medium text-[var(--brand-orange)] uppercase tracking-widest mt-1">{notif.message}</p>
-                   </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">
+                        {notif.title}
+                      </h4>
+                      <p className="text-[11px] font-medium text-[var(--brand-orange)] uppercase tracking-widest mt-1">
+                        {notif.message}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleApproval(notif)}
+                    disabled={processingId === notif.id}
+                    className="btn btn-primary !bg-emerald-500 hover:!bg-emerald-600 border-none px-6 py-2.5 flex items-center gap-2"
+                  >
+                    {processingId === notif.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <UserCheck className="w-4 h-4" />
+                    )}
+                    <span className="text-[10px] font-black uppercase">
+                      Approve Access
+                    </span>
+                  </button>
                 </div>
-                <div className="flex gap-3">
-                   <button 
-                      onClick={() => handleApproval(notif)}
-                      disabled={processingId === notif.id}
-                      className="btn btn-primary !bg-emerald-500 hover:!bg-emerald-600 border-none px-6 py-2.5 flex items-center gap-2"
-                   >
-                      {processingId === notif.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
-                      <span className="text-[10px] font-black uppercase">Approve Access</span>
-                   </button>
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
 
-        {/* METRICS GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard 
-            title="Active Programs" 
-            value={stats.programs} 
-            icon={Layers} 
-            color="text-[var(--brand-orange)]" 
-            badge="LIVE" 
-            onClick={() => router.push('/admin/programs')}
-            loading={loading}
+        {/* ═══════════════════════════════════════════════ */}
+        {/* SECTION A — PROGRAM OPERATIONS                 */}
+        {/* ═══════════════════════════════════════════════ */}
+        <div className="space-y-6">
+          <SectionHeader
+            number="A"
+            title="Program Operations"
+            subtitle="Educational / Program Performance"
+            icon={Briefcase}
+            color="bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+            action={
+              <button
+                onClick={() => router.push("/admin/programs")}
+                className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+              >
+                View All Programs
+              </button>
+            }
           />
-          <StatCard 
-            title="Operational Staff" 
-            value={stats.totalStaff} 
-            icon={Users} 
-            color="text-emerald-500" 
-            onClick={() => router.push('/admin/communications/contacts')}
-            loading={loading}
-          />
-          <StatCard 
-            title="Total Participants" 
-            value={stats.participants} 
-            icon={Rocket} 
-            color="text-blue-500" 
-            onClick={() => router.push('/admin/communications/contacts')}
-            loading={loading}
-          />
-          <StatCard 
-            title="System Health" 
-            value="100%" 
-            icon={Activity} 
-            color="text-rose-500" 
-            badge="OPTIMAL"
-            loading={loading}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* ACTIVITY FEED */}
-          <div className="lg:col-span-2 card">
-            <div className="flex items-center justify-between mb-8">
-              <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[var(--brand-orange)]" /> 
-                Recent Signal Feed
-              </h4>
-            </div>
-            
-            <div className="space-y-4">
-              {loading ? <TableSkeleton rows={4} /> : (
-                activity.length > 0 ? activity.slice(0, 6).map((log, i) => (
-                  <div key={i} className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors group">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:border-[var(--brand-orange)]">
-                      <Zap className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight">{log.action}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)] font-medium mt-0.5">{log.user || 'System'} · {new Date(log.timestamp).toLocaleTimeString()}</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-[var(--border-primary)]" />
-                  </div>
-                )) : (
-                  <p className="text-[10px] text-[var(--text-secondary)] italic opacity-50 py-10 text-center">Awaiting incoming signals...</p>
-                )
-              )}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Active Programs"
+              value={stats.programs}
+              icon={Layers}
+              color="text-[var(--brand-orange)]"
+              badge="LIVE"
+              onClick={() => router.push("/admin/programs")}
+              loading={loading}
+            />
+            <StatCard
+              title="Total Participants"
+              value={stats.participants}
+              icon={Users}
+              color="text-blue-500"
+              onClick={() => router.push("/admin/communications/contacts")}
+              loading={loading}
+            />
+            <StatCard
+              title="Operational Staff"
+              value={stats.totalStaff}
+              icon={Rocket}
+              color="text-emerald-500"
+              subtitle="Teachers, admins & staff"
+              onClick={() => router.push("/admin/communications/contacts")}
+              loading={loading}
+            />
+            <StatCard
+              title="System Health"
+              value="100%"
+              icon={Activity}
+              color="text-rose-500"
+              badge="OPTIMAL"
+              loading={loading}
+            />
           </div>
 
-          {/* ACTIVE PROGRAMS LIST */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-8">
-              <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-2">
-                <Layers className="w-4 h-4 text-emerald-500" /> 
-                Active Programs
-              </h4>
-              <button 
-                onClick={() => router.push('/admin/programs')}
-                className="text-[9px] font-bold text-[var(--brand-orange)] uppercase hover:underline"
-              >
-                View All
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              {loading ? <TableSkeleton rows={3} /> : (
-                activePrograms.length > 0 ? activePrograms.map((prog, i) => (
-                  <div 
-                    key={prog.id} 
-                    onClick={() => router.push(`/admin/programs/${prog.id}`)}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
-                      <Rocket className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight truncate">{prog.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                         <span className="text-[8px] font-bold text-emerald-500 uppercase px-1.5 py-0.5 bg-emerald-500/10 rounded">{prog.status}</span>
-                         <span className="text-[8px] text-[var(--text-secondary)] font-medium uppercase">{new Date(prog.created_at).toLocaleDateString()}</span>
+          {/* Activity Feed + Active Programs (existing content) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 card">
+              <div className="flex items-center justify-between mb-6">
+                <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[var(--brand-orange)]" />{" "}
+                  Recent Signal Feed
+                </h4>
+              </div>
+              <div className="space-y-3">
+                {loading ? (
+                  <TableSkeleton rows={4} />
+                ) : activity.length > 0 ? (
+                  activity.slice(0, 6).map((log, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors group"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:border-[var(--brand-orange)]">
+                        <Zap className="w-4 h-4" />
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight">
+                          {log.action}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-secondary)] font-medium mt-0.5">
+                          {log.user || "System"} ·{" "}
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[var(--border-primary)]" />
                     </div>
-                    <ChevronRight className="w-3 h-3 text-[var(--border-primary)]" />
-                  </div>
-                )) : (
-                  <p className="text-[10px] text-[var(--text-secondary)] italic opacity-50 py-10 text-center">No active programs found.</p>
-                )
-              )}
-            </div>
-          </div>
-
-          {/* QUICK COMMANDS */}
-          <div className="space-y-6">
-            <div className="card space-y-4">
-              <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Tactical Actions</h4>
-              <button 
-                onClick={() => router.push('/admin/communications/contacts')}
-                className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
-              >
-                <span className="text-xs font-bold uppercase tracking-tight">Manage Registry</span>
-                <Users className="w-4 h-4 text-[var(--brand-orange)]" />
-              </button>
-              <button 
-                onClick={() => router.push('/admin/knowledge')}
-                className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
-              >
-                <span className="text-xs font-bold uppercase tracking-tight">Knowledge Bank</span>
-                <Target className="w-4 h-4 text-blue-500" />
-              </button>
-
-              <div className="pt-4 mt-4 border-t border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] mb-3 ml-1">Temporary Access</p>
-                <button 
-                   onClick={async () => {
-                      try {
-                         const progRes = await fetch('/api/pm/programs');
-                         const progData = await progRes.json();
-                         const program_id = progData.programs?.[0]?.id || 'SYSTEM-GENERIC';
-
-                         const res = await fetch('/api/invites', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                               program_id,
-                               group_name: 'Future Studio',
-                               role: 'staff',
-                               expiresInHours: 1,
-                               created_by: 'super_admin'
-                            })
-                         });
-                         const data = await res.json();
-                         if (data.inviteUrl) {
-                            navigator.clipboard.writeText(data.inviteUrl);
-                            window.dispatchEvent(new CustomEvent('impactos:notify', { 
-                               detail: { type: 'success', message: 'Future Studio Invite copied (Expires in 1hr)' } 
-                            }));
-                         }
-                      } catch (e) {
-                         console.error(e);
-                      }
-                   }}
-                   className="w-full flex items-center justify-between p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-all group"
-                >
-                   <div className="flex items-center gap-3">
-                      <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
-                      <span className="text-xs font-black text-[var(--brand-orange)] uppercase tracking-tighter">Future Studio Link</span>
-                   </div>
-                   <Plus className="w-4 h-4 text-orange-500/50 group-hover:text-orange-500" />
-                </button>
+                  ))
+                ) : (
+                  <p className="text-[10px] text-[var(--text-secondary)] italic opacity-50 py-8 text-center">
+                    Awaiting incoming signals...
+                  </p>
+                )}
               </div>
             </div>
 
-            <div className="card bg-[var(--bg-secondary)] border-[var(--border-primary)]">
-               <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-6">System Status</h4>
-               <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                     <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Supabase Database Engine</span>
-                     <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">ONLINE</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                     <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">V2 Core Systems</span>
-                     <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">ACTIVE</span>
-                  </div>
-               </div>
+            <div className="card">
+              <div className="flex items-center justify-between mb-6">
+                <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-emerald-500" /> Active
+                  Programs
+                </h4>
+                <button
+                  onClick={() => router.push("/admin/programs")}
+                  className="text-[9px] font-bold text-[var(--brand-orange)] uppercase hover:underline"
+                >
+                  View All
+                </button>
+              </div>
+              <div className="space-y-3">
+                {loading ? (
+                  <TableSkeleton rows={3} />
+                ) : activePrograms.length > 0 ? (
+                  activePrograms.map((prog, i) => (
+                    <div
+                      key={prog.id}
+                      onClick={() => router.push(`/admin/programs/${prog.id}`)}
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
+                        <Rocket className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight truncate">
+                          {prog.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[8px] font-bold text-emerald-500 uppercase px-1.5 py-0.5 bg-emerald-500/10 rounded">
+                            {prog.status}
+                          </span>
+                          <span className="text-[8px] text-[var(--text-secondary)] font-medium uppercase">
+                            {new Date(prog.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-3 h-3 text-[var(--border-primary)]" />
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[10px] text-[var(--text-secondary)] italic opacity-50 py-8 text-center">
+                    No active programs found.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════ */}
+        {/* SECTION B — INTERNAL OPERATIONS                */}
+        {/* ═══════════════════════════════════════════════ */}
+        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+          <SectionHeader
+            number="B"
+            title="Internal Operations"
+            subtitle="Staff Reporting & Operational Activity"
+            icon={BarChart3}
+            color="bg-indigo-500/10 text-indigo-500"
+            action={
+              <button
+                onClick={() => router.push("/admin/op-reports")}
+                className="text-[9px] font-black text-indigo-400 uppercase hover:underline"
+              >
+                View All Reports
+              </button>
+            }
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Monday Stand-Ups"
+              value={opStats.standups}
+              icon={Calendar}
+              color="text-[var(--brand-orange)]"
+              subtitle={`${opStats.totalUsers} active reporters`}
+              loading={loading}
+            />
+            <StatCard
+              title="Friday Retros"
+              value={opStats.retros}
+              icon={CheckCircle2}
+              color="text-emerald-500"
+              loading={loading}
+            />
+            <StatCard
+              title="Blockers Reported"
+              value={opStats.blockers}
+              icon={AlertTriangle}
+              color="text-rose-500"
+              badge={opStats.blockers > 0 ? "ACTION" : ""}
+              loading={loading}
+            />
+            <StatCard
+              title="Support Requests"
+              value={opStats.support}
+              icon={Shield}
+              color="text-amber-500"
+              loading={loading}
+            />
+          </div>
+
+          {/* Quick insights row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="card flex items-center gap-4 p-5">
+              <div className="p-3 rounded-xl bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                <BarChart3 className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  Ratio
+                </p>
+                <p className="text-lg font-black">
+                  {opStats.standups + opStats.retros > 0
+                    ? Math.round(
+                        (opStats.standups /
+                          (opStats.standups + opStats.retros)) *
+                          100,
+                      )
+                    : 0}
+                  %
+                </p>
+                <p className="text-[8px] font-bold text-slate-600">
+                  stand-ups vs retros
+                </p>
+              </div>
+            </div>
+            <div className="card flex items-center gap-4 p-5">
+              <div className="p-3 rounded-xl bg-rose-500/10 text-rose-500">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  Blocker Rate
+                </p>
+                <p className="text-lg font-black">
+                  {opStats.standups + opStats.retros > 0
+                    ? Math.round(
+                        (opStats.blockers /
+                          (opStats.standups + opStats.retros)) *
+                          100,
+                      )
+                    : 0}
+                  %
+                </p>
+                <p className="text-[8px] font-bold text-slate-600">
+                  of all reports
+                </p>
+              </div>
+            </div>
+            <div className="card flex items-center gap-4 p-5">
+              <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  Active Reporters
+                </p>
+                <p className="text-lg font-black">{opStats.totalUsers}</p>
+                <p className="text-[8px] font-bold text-slate-600">
+                  of {stats.totalStaff} total staff
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════ */}
+        {/* SECTION C — TEAM ACCOUNTABILITY                */}
+        {/* ═══════════════════════════════════════════════ */}
+        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+          <SectionHeader
+            number="C"
+            title="Team Accountability"
+            subtitle="Reporting Reliability & Staff Consistency"
+            icon={Users}
+            color="bg-emerald-500/10 text-emerald-500"
+            action={
+              <button
+                onClick={() =>
+                  setExpandedSections((prev) => ({
+                    ...prev,
+                    teamTable: !prev.teamTable,
+                  }))
+                }
+                className="text-[9px] font-black text-slate-500 uppercase hover:text-white transition-all flex items-center gap-1"
+              >
+                {expandedSections.teamTable ? "Collapse" : "Expand"}{" "}
+                <ChevronDown
+                  className={`w-3 h-3 transition-transform ${expandedSections.teamTable ? "rotate-180" : ""}`}
+                />
+              </button>
+            }
+          />
+
+          {/* Summary stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div className="card flex items-center gap-3 p-4 border-l-4 border-emerald-500">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+              <div>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  Consistent
+                </p>
+                <p className="text-xl font-black">
+                  {
+                    staffReports.filter((s) => s.standups + s.retros >= 4)
+                      .length
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="card flex items-center gap-3 p-4 border-l-4 border-amber-500">
+              <Clock className="w-5 h-5 text-amber-500 shrink-0" />
+              <div>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  At Risk
+                </p>
+                <p className="text-xl font-black">
+                  {
+                    staffReports.filter(
+                      (s) =>
+                        s.standups + s.retros > 0 && s.standups + s.retros < 4,
+                    ).length
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="card flex items-center gap-3 p-4 border-l-4 border-rose-500">
+              <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
+              <div>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  Inactive
+                </p>
+                <p className="text-xl font-black">
+                  {stats.totalStaff - staffReports.length > 0
+                    ? stats.totalStaff - staffReports.length
+                    : 0}
+                </p>
+              </div>
             </div>
           </div>
 
+          {/* Staff table (expandable) */}
+          {(expandedSections.teamTable || staffReports.length <= 6) && (
+            <div className="card !p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[var(--border-primary)]">
+                      <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Team Member
+                      </th>
+                      <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Stand-Ups
+                      </th>
+                      <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Retros
+                      </th>
+                      <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Blockers
+                      </th>
+                      <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Status
+                      </th>
+                      <th className="text-right p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Last Report
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffReports
+                      .sort(
+                        (a, b) =>
+                          b.standups + b.retros - (a.standups + a.retros),
+                      )
+                      .map((s) => {
+                        const total = s.standups + s.retros;
+                        const status =
+                          total >= 4
+                            ? "active"
+                            : total > 0
+                              ? "at_risk"
+                              : "inactive";
+                        return (
+                          <tr
+                            key={s.id}
+                            className="border-b border-[var(--border-primary)]/50 hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                          >
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-black uppercase">
+                                  {s.name?.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
+                                    {s.name}
+                                  </p>
+                                  <p className="text-[8px] text-slate-500 uppercase">
+                                    {s.role}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="text-center p-4 text-sm font-black">
+                              {s.standups}
+                            </td>
+                            <td className="text-center p-4 text-sm font-black">
+                              {s.retros}
+                            </td>
+                            <td className="text-center p-4">
+                              <span
+                                className={`text-sm font-black ${s.blockers > 0 ? "text-rose-500" : "text-slate-600"}`}
+                              >
+                                {s.blockers}
+                              </span>
+                            </td>
+                            <td className="text-center p-4">
+                              <span
+                                className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${
+                                  status === "active"
+                                    ? "bg-emerald-500/10 text-emerald-500"
+                                    : status === "at_risk"
+                                      ? "bg-amber-500/10 text-amber-500"
+                                      : "bg-rose-500/10 text-rose-500"
+                                }`}
+                              >
+                                {status === "active"
+                                  ? "✅ Active"
+                                  : status === "at_risk"
+                                    ? "⚠️ At Risk"
+                                    : "🔴 Inactive"}
+                              </span>
+                            </td>
+                            <td className="text-right p-4 text-[10px] text-slate-500">
+                              {s.latest
+                                ? new Date(s.latest).toLocaleDateString()
+                                : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    {staffReports.length === 0 && !loading && (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="p-8 text-center text-[10px] text-slate-500 italic"
+                        >
+                          No reports submitted yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {expandedSections.teamTable && staffReports.length > 6 && (
+            <button
+              onClick={() => toggleSection("teamTable")}
+              className="w-full text-center py-2 text-[9px] font-black text-slate-500 uppercase hover:text-white transition-all"
+            >
+              <ChevronUp className="w-3 h-3 mx-auto" /> Show Less
+            </button>
+          )}
+        </div>
+
+        {/* ═══════════════════════════════════════════════ */}
+        {/* SECTION D — RISKS & BLOCKERS                   */}
+        {/* ═══════════════════════════════════════════════ */}
+        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+          <SectionHeader
+            number="D"
+            title="Risks & Blockers"
+            subtitle="Recurring Operational Problems"
+            icon={AlertTriangle}
+            color="bg-rose-500/10 text-rose-500"
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Top blockers by type */}
+            <div className="card">
+              <h4 className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-4">
+                Top Blockers This Month
+              </h4>
+              {blockerTypes.length > 0 ? (
+                <div className="space-y-3">
+                  {blockerTypes.map(([type, count], i) => {
+                    const maxCount = blockerTypes[0]?.[1] || 1;
+                    return (
+                      <div key={type}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-tight">
+                            {type}
+                          </span>
+                          <span className="text-xs font-black text-rose-500">
+                            {count} report{count > 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-rose-500 rounded-full transition-all"
+                            style={{ width: `${(count / maxCount) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-12 text-center">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3 opacity-40" />
+                  <p className="text-[10px] text-slate-500 italic">
+                    No blockers reported yet.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Quick actions + support */}
+            <div className="space-y-4">
+              <div className="card">
+                <h4 className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-4">
+                  Open Support Requests
+                </h4>
+                {opStats.support > 0 ? (
+                  <p className="text-3xl font-black text-amber-500">
+                    {opStats.support}
+                  </p>
+                ) : (
+                  <div className="py-8 text-center">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-40" />
+                    <p className="text-[10px] text-slate-500 italic">
+                      All clear — no pending requests.
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div className="card">
+                <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                  Quick Actions
+                </h4>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => router.push("/admin/op-reports")}
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-rose-500/30 transition-all"
+                  >
+                    <span className="text-[10px] font-bold uppercase tracking-tight">
+                      View All Blockers
+                    </span>
+                    <Eye className="w-3.5 h-3.5 text-rose-500" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      router.push("/admin/op-reports?tab=blockers")
+                    }
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-amber-500/30 transition-all"
+                  >
+                    <span className="text-[10px] font-bold uppercase tracking-tight">
+                      Blocker Reports
+                    </span>
+                    <BarChart3 className="w-3.5 h-3.5 text-amber-500" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════ */}
+        {/* SECTION E — HISTORICAL INTELLIGENCE            */}
+        {/* ═══════════════════════════════════════════════ */}
+        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+          <SectionHeader
+            number="E"
+            title="Historical Intelligence"
+            subtitle="Long-Term Operational Visibility"
+            icon={Clock}
+            color="bg-blue-500/10 text-blue-500"
+            action={
+              <button
+                onClick={() => router.push("/admin/op-reports")}
+                className="text-[9px] font-black text-blue-400 uppercase hover:underline"
+              >
+                Full Archive
+              </button>
+            }
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button
+              onClick={() => router.push("/admin/op-reports")}
+              className="card hover:border-blue-500/30 transition-all text-left"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <Calendar className="w-5 h-5 text-blue-500" />
+                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
+                  Report Archive
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Browse all submitted stand-ups and retros. Filter by user,
+                month, or type.
+              </p>
+            </button>
+            <button
+              onClick={() => router.push("/admin/reports")}
+              className="card hover:border-blue-500/30 transition-all text-left"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <BarChart3 className="w-5 h-5 text-blue-500" />
+                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
+                  Reports Hub
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Historical program PM reports and intelligence feed.
+              </p>
+            </button>
+            <button
+              onClick={() => router.push("/admin/reports/responses")}
+              className="card hover:border-blue-500/30 transition-all text-left"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <FileText className="w-5 h-5 text-blue-500" />
+                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
+                  Report Responses
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                All submitted PM weekly report responses.
+              </p>
+            </button>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════ */}
+        {/* SIDEBAR — TACTICAL ACTIONS & SYSTEM STATUS      */}
+        {/* ═══════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6 border-t border-[var(--border-primary)]">
+          <div className="card space-y-4">
+            <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">
+              Tactical Actions
+            </h4>
+            <button
+              onClick={() => router.push("/admin/communications/contacts")}
+              className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
+            >
+              <span className="text-xs font-bold uppercase tracking-tight">
+                Manage Registry
+              </span>
+              <Users className="w-4 h-4 text-[var(--brand-orange)]" />
+            </button>
+            <button
+              onClick={() => router.push("/admin/knowledge")}
+              className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
+            >
+              <span className="text-xs font-bold uppercase tracking-tight">
+                Knowledge Bank
+              </span>
+              <Target className="w-4 h-4 text-blue-500" />
+            </button>
+            <div className="pt-4 mt-4 border-t border-[var(--border-primary)]">
+              <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] mb-3 ml-1">
+                Temporary Access
+              </p>
+              <button
+                onClick={async () => {
+                  try {
+                    const progRes = await fetch("/api/pm/programs");
+                    const progData = await progRes.json();
+                    const program_id =
+                      progData.programs?.[0]?.id || "SYSTEM-GENERIC";
+                    const res = await fetch("/api/invites", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        program_id,
+                        group_name: "Future Studio",
+                        role: "staff",
+                        expiresInHours: 1,
+                        created_by: "super_admin",
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.inviteUrl) {
+                      navigator.clipboard.writeText(data.inviteUrl);
+                      window.dispatchEvent(
+                        new CustomEvent("impactos:notify", {
+                          detail: {
+                            type: "success",
+                            message:
+                              "Future Studio Invite copied (Expires in 1hr)",
+                          },
+                        }),
+                      );
+                    }
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
+                  <span className="text-xs font-black text-[var(--brand-orange)] uppercase tracking-tighter">
+                    Future Studio Link
+                  </span>
+                </div>
+                <Plus className="w-4 h-4 text-orange-500/50 group-hover:text-orange-500" />
+              </button>
+            </div>
+          </div>
+
+          <div className="card bg-[var(--bg-secondary)] border-[var(--border-primary)]">
+            <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-6">
+              System Status
+            </h4>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                  Supabase Database Engine
+                </span>
+                <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">
+                  ONLINE
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                  V2 Core Systems
+                </span>
+                <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">
+                  ACTIVE
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="card space-y-4">
+            <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">
+              Op-Reports Archive
+            </h4>
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push("/admin/op-reports")}
+                className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
+              >
+                <span className="flex items-center gap-3">
+                  <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
+                  <span className="text-xs font-bold uppercase tracking-tight">
+                    Internal Reports
+                  </span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+              <button
+                onClick={() => router.push("/admin/op-reports?tab=blockers")}
+                className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
+              >
+                <span className="flex items-center gap-3">
+                  <AlertTriangle className="w-4 h-4 text-rose-500" />
+                  <span className="text-xs font-bold uppercase tracking-tight">
+                    Blocker Archive
+                  </span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>
   );
+}
+
+function formatLabel(val) {
+  if (!val || val === "—") return "—";
+  if (typeof val !== "string") return String(val);
+  return val.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
