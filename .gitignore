@@ -44,3 +44,4 @@ data.json
 *.tsbuildinfo
 next-env.d.ts
 
+nul

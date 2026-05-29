@@ -128,6 +128,197 @@ export default function ParticipantProjectsOverview() {
           </p>
         </div>
 
+        {/* ─── THIS WEEK + UPCOMING DEADLINES WIDGETS ─── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Weekly Goals Widget */}
+          <div className="ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-[#FF6600]" />
+              <span className="text-[9px] font-black text-[#FF6600] uppercase tracking-[0.2em]">
+                This Week
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {(() => {
+                const items = [];
+                programs.forEach((prog) => {
+                  const week = prog.metrics?.currentWeek || 1;
+                  const currentSession = (prog.sessions || []).find(
+                    (s) => s.week_number === week,
+                  );
+                  if (currentSession) {
+                    items.push({
+                      text: `Attend: ${currentSession.title}`,
+                      program: prog.name,
+                      icon: Calendar,
+                      urgent: false,
+                    });
+                  }
+                  const pendingDels = (prog.deliverables || []).filter((d) => {
+                    const sub = (prog.submissions || []).find(
+                      (s) =>
+                        s.deliverable_id === d.id || s.document_id === d.id,
+                    );
+                    return (
+                      !sub ||
+                      (sub.status !== "approved" && sub.status !== "completed")
+                    );
+                  });
+                  pendingDels.slice(0, 2).forEach((d) => {
+                    items.push({
+                      text: `Submit: ${d.title}`,
+                      program: prog.name,
+                      icon: CheckCircle2,
+                      urgent: true,
+                    });
+                  });
+                });
+                return items.slice(0, 5).map((item, i) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={i} className="flex items-start gap-3">
+                      <div
+                        className={`p-1.5 rounded-lg mt-0.5 ${item.urgent ? "bg-amber-500/10" : "bg-[#FF6600]/10"}`}
+                      >
+                        <Icon
+                          className={`w-3.5 h-3.5 ${item.urgent ? "text-amber-500" : "text-[#FF6600]"}`}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-white leading-snug">
+                          {item.text}
+                        </p>
+                        <p className="text-[8px] text-slate-500 mt-0.5 uppercase tracking-wider">
+                          {item.program}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+              {(() => {
+                let total = 0;
+                programs.forEach((prog) => {
+                  total += (prog.deliverables || []).filter((d) => {
+                    const sub = (prog.submissions || []).find(
+                      (s) =>
+                        s.deliverable_id === d.id || s.document_id === d.id,
+                    );
+                    return (
+                      !sub ||
+                      (sub.status !== "approved" && sub.status !== "completed")
+                    );
+                  }).length;
+                });
+                return total === 0 ? (
+                  <p className="text-[10px] text-slate-500 italic text-center py-2">
+                    All caught up! No pending items.
+                  </p>
+                ) : null;
+              })()}
+            </div>
+          </div>
+
+          {/* Upcoming Deadlines Widget */}
+          <div className="ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-500" />
+              <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">
+                Upcoming Deadlines
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {(() => {
+                const items = [];
+                programs.forEach((prog) => {
+                  const week = prog.metrics?.currentWeek || 1;
+                  // Upcoming sessions (current week + next)
+                  (prog.sessions || [])
+                    .filter(
+                      (s) => s.week_number >= week && s.week_number <= week + 1,
+                    )
+                    .forEach((s) => {
+                      const date = s.scheduled_date
+                        ? new Date(s.scheduled_date).toLocaleDateString(
+                            "en-US",
+                            {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )
+                        : null;
+                      items.push({
+                        text: s.title,
+                        date: date || `Week ${s.week_number}`,
+                        type: "session",
+                        program: prog.name,
+                      });
+                    });
+                  // Pending submissions
+                  (prog.deliverables || []).forEach((d) => {
+                    const sub = (prog.submissions || []).find(
+                      (s) =>
+                        s.deliverable_id === d.id || s.document_id === d.id,
+                    );
+                    if (!sub || sub.status === "pending") {
+                      items.push({
+                        text: d.title,
+                        date: sub ? "Pending Review" : "Not Submitted",
+                        type: "deliverable",
+                        program: prog.name,
+                      });
+                    }
+                  });
+                });
+                if (items.length === 0) {
+                  return (
+                    <p className="text-[10px] text-slate-500 italic text-center py-2">
+                      No upcoming deadlines.
+                    </p>
+                  );
+                }
+                return items.slice(0, 5).map((item, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div
+                      className={`p-1.5 rounded-lg mt-0.5 ${
+                        item.type === "session"
+                          ? "bg-blue-500/10"
+                          : "bg-amber-500/10"
+                      }`}
+                    >
+                      {item.type === "session" ? (
+                        <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                      ) : (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-white leading-snug">
+                        {item.text}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span
+                          className={`text-[8px] font-black uppercase tracking-wider ${
+                            item.type === "session"
+                              ? "text-blue-400"
+                              : "text-amber-400"
+                          }`}
+                        >
+                          {item.date}
+                        </span>
+                        <span className="text-[7px] text-slate-600">
+                          {item.program}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+
         {/* ─── PROJECT CARDS GRID ─── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {programs.map((prog, idx) => {
