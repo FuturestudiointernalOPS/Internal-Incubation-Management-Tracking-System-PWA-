@@ -226,7 +226,7 @@ const NAVIGATION_MATRIX = {
     },
     {
       id: "knowledge",
-      name: "KNOWLEDGE",
+      name: "KNOWLEDGE BASE",
       icon: Library,
       href: "/admin/knowledge",
     },
@@ -235,7 +235,6 @@ const NAVIGATION_MATRIX = {
       name: "REPORTS",
       icon: BarChart3,
       subItems: [
-        { id: "report_hub", name: "REPORTS HUB", href: "/admin/reports" },
         {
           id: "report_responses",
           name: "REPORT RESPONSES",
