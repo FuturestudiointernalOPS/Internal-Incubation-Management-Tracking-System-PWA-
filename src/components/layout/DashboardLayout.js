@@ -347,12 +347,6 @@ const NAVIGATION_MATRIX = {
       icon: Briefcase,
       href: "/participant",
     },
-    {
-      id: "profile",
-      name: "PROFILE",
-      icon: User,
-      href: "/participant/profile",
-    },
   ],
 };
 
