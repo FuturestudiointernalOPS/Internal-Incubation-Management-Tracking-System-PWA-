@@ -374,6 +374,7 @@ export default function ProgramManagement() {
               className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
             >
               <option value="active">Active Programs</option>
+              <option value="pending">Pending</option>
               <option value="archived">Archived</option>
               <option value="completed">Completed</option>
               <option value="all">All Programs</option>
