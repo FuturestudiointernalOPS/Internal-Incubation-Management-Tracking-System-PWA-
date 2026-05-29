@@ -20,6 +20,7 @@ import {
   FileText,
   Upload,
   Target,
+  Filter,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -33,6 +34,12 @@ export default function ProgramManagement() {
   const [editingProgram, setEditingProgram] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [newGroup, setNewGroup] = useState({
+    name: "",
+    description: "",
+    type: "cohort",
+  });
   const [notes, setNotes] = useState([]);
   const [teams, setTeams] = useState([]);
   const [knowledgeItems, setKnowledgeItems] = useState([]);
@@ -111,10 +118,9 @@ export default function ProgramManagement() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const statusParam = activeTab === "active" ? "all" : activeTab;
       const [progRes, managerRes, segmentRes, kbRes] = await Promise.all([
         fetch(
-          `/api/pm/programs?show_archived=${activeTab === "archived"}&status=${statusParam}`,
+          `/api/pm/programs?show_archived=${activeTab === "archived"}&status=${activeTab === "all" ? "all" : activeTab}`,
         ),
         fetch("/api/contacts/full-state"),
         fetch("/api/families"),
@@ -176,6 +182,7 @@ export default function ProgramManagement() {
       const json = await res.json();
       if (json.success) {
         setEditingProgram(null);
+        setIsCreatingGroup(false);
         fetchData();
         // Fire success notification
         window.dispatchEvent(
@@ -216,6 +223,48 @@ export default function ProgramManagement() {
       if ((await res.json()).success) fetchData();
     } catch (e) {
       console.error("Archive Failure:", e);
+    }
+  };
+
+  const handleCreateGroupInline = async () => {
+    const groupName =
+      newGroup.name.trim() || (editingProgram?.name || "New Group").trim();
+    if (!groupName) return;
+    try {
+      const res = await fetch("/api/families", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: groupName,
+          description: newGroup.description,
+          type: "cohort",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const newSegment = data.group ||
+          data.family || { id: data.id, name: groupName };
+        const current = Array.isArray(editingProgram?.assigned_segments)
+          ? editingProgram.assigned_segments
+          : [];
+        setEditingProgram({
+          ...editingProgram,
+          assigned_segments: [...current, newSegment.id],
+        });
+        setNotes((prev) => [...prev, newSegment]);
+        setIsCreatingGroup(false);
+        setNewGroup({ name: "", description: "", type: "cohort" });
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "success",
+              message: `Group "${groupName}" created and assigned.`,
+            },
+          }),
+        );
+      }
+    } catch (e) {
+      console.error("Group creation failed:", e);
     }
   };
 
@@ -317,26 +366,18 @@ export default function ProgramManagement() {
         </header>
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex gap-1 p-1 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] flex-wrap">
-            {[
-              {
-                id: "active",
-                label: "All Programs",
-                color: "var(--brand-orange)",
-              },
-              { id: "in_progress", label: "In Progress", color: "#22c55e" },
-              { id: "pending", label: "Pending", color: "#a855f7" },
-              { id: "completed", label: "Completed", color: "#3b82f6" },
-              { id: "archived", label: "Archived", color: "#64748b" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setTab(tab.id)}
-                className={`px-6 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab.id ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="relative w-full md:w-72">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+            <select
+              value={activeTab}
+              onChange={(e) => setTab(e.target.value)}
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
+            >
+              <option value="active">Active Programs</option>
+              <option value="archived">Archived</option>
+              <option value="completed">Completed</option>
+              <option value="all">All Programs</option>
+            </select>
           </div>
 
           <div className="relative w-full md:w-80">
@@ -521,7 +562,10 @@ export default function ProgramManagement() {
                 </p>
               </div>
               <button
-                onClick={() => setEditingProgram(null)}
+                onClick={() => {
+                  setEditingProgram(null);
+                  setIsCreatingGroup(false);
+                }}
                 className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg text-[var(--text-secondary)] transition-all"
               >
                 <Plus className="w-5 h-5 rotate-45" />
@@ -874,6 +918,57 @@ export default function ProgramManagement() {
                     );
                   })}
                 </div>
+
+                <div className="flex items-center justify-between mt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingGroup(!isCreatingGroup);
+                      if (!isCreatingGroup && editingProgram?.name) {
+                        setNewGroup({
+                          name: editingProgram.name,
+                          description: "",
+                          type: "cohort",
+                        });
+                      }
+                    }}
+                    className="text-[8px] font-bold text-blue-400 uppercase tracking-widest hover:underline"
+                  >
+                    {isCreatingGroup ? "Cancel" : "+ Create New Group"}
+                  </button>
+                </div>
+
+                {isCreatingGroup && (
+                  <div className="space-y-3 p-4 bg-[var(--bg-primary)] border border-blue-500/20 rounded-xl animate-in fade-in mt-2">
+                    <input
+                      value={newGroup.name}
+                      onChange={(e) =>
+                        setNewGroup({ ...newGroup, name: e.target.value })
+                      }
+                      placeholder="Group name (defaults to program name)"
+                      className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-blue-400"
+                    />
+                    <textarea
+                      value={newGroup.description}
+                      onChange={(e) =>
+                        setNewGroup({
+                          ...newGroup,
+                          description: e.target.value,
+                        })
+                      }
+                      placeholder="Group description (optional)..."
+                      rows={2}
+                      className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-blue-400 resize-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateGroupInline}
+                      className="w-full py-2.5 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all"
+                    >
+                      Create & Assign Group
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
