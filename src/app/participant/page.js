@@ -13,6 +13,10 @@ import {
   Zap,
   Calendar,
   Activity,
+  MessageSquare,
+  Send,
+  HelpCircle,
+  X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -29,6 +33,15 @@ export default function ParticipantProjectsOverview() {
   const [programs, setPrograms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [showSupport, setShowSupport] = useState(false);
+  const [supportForm, setSupportForm] = useState({ category: "", message: "" });
+  const [supportSending, setSupportSending] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const notify = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -66,6 +79,39 @@ export default function ParticipantProjectsOverview() {
     } catch (e) {
       console.error("Dashboard sync failure", e);
       setIsLoading(false);
+    }
+  };
+
+  const submitSupport = async () => {
+    if (!supportForm.category || !supportForm.message.trim()) {
+      notify("Please select a category and write a message.", "error");
+      return;
+    }
+    setSupportSending(true);
+    try {
+      const body = {
+        recipient_id: "sa",
+        title: `Support: ${supportForm.category}`,
+        message: `${user?.name || "Participant"} needs help: ${supportForm.message}`,
+        type: "support_request",
+      };
+      const res = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Support request sent! A team member will follow up.");
+        setShowSupport(false);
+        setSupportForm({ category: "", message: "" });
+      } else {
+        notify("Failed to send. Try again.", "error");
+      }
+    } catch (e) {
+      notify("Network error.", "error");
+    } finally {
+      setSupportSending(false);
     }
   };
 
@@ -503,6 +549,55 @@ export default function ParticipantProjectsOverview() {
           </div>
         </div>
 
+        {/* ─── ANNOUNCEMENTS ─── */}
+        {(() => {
+          const allFollowups = [];
+          programs.forEach((prog) => {
+            (prog.followups || []).forEach((f) => {
+              allFollowups.push({ ...f, programName: prog.name });
+            });
+          });
+          allFollowups.sort(
+            (a, b) => new Date(b.created_at) - new Date(a.created_at),
+          );
+          if (allFollowups.length === 0) return null;
+          return (
+            <div className="ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-blue-500" />
+                <span className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em]">
+                  Announcements
+                </span>
+              </div>
+              <div className="space-y-3">
+                {allFollowups.slice(0, 4).map((f, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-white/5"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center text-[10px] flex-shrink-0">
+                      📢
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-white leading-snug">
+                        {f.message || f.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[8px] text-blue-400 font-bold uppercase">
+                          {f.programName}
+                        </span>
+                        <span className="text-[7px] text-slate-600">
+                          {new Date(f.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ─── PROJECT CARDS GRID ─── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {programs.map((prog, idx) => {
@@ -596,6 +691,104 @@ export default function ParticipantProjectsOverview() {
             );
           })}
         </div>
+
+        {/* ─── HELP & SUPPORT FLOATING BUTTON ─── */}
+        <button
+          onClick={() => setShowSupport(true)}
+          className="fixed bottom-6 right-6 z-[400] w-14 h-14 rounded-full bg-[#FF6600] text-black shadow-2xl shadow-[#FF6600]/30 flex items-center justify-center hover:scale-110 transition-all animate-in fade-in"
+        >
+          <HelpCircle className="w-6 h-6" />
+        </button>
+
+        {/* ─── TOAST ─── */}
+        {toast && (
+          <div
+            className={`fixed bottom-24 right-6 z-[500] px-5 py-3 rounded-xl text-sm font-bold uppercase tracking-widest border shadow-2xl ${
+              toast.type === "error"
+                ? "bg-rose-50 text-rose-700 border-rose-200"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+            }`}
+          >
+            {toast.msg}
+          </div>
+        )}
+
+        {/* ─── SUPPORT MODAL ─── */}
+        {showSupport && (
+          <div
+            className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={() => setShowSupport(false)}
+          >
+            <div
+              className="card w-full max-w-sm space-y-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <h3 className="text-base font-black uppercase tracking-tight text-[var(--text-primary)]">
+                  Need Help?
+                </h3>
+                <button onClick={() => setShowSupport(false)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                    Issue Category
+                  </label>
+                  <select
+                    value={supportForm.category}
+                    onChange={(e) =>
+                      setSupportForm((p) => ({
+                        ...p,
+                        category: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)]"
+                  >
+                    <option value="">Select category...</option>
+                    <option value="technical">Technical Issue</option>
+                    <option value="mentor">Need Mentor Support</option>
+                    <option value="submission">Submission Problem</option>
+                    <option value="curriculum">Curriculum Question</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                    Message
+                  </label>
+                  <textarea
+                    value={supportForm.message}
+                    onChange={(e) =>
+                      setSupportForm((p) => ({ ...p, message: e.target.value }))
+                    }
+                    rows={4}
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] resize-none"
+                    placeholder="Describe your issue or request..."
+                  />
+                </div>
+              </div>
+              <button
+                onClick={submitSupport}
+                disabled={
+                  supportSending ||
+                  !supportForm.category ||
+                  !supportForm.message.trim()
+                }
+                className="w-full btn btn-primary py-4 gap-2"
+              >
+                {supportSending ? (
+                  "Sending..."
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" /> Send Request
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
