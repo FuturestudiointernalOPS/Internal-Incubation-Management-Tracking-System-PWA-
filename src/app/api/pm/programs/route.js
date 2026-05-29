@@ -253,16 +253,20 @@ export async function PUT(req) {
 
     // If is_archived is provided, handle archive/restore separately
     if (is_archived !== undefined) {
+      const newStatus = is_archived ? "archived" : "active";
       await db.execute({
-        sql: "UPDATE v2_programs SET is_archived = ? WHERE id = ?",
-        args: [is_archived, id],
+        sql: "UPDATE v2_programs SET is_archived = ?, status = ? WHERE id = ?",
+        args: [is_archived, newStatus, id],
       });
       return NextResponse.json({ success: true });
     }
 
+    // Sync status: if setting to archived, also mark is_archived
+    const finalIsArchived = status === "archived" ? 1 : 0;
+
     await db.execute({
       sql: `UPDATE v2_programs
-                SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, materials = ?, start_date = ?, end_date = ?
+                SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?
                 WHERE id = ?`,
       args: [
         name,
@@ -272,6 +276,7 @@ export async function PUT(req) {
         assigned_assistant_id || null,
         duration_weeks || 4,
         status,
+        finalIsArchived,
         JSON.stringify(materials || []),
         start_date || null,
         end_date || null,
