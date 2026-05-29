@@ -242,6 +242,7 @@ export async function PUT(req) {
       assigned_segments,
       start_date,
       end_date,
+      is_archived,
     } = await req.json();
 
     if (!id)
@@ -249,6 +250,15 @@ export async function PUT(req) {
         { success: false, error: "ID required" },
         { status: 400 },
       );
+
+    // If is_archived is provided, handle archive/restore separately
+    if (is_archived !== undefined) {
+      await db.execute({
+        sql: "UPDATE v2_programs SET is_archived = ? WHERE id = ?",
+        args: [is_archived, id],
+      });
+      return NextResponse.json({ success: true });
+    }
 
     await db.execute({
       sql: `UPDATE v2_programs
