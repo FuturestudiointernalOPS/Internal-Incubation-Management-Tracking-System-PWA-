@@ -117,8 +117,8 @@ export default function ParticipantProjectsOverview() {
 
   if (isLoading)
     return (
-      <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#FF6600]/20 border-t-[#FF6600] rounded-full animate-spin" />
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[var(--brand-orange)]/20 border-t-[var(--brand-orange)] rounded-full animate-spin" />
       </div>
     );
 
@@ -127,22 +127,22 @@ export default function ParticipantProjectsOverview() {
     return (
       <DashboardLayout role="participant" activeTab="projects">
         <div className="max-w-lg mx-auto mt-20 text-center space-y-6">
-          <div className="w-20 h-20 rounded-full bg-[#FF6600]/10 flex items-center justify-center mx-auto">
-            <BookOpen className="w-10 h-10 text-[#FF6600]" />
+          <div className="w-20 h-20 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center mx-auto">
+            <BookOpen className="w-10 h-10 text-[var(--brand-orange)]" />
           </div>
-          <h2 className="text-2xl font-black text-white uppercase tracking-tight">
+          <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight">
             No Programs Found
           </h2>
-          <p className="text-sm text-slate-400 leading-relaxed">
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
             You are not currently enrolled in any active programs. Please
             contact your Program Manager or Super Admin to get assigned to a
             cohort.
           </p>
-          <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 text-left space-y-3">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl p-5 text-left space-y-3">
+            <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
               How to get enrolled:
             </p>
-            <ol className="text-xs text-slate-400 space-y-2 list-decimal list-inside">
+            <ol className="text-xs text-[var(--text-secondary)] space-y-2 list-decimal list-inside">
               <li>Your Admin assigns you to a group/cohort</li>
               <li>That group is linked to an active program</li>
               <li>Once linked, your dashboard will appear here</li>
@@ -159,17 +159,20 @@ export default function ParticipantProjectsOverview() {
         {/* ─── HEADER ─── */}
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <Rocket className="w-5 h-5 text-[#FF6600]" />
-            <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.3em]">
+            <Rocket className="w-5 h-5 text-[var(--brand-orange)]" />
+            <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.3em]">
               Participant Portal
             </span>
           </div>
-          <h1 className="text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
+          <h1 className="text-3xl lg:text-4xl font-black text-[var(--text-primary)] tracking-tight uppercase">
             My Projects
           </h1>
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-sm text-[var(--text-secondary)] mt-2">
             You are enrolled in{" "}
-            <strong className="text-white">{programs.length}</strong> program
+            <strong className="text-[var(--text-primary)]">
+              {programs.length}
+            </strong>{" "}
+            program
             {programs.length !== 1 ? "s" : ""}. Select a project below to view
             your curriculum, materials, and progress.
           </p>
@@ -178,10 +181,10 @@ export default function ParticipantProjectsOverview() {
         {/* ─── THIS WEEK + UPCOMING DEADLINES WIDGETS ─── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Weekly Goals Widget */}
-          <div className="ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+          <div className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-[#FF6600]" />
-              <span className="text-[9px] font-black text-[#FF6600] uppercase tracking-[0.2em]">
+              <Target className="w-4 h-4 text-[var(--brand-orange)]" />
+              <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.2em]">
                 This Week
               </span>
             </div>
@@ -225,17 +228,17 @@ export default function ParticipantProjectsOverview() {
                   return (
                     <div key={i} className="flex items-start gap-3">
                       <div
-                        className={`p-1.5 rounded-lg mt-0.5 ${item.urgent ? "bg-amber-500/10" : "bg-[#FF6600]/10"}`}
+                        className={`p-1.5 rounded-lg mt-0.5 ${item.urgent ? "bg-amber-500/10" : "bg-[var(--brand-orange)]/10"}`}
                       >
                         <Icon
-                          className={`w-3.5 h-3.5 ${item.urgent ? "text-amber-500" : "text-[#FF6600]"}`}
+                          className={`w-3.5 h-3.5 ${item.urgent ? "text-amber-500" : "text-[var(--brand-orange)]"}`}
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-white leading-snug">
+                        <p className="text-xs font-bold text-[var(--text-primary)] leading-snug">
                           {item.text}
                         </p>
-                        <p className="text-[8px] text-slate-500 mt-0.5 uppercase tracking-wider">
+                        <p className="text-[8px] text-[var(--text-secondary)] mt-0.5 uppercase tracking-wider">
                           {item.program}
                         </p>
                       </div>
@@ -258,7 +261,7 @@ export default function ParticipantProjectsOverview() {
                   }).length;
                 });
                 return total === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic text-center py-2">
+                  <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-2">
                     All caught up! No pending items.
                   </p>
                 ) : null;
@@ -267,7 +270,7 @@ export default function ParticipantProjectsOverview() {
           </div>
 
           {/* Upcoming Deadlines Widget */}
-          <div className="ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+          <div className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" />
               <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">
@@ -320,7 +323,7 @@ export default function ParticipantProjectsOverview() {
                 });
                 if (items.length === 0) {
                   return (
-                    <p className="text-[10px] text-slate-500 italic text-center py-2">
+                    <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-2">
                       No upcoming deadlines.
                     </p>
                   );
@@ -330,31 +333,31 @@ export default function ParticipantProjectsOverview() {
                     <div
                       className={`p-1.5 rounded-lg mt-0.5 ${
                         item.type === "session"
-                          ? "bg-blue-500/10"
-                          : "bg-amber-500/10"
+                          ? "bg-[var(--bg-tertiary)]lue-500/10"
+                          : "bg-[var(--bg-tertiary)]mber-500/10"
                       }`}
                     >
                       {item.type === "session" ? (
-                        <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                        <Calendar className="w-3.5 h-3.5 text-[var(--brand-orange)]lue-500" />
                       ) : (
                         <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-white leading-snug">
+                      <p className="text-xs font-bold text-[var(--text-primary)] leading-snug">
                         {item.text}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span
                           className={`text-[8px] font-black uppercase tracking-wider ${
                             item.type === "session"
-                              ? "text-blue-400"
-                              : "text-amber-400"
+                              ? "text-[var(--brand-orange)]lue-400"
+                              : "text-[var(--brand-orange)]mber-400"
                           }`}
                         >
                           {item.date}
                         </span>
-                        <span className="text-[7px] text-slate-600">
+                        <span className="text-[7px] text-[var(--text-secondary)]">
                           {item.program}
                         </span>
                       </div>
@@ -369,10 +372,10 @@ export default function ParticipantProjectsOverview() {
         {/* ─── ACTIVITY TIMELINE + PROGRESS BREAKDOWN ─── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Activity Timeline */}
-          <div className="md:col-span-2 ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+          <div className="md:col-span-2 ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-[#FF6600]" />
-              <span className="text-[9px] font-black text-[#FF6600] uppercase tracking-[0.2em]">
+              <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
+              <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.2em]">
                 Recent Activity
               </span>
             </div>
@@ -427,7 +430,7 @@ export default function ParticipantProjectsOverview() {
 
                 if (activities.length === 0) {
                   return (
-                    <p className="text-[10px] text-slate-500 italic text-center py-4">
+                    <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-4">
                       No recent activity.
                     </p>
                   );
@@ -435,16 +438,16 @@ export default function ParticipantProjectsOverview() {
                 return activities.slice(0, 6).map((act, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0"
+                    className="flex items-start gap-3 py-2 border-b border-[var(--border-primary)] last:border-0"
                   >
-                    <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[10px] flex-shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-[var(--bg-[var(--bg-tertiary)]ertiary)] flex items-center justify-center text-[10px] flex-shrink-0">
                       {act.text.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-white leading-snug">
+                      <p className="text-xs font-bold text-[var(--text-primary)] leading-snug">
                         {act.text}
                       </p>
-                      <p className="text-[8px] text-slate-500 mt-0.5">
+                      <p className="text-[8px] text-[var(--text-secondary)] mt-0.5">
                         {act.program} · {act.date.toLocaleDateString()}
                       </p>
                     </div>
@@ -455,10 +458,10 @@ export default function ParticipantProjectsOverview() {
           </div>
 
           {/* Progress Breakdown */}
-          <div className="ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+          <div className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-500" />
-              <span className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em]">
+              <Activity className="w-4 h-4 text-[var(--brand-orange)]merald-500" />
+              <span className="text-[9px] font-black text-[var(--brand-orange)]merald-500 uppercase tracking-[0.2em]">
                 My Progress
               </span>
             </div>
@@ -521,22 +524,22 @@ export default function ParticipantProjectsOverview() {
                       label="Sessions"
                       value={sessionPct}
                       detail={`${completedSessions}/${totalSessions}`}
-                      color="bg-blue-500"
+                      color="bg-[var(--bg-tertiary)]lue-500"
                     />
                     <ProgressBar
                       label="Assignments"
                       value={delsPct}
                       detail={`${completedDels}/${totalDels}`}
-                      color="bg-[#FF6600]"
+                      color="bg-[var(--brand-orange)]"
                     />
                     <ProgressBar
                       label="Submissions"
                       value={approvalPct}
                       detail={`${approvedSubs} approved`}
-                      color="bg-emerald-500"
+                      color="bg-[var(--bg-tertiary)]merald-500"
                     />
                     {pendingSubs > 0 && (
-                      <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20 text-center">
+                      <div className="p-2 bg-[var(--bg-tertiary)]mber-500/10 rounded-lg border border-amber-500/20 text-center">
                         <p className="text-[10px] font-black text-amber-500">
                           {pendingSubs} pending review
                         </p>
@@ -562,10 +565,10 @@ export default function ParticipantProjectsOverview() {
           );
           if (allFollowups.length === 0) return null;
           return (
-            <div className="ios-card bg-[#0F172A] border border-white/5 !p-5 space-y-4">
+            <div className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
               <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-blue-500" />
-                <span className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em]">
+                <MessageSquare className="w-4 h-4 text-[var(--brand-orange)]lue-500" />
+                <span className="text-[9px] font-black text-[var(--brand-orange)]lue-500 uppercase tracking-[0.2em]">
                   Announcements
                 </span>
               </div>
@@ -573,20 +576,20 @@ export default function ParticipantProjectsOverview() {
                 {allFollowups.slice(0, 4).map((f, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-white/5"
+                    className="flex items-start gap-3 p-3 bg-[var(--bg-[var(--bg-tertiary)]ertiary)] rounded-xl border border-[var(--border-primary)]"
                   >
-                    <div className="w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center text-[10px] flex-shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-[var(--bg-tertiary)]lue-500/10 flex items-center justify-center text-[10px] flex-shrink-0">
                       📢
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-white leading-snug">
+                      <p className="text-xs font-bold text-[var(--text-primary)] leading-snug">
                         {f.message || f.title}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[8px] text-blue-400 font-bold uppercase">
+                        <span className="text-[8px] text-[var(--brand-orange)]lue-400 font-bold uppercase">
                           {f.programName}
                         </span>
-                        <span className="text-[7px] text-slate-600">
+                        <span className="text-[7px] text-[var(--text-secondary)]">
                           {new Date(f.created_at).toLocaleDateString()}
                         </span>
                       </div>
@@ -621,45 +624,45 @@ export default function ParticipantProjectsOverview() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.08 }}
                 onClick={() => router.push(`/participant/${prog.id}`)}
-                className="ios-card bg-[#0F172A] border border-white/5 hover:border-[#FF6600]/30 hover:bg-[#0F172A]/80 !p-6 text-left transition-all group relative overflow-hidden"
+                className="ios-card bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 hover:bg-[var(--bg-secondary)]/80 !p-6 text-left transition-all group relative overflow-hidden"
               >
                 {/* Hover glow */}
-                <div className="absolute -top-20 -right-20 w-40 h-40 bg-[#FF6600]/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute -top-20 -right-20 w-40 h-40 bg-[var(--brand-orange)]/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
 
                 <div className="relative z-10 space-y-5">
                   {/* Top row: icon, title, badge */}
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-[#FF6600]/10 border border-[#FF6600]/20 flex items-center justify-center flex-shrink-0">
-                        <Rocket className="w-5 h-5 text-[#FF6600]" />
+                      <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 flex items-center justify-center flex-shrink-0">
+                        <Rocket className="w-5 h-5 text-[var(--brand-orange)]" />
                       </div>
                       <div className="min-w-0">
-                        <h2 className="text-base font-black text-white uppercase tracking-tight truncate">
+                        <h2 className="text-[var(--brand-orange)]ase font-black text-[var(--text-primary)] uppercase tracking-tight truncate">
                           {prog.name || "Untitled Program"}
                         </h2>
                         {prog.description && (
-                          <p className="text-[10px] text-slate-500 font-semibold mt-0.5 line-clamp-1">
+                          <p className="text-[10px] text-[var(--text-secondary)] font-semibold mt-0.5 line-clamp-1">
                             {prog.description}
                           </p>
                         )}
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-[#FF6600] group-hover:translate-x-1 transition-all flex-shrink-0" />
+                    <ChevronRight className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--brand-orange)] group-hover:translate-x-1 transition-all flex-shrink-0" />
                   </div>
 
                   {/* Progress bar */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
                         Progress
                       </span>
-                      <span className="text-sm font-black text-white">
+                      <span className="text-sm font-black text-[var(--text-primary)]">
                         {pct}%
                       </span>
                     </div>
-                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[var(--border-primary)]/20 rounded-full overflow-hidden">
                       <motion.div
-                        className="h-full bg-[#FF6600] rounded-full"
+                        className="h-full bg-[var(--brand-orange)] rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${pct}%` }}
                         transition={{
@@ -672,17 +675,17 @@ export default function ParticipantProjectsOverview() {
                   </div>
 
                   {/* Stats row */}
-                  <div className="flex items-center gap-6 text-[9px] font-semibold text-slate-500">
+                  <div className="flex items-center gap-6 text-[9px] font-semibold text-[var(--text-secondary)]">
                     <span className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-slate-600" />
+                      <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                       Week {week} of {totalWeeks}
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <Target className="w-3.5 h-3.5 text-slate-600" />
+                      <Target className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                       {completedDels}/{totalDels} deliverables
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-slate-600" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                       {completedSessions}/{sessionCount} sessions
                     </span>
                   </div>
@@ -695,7 +698,7 @@ export default function ParticipantProjectsOverview() {
         {/* ─── HELP & SUPPORT FLOATING BUTTON ─── */}
         <button
           onClick={() => setShowSupport(true)}
-          className="fixed bottom-6 right-6 z-[400] w-14 h-14 rounded-full bg-[#FF6600] text-black shadow-2xl shadow-[#FF6600]/30 flex items-center justify-center hover:scale-110 transition-all animate-in fade-in"
+          className="fixed bottom-6 right-6 z-[400] w-14 h-14 rounded-full bg-[var(--brand-orange)] text-black shadow-2xl shadow-[var(--brand-orange)]/30 flex items-center justify-center hover:scale-110 transition-all animate-in fade-in"
         >
           <HelpCircle className="w-6 h-6" />
         </button>
@@ -705,8 +708,8 @@ export default function ParticipantProjectsOverview() {
           <div
             className={`fixed bottom-24 right-6 z-[500] px-5 py-3 rounded-xl text-sm font-bold uppercase tracking-widest border shadow-2xl ${
               toast.type === "error"
-                ? "bg-rose-50 text-rose-700 border-rose-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                ? "bg-[var(--bg-tertiary)]ose-50 text-[var(--brand-orange)]ose-700 border-rose-200"
+                : "bg-[var(--bg-tertiary)]merald-50 text-[var(--brand-orange)]merald-700 border-emerald-200"
             }`}
           >
             {toast.msg}
@@ -716,7 +719,7 @@ export default function ParticipantProjectsOverview() {
         {/* ─── SUPPORT MODAL ─── */}
         {showSupport && (
           <div
-            className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
+            className="fixed inset-0 z-[500] bg-[var(--bg-tertiary)]lack/60 backdrop-blur-sm flex items-center justify-center p-6"
             onClick={() => setShowSupport(false)}
           >
             <div
@@ -724,7 +727,7 @@ export default function ParticipantProjectsOverview() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center">
-                <h3 className="text-base font-black uppercase tracking-tight text-[var(--text-primary)]">
+                <h3 className="text-[var(--brand-orange)]ase font-black uppercase tracking-tight text-[var(--text-primary)]">
                   Need Help?
                 </h3>
                 <button onClick={() => setShowSupport(false)}>
@@ -744,7 +747,7 @@ export default function ParticipantProjectsOverview() {
                         category: e.target.value,
                       }))
                     }
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)]"
+                    className="w-full bg-[var(--bg-[var(--bg-tertiary)]rimary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)]"
                   >
                     <option value="">Select category...</option>
                     <option value="technical">Technical Issue</option>
@@ -764,7 +767,7 @@ export default function ParticipantProjectsOverview() {
                       setSupportForm((p) => ({ ...p, message: e.target.value }))
                     }
                     rows={4}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] resize-none"
+                    className="w-full bg-[var(--bg-[var(--bg-tertiary)]rimary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] resize-none"
                     placeholder="Describe your issue or request..."
                   />
                 </div>
@@ -799,17 +802,19 @@ function ProgressBar({ label, value, detail, color }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+        <span className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
           {label}
         </span>
-        <span className="text-[10px] font-bold text-white">
+        <span className="text-[10px] font-bold text-[var(--text-primary)]">
           {value}%
           {detail && (
-            <span className="text-slate-500 font-normal ml-1">· {detail}</span>
+            <span className="text-[var(--text-secondary)] font-normal ml-1">
+              · {detail}
+            </span>
           )}
         </span>
       </div>
-      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+      <div className="w-full h-1.5 bg-[var(--border-primary)]/20 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-700 ${color}`}
           style={{ width: `${value}%` }}
