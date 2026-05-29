@@ -1,4 +1,29 @@
 import db, { initDb } from "../src/lib/db.js";
+import fs from "fs";
+import path from "path";
+
+// Auto-load .env.local
+const envPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf8");
+  for (const line of envContent.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    let value = trimmed.slice(eqIdx + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
 
 /**
  * SEED SCRIPT: Populate v2_op_reports with demo data
@@ -18,31 +43,58 @@ const STAFF = [
 ];
 
 const TOP_PRIORITIES = [
-  ["Finalize Q2 marketing strategy", "Complete competitor analysis", "Prepare board deck"],
+  [
+    "Finalize Q2 marketing strategy",
+    "Complete competitor analysis",
+    "Prepare board deck",
+  ],
   ["Deploy API v2 to staging", "Fix auth flow bugs", "Write integration tests"],
-  ["Grade participant submissions", "Prepare week 6 curriculum", "Schedule 1:1 reviews"],
+  [
+    "Grade participant submissions",
+    "Prepare week 6 curriculum",
+    "Schedule 1:1 reviews",
+  ],
   ["Redesign landing page", "Optimize mobile layout", "Create style guide"],
   ["Onboard new team members", "Update documentation", "Setup CI/CD pipeline"],
 ];
 
 const DELIVERABLES = [
-  ["Marketing strategy doc", "Competitor comparison spreadsheet", "Board presentation"],
+  [
+    "Marketing strategy doc",
+    "Competitor comparison spreadsheet",
+    "Board presentation",
+  ],
   ["API v2 staging deploy", "Auth bug fix PR", "Integration test suite"],
-  ["Submission feedback forms", "Week 6 slide deck", "Review schedule calendar"],
+  [
+    "Submission feedback forms",
+    "Week 6 slide deck",
+    "Review schedule calendar",
+  ],
   ["Landing page mockups", "Mobile responsive components", "Style guide PDF"],
   ["Onboarding checklist", "Wiki updates", "Pipeline YAML config"],
 ];
 
 const COMPLETED = [
   ["Q2 strategy draft", "Met with design team", "Reviewed analytics"],
-  ["API endpoints refactored", "Database migration completed", "PR merged for auth fix"],
+  [
+    "API endpoints refactored",
+    "Database migration completed",
+    "PR merged for auth fix",
+  ],
   ["All submissions graded", "Week 5 feedback sent", "Team sync completed"],
   ["Homepage redesigned", "Color palette finalized", "Typography system done"],
-  ["Docs migrated to new format", "CI pipeline green", "Two new members onboarded"],
+  [
+    "Docs migrated to new format",
+    "CI pipeline green",
+    "Two new members onboarded",
+  ],
 ];
 
 const WINS = [
-  ["Team collaboration improved significantly", "Client loved the new direction"],
+  [
+    "Team collaboration improved significantly",
+    "Client loved the new direction",
+  ],
   ["Zero bugs in production deploy", "Test coverage reached 85%"],
   ["Students gave great feedback", "Attendance was 95% this week"],
   ["Design system approved by stakeholders", "Mobile traffic up 20%"],
@@ -51,18 +103,40 @@ const WINS = [
 
 const CHALLENGES = [
   ["Cross-team communication delays", "Shifting priorities mid-week"],
-  ["Unexpected dependency on legacy system", "Environment configuration issues"],
+  [
+    "Unexpected dependency on legacy system",
+    "Environment configuration issues",
+  ],
   ["Some students falling behind", "Limited time for 1:1s"],
   ["Feedback loop too slow with engineering", "Design review bottlenecks"],
-  ["Documentation gaps in existing codebase", "Tooling setup took longer than expected"],
+  [
+    "Documentation gaps in existing codebase",
+    "Tooling setup took longer than expected",
+  ],
 ];
 
-const BLOCKERS = ["Waiting on legal review", "AWS credit limit reached", "Pending vendor approval", "", ""];
+const BLOCKERS = [
+  "Waiting on legal review",
+  "AWS credit limit reached",
+  "Pending vendor approval",
+  "",
+  "",
+];
 
-const blockTypes = ["Technical", "Communication", "Dependency", "Time Constraint", "Resource Limitation"];
+const blockTypes = [
+  "Technical",
+  "Communication",
+  "Dependency",
+  "Time Constraint",
+  "Resource Limitation",
+];
 
-function randomItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function randomBool(weight = 0.3) { return Math.random() < weight; }
+function randomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+function randomBool(weight = 0.3) {
+  return Math.random() < weight;
+}
 
 async function seed() {
   await initDb();
@@ -96,19 +170,48 @@ async function seed() {
              ?, ?, ?, ?,
              ?, ?, ?)`,
           args: [
-            staff.id, staff.name, staff.role,
-            weekNum, year,
-            new Date(weekDate.getTime() + 9 * 3600000 + idx * 1800000).toISOString(),
+            staff.id,
+            staff.name,
+            staff.role,
+            weekNum,
+            year,
+            new Date(
+              weekDate.getTime() + 9 * 3600000 + idx * 1800000,
+            ).toISOString(),
             JSON.stringify(TOP_PRIORITIES[idx]),
             JSON.stringify(DELIVERABLES[idx]),
-            randomItem(["Website redesign project", "API integration work", "Curriculum development", "Mobile app v2", "Team onboarding"]),
+            randomItem([
+              "Website redesign project",
+              "API integration work",
+              "Curriculum development",
+              "Mobile app v2",
+              "Team onboarding",
+            ]),
             randomBool() ? 1 : 0,
-            randomBool() ? randomItem(["Waiting on design handoff", "Needs stakeholder approval", "Pending code review"]) : null,
+            randomBool()
+              ? randomItem([
+                  "Waiting on design handoff",
+                  "Needs stakeholder approval",
+                  "Pending code review",
+                ])
+              : null,
             hasBlocker ? 1 : 0,
             blockerDesc || null,
             randomBool() ? 1 : 0,
-            randomBool() ? randomItem(["Need access to analytics tool", "Could use help with testing", "Need extra review time"]) : null,
-            randomBool() ? randomItem(["Mentioned in standup: progressing well", "Had a great sync with design team", "Blocked but working on workaround"]) : null,
+            randomBool()
+              ? randomItem([
+                  "Need access to analytics tool",
+                  "Could use help with testing",
+                  "Need extra review time",
+                ])
+              : null,
+            randomBool()
+              ? randomItem([
+                  "Mentioned in standup: progressing well",
+                  "Had a great sync with design team",
+                  "Blocked but working on workaround",
+                ])
+              : null,
           ],
         });
         total++;
@@ -132,19 +235,51 @@ async function seed() {
              ?, ?, ?,
              ?, ?, ?, ?)`,
           args: [
-            staff.id, staff.name, staff.role,
-            weekNum, year,
-            new Date(weekDate.getTime() + 33 * 3600000 + idx * 1800000).toISOString(),
+            staff.id,
+            staff.name,
+            staff.role,
+            weekNum,
+            year,
+            new Date(
+              weekDate.getTime() + 33 * 3600000 + idx * 1800000,
+            ).toISOString(),
             JSON.stringify(COMPLETED[idx]),
-            JSON.stringify(randomItem([["CSS cleanup", "Minor bug fixes"], ["Code review PRs", "Draft documentation"], ["", ""]])),
-            randomItem(["successful", "partially_successful", "successful", "successful"]),
+            JSON.stringify(
+              randomItem([
+                ["CSS cleanup", "Minor bug fixes"],
+                ["Code review PRs", "Draft documentation"],
+                ["", ""],
+              ]),
+            ),
+            randomItem([
+              "successful",
+              "partially_successful",
+              "successful",
+              "successful",
+            ]),
             hadBlocker ? 1 : 0,
             blockerType,
             hadBlocker ? randomItem(BLOCKERS) : null,
             JSON.stringify(WINS[idx]),
-            randomItem(["Hit all milestones", "Exceeded weekly targets", "Great team collaboration", ""]),
-            JSON.stringify(randomItem([["QA review pending", "Deploy to production"], ["Documentation updates", "", ""]])),
-            randomBool() ? randomItem(["Good week overall", "Need to improve planning", "Team morale is high"]) : null,
+            randomItem([
+              "Hit all milestones",
+              "Exceeded weekly targets",
+              "Great team collaboration",
+              "",
+            ]),
+            JSON.stringify(
+              randomItem([
+                ["QA review pending", "Deploy to production"],
+                ["Documentation updates", "", ""],
+              ]),
+            ),
+            randomBool()
+              ? randomItem([
+                  "Good week overall",
+                  "Need to improve planning",
+                  "Team morale is high",
+                ])
+              : null,
           ],
         });
         total++;
@@ -154,13 +289,19 @@ async function seed() {
     }
   }
 
-  console.log(`  ✅ Inserted ${total} demo reports across ${STAFF.length} staff members`);
-  console.log(`     (${STAFF.length * 6} stand-ups + ${STAFF.length * 6} retros over 6 weeks)`);
+  console.log(
+    `  ✅ Inserted ${total} demo reports across ${STAFF.length} staff members`,
+  );
+  console.log(
+    `     (${STAFF.length * 6} stand-ups + ${STAFF.length * 6} retros over 6 weeks)`,
+  );
   console.log("\n✅ Seed complete.");
 }
 
 function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
