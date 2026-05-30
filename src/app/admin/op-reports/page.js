@@ -19,6 +19,9 @@ import {
   TrendingUp,
   Activity,
   ArrowLeft,
+  ListTodo,
+  Shield,
+  RefreshCw,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -89,7 +92,10 @@ export default function AdminOpReports() {
   const [filterMonth, setFilterMonth] = useState("all");
   const [viewingReport, setViewingReport] = useState(null);
   const [viewingUser, setViewingUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("feed"); // "feed" | "monthly" | "blockers"
+  const [activeTab, setActiveTab] = useState("feed");
+  // Tasks tab state
+  const [allTasks, setAllTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -120,6 +126,26 @@ export default function AdminOpReports() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Fetch tasks when tasks tab is active
+  const fetchTasks = useCallback(async () => {
+    setTasksLoading(true);
+    try {
+      const res = await fetch("/api/tasks");
+      const data = await res.json();
+      if (data.success) setAllTasks(data.tasks || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "tasks") {
+      fetchTasks();
+    }
+  }, [activeTab, fetchTasks]);
 
   const filteredReports = useMemo(() => {
     return reports.filter((r) => {
@@ -227,6 +253,11 @@ export default function AdminOpReports() {
           {[
             { id: "feed", label: "Report Feed", icon: Activity },
             { id: "monthly", label: "Monthly Breakdown", icon: Calendar },
+            {
+              id: "tasks",
+              label: "Tasks",
+              icon: ListTodo,
+            },
             {
               id: "blockers",
               label: "Blockers",
@@ -399,6 +430,183 @@ export default function AdminOpReports() {
           <MonthlyBreakdown reports={filteredReports} />
         )}
 
+        {activeTab === "tasks" && (
+          <div className="space-y-6">
+            {/* Tasks Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                {
+                  label: "Total",
+                  value: allTasks.length,
+                  color: "text-[var(--text-primary)]",
+                  bg: "bg-white/5",
+                },
+                {
+                  label: "In Progress",
+                  value: allTasks.filter((t) => t.status === "in_progress")
+                    .length,
+                  color: "text-blue-500",
+                  bg: "bg-blue-500/10",
+                },
+                {
+                  label: "Blocked",
+                  value: allTasks.filter((t) => t.status === "blocked").length,
+                  color: "text-rose-500",
+                  bg: "bg-rose-500/10",
+                },
+                {
+                  label: "Completed",
+                  value: allTasks.filter((t) => t.status === "completed")
+                    .length,
+                  color: "text-emerald-500",
+                  bg: "bg-emerald-500/10",
+                },
+                {
+                  label: "Carried Over",
+                  value: allTasks.filter((t) => t.status === "carried_over")
+                    .length,
+                  color: "text-amber-500",
+                  bg: "bg-amber-500/10",
+                },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="card flex items-center gap-3 p-3"
+                >
+                  <div className={`p-2 rounded-xl ${stat.bg} ${stat.color}`}>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                      {stat.label}
+                    </p>
+                    <p className={`text-base font-black ${stat.color}`}>
+                      {stat.value}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Recent Tasks Table */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
+                Recent Tasks
+              </h3>
+              <button
+                onClick={() => router.push("/admin/tasks")}
+                className="text-[9px] font-black text-indigo-500 uppercase hover:underline flex items-center gap-1"
+              >
+                <ListTodo className="w-3 h-3" /> View All Tasks
+              </button>
+            </div>
+
+            {tasksLoading ? (
+              <TableSkeleton rows={5} />
+            ) : allTasks.length === 0 ? (
+              <div className="card py-20 text-center opacity-40 border-dashed">
+                <ListTodo className="w-12 h-12 mx-auto mb-3" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">
+                  No tasks found
+                </p>
+              </div>
+            ) : (
+              <div className="card !p-0 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-[var(--border-primary)]">
+                        <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          Task
+                        </th>
+                        <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          Owner
+                        </th>
+                        <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          Week
+                        </th>
+                        <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          Status
+                        </th>
+                        <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          Blockers
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allTasks.slice(0, 10).map((task) => (
+                        <tr
+                          key={task.id}
+                          className="border-b border-[var(--border-primary)]/50 hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                        >
+                          <td className="p-4">
+                            <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
+                              {task.title}
+                            </p>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
+                                {task.user_name?.charAt(0) || "?"}
+                              </div>
+                              <span className="text-[10px] font-bold uppercase tracking-tight">
+                                {task.user_name || "Unknown"}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="text-center p-4">
+                            <span className="text-[9px] font-bold text-slate-500">
+                              W{task.created_week}·{task.created_year}
+                            </span>
+                          </td>
+                          <td className="text-center p-4">
+                            <span
+                              className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${
+                                {
+                                  pending: "bg-slate-500/10 text-slate-400",
+                                  in_progress: "bg-blue-500/10 text-blue-500",
+                                  blocked: "bg-rose-500/10 text-rose-500",
+                                  completed:
+                                    "bg-emerald-500/10 text-emerald-500",
+                                  carried_over:
+                                    "bg-amber-500/10 text-amber-500",
+                                }[task.status] ||
+                                "bg-slate-500/10 text-slate-400"
+                              }`}
+                            >
+                              {{
+                                pending: "Pending",
+                                in_progress: "In Progress",
+                                blocked: "Blocked",
+                                completed: "Completed",
+                                carried_over: "Carried Over",
+                              }[task.status] || task.status}
+                            </span>
+                          </td>
+                          <td className="text-center p-4">
+                            {task.blockers && task.blockers.length > 0 ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <Shield className="w-3 h-3 text-rose-500" />
+                                <span className="text-[10px] font-bold text-rose-500">
+                                  {task.blockers.length}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[9px] text-slate-600">
+                                —
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === "blockers" && (
           <div className="space-y-6">
             <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
@@ -526,7 +734,10 @@ export default function AdminOpReports() {
               const total = userReports.length;
               const weeks = new Set(
                 userReports.map(
-                  (r) => `${r.year}-W${String(r.week_number).padStart(2, "0")}`,
+                  (r) =>
+                    String(r.year) +
+                    "-W" +
+                    String(r.week_number).padStart(2, "0"),
                 ),
               );
               const uniqueWeeks = weeks.size;
@@ -540,7 +751,10 @@ export default function AdminOpReports() {
               );
               const weekSet = new Set(
                 sorted.map(
-                  (r) => `${r.year}-W${String(r.week_number).padStart(2, "0")}`,
+                  (r) =>
+                    String(r.year) +
+                    "-W" +
+                    String(r.week_number).padStart(2, "0"),
                 ),
               );
               let streak = 0;
@@ -597,11 +811,12 @@ export default function AdminOpReports() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${
-                        r.report_type === "standup"
+                      className={
+                        "w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black " +
+                        (r.report_type === "standup"
                           ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
-                          : "bg-emerald-500/10 text-emerald-500"
-                      }`}
+                          : "bg-emerald-500/10 text-emerald-500")
+                      }
                     >
                       {r.report_type === "standup" ? "M" : "F"}
                     </div>
@@ -619,11 +834,12 @@ export default function AdminOpReports() {
                       <AlertTriangle className="w-3 h-3 text-rose-500" />
                     )}
                     <span
-                      className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
-                        r.status === "submitted"
+                      className={
+                        "text-[8px] font-black uppercase px-2 py-0.5 rounded " +
+                        (r.status === "submitted"
                           ? "bg-emerald-500/10 text-emerald-500"
-                          : "bg-amber-500/10 text-amber-500"
-                      }`}
+                          : "bg-amber-500/10 text-amber-500")
+                      }
                     >
                       {r.status}
                     </span>
@@ -670,11 +886,12 @@ function ReportCard({ report, onClick }) {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${
-              report.report_type === "standup"
+            className={
+              "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black " +
+              (report.report_type === "standup"
                 ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20"
-                : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-            }`}
+                : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20")
+            }
           >
             {report.report_type === "standup" ? "M" : "F"}
           </div>

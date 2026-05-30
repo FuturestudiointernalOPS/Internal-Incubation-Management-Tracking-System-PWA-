@@ -245,16 +245,6 @@ const NAVIGATION_MATRIX = {
           name: "INTERNAL REPORTS",
           href: "/admin/op-reports",
         },
-        {
-          id: "tasks",
-          name: "TASKS",
-          href: "/admin/tasks",
-        },
-        {
-          id: "blockers",
-          name: "BLOCKERS",
-          href: "/admin/blockers",
-        },
       ],
     },
   ],
