@@ -70,7 +70,7 @@ export default function TerminalLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 font-sans relative overflow-hidden bg-[var(--bg-primary)]">
+    <div className="min-h-screen flex items-center justify-center p-6 font-sans relative overflow-hidden bg-primary">
       {/* Background Decal */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
            style={{ backgroundImage: 'radial-gradient(circle, var(--brand-orange) 0.5px, transparent 1px)', backgroundSize: '32px 32px' }} />
@@ -110,7 +110,7 @@ export default function TerminalLoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="EMAIL OR ID"
-                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                     />
                   </div>
                 </div>
@@ -125,7 +125,7 @@ export default function TerminalLoginPage() {
                        value={password}
                        onChange={(e) => setPassword(e.target.value)}
                        placeholder="••••••••"
-                       className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-12 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                       className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-12 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                      />
                     <button
                       type="button"

@@ -117,7 +117,7 @@ export default function ParticipantProjectsOverview() {
 
   if (isLoading)
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+      <div className="min-h-screen bg-primary flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-[var(--brand-orange)]/20 border-t-[var(--brand-orange)] rounded-full animate-spin" />
       </div>
     );
@@ -138,7 +138,7 @@ export default function ParticipantProjectsOverview() {
             contact your Program Manager or Super Admin to get assigned to a
             cohort.
           </p>
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl p-5 text-left space-y-3">
+          <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-5 text-left space-y-3">
             <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
               How to get enrolled:
             </p>
@@ -181,7 +181,7 @@ export default function ParticipantProjectsOverview() {
         {/* ─── THIS WEEK + UPCOMING DEADLINES WIDGETS ─── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Weekly Goals Widget */}
-          <div className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+          <div className="card bg-secondary border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.2em]">
@@ -270,7 +270,7 @@ export default function ParticipantProjectsOverview() {
           </div>
 
           {/* Upcoming Deadlines Widget */}
-          <div className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+          <div className="card bg-secondary border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" />
               <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">
@@ -333,8 +333,8 @@ export default function ParticipantProjectsOverview() {
                     <div
                       className={`p-1.5 rounded-lg mt-0.5 ${
                         item.type === "session"
-                          ? "bg-[var(--bg-tertiary)]lue-500/10"
-                          : "bg-[var(--bg-tertiary)]mber-500/10"
+                          ? "bg-tertiarylue-500/10"
+                          : "bg-tertiarymber-500/10"
                       }`}
                     >
                       {item.type === "session" ? (
@@ -372,7 +372,7 @@ export default function ParticipantProjectsOverview() {
         {/* ─── ACTIVITY TIMELINE + PROGRESS BREAKDOWN ─── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Activity Timeline */}
-          <div className="md:col-span-2 card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+          <div className="md:col-span-2 card bg-secondary border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.2em]">
@@ -440,7 +440,7 @@ export default function ParticipantProjectsOverview() {
                     key={i}
                     className="flex items-start gap-3 py-2 border-b border-[var(--border-primary)] last:border-0"
                   >
-                    <div className="w-6 h-6 rounded-full bg-[var(--bg-[var(--bg-tertiary)]ertiary)] flex items-center justify-center text-[10px] flex-shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiaryertiary)] flex items-center justify-center text-[10px] flex-shrink-0">
                       {act.text.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -458,7 +458,7 @@ export default function ParticipantProjectsOverview() {
           </div>
 
           {/* Progress Breakdown */}
-          <div className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+          <div className="card bg-secondary border border-[var(--border-primary)] !p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-[var(--brand-orange)]merald-500" />
               <span className="text-[9px] font-black text-[var(--brand-orange)]merald-500 uppercase tracking-[0.2em]">
@@ -524,7 +524,7 @@ export default function ParticipantProjectsOverview() {
                       label="Sessions"
                       value={sessionPct}
                       detail={`${completedSessions}/${totalSessions}`}
-                      color="bg-[var(--bg-tertiary)]lue-500"
+                      color="bg-tertiarylue-500"
                     />
                     <ProgressBar
                       label="Assignments"
@@ -536,10 +536,10 @@ export default function ParticipantProjectsOverview() {
                       label="Submissions"
                       value={approvalPct}
                       detail={`${approvedSubs} approved`}
-                      color="bg-[var(--bg-tertiary)]merald-500"
+                      color="bg-tertiarymerald-500"
                     />
                     {pendingSubs > 0 && (
-                      <div className="p-2 bg-[var(--bg-tertiary)]mber-500/10 rounded-lg border border-amber-500/20 text-center">
+                      <div className="p-2 bg-tertiarymber-500/10 rounded-lg border border-amber-500/20 text-center">
                         <p className="text-[10px] font-black text-amber-500">
                           {pendingSubs} pending review
                         </p>
@@ -565,7 +565,7 @@ export default function ParticipantProjectsOverview() {
           );
           if (allFollowups.length === 0) return null;
           return (
-            <div className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] !p-5 space-y-4">
+            <div className="card bg-secondary border border-[var(--border-primary)] !p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-[var(--brand-orange)]lue-500" />
                 <span className="text-[9px] font-black text-[var(--brand-orange)]lue-500 uppercase tracking-[0.2em]">
@@ -576,9 +576,9 @@ export default function ParticipantProjectsOverview() {
                 {allFollowups.slice(0, 4).map((f, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 p-3 bg-[var(--bg-[var(--bg-tertiary)]ertiary)] rounded-xl border border-[var(--border-primary)]"
+                    className="flex items-start gap-3 p-3 bg-[var(--bg-tertiaryertiary)] rounded-xl border border-[var(--border-primary)]"
                   >
-                    <div className="w-7 h-7 rounded-full bg-[var(--bg-tertiary)]lue-500/10 flex items-center justify-center text-[10px] flex-shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-tertiarylue-500/10 flex items-center justify-center text-[10px] flex-shrink-0">
                       📢
                     </div>
                     <div className="min-w-0 flex-1">
@@ -624,7 +624,7 @@ export default function ParticipantProjectsOverview() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.08 }}
                 onClick={() => router.push(`/participant/${prog.id}`)}
-                className="card bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 hover:bg-[var(--bg-secondary)]/80 !p-6 text-left transition-all group relative overflow-hidden"
+                className="card bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 hover:bg-secondary/80 !p-6 text-left transition-all group relative overflow-hidden"
               >
                 {/* Hover glow */}
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-[var(--brand-orange)]/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -708,8 +708,8 @@ export default function ParticipantProjectsOverview() {
           <div
             className={`fixed bottom-24 right-6 z-[500] px-5 py-3 rounded-xl text-sm font-bold uppercase tracking-widest border shadow-2xl ${
               toast.type === "error"
-                ? "bg-[var(--bg-tertiary)]ose-50 text-[var(--brand-orange)]ose-700 border-rose-200"
-                : "bg-[var(--bg-tertiary)]merald-50 text-[var(--brand-orange)]merald-700 border-emerald-200"
+                ? "bg-tertiaryose-50 text-[var(--brand-orange)]ose-700 border-rose-200"
+                : "bg-tertiarymerald-50 text-[var(--brand-orange)]merald-700 border-emerald-200"
             }`}
           >
             {toast.msg}
@@ -719,7 +719,7 @@ export default function ParticipantProjectsOverview() {
         {/* ─── SUPPORT MODAL ─── */}
         {showSupport && (
           <div
-            className="fixed inset-0 z-[500] bg-[var(--bg-tertiary)]lack/60 backdrop-blur-sm flex items-center justify-center p-6"
+            className="fixed inset-0 z-[500] bg-tertiarylack/60 backdrop-blur-sm flex items-center justify-center p-6"
             onClick={() => setShowSupport(false)}
           >
             <div
@@ -747,7 +747,7 @@ export default function ParticipantProjectsOverview() {
                         category: e.target.value,
                       }))
                     }
-                    className="w-full bg-[var(--bg-[var(--bg-tertiary)]rimary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)]"
+                    className="w-full bg-[var(--bg-tertiaryrimary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)]"
                   >
                     <option value="">Select category...</option>
                     <option value="technical">Technical Issue</option>
@@ -767,7 +767,7 @@ export default function ParticipantProjectsOverview() {
                       setSupportForm((p) => ({ ...p, message: e.target.value }))
                     }
                     rows={4}
-                    className="w-full bg-[var(--bg-[var(--bg-tertiary)]rimary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] resize-none"
+                    className="w-full bg-[var(--bg-tertiaryrimary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] resize-none"
                     placeholder="Describe your issue or request..."
                   />
                 </div>

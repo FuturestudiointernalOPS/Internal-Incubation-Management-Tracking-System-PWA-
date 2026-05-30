@@ -354,7 +354,7 @@ export default function NewProgram() {
                   setProgram({ ...program, name: e.target.value })
                 }
                 placeholder="Ex: Entrepreneurship Bootcamp 2024"
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
             <div className="space-y-2">
@@ -370,7 +370,7 @@ export default function NewProgram() {
                   setProgram({ ...program, start_date: d });
                   validateDates(d, program.end_date);
                 }}
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
             <div className="space-y-2">
@@ -386,7 +386,7 @@ export default function NewProgram() {
                   setProgram({ ...program, end_date: d });
                   validateDates(program.start_date, d);
                 }}
-                className={`w-full bg-[var(--bg-secondary)] border rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all ${dateError ? "border-rose-500" : "border-[var(--border-primary)]"}`}
+                className={`w-full bg-secondary border rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all ${dateError ? "border-rose-500" : "border-[var(--border-primary)]"}`}
               />
               {dateError && (
                 <p className="text-[9px] font-bold text-rose-400 uppercase tracking-widest mt-1 ml-2">
@@ -402,7 +402,7 @@ export default function NewProgram() {
             </label>
 
             {/* Input type selector */}
-            <div className="flex gap-2 bg-[var(--bg-primary)] rounded-xl p-1.5 border border-[var(--border-primary)] w-fit">
+            <div className="flex gap-2 bg-primary rounded-xl p-1.5 border border-[var(--border-primary)] w-fit">
               {[
                 { id: "text", label: "Rich Text", icon: FileText },
                 { id: "link", label: "External Link", icon: Plus },
@@ -435,7 +435,7 @@ export default function NewProgram() {
                   setProgram({ ...program, description: e.target.value })
                 }
                 placeholder="Outline the program objectives and goals..."
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
             )}
 
@@ -448,7 +448,7 @@ export default function NewProgram() {
                   setProgram({ ...program, conceptNoteLink: e.target.value })
                 }
                 placeholder="https://docs.google.com/..."
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             )}
 
@@ -470,7 +470,7 @@ export default function NewProgram() {
                   }}
                   className="absolute inset-0 opacity-0 cursor-pointer z-10"
                 />
-                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-[var(--border-primary)] rounded-2xl group-hover:border-[var(--brand-orange)] transition-all bg-[var(--bg-primary)]/50">
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-[var(--border-primary)] rounded-2xl group-hover:border-[var(--brand-orange)] transition-all bg-primary/50">
                   <Upload className="w-8 h-8 text-slate-500 group-hover:text-[var(--brand-orange)] mb-3 transition-all" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
                     {program.conceptNoteFile ||
@@ -522,7 +522,7 @@ export default function NewProgram() {
                       onChange={(e) =>
                         setProgram({ ...program, note_id: e.target.value })
                       }
-                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
                     >
                       <option value="">Link Knowledge Node...</option>
                       {knowledgeNodes.map((node) => (
@@ -532,7 +532,7 @@ export default function NewProgram() {
                       ))}
                     </select>
                   ) : (
-                    <div className="space-y-4 p-4 bg-[var(--bg-primary)] border border-[var(--brand-orange)]/20 rounded-xl animate-in fade-in zoom-in-95">
+                    <div className="space-y-4 p-4 bg-primary border border-[var(--brand-orange)]/20 rounded-xl animate-in fade-in zoom-in-95">
                       <input
                         value={newKB.title}
                         onChange={(e) =>
@@ -580,7 +580,7 @@ export default function NewProgram() {
                     className="absolute inset-0 opacity-0 cursor-pointer z-10"
                     disabled={isUploading}
                   />
-                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[var(--border-primary)] rounded-xl group-hover:border-[var(--brand-orange)] transition-all bg-[var(--bg-primary)]/50">
+                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[var(--border-primary)] rounded-xl group-hover:border-[var(--brand-orange)] transition-all bg-primary/50">
                     {isUploading ? (
                       <Loader2 className="w-6 h-6 text-[var(--brand-orange)] animate-spin mb-2" />
                     ) : (
@@ -658,7 +658,7 @@ export default function NewProgram() {
                         assigned_segments: [e.target.value],
                       })
                     }
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
                     <option value="">Select Existing Group...</option>
                     {segments.map((s) => (
@@ -668,7 +668,7 @@ export default function NewProgram() {
                     ))}
                   </select>
                 ) : (
-                  <div className="space-y-4 p-4 bg-[var(--bg-primary)] border border-blue-500/20 rounded-xl animate-in fade-in zoom-in-95">
+                  <div className="space-y-4 p-4 bg-primary border border-blue-500/20 rounded-xl animate-in fade-in zoom-in-95">
                     <input
                       value={newGroup.name}
                       onChange={(e) =>
@@ -752,7 +752,7 @@ export default function NewProgram() {
                     onChange={(e) =>
                       setProgram({ ...program, assigned_pm_id: e.target.value })
                     }
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
                     <option value="">Select Manager...</option>
                     {staffList.map((staff) => (
@@ -791,7 +791,7 @@ export default function NewProgram() {
                     onChange={(e) => {
                       if (e.target.value) toggleAssistant(e.target.value);
                     }}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
                     <option value="">Select Support...</option>
                     {staffList
@@ -844,7 +844,7 @@ export default function NewProgram() {
                   onChange={(e) =>
                     setKpiInput({ ...kpiInput, title: e.target.value })
                   }
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
                 />
               </div>
               <div className="space-y-1 text-left">
@@ -864,7 +864,7 @@ export default function NewProgram() {
                         target_value: parseInt(e.target.value) || 0,
                       })
                     }
-                    className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
                   />
                   <button
                     type="button"

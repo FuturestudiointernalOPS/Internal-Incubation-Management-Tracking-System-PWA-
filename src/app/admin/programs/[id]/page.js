@@ -125,7 +125,7 @@ export default function SuperAdminExecutiveView({ params }) {
   };
 
   if (!isLoaded || !program) return (
-    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+    <div className="min-h-screen bg-primary flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-[#FF6600]/20 border-t-[#FF6600] rounded-full animate-spin" />
     </div>
   );
@@ -140,7 +140,7 @@ export default function SuperAdminExecutiveView({ params }) {
         <header className="flex flex-col lg:flex-row justify-between items-end gap-8">
           <div className="space-y-4 text-left">
              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[#FF6600] shadow-xl">
+                <div className="w-12 h-12 rounded-2xl bg-secondary border border-[var(--border-primary)] flex items-center justify-center text-[#FF6600] shadow-xl">
                    <Briefcase className="w-6 h-6" />
                 </div>
                 <div>
@@ -180,7 +180,7 @@ export default function SuperAdminExecutiveView({ params }) {
 
         {/* METRICS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-           <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-8 relative group overflow-hidden">
+           <div className="ios-card bg-secondary border-[var(--border-primary)] !p-8 relative group overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-[#FF6600]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                  <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4 italic flex items-center gap-2">
@@ -193,7 +193,7 @@ export default function SuperAdminExecutiveView({ params }) {
                  </p>
               </div>
            </div>
-           <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-8">
+           <div className="ios-card bg-secondary border-[var(--border-primary)] !p-8">
               <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4 italic">Required Tasks</p>
               <h4 className="text-3xl font-black text-[var(--text-primary)] italic">{requirements.filter(r => r.is_completed).length}/{requirements.length}</h4>
            </div>
@@ -210,7 +210,7 @@ export default function SuperAdminExecutiveView({ params }) {
         {/* PROGRAM INFRASTRUCTURE & KPI MANAGEMENT */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
            {/* KPI MANAGEMENT */}
-           <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-10 space-y-8">
+           <div className="ios-card bg-secondary border-[var(--border-primary)] !p-10 space-y-8">
               <div className="flex justify-between items-start">
                  <div>
                     <div className="flex items-center gap-3">
@@ -283,7 +283,7 @@ export default function SuperAdminExecutiveView({ params }) {
            </div>
 
            {/* KNOWLEDGE BASE OVERVIEW */}
-           <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-10 space-y-8">
+           <div className="ios-card bg-secondary border-[var(--border-primary)] !p-10 space-y-8">
               <div className="flex justify-between items-center">
                  <div className="flex items-center gap-3">
                     <BookOpen className="w-5 h-5 text-blue-400" />
@@ -356,12 +356,12 @@ export default function SuperAdminExecutiveView({ params }) {
                     <div key={`week-${wn}`} className="relative pl-16">
                        {/* DOT */}
                        <div className={`absolute left-0 top-0 w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all ${
-                          weekReports.length > 0 ? 'bg-[#FF6600] border-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'bg-[var(--bg-primary)] border-[var(--border-primary)] text-[var(--text-secondary)]'
+                          weekReports.length > 0 ? 'bg-[#FF6600] border-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]'
                        }`}>
                           <span className="text-lg font-black">{wn}</span>
                        </div>
 
-                       <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-10 hover:bg-[var(--bg-tertiary)] transition-all text-left space-y-10">
+                       <div className="ios-card bg-secondary border-[var(--border-primary)] !p-10 hover:bg-tertiary transition-all text-left space-y-10">
                           <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
                              <div className="flex-1 space-y-4">
                                 <div className="flex items-center gap-3">

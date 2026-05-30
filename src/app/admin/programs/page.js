@@ -371,7 +371,7 @@ export default function ProgramManagement() {
             <select
               value={activeTab}
               onChange={(e) => setTab(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
             >
               <option value="active">Active Programs</option>
               <option value="pending">Pending</option>
@@ -387,7 +387,7 @@ export default function ProgramManagement() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by program name..."
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
             />
           </div>
         </div>
@@ -410,14 +410,14 @@ export default function ProgramManagement() {
                 {filtered.map((p, idx) => (
                   <tr
                     key={p?.id || idx}
-                    className="group cursor-pointer hover:bg-[var(--bg-secondary)]"
+                    className="group cursor-pointer hover:bg-secondary"
                     onClick={() =>
                       p?.id && router.push(`/admin/programs/${p.id}`)
                     }
                   >
                     <td>
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
+                        <div className="w-10 h-10 rounded-xl bg-secondary border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
                           <Signal className="w-5 h-5" />
                         </div>
                         <div className="flex flex-col">
@@ -478,7 +478,7 @@ export default function ProgramManagement() {
                             Progress
                           </span>
                         </div>
-                        <div className="w-16 h-1 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                        <div className="w-16 h-1 bg-secondary rounded-full overflow-hidden">
                           <div
                             className="h-full bg-[var(--brand-orange)]"
                             style={{ width: `${p?.completion_index || 0}%` }}
@@ -553,7 +553,7 @@ export default function ProgramManagement() {
       {editingProgram && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md overflow-y-auto">
           <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left my-auto max-h-[85vh] overflow-y-auto custom-scrollbar">
-            <div className="flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] pb-4 z-10 border-b border-[var(--border-primary)]">
+            <div className="flex justify-between items-center sticky top-0 bg-secondary pb-4 z-10 border-b border-[var(--border-primary)]">
               <div>
                 <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight italic">
                   Edit Program Registry
@@ -567,7 +567,7 @@ export default function ProgramManagement() {
                   setEditingProgram(null);
                   setIsCreatingGroup(false);
                 }}
-                className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg text-[var(--text-secondary)] transition-all"
+                className="p-2 hover:bg-tertiary rounded-lg text-[var(--text-secondary)] transition-all"
               >
                 <Plus className="w-5 h-5 rotate-45" />
               </button>
@@ -587,7 +587,7 @@ export default function ProgramManagement() {
                       name: e.target.value,
                     })
                   }
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] focus:ring-1 focus:ring-[var(--brand-orange)] transition-all"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] focus:ring-1 focus:ring-[var(--brand-orange)] transition-all"
                 />
               </div>
 
@@ -603,7 +603,7 @@ export default function ProgramManagement() {
                       assigned_pm_id: e.target.value,
                     })
                   }
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
                 >
                   <option value="">Unassigned</option>
                   {(Array.isArray(teams) ? teams : []).map(
@@ -625,7 +625,7 @@ export default function ProgramManagement() {
                   Select staff members assigned to assist the Program Manager in
                   oversight.
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-primary rounded-2xl border border-[var(--border-primary)]">
                   {(Array.isArray(teams) ? teams : [])
                     .filter(
                       (t) =>
@@ -680,11 +680,11 @@ export default function ProgramManagement() {
                           className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
                             isActive
                               ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
-                              : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)]"
+                              : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
                           }`}
                         >
                           <div
-                            className={`w-6 h-6 rounded bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black ${isActive ? "text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : ""}`}
+                            className={`w-6 h-6 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black ${isActive ? "text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : ""}`}
                           >
                             {member.name?.charAt(0) || "?"}
                           </div>
@@ -710,7 +710,7 @@ export default function ProgramManagement() {
                         note_id: e.target.value,
                       })
                     }
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
                   >
                     <option value="">None Assigned</option>
                     {(Array.isArray(knowledgeItems) ? knowledgeItems : []).map(
@@ -736,7 +736,7 @@ export default function ProgramManagement() {
                         duration_weeks: parseInt(e.target.value) || 4,
                       })
                     }
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
               </div>
@@ -753,7 +753,7 @@ export default function ProgramManagement() {
                       status: e.target.value,
                     })
                   }
-                  className={`w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer ${
+                  className={`w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer ${
                     editingProgram?.status === "active"
                       ? "text-emerald-500"
                       : editingProgram?.status === "pending"
@@ -812,7 +812,7 @@ export default function ProgramManagement() {
                         f && (
                           <div
                             key={i}
-                            className="flex items-center justify-between p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl"
+                            className="flex items-center justify-between p-3 bg-tertiary border border-[var(--border-primary)] rounded-xl"
                           >
                             <div className="flex items-center gap-3">
                               <FileText className="w-4 h-4 text-blue-500" />
@@ -876,7 +876,7 @@ export default function ProgramManagement() {
                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
                   Assign this program to specific student cohorts or families.
                 </p>
-                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)]">
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-primary rounded-2xl border border-[var(--border-primary)]">
                   {(Array.isArray(notes) ? notes : []).map((s) => {
                     if (!s) return null;
                     const assignedSegments = Array.isArray(
@@ -906,7 +906,7 @@ export default function ProgramManagement() {
                         className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
                           isActive
                             ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
-                            : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)]"
+                            : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
                         }`}
                       >
                         <Users
@@ -940,7 +940,7 @@ export default function ProgramManagement() {
                 </div>
 
                 {isCreatingGroup && (
-                  <div className="space-y-3 p-4 bg-[var(--bg-primary)] border border-blue-500/20 rounded-xl animate-in fade-in mt-2">
+                  <div className="space-y-3 p-4 bg-primary border border-blue-500/20 rounded-xl animate-in fade-in mt-2">
                     <input
                       value={newGroup.name}
                       onChange={(e) =>
@@ -985,7 +985,7 @@ export default function ProgramManagement() {
                       description: e.target.value,
                     })
                   }
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
                 />
               </div>
 
@@ -1039,7 +1039,7 @@ export default function ProgramManagement() {
                     <div className="grid grid-cols-2 gap-3">
                       <input
                         placeholder="KPI Title (e.g. Attendance)..."
-                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
                         value={editKpiInput.title}
                         onChange={(e) =>
                           setEditKpiInput({
@@ -1054,7 +1054,7 @@ export default function ProgramManagement() {
                           min="0"
                           max="100"
                           placeholder="80%"
-                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
                           value={editKpiInput.target_value}
                           onChange={(e) =>
                             setEditKpiInput({

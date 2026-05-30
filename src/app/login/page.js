@@ -63,7 +63,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-6 text-[var(--text-primary)]">
+    <div className="min-h-screen bg-primary flex items-center justify-center p-6 text-[var(--text-primary)]">
       <div className="w-full max-w-[400px] space-y-8 animate-in">
         <div className="flex flex-col items-center text-center space-y-4">
           <img
@@ -97,7 +97,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="sarah@impactos.com"
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
 
@@ -112,7 +112,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
                 <button
                   type="button"

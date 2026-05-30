@@ -52,7 +52,7 @@ export default function StaffDashboard() {
           </div>
           
           <div className="flex gap-4">
-             <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl px-8 flex flex-col justify-center shadow-sm">
+             <div className="p-4 bg-secondary border border-[var(--border-primary)] rounded-2xl px-8 flex flex-col justify-center shadow-sm">
                 <span className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic opacity-60">Active Session</span>
                 <span className="text-emerald-500 font-black text-xs uppercase italic flex items-center gap-2"><Activity className="w-3 h-3" /> System Ready</span>
              </div>
@@ -60,7 +60,7 @@ export default function StaffDashboard() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-           <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] !p-10 space-y-8 shadow-sm">
+           <div className="ios-card bg-secondary border-[var(--border-secondary)] !p-10 space-y-8 shadow-sm">
               <div className="flex items-center justify-between">
                  <h3 className="text-xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">Operational Resources</h3>
                  <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-widest italic">Knowledge Bank</span>
@@ -76,7 +76,7 @@ export default function StaffDashboard() {
               </button>
            </div>
 
-           <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] !p-10 flex flex-col justify-center text-center shadow-sm">
+           <div className="ios-card bg-secondary border-[var(--border-secondary)] !p-10 flex flex-col justify-center text-center shadow-sm">
               <Zap className="w-12 h-12 text-[var(--brand-orange)] mx-auto mb-6 opacity-20" />
               <h3 className="text-xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter mb-2">Unassigned Sector</h3>
               <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest leading-relaxed opacity-60">

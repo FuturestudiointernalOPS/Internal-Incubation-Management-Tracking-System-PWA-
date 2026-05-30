@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const ReviewCard = ({ submission, onReview }) => (
-  <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] group hover:border-[var(--brand-orange)]/30 transition-all">
+  <div className="ios-card bg-secondary border-[var(--border-secondary)] group hover:border-[var(--brand-orange)]/30 transition-all">
     <div className="flex justify-between items-start mb-6">
       <div className="flex items-center gap-3">
          <div className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
@@ -28,7 +28,7 @@ const ReviewCard = ({ submission, onReview }) => (
       </div>
     </div>
 
-    <div className="flex items-center gap-6 p-4 rounded-xl bg-[var(--bg-tertiary)]/50 border border-[var(--border-secondary)] mb-8">
+    <div className="flex items-center gap-6 p-4 rounded-xl bg-tertiary/50 border border-[var(--border-secondary)] mb-8">
        <div className="flex-1">
           <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 opacity-60">Submitter Identity</p>
           <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tighter">{submission.v2_groups?.name || submission.v2_participants?.name}</p>
@@ -36,7 +36,7 @@ const ReviewCard = ({ submission, onReview }) => (
        <a 
           href={submission.submission_link} 
           target="_blank"
-          className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-secondary)] text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all"
+          className="p-3 rounded-lg bg-secondary border border-[var(--border-secondary)] text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all"
        >
           <ExternalLink className="w-4 h-4" />
        </a>
@@ -216,7 +216,7 @@ export default function InstructorDashboard() {
   };
 
   if (isLoading) return (
-     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+     <div className="min-h-screen bg-primary flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-[var(--brand-orange)]/20 border-t-[var(--brand-orange)] rounded-full animate-spin" />
      </div>
   );
@@ -238,19 +238,19 @@ export default function InstructorDashboard() {
           <div className="flex gap-4">
              <button 
                onClick={() => setActiveSection('submissions')}
-               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === 'submissions' ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-[var(--brand-orange)]/20' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
+               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === 'submissions' ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-[var(--brand-orange)]/20' : 'bg-tertiary text-[var(--text-secondary)] hover:bg-tertiary'}`}
              >
                 Submissions
              </button>
              <button 
                onClick={() => setActiveSection('curriculum')}
-               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === 'curriculum' ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-[var(--brand-orange)]/20' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
+               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === 'curriculum' ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-[var(--brand-orange)]/20' : 'bg-tertiary text-[var(--text-secondary)] hover:bg-tertiary'}`}
              >
                 Curriculum
              </button>
              <button 
                onClick={() => setActiveSection('reports')}
-               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === 'reports' ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-[var(--brand-orange)]/20' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
+               className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === 'reports' ? 'bg-[var(--brand-orange)] text-white shadow-xl shadow-[var(--brand-orange)]/20' : 'bg-tertiary text-[var(--text-secondary)] hover:bg-tertiary'}`}
              >
                 Reports
              </button>
@@ -268,7 +268,7 @@ export default function InstructorDashboard() {
                     />
                  ))}
                   {submissions.length === 0 && (
-                    <div className="col-span-full py-40 text-center border-2 border-dashed border-[var(--border-primary)] rounded-[3rem] bg-[var(--bg-tertiary)]/10 shadow-sm">
+                    <div className="col-span-full py-40 text-center border-2 border-dashed border-[var(--border-primary)] rounded-[3rem] bg-tertiary/10 shadow-sm">
                        <CheckCircle2 className="w-16 h-16 text-emerald-500/20 mx-auto mb-6" />
                        <p className="text-[var(--text-secondary)] font-bold max-w-xs mx-auto uppercase text-[10px] tracking-widest mb-8">Queue Status: All submissions currently synchronized.</p>
                        <button 
@@ -295,7 +295,7 @@ export default function InstructorDashboard() {
                              <p className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter italic leading-none">{sessions[0].title}</p>
                              <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-2">{sessions[0].program_name}</p>
                           </div>
-                          <div className="p-4 bg-[var(--bg-tertiary)]/40 rounded-2xl border border-[var(--border-secondary)] space-y-3">
+                          <div className="p-4 bg-tertiary/40 rounded-2xl border border-[var(--border-secondary)] space-y-3">
                              <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-widest">
                                 <span className="text-[var(--text-secondary)]">Schedule</span>
                                 <span className="text-[var(--brand-orange)]">{sessions[0].scheduled_date}</span>
@@ -320,7 +320,7 @@ export default function InstructorDashboard() {
            </div>
         ) : activeSection === 'curriculum' ? (
            <div className="space-y-12">
-              <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] !p-12">
+              <div className="ios-card bg-secondary border-[var(--border-secondary)] !p-12">
                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12">
                     <div>
                        <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter italic flex items-center gap-4">
@@ -332,7 +332,7 @@ export default function InstructorDashboard() {
                     <select 
                        value={selectedProgramId}
                        onChange={e => setSelectedProgramId(e.target.value)}
-                       className="bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl py-4 px-8 text-[var(--text-primary)] text-xs font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all min-w-[300px]"
+                       className="bg-tertiary border border-[var(--border-secondary)] rounded-xl py-4 px-8 text-[var(--text-primary)] text-xs font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all min-w-[300px]"
                     >
                        {myPrograms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
@@ -340,7 +340,7 @@ export default function InstructorDashboard() {
 
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {sessions.filter(s => s.program_id === selectedProgramId).map(session => (
-                       <div key={session.id} className="ios-card bg-[var(--bg-tertiary)]/20 border-[var(--border-secondary)] hover:border-[var(--brand-orange)]/30 transition-all p-8 group">
+                       <div key={session.id} className="ios-card bg-tertiary/20 border-[var(--border-secondary)] hover:border-[var(--brand-orange)]/30 transition-all p-8 group">
                           <div className="flex justify-between items-center mb-6">
                              <span className="badge badge-glow-indigo text-[8px] font-black uppercase tracking-widest">W{session.week_number}</span>
                              <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-lg ${session.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20'}`}>
@@ -362,7 +362,7 @@ export default function InstructorDashboard() {
               </div>
 
               {myPrograms.find(p => p.id === selectedProgramId)?.materials && (
-                 <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] !p-12">
+                 <div className="ios-card bg-secondary border-[var(--border-secondary)] !p-12">
                     <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter italic mb-10 flex items-center gap-4">
                        <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" />
                        Supportive Materials
@@ -378,7 +378,7 @@ export default function InstructorDashboard() {
                                    key={idx} 
                                    href={m.link || m.url} 
                                    target="_blank" 
-                                   className="p-6 rounded-2xl bg-[var(--bg-tertiary)]/40 border border-[var(--border-secondary)] hover:border-[var(--brand-orange)]/30 transition-all group flex items-center gap-4"
+                                   className="p-6 rounded-2xl bg-tertiary/40 border border-[var(--border-secondary)] hover:border-[var(--brand-orange)]/30 transition-all group flex items-center gap-4"
                                 >
                                    <div className="p-3 rounded-xl bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] group-hover:bg-[var(--brand-orange)] group-hover:text-white transition-all">
                                       <Paperclip className="w-4 h-4" />
@@ -398,7 +398,7 @@ export default function InstructorDashboard() {
         ) : (
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
               <div className="lg:col-span-2 space-y-10">
-                  <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] shadow-sm !p-12">
+                  <div className="ios-card bg-secondary border-[var(--border-secondary)] shadow-sm !p-12">
                     <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter italic mb-10 flex items-center gap-4">
                        <FileText className="w-6 h-6 text-[var(--brand-orange)]" />
                        Tactical Week Report
@@ -410,9 +410,9 @@ export default function InstructorDashboard() {
                           <select 
                              value={selectedProgramId}
                              onChange={e => setSelectedProgramId(e.target.value)}
-                             className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl py-4 px-6 text-[var(--text-primary)] text-xs font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all appearance-none"
+                             className="w-full bg-tertiary border border-[var(--border-secondary)] rounded-xl py-4 px-6 text-[var(--text-primary)] text-xs font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all appearance-none"
                           >
-                             {myPrograms.map(p => <option key={p.id} value={p.id} className="bg-[var(--bg-secondary)]">{p.name}</option>)}
+                             {myPrograms.map(p => <option key={p.id} value={p.id} className="bg-secondary">{p.name}</option>)}
                           </select>
                        </div>
                        <div className="space-y-3">
@@ -420,9 +420,9 @@ export default function InstructorDashboard() {
                           <select 
                              value={selectedReportWeek}
                              onChange={e => setSelectedReportWeek(parseInt(e.target.value))}
-                             className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl py-4 px-6 text-[var(--text-primary)] text-xs font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all appearance-none"
+                             className="w-full bg-tertiary border border-[var(--border-secondary)] rounded-xl py-4 px-6 text-[var(--text-primary)] text-xs font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all appearance-none"
                           >
-                             {[1,2,3,4,5,6,7,8,9,10,11,12].map(w => <option key={w} value={w} className="bg-[var(--bg-secondary)]">Week {w}</option>)}
+                             {[1,2,3,4,5,6,7,8,9,10,11,12].map(w => <option key={w} value={w} className="bg-secondary">Week {w}</option>)}
                           </select>
                        </div>
                     </div>
@@ -437,7 +437,7 @@ export default function InstructorDashboard() {
                              type="range" min="1" max="10" 
                              value={reportData.reception_score}
                              onChange={e => setReportData({...reportData, reception_score: parseInt(e.target.value)})}
-                             className="w-full h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer accent-[var(--brand-orange)]"
+                             className="w-full h-1.5 bg-tertiary rounded-lg appearance-none cursor-pointer accent-[var(--brand-orange)]"
                           />
                        </div>
 
@@ -447,7 +447,7 @@ export default function InstructorDashboard() {
                              placeholder="How did the session go? What was achieved?"
                              value={reportData.progress_notes}
                              onChange={e => setReportData({...reportData, progress_notes: e.target.value})}
-                             className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-2xl py-5 px-6 text-[var(--text-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all min-h-[120px]"
+                             className="w-full bg-tertiary border border-[var(--border-secondary)] rounded-2xl py-5 px-6 text-[var(--text-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all min-h-[120px]"
                           />
                        </div>
 
@@ -457,7 +457,7 @@ export default function InstructorDashboard() {
                              placeholder="How did the students react to the content?"
                              value={reportData.student_reception}
                              onChange={e => setReportData({...reportData, student_reception: e.target.value})}
-                             className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-2xl py-5 px-6 text-[var(--text-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all min-h-[120px]"
+                             className="w-full bg-tertiary border border-[var(--border-secondary)] rounded-2xl py-5 px-6 text-[var(--text-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all min-h-[120px]"
                           />
                        </div>
 
@@ -467,7 +467,7 @@ export default function InstructorDashboard() {
                              placeholder="Did the students act on what was taught? Any visible impact?"
                              value={reportData.action_taken}
                              onChange={e => setReportData({...reportData, action_taken: e.target.value})}
-                             className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-2xl py-5 px-6 text-[var(--text-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all min-h-[120px]"
+                             className="w-full bg-tertiary border border-[var(--border-secondary)] rounded-2xl py-5 px-6 text-[var(--text-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]/40 transition-all min-h-[120px]"
                           />
                        </div>
 
@@ -496,7 +496,7 @@ export default function InstructorDashboard() {
                     ) : (
                        <div className="space-y-4">
                           {participantsFulfillment.map(p => (
-                             <div key={p.id} className="flex items-center justify-between p-5 rounded-2xl bg-[var(--bg-tertiary)]/30 border border-[var(--border-secondary)]">
+                             <div key={p.id} className="flex items-center justify-between p-5 rounded-2xl bg-tertiary/30 border border-[var(--border-secondary)]">
                                 <div className="flex items-center gap-4">
                                    <div className={`w-2 h-2 rounded-full ${p.status === 'complete' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : p.status === 'partial' ? 'bg-[var(--brand-orange)] shadow-[0_0_8px_rgba(255,102,0,0.5)]' : 'bg-slate-700'}`} />
                                    <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tighter italic">{p.name}</p>
@@ -506,7 +506,7 @@ export default function InstructorDashboard() {
                                       {p.email && (
                                          <a 
                                             href={`mailto:${p.email}`} 
-                                            className="p-2 bg-[var(--bg-tertiary)] hover:bg-[var(--brand-orange)]/10 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all border border-transparent hover:border-[var(--brand-orange)]/20"
+                                            className="p-2 bg-tertiary hover:bg-[var(--brand-orange)]/10 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all border border-transparent hover:border-[var(--brand-orange)]/20"
                                             title="Send Email"
                                          >
                                             <Mail className="w-3 h-3" />
@@ -525,7 +525,7 @@ export default function InstructorDashboard() {
                                       )}
                                    </div>
                                    <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest italic opacity-60">{p.submitted_reqs}/{p.total_reqs} Done</p>
-                                   <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full border ${p.status === 'complete' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : p.status === 'partial' ? 'bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/20 text-[var(--brand-orange)]' : 'bg-[var(--bg-tertiary)] border-[var(--border-secondary)] text-[var(--text-secondary)]'}`}>
+                                   <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full border ${p.status === 'complete' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : p.status === 'partial' ? 'bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/20 text-[var(--brand-orange)]' : 'bg-tertiary border-[var(--border-secondary)] text-[var(--text-secondary)]'}`}>
                                       {p.status}
                                    </span>
                                 </div>

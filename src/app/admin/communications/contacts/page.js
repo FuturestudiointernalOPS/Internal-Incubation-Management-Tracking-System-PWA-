@@ -543,7 +543,7 @@ function ContactsPageContent() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Filter identities..."
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                 />
               </div>
               <div className="space-y-2">
@@ -565,7 +565,7 @@ function ContactsPageContent() {
                     <div key={name} className="flex gap-2 group items-center">
                       <button
                         onClick={() => setSelectedGroup(name)}
-                        className={`flex-1 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === name ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-primary)]"}`}
+                        className={`flex-1 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === name ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-primary"}`}
                       >
                         {name} {!!f.is_archived && "(ARCHIVED)"}
                       </button>
@@ -578,7 +578,7 @@ function ContactsPageContent() {
                               setNewGroupProgramId(f.program_id);
                               setShowGroupModal(f);
                             }}
-                            className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-slate-500 hover:text-[var(--brand-orange)]"
+                            className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-primary text-slate-500 hover:text-[var(--brand-orange)]"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
@@ -587,13 +587,13 @@ function ContactsPageContent() {
                               setGroupKeysForm({ ...f });
                               setShowGroupKeysModal(f);
                             }}
-                            className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-slate-500 hover:text-blue-500"
+                            className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-primary text-slate-500 hover:text-blue-500"
                           >
                             <Key className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => copyJoinLink(name)}
-                            className={`p-2.5 rounded-lg border border-[var(--border-primary)] transition-all ${copiedGroup === name ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" : "bg-[var(--bg-primary)] text-slate-500 hover:text-[var(--brand-orange)]"}`}
+                            className={`p-2.5 rounded-lg border border-[var(--border-primary)] transition-all ${copiedGroup === name ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" : "bg-primary text-slate-500 hover:text-[var(--brand-orange)]"}`}
                           >
                             {copiedGroup === name ? (
                               <Check className="w-3.5 h-3.5" />
@@ -612,7 +612,7 @@ function ContactsPageContent() {
 
           <div className="xl:col-span-3 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex bg-[var(--bg-secondary)] p-1 rounded-xl border border-[var(--border-primary)]">
+              <div className="flex bg-secondary p-1 rounded-xl border border-[var(--border-primary)]">
                 {["All", "Active", "Inactive", "Pending"].map((status) => (
                   <button
                     key={status}
@@ -707,7 +707,7 @@ function ContactsPageContent() {
                             else
                               setSelectedContacts(filtered.map((c) => c.cid));
                           }}
-                          className="w-4 h-4 rounded border-[var(--border-primary)] bg-[var(--bg-primary)] accent-[var(--brand-orange)]"
+                          className="w-4 h-4 rounded border-[var(--border-primary)] bg-primary accent-[var(--brand-orange)]"
                         />
                       </th>
                       <th>Identity</th>
@@ -726,7 +726,7 @@ function ContactsPageContent() {
                             type="checkbox"
                             checked={selectedContacts.includes(c.cid)}
                             onChange={() => toggleSelection(c.cid)}
-                            className="w-4 h-4 rounded border-[var(--border-primary)] bg-[var(--bg-primary)] accent-[var(--brand-orange)]"
+                            className="w-4 h-4 rounded border-[var(--border-primary)] bg-primary accent-[var(--brand-orange)]"
                           />
                         </td>
                         <td>
@@ -742,7 +742,7 @@ function ContactsPageContent() {
                         <td>
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded text-[9px] font-black uppercase text-[var(--brand-orange)]">
+                              <span className="px-2 py-0.5 bg-primary border border-[var(--border-primary)] rounded text-[9px] font-black uppercase text-[var(--brand-orange)]">
                                 {c.group_name || "Individual"}
                               </span>
                               {c.v2_team_id && (
@@ -828,20 +828,20 @@ function ContactsPageContent() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Full Name"
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
               />
               <div className="grid grid-cols-2 gap-4">
                 <input
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="Email"
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
                 />
                 <input
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   placeholder="Phone"
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
                 />
               </div>
               <select
@@ -849,7 +849,7 @@ function ContactsPageContent() {
                 onChange={(e) =>
                   setForm({ ...form, group_name: e.target.value })
                 }
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="">Select Segment...</option>
                 {families.map((f) => (
@@ -887,12 +887,12 @@ function ContactsPageContent() {
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
                 placeholder="Segment Name"
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-[var(--brand-orange)]"
               />
               <select
                 value={newGroupType}
                 onChange={(e) => setNewGroupType(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="individual">Individual Focus</option>
                 <option value="company">Entity Focus</option>
@@ -900,7 +900,7 @@ function ContactsPageContent() {
               <select
                 value={newGroupProgramId}
                 onChange={(e) => setNewGroupProgramId(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="">Select Program...</option>
                 {programs.map((p) => (
@@ -939,7 +939,7 @@ function ContactsPageContent() {
                   })
                 }
                 placeholder="Shared Email"
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-blue-500"
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-blue-500"
               />
               <div className="grid grid-cols-2 gap-4">
                 <input
@@ -951,7 +951,7 @@ function ContactsPageContent() {
                     })
                   }
                   placeholder="Read Key"
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-emerald-500 outline-none focus:border-emerald-500"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-emerald-500 outline-none focus:border-emerald-500"
                 />
                 <input
                   value={groupKeysForm.shared_password_edit}
@@ -962,7 +962,7 @@ function ContactsPageContent() {
                     })
                   }
                   placeholder="Edit Key"
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-blue-500 outline-none focus:border-blue-500"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-blue-500 outline-none focus:border-blue-500"
                 />
               </div>
               <button
@@ -997,7 +997,7 @@ function ContactsPageContent() {
               </div>
 
               {/* Credentials Card */}
-              <div className="bg-[var(--bg-primary)] border border-blue-500/20 rounded-2xl p-6 space-y-4 text-left">
+              <div className="bg-primary border border-blue-500/20 rounded-2xl p-6 space-y-4 text-left">
                 <div className="space-y-3">
                   <div>
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">

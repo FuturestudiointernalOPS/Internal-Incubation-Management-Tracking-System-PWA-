@@ -252,7 +252,7 @@ export default function KnowledgeBank() {
           <div className="xl:col-span-3">
              {viewingNote ? (
                 <div className="space-y-6">
-                   <div className="flex justify-between items-center bg-[var(--bg-secondary)] p-6 rounded-2xl border border-[var(--border-primary)]">
+                   <div className="flex justify-between items-center bg-secondary p-6 rounded-2xl border border-[var(--border-primary)]">
                       <div className="flex items-center gap-4">
                          <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" />
                          <div>
@@ -286,7 +286,7 @@ export default function KnowledgeBank() {
              <div className="card space-y-4">
                 <div className="relative">
                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter library..." className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl py-3 pl-10 text-xs font-bold" />
+                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter library..." className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 text-xs font-bold" />
                 </div>
                 <div className="space-y-3">
                    {loading ? <TableSkeleton rows={5} /> : filteredNotes.length === 0 ? (
@@ -295,7 +295,7 @@ export default function KnowledgeBank() {
                          <p className="text-[10px] font-bold uppercase">Library Empty</p>
                       </div>
                    ) : filteredNotes.map(n => (
-                      <div key={n.id} onClick={() => setViewingNote(n)} className={`p-4 rounded-xl border transition-all cursor-pointer ${viewingNote?.id === n.id ? 'border-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'border-[var(--border-primary)] bg-[var(--bg-primary)] hover:border-[var(--brand-orange)]'}`}>
+                      <div key={n.id} onClick={() => setViewingNote(n)} className={`p-4 rounded-xl border transition-all cursor-pointer ${viewingNote?.id === n.id ? 'border-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'border-[var(--border-primary)] bg-primary hover:border-[var(--brand-orange)]'}`}>
                          <div className="flex justify-between items-start gap-2">
                             <p className="text-[11px] font-bold text-white uppercase truncate flex-1">{n.title}</p>
                             {n.is_archived && <span className="text-[8px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">ARCHIVE</span>}
@@ -318,12 +318,12 @@ export default function KnowledgeBank() {
                 <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">New Knowledge Node</h3>
                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">Operational Intelligence Deployment</p>
               </div>
-              <button onClick={() => setShowUploadModal(false)} className="p-2 hover:bg-[var(--bg-primary)] rounded-lg"><X className="w-6 h-6" /></button>
+              <button onClick={() => setShowUploadModal(false)} className="p-2 hover:bg-primary rounded-lg"><X className="w-6 h-6" /></button>
             </div>
             
             <div className="space-y-6">
-              <input value={newNote.title} onChange={e => setNewNote({...newNote, title: e.target.value})} placeholder="Node Title" className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
-              <textarea value={newNote.description} onChange={e => setNewNote({...newNote, description: e.target.value})} placeholder="Strategic Description..." rows={3} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
+              <input value={newNote.title} onChange={e => setNewNote({...newNote, title: e.target.value})} placeholder="Node Title" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
+              <textarea value={newNote.description} onChange={e => setNewNote({...newNote, description: e.target.value})} placeholder="Strategic Description..." rows={3} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
 
               <div className="space-y-4">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">Asset Staging Area ({newNote.stagedFiles.length})</label>
@@ -361,18 +361,18 @@ export default function KnowledgeBank() {
                 <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight italic">Edit Intelligence Node</h3>
                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">Operational ID: {editingNote.id}</p>
               </div>
-              <button onClick={() => setEditingNote(null)} className="p-2 hover:bg-[var(--bg-primary)] rounded-lg text-slate-500"><X className="w-6 h-6" /></button>
+              <button onClick={() => setEditingNote(null)} className="p-2 hover:bg-primary rounded-lg text-slate-500"><X className="w-6 h-6" /></button>
             </div>
             
             <div className="space-y-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">Mission Title</label>
-                <input value={editingNote.title} onChange={e => setEditingNote({...editingNote, title: e.target.value})} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
+                <input value={editingNote.title} onChange={e => setEditingNote({...editingNote, title: e.target.value})} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
               </div>
               
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">Strategic Description</label>
-                <textarea value={editingNote.description} onChange={e => setEditingNote({...editingNote, description: e.target.value})} rows={3} className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
+                <textarea value={editingNote.description} onChange={e => setEditingNote({...editingNote, description: e.target.value})} rows={3} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
               </div>
 
               {/* EXISTING FILES */}

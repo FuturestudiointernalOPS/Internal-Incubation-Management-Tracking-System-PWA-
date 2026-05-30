@@ -71,7 +71,7 @@ const StatCard = ({
   >
     <div className="flex justify-between items-start mb-4">
       <div
-        className={`p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] ${color} group-hover:scale-110 transition-transform`}
+        className={`p-3 rounded-xl bg-primary border border-[var(--border-primary)] ${color} group-hover:scale-110 transition-transform`}
       >
         <Icon className="w-5 h-5" />
       </div>
@@ -430,7 +430,7 @@ export default function AdminDashboard() {
                       key={i}
                       className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-colors group"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:border-[var(--brand-orange)]">
+                      <div className="w-10 h-10 rounded-xl bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:border-[var(--brand-orange)]">
                         <Zap className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -476,7 +476,7 @@ export default function AdminDashboard() {
                       onClick={() => router.push(`/admin/programs/${prog.id}`)}
                       className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
+                      <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
                         <Rocket className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -707,7 +707,7 @@ export default function AdminDashboard() {
                           >
                             <td className="p-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-black uppercase">
+                                <div className="w-8 h-8 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-black uppercase">
                                   {s.name?.charAt(0)}
                                 </div>
                                 <div>
@@ -814,7 +814,7 @@ export default function AdminDashboard() {
                             {count} report{count > 1 ? "s" : ""}
                           </span>
                         </div>
-                        <div className="w-full h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                        <div className="w-full h-2 bg-primary rounded-full overflow-hidden">
                           <div
                             className="h-full bg-rose-500 rounded-full transition-all"
                             style={{ width: `${(count / maxCount) * 100}%` }}
@@ -860,7 +860,7 @@ export default function AdminDashboard() {
                 <div className="space-y-2">
                   <button
                     onClick={() => router.push("/admin/op-reports")}
-                    className="w-full flex items-center justify-between p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-rose-500/30 transition-all"
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-rose-500/30 transition-all"
                   >
                     <span className="text-[10px] font-bold uppercase tracking-tight">
                       View All Blockers
@@ -871,7 +871,7 @@ export default function AdminDashboard() {
                     onClick={() =>
                       router.push("/admin/op-reports?tab=blockers")
                     }
-                    className="w-full flex items-center justify-between p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-amber-500/30 transition-all"
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-amber-500/30 transition-all"
                   >
                     <span className="text-[10px] font-bold uppercase tracking-tight">
                       Blocker Reports

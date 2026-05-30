@@ -383,7 +383,7 @@ export default function PMDashboard() {
               {schedule.slice(0, 4).map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-6 p-4 rounded-2xl border hover:bg-[var(--bg-tertiary)] transition-all"
+                  className="flex items-center gap-6 p-4 rounded-2xl border hover:bg-tertiary transition-all"
                   style={{
                     background: "var(--bg-secondary)",
                     borderColor: "var(--border-primary)",

@@ -77,13 +77,13 @@ export default function TeacherCalendar() {
             <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tighter uppercase italic">Session <span className="text-[var(--text-secondary)] opacity-40">Calendar</span></h1>
           </div>
           
-          <div className="flex items-center gap-4 bg-[var(--bg-secondary)] border border-[var(--border-primary)] p-2 rounded-2xl shadow-sm">
-            <button onClick={prevMonth} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-xl transition-all text-[var(--text-primary)]"><ChevronLeft className="w-5 h-5" /></button>
+          <div className="flex items-center gap-4 bg-secondary border border-[var(--border-primary)] p-2 rounded-2xl shadow-sm">
+            <button onClick={prevMonth} className="p-2 hover:bg-tertiary rounded-xl transition-all text-[var(--text-primary)]"><ChevronLeft className="w-5 h-5" /></button>
             <div className="px-4 text-center min-w-[140px]">
               <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest">{monthName}</p>
               <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-60">{year}</p>
             </div>
-            <button onClick={nextMonth} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-xl transition-all text-[var(--text-primary)]"><ChevronRight className="w-5 h-5" /></button>
+            <button onClick={nextMonth} className="p-2 hover:bg-tertiary rounded-xl transition-all text-[var(--text-primary)]"><ChevronRight className="w-5 h-5" /></button>
           </div>
         </header>
 
@@ -93,7 +93,7 @@ export default function TeacherCalendar() {
           <div className="lg:col-span-3 space-y-6">
             <div className="grid grid-cols-7 gap-px bg-[var(--border-secondary)] border border-[var(--border-secondary)] rounded-3xl overflow-hidden shadow-2xl">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                <div key={d} className="bg-[var(--bg-secondary)] py-4 text-center">
+                <div key={d} className="bg-secondary py-4 text-center">
                   <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-60">{d}</span>
                 </div>
               ))}
@@ -105,7 +105,7 @@ export default function TeacherCalendar() {
                 return (
                   <div 
                     key={idx} 
-                    className={`min-h-[120px] bg-[var(--bg-secondary)] p-3 border-t border-r border-[var(--border-secondary)] transition-all group ${!day ? 'opacity-20' : 'hover:bg-[var(--bg-tertiary)]/50'}`}
+                    className={`min-h-[120px] bg-secondary p-3 border-t border-r border-[var(--border-secondary)] transition-all group ${!day ? 'opacity-20' : 'hover:bg-tertiary/50'}`}
                   >
                     {day && (
                       <div className="space-y-2">
@@ -132,7 +132,7 @@ export default function TeacherCalendar() {
 
           {/* UPCOMING LIST */}
           <div className="space-y-6">
-            <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] !p-8 shadow-sm">
+            <div className="ios-card bg-secondary border-[var(--border-secondary)] !p-8 shadow-sm">
               <h3 className="text-lg font-black text-[var(--text-primary)] uppercase italic tracking-tighter mb-8 flex items-center gap-3">
                 <Clock className="w-5 h-5 text-[var(--brand-orange)]" /> Upcoming
               </h3>

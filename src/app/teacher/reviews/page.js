@@ -15,7 +15,7 @@ import { useI18n } from '@/lib/i18n';
  */
 
 const ReviewCard = ({ submission, onReview }) => (
-  <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-secondary)] group hover:border-[var(--brand-orange)]/30 transition-all shadow-sm">
+  <div className="ios-card bg-secondary border-[var(--border-secondary)] group hover:border-[var(--brand-orange)]/30 transition-all shadow-sm">
     <div className="flex justify-between items-start mb-6">
       <div className="flex items-center gap-3">
          <div className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
@@ -31,7 +31,7 @@ const ReviewCard = ({ submission, onReview }) => (
       </span>
     </div>
 
-    <div className="p-4 rounded-2xl bg-[var(--bg-tertiary)]/30 border border-[var(--border-secondary)] mb-6">
+    <div className="p-4 rounded-2xl bg-tertiary/30 border border-[var(--border-secondary)] mb-6">
        <div className="flex justify-between items-center">
           <div>
              <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 opacity-60">Submitter</p>
@@ -41,7 +41,7 @@ const ReviewCard = ({ submission, onReview }) => (
              href={submission.submission_link} 
              target="_blank"
              rel="noopener noreferrer"
-             className="p-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-secondary)] hover:bg-[var(--brand-orange)]/10 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all shadow-sm"
+             className="p-3 rounded-xl bg-secondary border border-[var(--border-secondary)] hover:bg-[var(--brand-orange)]/10 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all shadow-sm"
           >
              <ExternalLink className="w-4 h-4" />
           </a>
@@ -135,7 +135,7 @@ export default function SubmissionsHub() {
               placeholder="SEARCH SQUAD OR DELIVERABLE..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl py-4 pl-12 pr-4 text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest outline-none focus:border-[var(--brand-orange)]/40 transition-all placeholder:opacity-30 shadow-sm"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl py-4 pl-12 pr-4 text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest outline-none focus:border-[var(--brand-orange)]/40 transition-all placeholder:opacity-30 shadow-sm"
             />
           </div>
         </header>
@@ -161,7 +161,7 @@ export default function SubmissionsHub() {
         )}
 
         <div className="fixed bottom-10 right-10 z-[200]">
-           <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-6 shadow-2xl flex items-center gap-8">
+           <div className="ios-card bg-secondary border-[var(--border-primary)] !p-6 shadow-2xl flex items-center gap-8">
               <div className="flex flex-col">
                  <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-60">Queue Status</span>
                  <span className="text-xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">{submissions.length} Nodes Pending</span>

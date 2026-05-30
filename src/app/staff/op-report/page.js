@@ -403,7 +403,7 @@ export default function StaffOpReport() {
         </header>
 
         {/* REPORT TYPE TOGGLE */}
-        <div className="flex gap-2 bg-[var(--bg-tertiary)] p-1 rounded-xl border border-[var(--border-primary)] w-fit">
+        <div className="flex gap-2 bg-tertiary p-1 rounded-xl border border-[var(--border-primary)] w-fit">
           <button
             onClick={() => setReportType("standup")}
             className={`flex items-center gap-2 px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
@@ -473,7 +473,7 @@ export default function StaffOpReport() {
                               .map((task) => (
                                 <div
                                   key={task.id}
-                                  className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"
+                                  className="flex items-center gap-2 px-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg"
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
                                   <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
@@ -501,7 +501,7 @@ export default function StaffOpReport() {
                               .map((task) => (
                                 <div
                                   key={task.id}
-                                  className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"
+                                  className="flex items-center gap-2 px-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg"
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                                   <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
@@ -529,7 +529,7 @@ export default function StaffOpReport() {
                               .map((task) => (
                                 <div
                                   key={task.id}
-                                  className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"
+                                  className="flex items-center gap-2 px-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg"
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                                   <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
@@ -548,7 +548,7 @@ export default function StaffOpReport() {
                 </Section>
 
                 {/* ─── CREATE TASK (Phase 4: Task Creation) ─── */}
-                <div className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3">
+                <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] space-y-3">
                   <button
                     type="button"
                     onClick={() => setTaskCreationOpen(!taskCreationOpen)}
@@ -577,21 +577,21 @@ export default function StaffOpReport() {
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         placeholder="Task title (required)"
-                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
                       />
                       <textarea
                         value={newTaskDescription}
                         onChange={(e) => setNewTaskDescription(e.target.value)}
                         rows={2}
                         placeholder="Description (optional)"
-                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
                       />
                       <input
                         type="text"
                         value={newTaskProject}
                         onChange={(e) => setNewTaskProject(e.target.value)}
                         placeholder="Project name or 'Independent Task' (optional)"
-                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
                       />
                       <button
                         type="button"
@@ -705,7 +705,7 @@ export default function StaffOpReport() {
                           }
                         }}
                         placeholder="Type a priority and press Enter..."
-                        className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
                       />
                       <button
                         type="button"
@@ -791,7 +791,7 @@ export default function StaffOpReport() {
                           }
                         }}
                         placeholder="Type a deliverable and press Enter..."
-                        className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-blue-500 transition-all"
+                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-blue-500 transition-all"
                       />
                       <button
                         type="button"
@@ -828,12 +828,12 @@ export default function StaffOpReport() {
                       setForm((p) => ({ ...p, projects_tasks: e.target.value }))
                     }
                     placeholder="e.g. Website redesign, API integration, Client report"
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-indigo-500 transition-all"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-indigo-500 transition-all"
                   />
                 </Section>
 
                 {/* Dependencies Toggle */}
-                <div className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3">
+                <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                       Any Dependencies?
@@ -869,7 +869,7 @@ export default function StaffOpReport() {
                         }))
                       }
                       placeholder="Brief dependency note..."
-                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-indigo-500 transition-all"
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-indigo-500 transition-all"
                     />
                   )}
                 </div>
@@ -882,7 +882,7 @@ export default function StaffOpReport() {
                 >
                   <div className="space-y-4">
                     {/* Anticipated Blockers */}
-                    <div className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3">
+                    <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] space-y-3">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                           Any Anticipated Blockers?
@@ -918,13 +918,13 @@ export default function StaffOpReport() {
                             }))
                           }
                           placeholder="Describe the blocker..."
-                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all"
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all"
                         />
                       )}
                     </div>
 
                     {/* Need Support */}
-                    <div className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3">
+                    <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] space-y-3">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-amber-500">
                           Do You Need Support?
@@ -960,7 +960,7 @@ export default function StaffOpReport() {
                             }))
                           }
                           placeholder="What support do you need?"
-                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all"
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all"
                         />
                       )}
                     </div>
@@ -982,7 +982,7 @@ export default function StaffOpReport() {
                       }))
                     }
                     placeholder="Anything else to note?"
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
                   />
                 </Section>
               </>
@@ -1026,7 +1026,7 @@ export default function StaffOpReport() {
                                     ? "border-emerald-500/30 bg-emerald-500/5"
                                     : isCarriedOver
                                       ? "border-indigo-500/30 bg-indigo-500/5"
-                                      : "border-[var(--border-primary)] bg-[var(--bg-secondary)]"
+                                      : "border-[var(--border-primary)] bg-secondary"
                                 }`}
                               >
                                 <div className="flex-1 min-w-0">
@@ -1061,7 +1061,7 @@ export default function StaffOpReport() {
                                     className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
                                       isCompleted
                                         ? "bg-emerald-500 text-white shadow-sm"
-                                        : "bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-emerald-500/50"
+                                        : "bg-primary text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-emerald-500/50"
                                     }`}
                                   >
                                     Complete
@@ -1077,7 +1077,7 @@ export default function StaffOpReport() {
                                     className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
                                       isCarriedOver
                                         ? "bg-indigo-500 text-white shadow-sm"
-                                        : "bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-indigo-500/50"
+                                        : "bg-primary text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-indigo-500/50"
                                     }`}
                                   >
                                     Carry Over
@@ -1111,7 +1111,7 @@ export default function StaffOpReport() {
                       setForm((p) => ({ ...p, completed_work: e.target.value }))
                     }
                     rows={4}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-emerald-500 transition-all resize-none"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-emerald-500 transition-all resize-none"
                     placeholder="What did you complete this week?"
                   />
                 </Section>
@@ -1130,7 +1130,7 @@ export default function StaffOpReport() {
                       }))
                     }
                     rows={3}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all resize-none"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all resize-none"
                     placeholder="What didn't get finished?"
                   />
                 </Section>
@@ -1146,7 +1146,7 @@ export default function StaffOpReport() {
                       setForm((p) => ({ ...p, challenges: e.target.value }))
                     }
                     rows={3}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
                     placeholder="What challenges did you face?"
                   />
                 </Section>
@@ -1162,7 +1162,7 @@ export default function StaffOpReport() {
                       setForm((p) => ({ ...p, wins: e.target.value }))
                     }
                     rows={3}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
                     placeholder="Any wins or highlights this week?"
                   />
                 </Section>
@@ -1181,7 +1181,7 @@ export default function StaffOpReport() {
                       }))
                     }
                     rows={3}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-indigo-500 transition-all resize-none"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-indigo-500 transition-all resize-none"
                     placeholder="What carries over to next week?"
                   />
                 </Section>
@@ -1197,7 +1197,7 @@ export default function StaffOpReport() {
                       setForm((p) => ({ ...p, retro_notes: e.target.value }))
                     }
                     rows={2}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-5 py-4 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
                     placeholder="Any additional retro thoughts?"
                   />
                 </Section>
@@ -1246,7 +1246,7 @@ export default function StaffOpReport() {
                       });
                       setReportType(report.report_type);
                     }}
-                    className="w-full flex items-center justify-between p-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left"
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left"
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -1283,12 +1283,12 @@ export default function StaffOpReport() {
             </div>
 
             {/* SUMMARY STATS */}
-            <div className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3 mt-6">
+            <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] space-y-3 mt-6">
               <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
                 Your Stats
               </p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-[var(--bg-primary)] rounded-lg text-center">
+                <div className="p-2 bg-primary rounded-lg text-center">
                   <p className="text-lg font-black text-[var(--brand-orange)]">
                     {history.filter((r) => r.report_type === "standup").length}
                   </p>
@@ -1296,7 +1296,7 @@ export default function StaffOpReport() {
                     Stand-Ups
                   </p>
                 </div>
-                <div className="p-2 bg-[var(--bg-primary)] rounded-lg text-center">
+                <div className="p-2 bg-primary rounded-lg text-center">
                   <p className="text-lg font-black text-emerald-500">
                     {history.filter((r) => r.report_type === "retro").length}
                   </p>

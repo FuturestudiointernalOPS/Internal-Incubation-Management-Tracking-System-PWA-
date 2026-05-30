@@ -235,7 +235,7 @@ export default function AdminTasks() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-xs font-black">{tasks.length} Tasks</span>
             </div>
@@ -313,7 +313,7 @@ export default function AdminTasks() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search tasks, users, weeks..."
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
 
@@ -322,7 +322,7 @@ export default function AdminTasks() {
             <select
               value={filterUser}
               onChange={(e) => setFilterUser(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option>All Users</option>
               {users.map((u) => (
@@ -338,7 +338,7 @@ export default function AdminTasks() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
@@ -354,7 +354,7 @@ export default function AdminTasks() {
             <select
               value={filterProject}
               onChange={(e) => setFilterProject(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option>All Projects</option>
               <option value="Independent">Independent Tasks</option>
@@ -371,7 +371,7 @@ export default function AdminTasks() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               {sortOptions.map((opt) => (
                 <option key={opt.id} value={opt.id}>
@@ -453,7 +453,7 @@ export default function AdminTasks() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
+                          <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
                             {task.user_name?.charAt(0) || "?"}
                           </div>
                           <span className="text-[10px] font-bold uppercase tracking-tight">
@@ -569,7 +569,7 @@ export default function AdminTasks() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setViewingTask(null)}
             />
-            <div className="relative bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl w-full max-w-lg p-8 shadow-2xl">
+            <div className="relative bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-lg p-8 shadow-2xl">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                   Task Details
@@ -701,7 +701,7 @@ export default function AdminTasks() {
                       {viewingTask.blockers.map((b) => (
                         <div
                           key={b.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)]"
+                          className="flex items-center justify-between p-2 rounded-lg bg-primary border border-[var(--border-primary)]"
                         >
                           <span className="text-[10px] font-bold">
                             {b.title}

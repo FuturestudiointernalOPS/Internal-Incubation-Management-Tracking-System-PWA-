@@ -92,7 +92,7 @@ const SidebarContent = ({
               <div key={item.id} className="space-y-1">
                 <button
                   onClick={() => toggleMenu(item.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isChildActive ? "text-[var(--text-primary)] bg-[var(--bg-tertiary)] border border-[var(--border-secondary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"}`}
+                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isChildActive ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
                 >
                   <div className="flex items-center gap-4">
                     <item.icon
@@ -119,7 +119,7 @@ const SidebarContent = ({
                           key={subItem.id || subItem.href}
                           href={subItem.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide ${isSubActive ? "text-[var(--brand-orange)] bg-[var(--bg-tertiary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"}`}
+                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide ${isSubActive ? "text-[var(--brand-orange)] bg-tertiary" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
                         >
                           <span className="truncate">
                             {subItem.id?.startsWith("prog_")
@@ -141,7 +141,7 @@ const SidebarContent = ({
               key={item.id || item.href}
               href={item.href}
               onClick={() => setMobileMenuOpen(false)}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isActive ? "bg-[var(--brand-orange)] text-white border border-orange-600/20 italic" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"}`}
+              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isActive ? "bg-[var(--brand-orange)] text-white border border-orange-600/20 italic" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
             >
               <item.icon
                 className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-black" : "text-[var(--text-secondary)]"}`}
@@ -162,7 +162,7 @@ const SidebarContent = ({
         )}
         <Link
           href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : "participant"}/profile`}
-          className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"}`}
+          className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
         >
           <User className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span>{t("profile")}</span>}
@@ -493,10 +493,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)]">
       <aside
         style={{ width: collapsed ? 64 : 260 }}
-        className="hidden md:flex flex-col h-screen sticky top-0 bg-[var(--bg-secondary)] border-r border-[var(--border-primary)] p-4 overflow-hidden z-[100] transition-[width] duration-150"
+        className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden z-[100] transition-[width] duration-150"
       >
         <SidebarContent {...commonProps} />
       </aside>
@@ -517,14 +517,14 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
             onClick={() => setMobileMenuOpen(false)}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
           />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-[var(--bg-secondary)] p-6 border-r border-[var(--border-primary)]">
+          <aside className="absolute inset-y-0 left-0 w-64 bg-secondary p-6 border-r border-[var(--border-primary)]">
             <SidebarContent {...commonProps} />
           </aside>
         </div>
       )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-20 flex items-center px-6 border-b border-[var(--border-primary)] relative overflow-hidden group bg-[var(--bg-secondary)]/80 backdrop-blur-xl sticky top-0 z-[100]">
+        <header className="h-20 flex items-center px-6 border-b border-[var(--border-primary)] relative overflow-hidden group bg-secondary/80 backdrop-blur-xl sticky top-0 z-[100]">
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-orange)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase relative z-10">
             <span>ImpactOS</span>
@@ -539,7 +539,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           <div className="flex items-center gap-4 ml-auto relative z-10">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-md hover:bg-[var(--bg-primary)] text-[var(--text-secondary)]"
+              className="p-2 rounded-md hover:bg-primary text-[var(--text-secondary)]"
             >
               <Sun className="w-4 h-4 dark:hidden" />
               <Moon className="w-4 h-4 hidden dark:block" />
@@ -562,7 +562,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                 )}
               </button>
               {showNotifications && (
-                <div className="absolute right-0 top-10 w-72 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4 z-[200]">
+                <div className="absolute right-0 top-10 w-72 bg-secondary border border-[var(--border-primary)] rounded-lg p-4 z-[200]">
                   <h4 className="text-[10px] font-bold uppercase mb-3 text-[var(--text-secondary)]">
                     {t("intel_feed")}
                   </h4>
@@ -580,7 +580,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                               setShowNotifications(false);
                             }
                           }}
-                          className={`p-3 rounded-xl hover:bg-[var(--bg-primary)] transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.read ? "bg-[var(--brand-orange)]/5" : ""}`}
+                          className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.read ? "bg-[var(--brand-orange)]/5" : ""}`}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">
@@ -616,14 +616,14 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                     .replace(/\bteacher\b/gi, "Instructor")}
                 </p>
               </div>
-              <div className="w-8 h-8 rounded bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center font-bold text-xs">
+              <div className="w-8 h-8 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center font-bold text-xs">
                 {String(user?.name || "U").charAt(0)}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-[var(--bg-primary)]">
+        <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
           <div className="max-w-[1400px] mx-auto animate-in">{children}</div>
         </main>
         {modals}

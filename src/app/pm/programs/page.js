@@ -140,7 +140,7 @@ export default function PMProgramsRegistry() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter cohorts..."
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl pl-12 pr-6 py-4 text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 font-bold transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl pl-12 pr-6 py-4 text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 font-bold transition-all"
             />
           </div>
         </header>
@@ -148,26 +148,26 @@ export default function PMProgramsRegistry() {
         <div className="flex gap-4 overflow-x-auto pb-2">
           <button
             onClick={() => setTab("active")}
-            className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "active" ? "bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20" : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "active" ? "bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20" : "bg-secondary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
             Active Missions
           </button>
           <button
             onClick={() => setTab("completed")}
-            className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "completed" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "completed" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "bg-secondary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
             Completed Programs
           </button>
           <button
             onClick={() => setTab("archived")}
-            className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "archived" ? "bg-orange-500 text-white shadow-lg" : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "archived" ? "bg-orange-500 text-white shadow-lg" : "bg-secondary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
             Archived Programs
           </button>
         </div>
 
         {/* TACTICAL CALENDAR VIEW */}
-        <section className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-12 overflow-hidden shadow-2xl relative">
+        <section className="ios-card bg-secondary border-[var(--border-primary)] !p-12 overflow-hidden shadow-2xl relative">
           <div className="absolute top-0 right-0 w-80 h-80 bg-[#FF6600]/5 rounded-full blur-[100px] -mr-40 -mt-40" />
           <div className="flex flex-col lg:flex-row justify-between items-start gap-12 relative z-10">
             <div className="space-y-6">
@@ -181,7 +181,7 @@ export default function PMProgramsRegistry() {
               <div className="space-y-4 pt-6">
                 {schedule.slice(0, 3).map((item) => (
                   <div key={item.id} className="flex items-center gap-6 group">
-                    <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex flex-col items-center justify-center text-[10px] font-black uppercase group-hover:border-[#FF6600]/40 transition-all">
+                    <div className="w-12 h-12 rounded-xl bg-primary border border-[var(--border-primary)] flex flex-col items-center justify-center text-[10px] font-black uppercase group-hover:border-[#FF6600]/40 transition-all">
                       <span className="text-[#FF6600]">
                         {new Date(item.scheduled_date).getDate()}
                       </span>
@@ -289,10 +289,10 @@ export default function PMProgramsRegistry() {
               <motion.div
                 key={program.id}
                 onClick={() => router.push(`/pm/programs/${program.id}`)}
-                className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-[#FF6600]/30 transition-all hover:bg-[var(--bg-tertiary)] border-[var(--border-primary)] shadow-2xl"
+                className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-[#FF6600]/30 transition-all hover:bg-tertiary border-[var(--border-primary)] shadow-2xl"
               >
                 <div className="flex flex-col lg:flex-row items-stretch">
-                  <div className="p-10 lg:w-[400px] bg-[var(--bg-tertiary)] border-r border-[var(--border-primary)] flex flex-col justify-between">
+                  <div className="p-10 lg:w-[400px] bg-tertiary border-r border-[var(--border-primary)] flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-3 mb-6">
                         <div className="p-2.5 rounded-xl bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20">

@@ -29,7 +29,7 @@ const StatCard = ({ title, value, icon: Icon, color, badge, onClick }) => (
     className={`ios-card group transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-[#FF6600]/50 hover:bg-white/[0.04] hover:-translate-y-1' : ''}`}
   >
     <div className="flex justify-between items-start mb-6">
-      <div className={`p-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] ${color} group-hover:scale-110 transition-transform`}>
+      <div className={`p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] ${color} group-hover:scale-110 transition-transform`}>
         <Icon className="w-6 h-6" />
       </div>
       {badge && <span className="badge badge-glow-success uppercase text-[8px] font-black">{badge}</span>}
@@ -234,7 +234,7 @@ export default function SuperAdminV2Dashboard() {
                     {stats.activeLogs && stats.activeLogs.length > 0 ? (
                        stats.activeLogs.map((log, index) => (
                           <div key={index} className="flex items-center gap-4 group cursor-default">
-                             <div className="w-10 h-10 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center shrink-0 group-hover:border-[#FF6600]/30 transition-all">
+                             <div className="w-10 h-10 rounded-xl bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0 group-hover:border-[#FF6600]/30 transition-all">
                                 <Activity className="w-4 h-4 text-[#FF6600]" />
                              </div>
                              <div className="flex-1 min-w-0">
@@ -246,7 +246,7 @@ export default function SuperAdminV2Dashboard() {
                        ))
                     ) : (
                        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                          <div className="w-16 h-16 bg-[var(--bg-primary)] rounded-2xl flex items-center justify-center border border-dashed border-[var(--border-primary)]">
+                          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center border border-dashed border-[var(--border-primary)]">
                              <Activity className="w-8 h-8 text-[var(--text-secondary)]" />
                           </div>
                           <p className="text-[var(--text-secondary)] font-bold max-w-xs">Connecting to the database... No active events found yet.</p>
@@ -262,21 +262,21 @@ export default function SuperAdminV2Dashboard() {
                  <div className="space-y-3">
                      <button 
                         onClick={() => router.push('/v2/superadmin/communications/contacts')}
-                        className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-orange-500/30 hover:bg-[var(--bg-secondary)] transition-all group"
+                        className="w-full flex items-center justify-between p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-orange-500/30 hover:bg-secondary transition-all group"
                      >
                         <span className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tighter">Bulk Import Participants</span>
                         <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] group-hover:text-orange-400 transition-colors" />
                      </button>
                      <button 
                         onClick={() => router.push('/v2/superadmin/communications/contacts')}
-                        className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-orange-500/30 hover:bg-[var(--bg-secondary)] transition-all group"
+                        className="w-full flex items-center justify-between p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-orange-500/30 hover:bg-secondary transition-all group"
                      >
                         <span className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tighter">Assign Program Managers</span>
                         <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] group-hover:text-orange-400 transition-colors" />
                      </button>
                      <button 
                         onClick={() => router.push('/v2/superadmin/settings')}
-                        className="w-full flex items-center justify-between p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] hover:border-orange-500/30 hover:bg-[var(--bg-secondary)] transition-all group"
+                        className="w-full flex items-center justify-between p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-orange-500/30 hover:bg-secondary transition-all group"
                      >
                         <span className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tighter">Configure Group Schema</span>
                         <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] group-hover:text-[#FF6600] transition-colors" />
@@ -326,7 +326,7 @@ export default function SuperAdminV2Dashboard() {
                  </div>
               </div>
 
-              <div className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)]">
+              <div className="ios-card bg-secondary border-[var(--border-primary)]">
                  <h4 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-6">System Status</h4>
                  <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">

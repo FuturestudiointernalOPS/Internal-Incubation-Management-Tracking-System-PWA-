@@ -31,7 +31,7 @@ function formatLabel(val) {
 // Helper: renders a labeled info block (used in detail view)
 function InfoBlock({ label, value }) {
   return (
-    <div className="p-3 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)] print:bg-white print:border-gray-200 print:rounded print:p-2.5">
+    <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] print:bg-white print:border-gray-200 print:rounded print:p-2.5">
       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 print:text-gray-500">
         {label}
       </p>
@@ -119,7 +119,7 @@ export default function ReportResponses() {
           </div>
 
           <div className="flex gap-3">
-            <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl px-8 flex flex-col justify-center shadow-sm">
+            <div className="p-4 bg-secondary border border-[var(--border-primary)] rounded-2xl px-8 flex flex-col justify-center shadow-sm">
               <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">
                 Total Signals
               </span>
@@ -138,7 +138,7 @@ export default function ReportResponses() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search notes or authors..."
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
 
@@ -147,7 +147,7 @@ export default function ReportResponses() {
             <select
               value={selectedProgram}
               onChange={(e) => setSelectedProgram(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option>All Programs</option>
               {programs.map((p) => (
@@ -175,12 +175,12 @@ export default function ReportResponses() {
                 return (
                   <div
                     key={report.id}
-                    className="card group hover:border-[var(--brand-orange)] transition-all bg-[var(--bg-secondary)]/50 cursor-pointer"
+                    className="card group hover:border-[var(--brand-orange)] transition-all bg-secondary/50 cursor-pointer"
                     onClick={() => setViewingReport(report)}
                   >
                     <div className="flex flex-col md:flex-row justify-between gap-6">
                       <div className="flex gap-5">
-                        <div className="w-14 h-14 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] flex flex-col items-center justify-center group-hover:border-[var(--brand-orange)]/50 transition-colors">
+                        <div className="w-14 h-14 rounded-2xl bg-tertiary border border-[var(--border-secondary)] flex flex-col items-center justify-center group-hover:border-[var(--brand-orange)]/50 transition-colors">
                           <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase">
                             Wk
                           </span>
@@ -210,7 +210,7 @@ export default function ReportResponses() {
                             {[...Array(10)].map((_, i) => (
                               <div
                                 key={i}
-                                className={`w-1 h-3 rounded-full ${i < report.reception_score ? "bg-emerald-500" : "bg-[var(--bg-tertiary)] opacity-30"}`}
+                                className={`w-1 h-3 rounded-full ${i < report.reception_score ? "bg-emerald-500" : "bg-tertiary opacity-30"}`}
                               />
                             ))}
                           </div>
@@ -271,7 +271,7 @@ export default function ReportResponses() {
                 </button>
                 <button
                   onClick={() => setViewingReport(null)}
-                  className="p-2 hover:bg-[var(--bg-primary)] rounded-lg"
+                  className="p-2 hover:bg-primary rounded-lg"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -290,7 +290,7 @@ export default function ReportResponses() {
             </div>
 
             {/* Program Info Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-[var(--bg-tertiary)] rounded-2xl border border-[var(--border-primary)] print:bg-gray-50 print:border print:border-gray-200 print:rounded print:p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-tertiary rounded-2xl border border-[var(--border-primary)] print:bg-gray-50 print:border print:border-gray-200 print:rounded print:p-4">
               <div className="space-y-0.5">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
                   Program Manager
@@ -408,7 +408,7 @@ export default function ReportResponses() {
                   )}
                 </div>
               ) : (
-                <div className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] print:bg-gray-50 print:border-gray-200 print:rounded print:p-3">
+                <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] print:bg-gray-50 print:border-gray-200 print:rounded print:p-3">
                   <p className="text-xs font-medium text-[var(--text-secondary)] italic print:text-gray-500">
                     No assignment was given this week.
                   </p>
@@ -524,7 +524,7 @@ export default function ReportResponses() {
                   )}
                 </div>
               ) : (
-                <div className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] print:bg-gray-50 print:border-gray-200 print:rounded print:p-3">
+                <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] print:bg-gray-50 print:border-gray-200 print:rounded print:p-3">
                   <p className="text-xs font-medium text-[var(--text-secondary)] italic print:text-gray-500">
                     No issues reported.
                   </p>

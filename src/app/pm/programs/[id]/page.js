@@ -978,7 +978,7 @@ export default function ProgramWorkspace() {
 
               {activeSubTab === "individuals" && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-[var(--bg-tertiary)] p-4 rounded-xl border border-[var(--border-primary)]">
+                  <div className="flex justify-between items-center bg-tertiary p-4 rounded-xl border border-[var(--border-primary)]">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                         Selection:
@@ -1071,7 +1071,7 @@ export default function ProgramWorkspace() {
                                 </button>
                               </td>
                               <td className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] flex items-center justify-center font-bold text-xs border border-[var(--border-primary)]">
+                                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-xs border border-[var(--border-primary)]">
                                   {p.name.charAt(0)}
                                 </div>
                                 <span className="font-bold">{p.name}</span>
@@ -1123,7 +1123,7 @@ export default function ProgramWorkspace() {
                       className="card group hover:border-[var(--brand-orange)] transition-all"
                     >
                       <div className="flex justify-between items-start mb-6">
-                        <div className="w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
+                        <div className="w-12 h-12 rounded-xl bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
                           <Target className="w-6 h-6" />
                         </div>
                         {canEdit && (
@@ -1151,7 +1151,7 @@ export default function ProgramWorkspace() {
                             .map((p) => (
                               <div
                                 key={p.id}
-                                className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border-2 border-[var(--bg-secondary)] flex items-center justify-center text-[8px] font-bold"
+                                className="w-6 h-6 rounded-full bg-tertiary border-2 border-[var(--bg-secondary)] flex items-center justify-center text-[8px] font-bold"
                               >
                                 {p.name.charAt(0)}
                               </div>
@@ -1323,7 +1323,7 @@ export default function ProgramWorkspace() {
                     .map((session) => (
                       <div
                         key={session.id}
-                        className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-[var(--bg-secondary)] group mb-4"
+                        className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-secondary group mb-4"
                       >
                         {/* STEP 0: THE HEADER (GLOBAL STATE) — click to toggle */}
                         <div
@@ -1337,7 +1337,7 @@ export default function ProgramWorkspace() {
                           className="px-6 py-4 bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer"
                         >
                           <div className="flex items-center gap-4">
-                            <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-inner">
+                            <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-primary border border-[var(--border-primary)] shadow-inner">
                               <span className="text-[10px] font-black text-[var(--text-secondary)] opacity-50">
                                 WK
                               </span>
@@ -1472,7 +1472,7 @@ export default function ProgramWorkspace() {
                                 </span>
                               </div>
 
-                              <div className="space-y-4 p-5 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)] shadow-sm">
+                              <div className="space-y-4 p-5 bg-primary rounded-2xl border border-[var(--border-primary)] shadow-sm">
                                 <div className="space-y-1">
                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
                                     Assign Staff Member
@@ -1490,7 +1490,7 @@ export default function ProgramWorkspace() {
                                         staff?.name,
                                       );
                                     }}
-                                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                                    className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
                                   >
                                     <option value="">Select Member...</option>
                                     {programTeamMembers.length > 0
@@ -1529,7 +1529,7 @@ export default function ProgramWorkspace() {
                                           e.target.value,
                                         )
                                       }
-                                      className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
+                                      className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
                                     />
                                   </div>
                                   <div className="space-y-1">
@@ -1553,7 +1553,7 @@ export default function ProgramWorkspace() {
                                           e.target.value,
                                         )
                                       }
-                                      className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
+                                      className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
                                     />
                                   </div>
                                 </div>
@@ -1621,7 +1621,7 @@ export default function ProgramWorkspace() {
                                   .map((req) => (
                                     <div
                                       key={req.id}
-                                      className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all shadow-sm"
+                                      className="flex items-center justify-between p-4 bg-primary rounded-2xl border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all shadow-sm"
                                     >
                                       <div className="flex items-center gap-4">
                                         <div className="w-9 h-9 rounded-xl bg-indigo-500/5 flex items-center justify-center">
@@ -1963,7 +1963,7 @@ export default function ProgramWorkspace() {
                             return (
                               <div
                                 key={idx}
-                                className={`w-full flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border transition-all group text-left ${isKB ? "border-emerald-500/30 hover:border-emerald-500" : "border-[var(--border-primary)] hover:border-blue-500/50"}`}
+                                className={`w-full flex items-center justify-between p-4 bg-tertiary rounded-xl border transition-all group text-left ${isKB ? "border-emerald-500/30 hover:border-emerald-500" : "border-[var(--border-primary)] hover:border-blue-500/50"}`}
                               >
                                 <div className="flex items-center gap-3">
                                   <div
@@ -2016,7 +2016,7 @@ export default function ProgramWorkspace() {
                         type="text"
                         defaultValue={program?.name}
                         disabled={user.role === "program_manager"}
-                        className={`w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold ${user.role === "program_manager" ? "opacity-50 cursor-not-allowed" : ""}`}
+                        className={`w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold ${user.role === "program_manager" ? "opacity-50 cursor-not-allowed" : ""}`}
                       />
                     </div>
                     <div className="space-y-1">
@@ -2027,7 +2027,7 @@ export default function ProgramWorkspace() {
                         ref={configDescRef}
                         rows="4"
                         defaultValue={program?.description}
-                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -2039,7 +2039,7 @@ export default function ProgramWorkspace() {
                           ref={configWeeksRef}
                           type="number"
                           defaultValue={program?.duration_weeks}
-                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
                         />
                       </div>
                       <div className="space-y-1">
@@ -2049,7 +2049,7 @@ export default function ProgramWorkspace() {
                         <select
                           ref={configStatusRef}
                           defaultValue={program?.status}
-                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
                         >
                           <option value="active">ACTIVE</option>
                           <option value="archived">ARCHIVED</option>
@@ -2074,7 +2074,7 @@ export default function ProgramWorkspace() {
                                   .split("T")[0]
                               : ""
                           }
-                          className="w-full bg-[var(--bg-primary)] border border-emerald-500/30 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 outline-none transition-all font-bold"
+                          className="w-full bg-primary border border-emerald-500/30 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 outline-none transition-all font-bold"
                         />
                       </div>
                       <div className="space-y-1">
@@ -2092,7 +2092,7 @@ export default function ProgramWorkspace() {
                                   .split("T")[0]
                               : ""
                           }
-                          className="w-full bg-[var(--bg-primary)] border border-rose-500/30 rounded-lg px-4 py-3 text-sm focus:border-rose-500 outline-none transition-all font-bold"
+                          className="w-full bg-primary border border-rose-500/30 rounded-lg px-4 py-3 text-sm focus:border-rose-500 outline-none transition-all font-bold"
                         />
                       </div>
                     </div>
@@ -2101,7 +2101,7 @@ export default function ProgramWorkspace() {
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                         PROGRAM MANAGER
                       </label>
-                      <div className="w-full bg-[var(--bg-primary)]/50 border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--brand-orange)] flex items-center justify-between">
+                      <div className="w-full bg-primary/50 border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--brand-orange)] flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <User className="w-4 h-4" />
                           <span className="uppercase">
@@ -2165,7 +2165,7 @@ export default function ProgramWorkspace() {
                       {kpis.map((kpi) => (
                         <div
                           key={kpi.id}
-                          className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
+                          className="flex items-center justify-between p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]"
                         >
                           <span className="font-bold text-sm uppercase tracking-tight">
                             {kpi.title}
@@ -2204,7 +2204,7 @@ export default function ProgramWorkspace() {
                     key={report.id || i}
                     className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
                   >
-                    <div className="p-4 bg-[var(--bg-tertiary)] flex justify-between items-center border-b border-[var(--border-primary)]">
+                    <div className="p-4 bg-tertiary flex justify-between items-center border-b border-[var(--border-primary)]">
                       <div className="flex items-center gap-4">
                         <div className="px-3 py-1 bg-[var(--brand-orange)] text-white text-[10px] font-black rounded uppercase">
                           Wk{report.week_number}
@@ -2249,7 +2249,7 @@ export default function ProgramWorkspace() {
                           </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-2">
-                          <div className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
+                          <div className="p-3 bg-primary rounded-lg border border-[var(--border-primary)]">
                             <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase">
                               Attendance
                             </p>
@@ -2257,7 +2257,7 @@ export default function ProgramWorkspace() {
                               {report.attendance_count || 0}
                             </p>
                           </div>
-                          <div className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
+                          <div className="p-3 bg-primary rounded-lg border border-[var(--border-primary)]">
                             <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase">
                               Sessions
                             </p>
@@ -2389,7 +2389,7 @@ export default function ProgramWorkspace() {
                   </button>
                 </div>
               </div>
-              <div className="flex-1 bg-[var(--bg-tertiary)] rounded-xl overflow-hidden border border-[var(--border-primary)] relative">
+              <div className="flex-1 bg-tertiary rounded-xl overflow-hidden border border-[var(--border-primary)] relative">
                 {!activePDF.url || activePDF.url === "#" ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 opacity-50">
                     <FileText className="w-16 h-16 mb-4 text-[var(--text-secondary)] opacity-20" />
@@ -2454,7 +2454,7 @@ export default function ProgramWorkspace() {
                 </button>
               </div>
               <div className="space-y-4">
-                <div className="flex bg-[var(--bg-primary)] p-1 rounded-xl border border-[var(--border-primary)]">
+                <div className="flex bg-primary p-1 rounded-xl border border-[var(--border-primary)]">
                   <button
                     onClick={() => setTeamAssignmentMode("new")}
                     className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "new" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
@@ -2791,7 +2791,7 @@ export default function ProgramWorkspace() {
                               : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
                           }`}
                         >
-                          <div className="w-5 h-5 rounded-full bg-[var(--bg-primary)] flex items-center justify-center text-[7px]">
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[7px]">
                             {staff.name?.charAt(0)}
                           </div>
                           <span className="truncate">{staff.name}</span>
@@ -2840,7 +2840,7 @@ export default function ProgramWorkspace() {
                     Extra Course Materials
                   </label>
                   {/* Material type selector */}
-                  <div className="flex gap-1 bg-[var(--bg-primary)] rounded-lg p-1 border border-[var(--border-primary)] w-fit">
+                  <div className="flex gap-1 bg-primary rounded-lg p-1 border border-[var(--border-primary)] w-fit">
                     {[
                       { id: "text", label: "Text", icon: FileText },
                       { id: "link", label: "Link", icon: Plus },
@@ -3077,7 +3077,7 @@ export default function ProgramWorkspace() {
                 </button>
               </div>
 
-              <div className="p-4 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl space-y-2">
+              <div className="p-4 bg-tertiary border border-[var(--border-primary)] rounded-xl space-y-2">
                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
                   Participant
                 </p>
@@ -3480,7 +3480,7 @@ export default function ProgramWorkspace() {
                   return (
                     <div
                       key={p.id}
-                      className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]"
+                      className="flex items-center justify-between p-4 bg-primary rounded-xl border border-[var(--border-primary)]"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black uppercase">
@@ -3584,7 +3584,7 @@ export default function ProgramWorkspace() {
               className="card w-full max-w-lg space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] z-10 pb-4 border-b border-[var(--border-primary)]">
+              <div className="flex justify-between items-center sticky top-0 bg-secondary z-10 pb-4 border-b border-[var(--border-primary)]">
                 <h3
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: "var(--text-primary)" }}
@@ -3692,7 +3692,7 @@ export default function ProgramWorkspace() {
                           }))
                         }
                         placeholder="e.g. Introduction to JavaScript"
-                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
                       />
                     </div>
                   </div>
@@ -3822,7 +3822,7 @@ export default function ProgramWorkspace() {
                               }))
                             }
                             placeholder="e.g. Improve collaboration, Encourage product thinking, Test technical understanding"
-                            className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all"
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all"
                           />
                         </div>
 
@@ -3840,7 +3840,7 @@ export default function ProgramWorkspace() {
                               }))
                             }
                             rows={2}
-                            className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all resize-none"
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all resize-none"
                             placeholder="What do you expect participants to achieve? (optional)"
                           />
                         </div>
@@ -3918,7 +3918,7 @@ export default function ProgramWorkspace() {
                     </div>
 
                     {/* Participants/Groups Need Attention — Toggle + conditional note */}
-                    <div className="space-y-2 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                    <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                           Any Participants/Groups Need Attention?
@@ -3957,14 +3957,14 @@ export default function ProgramWorkspace() {
                             }))
                           }
                           rows={2}
-                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all resize-none"
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all resize-none"
                           placeholder="Short note (optional)..."
                         />
                       )}
                     </div>
 
                     {/* Standout Participants — Toggle + conditional note */}
-                    <div className="space-y-2 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                    <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                           Any Standout Participants/Groups?
@@ -4002,7 +4002,7 @@ export default function ProgramWorkspace() {
                             }))
                           }
                           rows={2}
-                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-emerald-500 transition-all resize-none"
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-emerald-500 transition-all resize-none"
                           placeholder="Short note (optional)..."
                         />
                       )}
@@ -4085,7 +4085,7 @@ export default function ProgramWorkspace() {
                     </div>
 
                     {/* Delivery Challenges — Toggle + conditional note */}
-                    <div className="space-y-2 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                    <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                           Any Delivery Challenges?
@@ -4123,7 +4123,7 @@ export default function ProgramWorkspace() {
                             }))
                           }
                           rows={2}
-                          className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
                           placeholder="Short note (optional)..."
                         />
                       )}
@@ -4144,7 +4144,7 @@ export default function ProgramWorkspace() {
 
                   <div className="space-y-3">
                     {/* Had Issues — Toggle */}
-                    <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                    <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                           Were There Any Issues?
@@ -4256,7 +4256,7 @@ export default function ProgramWorkspace() {
                               }))
                             }
                             rows={2}
-                            className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
                             placeholder="Additional note (optional)..."
                           />
                         </div>
@@ -4333,7 +4333,7 @@ export default function ProgramWorkspace() {
                           }))
                         }
                         rows={2}
-                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
                         placeholder="Any changes or adjustments planned?"
                       />
                     </div>
@@ -4387,14 +4387,14 @@ export default function ProgramWorkspace() {
                         }))
                       }
                       rows={3}
-                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
                       placeholder="Any additional context, successes, or blockers..."
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 sticky bottom-0 bg-[var(--bg-secondary)] pt-4 border-t border-[var(--border-primary)]">
+              <div className="flex gap-3 sticky bottom-0 bg-secondary pt-4 border-t border-[var(--border-primary)]">
                 <button
                   onClick={() => setShowPMReportModal(false)}
                   className="flex-1 btn btn-secondary"
@@ -4505,7 +4505,7 @@ export default function ProgramWorkspace() {
                                               name: `Submission_${sub.id}`,
                                             })
                                           }
-                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
+                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
                                         >
                                           <FileText className="w-3.5 h-3.5 text-emerald-500" />
                                           <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
@@ -4532,7 +4532,7 @@ export default function ProgramWorkspace() {
                                       {avgScore}%
                                     </div>
                                     <select
-                                      className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:border-indigo-500 cursor-pointer"
+                                      className="bg-tertiary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:border-indigo-500 cursor-pointer"
                                       value={avgScore}
                                       onChange={(e) =>
                                         updateParticipantScores(
@@ -4573,7 +4573,7 @@ export default function ProgramWorkspace() {
                 </div>
               </div>
 
-              <div className="p-6 bg-[var(--bg-tertiary)] border-t border-[var(--border-primary)] flex justify-end gap-3">
+              <div className="p-6 bg-tertiary border-t border-[var(--border-primary)] flex justify-end gap-3">
                 <button
                   onClick={() => setShowTeamDetails(false)}
                   className="btn btn-secondary px-8"

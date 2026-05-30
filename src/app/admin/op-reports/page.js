@@ -46,7 +46,7 @@ function formatLabel(val) {
 
 function InfoBlock({ label, value }) {
   return (
-    <div className="p-3 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)] print:bg-white print:border-gray-200 print:rounded print:p-2.5">
+    <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] print:bg-white print:border-gray-200 print:rounded print:p-2.5">
       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 print:text-gray-500">
         {label}
       </p>
@@ -292,7 +292,7 @@ export default function AdminOpReports() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, week, year..."
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
 
@@ -301,7 +301,7 @@ export default function AdminOpReports() {
             <select
               value={filterUser}
               onChange={(e) => setFilterUser(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option>All Users</option>
               {users.map((u) => (
@@ -317,7 +317,7 @@ export default function AdminOpReports() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">All Types</option>
               <option value="standup">Stand-Up (Monday)</option>
@@ -330,7 +330,7 @@ export default function AdminOpReports() {
             <select
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">All Months</option>
               {MONTHS.map((m) => (
@@ -354,14 +354,14 @@ export default function AdminOpReports() {
                     className={`p-4 rounded-xl border transition-all text-left ${
                       viewingUser?.id === stat.id
                         ? "bg-[var(--brand-orange)]/5 border-[var(--brand-orange)]/30"
-                        : "bg-[var(--bg-tertiary)] border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"
+                        : "bg-tertiary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-black uppercase tracking-tight text-[var(--text-primary)]">
                         {stat.name}
                       </span>
-                      <span className="text-[8px] font-bold text-slate-500 uppercase px-1.5 py-0.5 bg-[var(--bg-primary)] rounded">
+                      <span className="text-[8px] font-bold text-slate-500 uppercase px-1.5 py-0.5 bg-primary rounded">
                         {stat.role}
                       </span>
                     </div>
@@ -546,7 +546,7 @@ export default function AdminOpReports() {
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
+                              <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
                                 {task.user_name?.charAt(0) || "?"}
                               </div>
                               <span className="text-[10px] font-bold uppercase tracking-tight">
@@ -643,7 +643,7 @@ export default function AdminOpReports() {
                         <div
                           key={r.id}
                           onClick={() => setViewingReport(r)}
-                          className="flex items-center justify-between p-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] cursor-pointer hover:border-rose-500/30 transition-all"
+                          className="flex items-center justify-between p-2 rounded-lg bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-rose-500/30 transition-all"
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-black">
@@ -769,7 +769,7 @@ export default function AdminOpReports() {
 
               return (
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)] text-center">
+                  <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] text-center">
                     <p className="text-lg font-black text-emerald-500">
                       {reliability}%
                     </p>
@@ -777,7 +777,7 @@ export default function AdminOpReports() {
                       Reliability
                     </p>
                   </div>
-                  <div className="p-3 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)] text-center">
+                  <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] text-center">
                     <p className="text-lg font-black text-[var(--brand-orange)]">
                       {uniqueWeeks}
                     </p>
@@ -785,7 +785,7 @@ export default function AdminOpReports() {
                       Active Weeks
                     </p>
                   </div>
-                  <div className="p-3 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)] text-center">
+                  <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] text-center">
                     <p className="text-lg font-black text-indigo-500">
                       {uniqueWeeks * 2 - total > 0
                         ? uniqueWeeks * 2 - total
@@ -807,7 +807,7 @@ export default function AdminOpReports() {
                     setViewingReport(r);
                     setViewingUser(null);
                   }}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left"
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left"
                 >
                   <div className="flex items-center gap-3">
                     <div
@@ -866,7 +866,7 @@ export default function AdminOpReports() {
 
 function StatCard({ label, value }) {
   return (
-    <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl px-5 flex flex-col justify-center shadow-sm min-w-[90px]">
+    <div className="p-3 bg-secondary border border-[var(--border-primary)] rounded-xl px-5 flex flex-col justify-center shadow-sm min-w-[90px]">
       <span className="text-[7px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
         {label}
       </span>
@@ -880,7 +880,7 @@ function StatCard({ label, value }) {
 function ReportCard({ report, onClick }) {
   return (
     <div
-      className="card group hover:border-[var(--brand-orange)] transition-all bg-[var(--bg-secondary)]/50 cursor-pointer"
+      className="card group hover:border-[var(--brand-orange)] transition-all bg-secondary/50 cursor-pointer"
       onClick={onClick}
     >
       <div className="flex items-center justify-between gap-4">
@@ -900,7 +900,7 @@ function ReportCard({ report, onClick }) {
               <span className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                 {report.user_name}
               </span>
-              <span className="text-[8px] font-bold text-slate-500 uppercase px-1.5 py-0.5 bg-[var(--bg-tertiary)] rounded">
+              <span className="text-[8px] font-bold text-slate-500 uppercase px-1.5 py-0.5 bg-tertiary rounded">
                 {report.user_role}
               </span>
             </div>
@@ -987,7 +987,7 @@ function MonthlyBreakdown({ reports }) {
                 <span>{group.users.size} Members</span>
               </div>
             </div>
-            <div className="w-full h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden flex">
+            <div className="w-full h-2 bg-primary rounded-full overflow-hidden flex">
               <div
                 className="h-full bg-[var(--brand-orange)] transition-all"
                 style={{
@@ -1084,7 +1084,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
                     {total} reports
                   </span>
                 </div>
-                <div className="w-full h-5 bg-[var(--bg-primary)] rounded-lg overflow-hidden flex">
+                <div className="w-full h-5 bg-primary rounded-lg overflow-hidden flex">
                   <div
                     className="h-full bg-[var(--brand-orange)] transition-all"
                     style={{ width: `${(m.standups / maxMonthly) * 100}%` }}
@@ -1132,7 +1132,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
                       {m.blockers} blocker{m.blockers > 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="w-full h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-primary rounded-full overflow-hidden">
                     <div
                       className="h-full bg-rose-500 rounded-full transition-all"
                       style={{ width: `${(m.blockers / maxBlockers) * 100}%` }}
@@ -1160,10 +1160,10 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
             {recentStaff.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)]"
+                className="flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)]"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[9px] font-black uppercase">
+                  <div className="w-7 h-7 rounded-full bg-tertiary flex items-center justify-center text-[9px] font-black uppercase">
                     {s.name?.charAt(0)}
                   </div>
                   <div>
@@ -1444,7 +1444,7 @@ function ReportDetailModal({ report, onClose }) {
         </div>
 
         {/* Info bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-[var(--bg-tertiary)] rounded-2xl border border-[var(--border-primary)] print:bg-gray-50 print:border print:border-gray-200 print:rounded print:p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-tertiary rounded-2xl border border-[var(--border-primary)] print:bg-gray-50 print:border print:border-gray-200 print:rounded print:p-4">
           <div className="space-y-0.5">
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
               Team Member
