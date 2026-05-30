@@ -31,7 +31,7 @@ import { TableSkeleton } from "@/components/ui/Skeleton";
  * - Filter by user, date range, month, week, report type
  * - Individual staff reporting timelines
  * - Monthly activity breakdown
- * - Recurring blockers tracking
+ * - Blockers tracking
  * - PDF export via browser print
  */
 
@@ -229,7 +229,7 @@ export default function AdminOpReports() {
             { id: "monthly", label: "Monthly Breakdown", icon: Calendar },
             {
               id: "blockers",
-              label: "Recurring Blockers",
+              label: "Blockers",
               icon: AlertTriangle,
             },
             {
@@ -402,7 +402,7 @@ export default function AdminOpReports() {
         {activeTab === "blockers" && (
           <div className="space-y-6">
             <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
-              Recurring Blockers
+              Blockers
             </h3>
             {blockerData.length === 0 ? (
               <div className="card py-20 text-center opacity-40 border-dashed">

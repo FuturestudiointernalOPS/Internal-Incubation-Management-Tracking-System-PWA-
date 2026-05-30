@@ -85,6 +85,16 @@ export default function StaffOpReport() {
   const [newWin, setNewWin] = useState("");
   const [newCarryover, setNewCarryover] = useState("");
 
+  // Task integration state (Phase 4)
+  const [tasks, setTasks] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [taskCreationOpen, setTaskCreationOpen] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
+  const [newTaskProject, setNewTaskProject] = useState("");
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [reconciledTasks, setReconciledTasks] = useState({});
+
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
@@ -182,6 +192,30 @@ export default function StaffOpReport() {
     } catch (e) {}
   }, [user]);
 
+  const fetchTasks = useCallback(async () => {
+    if (!user) return;
+    setLoadingTasks(true);
+    try {
+      const userId = user.cid || user.id;
+      const statuses = ["pending", "in_progress", "blocked", "carried_over"];
+      const results = await Promise.all(
+        statuses.map((s) =>
+          fetch(`/api/tasks?user_id=${userId}&status=${s}`).then((r) =>
+            r.json(),
+          ),
+        ),
+      );
+      const allTasks = results.flatMap((data) =>
+        Array.isArray(data) ? data : data.tasks || [],
+      );
+      setTasks(allTasks);
+    } catch (e) {
+      console.error("Failed to fetch tasks:", e);
+    } finally {
+      setLoadingTasks(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (!u.id && !u.cid) {
@@ -195,8 +229,9 @@ export default function StaffOpReport() {
     if (user) {
       fetchReport();
       fetchHistory();
+      fetchTasks();
     }
-  }, [user, fetchReport, fetchHistory]);
+  }, [user, fetchReport, fetchHistory, fetchTasks]);
 
   const handleSubmit = async (status = "submitted") => {
     if (!user) return;
@@ -251,6 +286,34 @@ export default function StaffOpReport() {
       });
       const data = await res.json();
       if (data.success) {
+        // Task reconciliation: update task statuses on retro submission
+        if (reportType === "retro" && status === "submitted") {
+          const userId = user.cid || user.id;
+          const reconciledEntries = Object.entries(reconciledTasks);
+          if (reconciledEntries.length > 0) {
+            await Promise.all(
+              reconciledEntries.map(async ([taskId, isCompleted]) => {
+                const updateBody = {
+                  id: taskId,
+                  user_id: userId,
+                  status: isCompleted ? "completed" : "carried_over",
+                  force_complete: true,
+                };
+                try {
+                  await fetch("/api/tasks", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updateBody),
+                  });
+                } catch (e) {
+                  console.error("Failed to update task", taskId, e);
+                }
+              }),
+            );
+            fetchTasks();
+          }
+        }
+
         notify(
           status === "submitted"
             ? "Report submitted successfully!"
@@ -378,6 +441,208 @@ export default function StaffOpReport() {
           <div className="lg:col-span-2 space-y-8">
             {reportType === "standup" ? (
               <>
+                {/* ─── OUTSTANDING WORK (Phase 4: Task Integration) ─── */}
+                <Section
+                  title="Outstanding Work"
+                  icon={FileText}
+                  color="text-[var(--brand-orange)]"
+                >
+                  {loadingTasks ? (
+                    <div className="flex items-center gap-2 py-3">
+                      <div className="w-4 h-4 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        Loading tasks...
+                      </span>
+                    </div>
+                  ) : tasks.length === 0 ? (
+                    <p className="text-[10px] font-bold text-slate-500 italic py-3">
+                      No outstanding tasks found.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Carry Over */}
+                      {tasks.filter((t) => t.status === "carried_over").length >
+                        0 && (
+                        <div>
+                          <h4 className="text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-2 flex items-center gap-1.5">
+                            <ChevronRight className="w-3 h-3" /> Carry Over
+                          </h4>
+                          <div className="space-y-1.5">
+                            {tasks
+                              .filter((t) => t.status === "carried_over")
+                              .map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                                  <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
+                                    {task.title}
+                                  </span>
+                                  <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500 shrink-0">
+                                    carried
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Blocked */}
+                      {tasks.filter((t) => t.status === "blocked").length >
+                        0 && (
+                        <div>
+                          <h4 className="text-[9px] font-black uppercase tracking-widest text-rose-500 mb-2 flex items-center gap-1.5">
+                            <AlertTriangle className="w-3 h-3" /> Blocked
+                          </h4>
+                          <div className="space-y-1.5">
+                            {tasks
+                              .filter((t) => t.status === "blocked")
+                              .map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                                  <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
+                                    {task.title}
+                                  </span>
+                                  <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 shrink-0">
+                                    blocked
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Active (In Progress) */}
+                      {tasks.filter((t) => t.status === "in_progress").length >
+                        0 && (
+                        <div>
+                          <h4 className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-2 flex items-center gap-1.5">
+                            <Target className="w-3 h-3" /> Active
+                          </h4>
+                          <div className="space-y-1.5">
+                            {tasks
+                              .filter((t) => t.status === "in_progress")
+                              .map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                  <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
+                                    {task.title}
+                                  </span>
+                                  <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 shrink-0">
+                                    active
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Section>
+
+                {/* ─── CREATE TASK (Phase 4: Task Creation) ─── */}
+                <div className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setTaskCreationOpen(!taskCreationOpen)}
+                    className="w-full flex items-center justify-between text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                        Create Task
+                      </span>
+                    </div>
+                    <svg
+                      className={`w-4 h-4 text-slate-500 transition-transform ${taskCreationOpen ? "rotate-180" : ""}`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  {taskCreationOpen && (
+                    <div className="space-y-3 pt-2 border-t border-[var(--border-primary)]">
+                      <input
+                        type="text"
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        placeholder="Task title (required)"
+                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                      />
+                      <textarea
+                        value={newTaskDescription}
+                        onChange={(e) => setNewTaskDescription(e.target.value)}
+                        rows={2}
+                        placeholder="Description (optional)"
+                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
+                      />
+                      <input
+                        type="text"
+                        value={newTaskProject}
+                        onChange={(e) => setNewTaskProject(e.target.value)}
+                        placeholder="Project name or 'Independent Task' (optional)"
+                        className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                      />
+                      <button
+                        type="button"
+                        disabled={creatingTask || !newTaskTitle.trim()}
+                        onClick={async () => {
+                          if (!newTaskTitle.trim()) return;
+                          setCreatingTask(true);
+                          try {
+                            const userId = user.cid || user.id;
+                            const res = await fetch("/api/tasks", {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({
+                                title: newTaskTitle.trim(),
+                                description: newTaskDescription.trim() || null,
+                                project:
+                                  newTaskProject.trim() || "Independent Task",
+                                user_id: userId,
+                                status: "pending",
+                              }),
+                            });
+                            const data = await res.json();
+                            if (res.ok) {
+                              notify("Task created successfully!");
+                              setNewTaskTitle("");
+                              setNewTaskDescription("");
+                              setNewTaskProject("");
+                              setTaskCreationOpen(false);
+                              fetchTasks();
+                            } else {
+                              notify(
+                                data.error || "Failed to create task.",
+                                "error",
+                              );
+                            }
+                          } catch (e) {
+                            notify("Network error creating task.", "error");
+                          } finally {
+                            setCreatingTask(false);
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
+                      >
+                        {creatingTask ? "Adding..." : "Add Task"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* ─── SECTION 1: Weekly Focus ─── */}
                 <Section
                   title="Top Priorities This Week"
@@ -724,6 +989,117 @@ export default function StaffOpReport() {
             ) : (
               <>
                 {/* RETRO FIELDS */}
+
+                {/* TASK RECONCILIATION — Phase 5 */}
+                <Section
+                  title="Task Reconciliation"
+                  icon={CheckCircle2}
+                  color="text-purple-500"
+                >
+                  <div className="space-y-3">
+                    <p className="text-xs text-[var(--text-secondary)] mb-1">
+                      Review your outstanding tasks
+                    </p>
+
+                    {loadingTasks ? (
+                      <p className="text-xs text-slate-500 italic">
+                        Loading tasks...
+                      </p>
+                    ) : tasks.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic">
+                        No outstanding tasks to reconcile.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                          {tasks.map((task) => {
+                            const isCompleted =
+                              reconciledTasks[task.id] === true;
+                            const isCarriedOver =
+                              reconciledTasks[task.id] === false;
+
+                            return (
+                              <div
+                                key={task.id}
+                                className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
+                                  isCompleted
+                                    ? "border-emerald-500/30 bg-emerald-500/5"
+                                    : isCarriedOver
+                                      ? "border-indigo-500/30 bg-indigo-500/5"
+                                      : "border-[var(--border-primary)] bg-[var(--bg-secondary)]"
+                                }`}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                                    {task.title}
+                                  </p>
+                                  <span
+                                    className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      task.status === "pending"
+                                        ? "bg-slate-500/20 text-slate-400"
+                                        : task.status === "in_progress"
+                                          ? "bg-blue-500/20 text-blue-400"
+                                          : task.status === "blocked"
+                                            ? "bg-rose-500/20 text-rose-400"
+                                            : task.status === "carried_over"
+                                              ? "bg-indigo-500/20 text-indigo-400"
+                                              : "bg-slate-500/20 text-slate-400"
+                                    }`}
+                                  >
+                                    {task.status.replace("_", " ")}
+                                  </span>
+                                </div>
+                                <div className="flex gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReconciledTasks((prev) => ({
+                                        ...prev,
+                                        [task.id]: true,
+                                      }))
+                                    }
+                                    className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                                      isCompleted
+                                        ? "bg-emerald-500 text-white shadow-sm"
+                                        : "bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-emerald-500/50"
+                                    }`}
+                                  >
+                                    Complete
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReconciledTasks((prev) => ({
+                                        ...prev,
+                                        [task.id]: false,
+                                      }))
+                                    }
+                                    className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                                      isCarriedOver
+                                        ? "bg-indigo-500 text-white shadow-sm"
+                                        : "bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-indigo-500/50"
+                                    }`}
+                                  >
+                                    Carry Over
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <p className="text-xs text-[var(--text-secondary)] pt-1">
+                          {
+                            Object.values(reconciledTasks).filter(Boolean)
+                              .length
+                          }{" "}
+                          of {tasks.length} tasks completed
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </Section>
+
                 <Section
                   title="Completed Work"
                   icon={CheckCircle2}

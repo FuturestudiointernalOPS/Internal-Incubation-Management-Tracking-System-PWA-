@@ -383,7 +383,7 @@ export default function AdminDashboard() {
               </button>
             }
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard
               title="Active Programs"
               value={stats.programs}
@@ -408,14 +408,6 @@ export default function AdminDashboard() {
               color="text-emerald-500"
               subtitle="Teachers, admins & staff"
               onClick={() => router.push("/admin/communications/contacts")}
-              loading={loading}
-            />
-            <StatCard
-              title="System Health"
-              value="100%"
-              icon={Activity}
-              color="text-rose-500"
-              badge="OPTIMAL"
               loading={loading}
             />
           </div>
@@ -532,7 +524,7 @@ export default function AdminDashboard() {
               </button>
             }
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard
               title="Monday Stand-Ups"
               value={opStats.standups}
@@ -559,44 +551,10 @@ export default function AdminDashboard() {
               loading={loading}
               onClick={() => router.push("/admin/op-reports")}
             />
-            <StatCard
-              title="Support Requests"
-              value={opStats.support}
-              icon={Shield}
-              color="text-amber-500"
-              loading={loading}
-              onClick={() => router.push("/admin/op-reports")}
-            />
           </div>
 
           {/* Quick insights row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div
-              className="card flex items-center gap-4 p-5 cursor-pointer hover:border-[var(--brand-orange)] transition-all"
-              onClick={() => router.push("/admin/op-reports")}
-            >
-              <div className="p-3 rounded-xl bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
-                <BarChart3 className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                  Ratio
-                </p>
-                <p className="text-lg font-black">
-                  {opStats.standups + opStats.retros > 0
-                    ? Math.round(
-                        (opStats.standups /
-                          (opStats.standups + opStats.retros)) *
-                          100,
-                      )
-                    : 0}
-                  %
-                </p>
-                <p className="text-[8px] font-bold text-slate-600">
-                  stand-ups vs retros
-                </p>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
             <div
               className="card flex items-center gap-4 p-5 cursor-pointer hover:border-[var(--brand-orange)] transition-all"
               onClick={() => router.push("/admin/op-reports")}
@@ -620,23 +578,6 @@ export default function AdminDashboard() {
                 </p>
                 <p className="text-[8px] font-bold text-slate-600">
                   of all reports
-                </p>
-              </div>
-            </div>
-            <div
-              className="card flex items-center gap-4 p-5 cursor-pointer hover:border-[var(--brand-orange)] transition-all"
-              onClick={() => router.push("/admin/op-reports")}
-            >
-              <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500">
-                <Users className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                  Active Reporters
-                </p>
-                <p className="text-lg font-black">{opStats.totalUsers}</p>
-                <p className="text-[8px] font-bold text-slate-600">
-                  of {stats.totalStaff} total staff
                 </p>
               </div>
             </div>
