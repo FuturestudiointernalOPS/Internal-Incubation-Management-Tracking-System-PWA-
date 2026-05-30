@@ -241,7 +241,7 @@ export default function AdminTasks() {
             </div>
             <button
               onClick={fetchTasks}
-              className="p-2 rounded-xl hover:bg-[var(--bg-tertiary)] transition-all"
+              className="p-2 rounded-xl hover:bg-white/5 transition-all"
               title="Refresh"
             >
               <RefreshCw className="w-4 h-4 text-slate-500" />
@@ -434,7 +434,7 @@ export default function AdminTasks() {
                   {filteredTasks.map((task) => (
                     <tr
                       key={task.id}
-                      className="border-b border-[var(--border-primary)]/50 hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                      className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors"
                     >
                       <td className="p-4">
                         <button
@@ -576,7 +576,7 @@ export default function AdminTasks() {
                 </h3>
                 <button
                   onClick={() => setViewingTask(null)}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-primary)] transition-all"
+                  className="p-2 rounded-lg hover:bg-white/5 transition-all"
                 >
                   <X className="w-4 h-4" />
                 </button>

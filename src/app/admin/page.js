@@ -428,7 +428,7 @@ export default function AdminDashboard() {
                   activity.slice(0, 6).map((log, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors group"
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-colors group"
                     >
                       <div className="w-10 h-10 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:border-[var(--brand-orange)]">
                         <Zap className="w-4 h-4" />
@@ -474,7 +474,7 @@ export default function AdminDashboard() {
                     <div
                       key={prog.id}
                       onClick={() => router.push(`/admin/programs/${prog.id}`)}
-                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
                     >
                       <div className="w-8 h-8 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
                         <Rocket className="w-4 h-4" />
@@ -703,7 +703,7 @@ export default function AdminDashboard() {
                         return (
                           <tr
                             key={s.id}
-                            className="border-b border-[var(--border-primary)]/50 hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                            className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors"
                           >
                             <td className="p-4">
                               <div className="flex items-center gap-3">

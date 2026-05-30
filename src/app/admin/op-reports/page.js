@@ -537,7 +537,7 @@ export default function AdminOpReports() {
                       {allTasks.slice(0, 10).map((task) => (
                         <tr
                           key={task.id}
-                          className="border-b border-[var(--border-primary)]/50 hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                          className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors"
                         >
                           <td className="p-4">
                             <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
@@ -696,7 +696,7 @@ export default function AdminOpReports() {
               </div>
               <button
                 onClick={() => setViewingUser(null)}
-                className="p-2 hover:bg-[var(--bg-primary)] rounded-lg"
+                className="p-2 hover:bg-white/5 rounded-lg"
               >
                 <svg
                   className="w-6 h-6"
@@ -1415,7 +1415,7 @@ function ReportDetailModal({ report, onClose }) {
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-[var(--bg-primary)] rounded-lg"
+              className="p-2 hover:bg-white/5 rounded-lg"
             >
               <svg
                 className="w-6 h-6"

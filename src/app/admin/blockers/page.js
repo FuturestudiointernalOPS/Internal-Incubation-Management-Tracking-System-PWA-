@@ -305,7 +305,7 @@ export default function AdminBlockers() {
                   {filteredBlockers.map((blocker) => (
                     <tr
                       key={blocker.id}
-                      className={`border-b border-[var(--border-primary)]/50 hover:bg-[var(--bg-tertiary)]/50 transition-colors ${
+                      className={`border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors ${
                         blocker.status === "active"
                           ? "bg-rose-500/5"
                           : "opacity-60"
@@ -338,9 +338,7 @@ export default function AdminBlockers() {
                       </td>
                       <td className="p-4">
                         <button
-                          onClick={() =>
-                            router.push(`/admin/tasks`)
-                          }
+                          onClick={() => router.push(`/admin/tasks`)}
                           className="text-[10px] font-bold text-indigo-500 hover:underline flex items-center gap-1"
                         >
                           <ListTodo className="w-3 h-3" />
@@ -362,9 +360,7 @@ export default function AdminBlockers() {
                               : "bg-emerald-500/10 text-emerald-500"
                           }`}
                         >
-                          {blocker.status === "active"
-                            ? "Active"
-                            : "Resolved"}
+                          {blocker.status === "active" ? "Active" : "Resolved"}
                         </span>
                       </td>
                       <td className="text-center p-4">
@@ -401,7 +397,7 @@ export default function AdminBlockers() {
                 </h3>
                 <button
                   onClick={() => setViewingBlocker(null)}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-primary)] transition-all"
+                  className="p-2 rounded-lg hover:bg-white/5 transition-all"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -482,9 +478,7 @@ export default function AdminBlockers() {
                       Created
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                      {new Date(
-                        viewingBlocker.created_at,
-                      ).toLocaleDateString()}
+                      {new Date(viewingBlocker.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   {viewingBlocker.resolved_at && (
