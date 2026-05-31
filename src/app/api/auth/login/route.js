@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { createSession } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
 export async function POST(req) {
@@ -194,6 +195,13 @@ export async function POST(req) {
 
     if (isTeamLogin) {
       responseUser.team_id = user.id;
+    }
+
+    // Create session with HTTP-only cookie for route protection
+    try {
+      await createSession(responseUser.cid || responseUser.id, finalRole);
+    } catch (sessionErr) {
+      console.error("Session creation failed (non-fatal):", sessionErr.message);
     }
 
     return NextResponse.json({ success: true, user: responseUser });

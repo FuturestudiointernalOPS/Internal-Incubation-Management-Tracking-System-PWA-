@@ -466,31 +466,68 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   };
 
   const [user, setUser] = useState({});
+  const [authChecked, setAuthChecked] = useState(false);
   const [pmPrograms, setPmPrograms] = useState([]);
 
+  // Load user from session API first, fallback to localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      if (
-        parsedUser.role === "program_manager" ||
-        parsedUser.role === "super_admin"
-      ) {
-        const url =
-          parsedUser.role === "super_admin"
-            ? "/api/pm/programs"
-            : "/api/pm/programs?assigned_pm_id=" +
-              (parsedUser.cid || parsedUser.id);
-        fetch(url)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success) setPmPrograms(data.programs || []);
-          })
-          .catch((e) => console.error(e));
+    async function initAuth() {
+      try {
+        const sessionRes = await fetch("/api/auth/session");
+        const sessionData = await sessionRes.json();
+
+        if (sessionData.authenticated && sessionData.user) {
+          // Session API returned user — use it as source of truth
+          const userWithFullData = {
+            ...sessionData.user,
+            // Merge with localStorage if available for extra fields
+            ...(localStorage.getItem("user")
+              ? JSON.parse(localStorage.getItem("user"))
+              : {}),
+            // But session data wins for these critical fields
+            cid: sessionData.user.cid,
+            name: sessionData.user.name,
+            email: sessionData.user.email,
+            role: sessionData.user.role,
+            group_name: sessionData.user.group_name,
+          };
+          setUser(userWithFullData);
+          // Sync localStorage for components that still read from it
+          localStorage.setItem("user", JSON.stringify(userWithFullData));
+        } else {
+          // Session API failed — fallback to localStorage
+          const savedUser = localStorage.getItem("user");
+          if (savedUser) {
+            setUser(JSON.parse(savedUser));
+          }
+        }
+      } catch (e) {
+        // Network error — fallback to localStorage
+        const savedUser = localStorage.getItem("user");
+        if (savedUser) setUser(JSON.parse(savedUser));
+      } finally {
+        setAuthChecked(true);
       }
     }
-  }, [role]);
+    initAuth();
+  }, []);
+
+  // Fetch PM programs when user changes
+  useEffect(() => {
+    if (!user.cid && !user.id) return;
+    if (user.role === "program_manager" || user.role === "super_admin") {
+      const url =
+        user.role === "super_admin"
+          ? "/api/pm/programs"
+          : "/api/pm/programs?assigned_pm_id=" + (user.cid || user.id);
+      fetch(url)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) setPmPrograms(data.programs || []);
+        })
+        .catch((e) => console.error(e));
+    }
+  }, [user.role, user.cid, user.id]);
 
   const toggleMenu = useCallback((id) => {
     if (!id) return;
