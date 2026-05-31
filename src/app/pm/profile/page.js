@@ -92,7 +92,7 @@ export default function PMProfile() {
             {t("errors.somethingWrong")}
           </p>
           <button
-            onClick={() => (window.location.href = "/terminal")}
+            onClick={() => (window.location.href = "/login")}
             className="btn-prime w-full"
           >
             {t("common.submit")}

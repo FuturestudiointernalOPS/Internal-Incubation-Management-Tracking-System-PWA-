@@ -385,7 +385,7 @@ function ContactsPageContent() {
     const isStaff =
       c.role?.toLowerCase() === "staff" ||
       c.group_name?.toUpperCase() === "FUTURE STUDIO";
-    return `${window.location.origin}${isStaff ? "/terminal" : "/login"}`;
+    return `${window.location.origin}${isStaff ? "/login" : "/login"}`;
   };
 
   const buildWelcomeMessage = (c, pass) => {

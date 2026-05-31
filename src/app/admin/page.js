@@ -260,12 +260,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     const userString = localStorage.getItem("user");
     if (!userString) {
-      router.replace("/terminal");
+      router.replace("/login");
       return;
     }
     const user = JSON.parse(userString);
     if (user.role !== "super_admin") {
-      router.replace("/terminal");
+      router.replace("/login");
       return;
     }
     fetchDashboardData();

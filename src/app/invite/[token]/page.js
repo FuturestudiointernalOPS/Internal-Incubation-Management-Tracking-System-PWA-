@@ -3,13 +3,21 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Mail, Lock, Phone, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
+import {
+  User,
+  Mail,
+  Lock,
+  Phone,
+  ArrowRight,
+  ShieldCheck,
+  AlertCircle,
+} from "lucide-react";
 
 export default function InvitePage({ params }) {
   // Using React.use to unwrap params in Next.js 15+
   const resolvedParams = use(params);
   const token = resolvedParams.token;
-  
+
   const router = useRouter();
   const [inviteData, setInviteData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +37,7 @@ export default function InvitePage({ params }) {
       try {
         const res = await fetch(`/api/v2/invites/${token}`);
         const data = await res.json();
-        
+
         if (!res.ok) {
           setError(data.error || "Invalid Future Studio Invite Link.");
         } else {
@@ -63,8 +71,10 @@ export default function InvitePage({ params }) {
       } else {
         setSuccess(true);
         setTimeout(() => {
-          const isStaff = inviteData?.group_name?.toUpperCase() === 'FUTURE STUDIO' || inviteData?.group_name?.toUpperCase() === 'STAFF';
-          router.push(isStaff ? "/terminal" : "/login");
+          const isStaff =
+            inviteData?.group_name?.toUpperCase() === "FUTURE STUDIO" ||
+            inviteData?.group_name?.toUpperCase() === "STAFF";
+          router.push("/login");
         }, 2000);
       }
     } catch (err) {
@@ -92,7 +102,7 @@ export default function InvitePage({ params }) {
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-orange-600/30 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[50%] bg-blue-600/20 blur-[100px] rounded-full pointer-events-none" />
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md relative z-10"
@@ -105,7 +115,12 @@ export default function InvitePage({ params }) {
             <h1 className="text-2xl font-bold mb-2">Join the Platform</h1>
             <p className="text-slate-400 text-sm">
               {inviteData?.program_name ? (
-                <>You have been invited to <strong className="text-white">{inviteData.program_name}</strong></>
+                <>
+                  You have been invited to{" "}
+                  <strong className="text-white">
+                    {inviteData.program_name}
+                  </strong>
+                </>
               ) : (
                 "Complete your profile to gain access"
               )}
@@ -114,7 +129,7 @@ export default function InvitePage({ params }) {
 
           <AnimatePresence>
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
@@ -126,13 +141,15 @@ export default function InvitePage({ params }) {
             )}
 
             {success && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-center text-green-400"
               >
                 <p className="font-medium">Welcome aboard!</p>
-                <p className="text-sm opacity-80 mt-1">Redirecting you to login...</p>
+                <p className="text-sm opacity-80 mt-1">
+                  Redirecting you to login...
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -221,7 +238,7 @@ export default function InvitePage({ params }) {
             </div>
           )}
         </div>
-        
+
         <p className="text-center text-slate-500 text-xs mt-6">
           Powered by ImpactOS • Secure Authentication
         </p>

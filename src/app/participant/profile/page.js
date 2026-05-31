@@ -81,7 +81,7 @@ export default function ParticipantProfile() {
             Please re-authenticate.
           </p>
           <button
-            onClick={() => (window.location.href = "/terminal")}
+            onClick={() => (window.location.href = "/login")}
             className="btn-prime w-full"
           >
             Re-Authenticate

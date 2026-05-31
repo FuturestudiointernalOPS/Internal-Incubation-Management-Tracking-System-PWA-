@@ -25,7 +25,7 @@ export default function StaffDashboard() {
   useEffect(() => {
     const userString = localStorage.getItem("user");
     if (!userString) {
-      router.replace("/terminal");
+      router.replace("/login");
       return;
     }
     const parsedUser = JSON.parse(userString);
@@ -34,7 +34,7 @@ export default function StaffDashboard() {
       parsedUser.role !== "super_admin" &&
       parsedUser.role !== "teacher"
     ) {
-      router.replace("/terminal");
+      router.replace("/login");
       return;
     }
 

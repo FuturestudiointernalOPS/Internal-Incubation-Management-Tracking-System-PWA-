@@ -223,7 +223,7 @@ export default function StaffOpReport() {
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (!u.id && !u.cid) {
-      router.push("/terminal");
+      router.push("/login");
       return;
     }
     setUser(u);

@@ -27,7 +27,7 @@ export default function PMProgressHub() {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     if (!user.id && !user.cid) {
-      router.push("/terminal");
+      router.push("/login");
       return;
     }
 

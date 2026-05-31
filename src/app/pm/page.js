@@ -46,12 +46,12 @@ export default function PMDashboard() {
   useEffect(() => {
     const userString = localStorage.getItem("user");
     if (!userString) {
-      router.replace("/terminal");
+      router.replace("/login");
       return;
     }
     const user = JSON.parse(userString);
     if (user.role !== "program_manager" && user.role !== "super_admin") {
-      router.replace("/terminal");
+      router.replace("/login");
       return;
     }
     fetchPMPrograms(user.cid || user.id);
