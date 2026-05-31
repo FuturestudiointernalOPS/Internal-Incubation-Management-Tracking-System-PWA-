@@ -294,7 +294,23 @@ const NAVIGATION_MATRIX = {
           name: "INTERNAL REPORTS",
           href: "/admin/op-reports",
         },
+        {
+          id: "tasks",
+          name: "TASKS",
+          href: "/admin/tasks",
+        },
+        {
+          id: "blockers",
+          name: "BLOCKERS",
+          href: "/admin/blockers",
+        },
       ],
+    },
+    {
+      id: "projects",
+      name: "PROJECTS",
+      icon: Briefcase,
+      href: "/admin/projects",
     },
   ],
   admin: [
@@ -316,7 +332,7 @@ const NAVIGATION_MATRIX = {
       id: "reports",
       name: "REPORTS",
       icon: BarChart3,
-    
+
       href: "/admin/reports",
     },
   ],
