@@ -9,8 +9,10 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
+  Globe,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -19,6 +21,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [success, setSuccess] = useState(false);
+  const { t, lang, switchLang } = useI18n();
   const router = useRouter();
 
   const handleLogin = async (e) => {
@@ -38,6 +41,7 @@ export default function LoginPage() {
       if (data.success) {
         setSuccess(true);
         localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem("impactos_lang", data.user.language);
         // Show success state then redirect like terminal does
         setTimeout(() => {
           if (data.user.role === "super_admin") {
@@ -53,11 +57,11 @@ export default function LoginPage() {
           }
         }, 800);
       } else {
-        setErrorMsg(data.error || "Identity Access Denied");
+        setErrorMsg(data.error || t("auth.login.error"));
         setLoading(false);
       }
     } catch (err) {
-      setErrorMsg("System node offline. Retry later.");
+      setErrorMsg(t("auth.login.networkError"));
       setLoading(false);
     }
   };
@@ -72,7 +76,7 @@ export default function LoginPage() {
             className="h-20 object-contain animate-in fade-in zoom-in duration-700 mb-2"
           />
           <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em] mt-1">
-            Operational Access Hub
+            {t("auth.login.title")}
           </p>
         </div>
 
@@ -89,7 +93,7 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
-                Email Identity
+                {t("auth.login.email")}
               </label>
               <input
                 type="email"
@@ -103,7 +107,7 @@ export default function LoginPage() {
 
             <div className="space-y-2 relative">
               <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
-                Access Pin
+                {t("auth.login.password")}
               </label>
               <div className="relative">
                 <input
@@ -134,12 +138,30 @@ export default function LoginPage() {
               className={`btn w-full py-4 uppercase tracking-widest text-xs ${success ? "bg-emerald-500 text-white" : "btn-primary"}`}
             >
               {success
-                ? "ACCESS GRANTED"
+                ? t("auth.login.success")
                 : loading
-                  ? "Validating..."
-                  : "Log In"}
+                  ? t("auth.login.authenticating")
+                  : t("auth.login.login")}
             </button>
           </form>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <Globe className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+          {SUPPORTED_LANGUAGES.map((l) => (
+            <button
+              key={l.code}
+              type="button"
+              onClick={() => switchLang(l.code)}
+              className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md transition-all ${
+                lang === l.code
+                  ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)] border border-[var(--brand-orange)]/30"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent"
+              }`}
+            >
+              {l.nativeLabel}
+            </button>
+          ))}
         </div>
 
         <div className="text-center">

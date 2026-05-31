@@ -35,6 +35,39 @@ import Link from "next/link";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 
+// Map legacy sidebar keys to new namespaced i18n keys
+const NAV_KEY_MAP = {
+  dashboard: "nav.dashboard",
+  programs: "nav.programs",
+  all_programs: "nav.allPrograms",
+  create_program: "nav.createProgram",
+  progress_hub: "nav.progress",
+  communication: "nav.communication",
+  campaigns: "nav.campaigns",
+  forms: "nav.forms",
+  all_contacts: "nav.contacts",
+  knowledge: "nav.knowledgeBase",
+  reports: "nav.reports",
+  report_responses: "nav.reportResponses",
+  internal_reports: "nav.internalReports",
+  settings: "nav.settings",
+  profile: "nav.profile",
+  logout: "nav.logout",
+  projects: "nav.projects",
+  sessions: "nav.sessions",
+  reviews: "nav.reviews",
+  tasks: "reports.tasks",
+  blockers: "reports.blockers",
+  no_new_intel: "nav.noNewIntel",
+  intel_feed: "nav.intelFeed",
+};
+
+function tnav(key) {
+  const mapped = NAV_KEY_MAP[key];
+  if (mapped) return mapped;
+  return key;
+}
+
 /**
  * IMPACTOS OPERATIONAL CONTROL ÔÇö GLOBAL LAYOUT
  * Simplified, high-performance frame with i18n and theme support.
@@ -100,7 +133,7 @@ const SidebarContent = ({
                     />
                     {!collapsed && (
                       <span className="truncate">
-                        {t(item.id) || item.name}
+                        {t(tnav(item.id)) || item.name}
                       </span>
                     )}
                   </div>
@@ -124,7 +157,7 @@ const SidebarContent = ({
                           <span className="truncate">
                             {subItem.id?.startsWith("prog_")
                               ? subItem.name
-                              : t(subItem.id) || subItem.name}
+                              : t(tnav(subItem.id)) || subItem.name}
                           </span>
                         </Link>
                       );
@@ -147,7 +180,9 @@ const SidebarContent = ({
                 className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-black" : "text-[var(--text-secondary)]"}`}
               />
               {!collapsed && (
-                <span className="truncate">{t(item.id) || item.name}</span>
+                <span className="truncate">
+                  {t(tnav(item.id)) || item.name}
+                </span>
               )}
             </Link>
           );
@@ -165,14 +200,14 @@ const SidebarContent = ({
           className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
         >
           <User className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span>{t("profile")}</span>}
+          {!collapsed && <span>{t(tnav("profile"))}</span>}
         </Link>
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all font-black uppercase tracking-widest text-[10px]"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span>{t("logout")}</span>}
+          {!collapsed && <span>{t(tnav("logout"))}</span>}
         </button>
       </div>
     </>
@@ -564,7 +599,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
               {showNotifications && (
                 <div className="absolute right-0 top-10 w-72 bg-secondary border border-[var(--border-primary)] rounded-lg p-4 z-[200]">
                   <h4 className="text-[10px] font-bold uppercase mb-3 text-[var(--text-secondary)]">
-                    {t("intel_feed")}
+                    {t(tnav("intel_feed"))}
                   </h4>
                   <div className="max-h-48 overflow-y-auto space-y-2">
                     {notifications.length > 0 ? (
@@ -597,7 +632,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                       ))
                     ) : (
                       <p className="text-[10px] opacity-40 italic py-4 text-center">
-                        {t("no_new_intel")}
+                        {t(tnav("no_new_intel"))}
                       </p>
                     )}
                   </div>
