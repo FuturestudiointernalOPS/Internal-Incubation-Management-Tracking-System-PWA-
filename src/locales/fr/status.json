@@ -1,0 +1,14 @@
+{
+  "status": {
+    "active": "Actif",
+    "pending": "En attente",
+    "inProgress": "En cours",
+    "completed": "Terminé",
+    "archived": "Archivé",
+    "draft": "Brouillon",
+    "submitted": "Soumis",
+    "blocked": "Bloqué",
+    "carriedOver": "Reporté",
+    "resolved": "Résolu"
+  }
+}

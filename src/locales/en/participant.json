@@ -1,0 +1,12 @@
+{
+  "participant": {
+    "dashboard": "My Dashboard",
+    "thisWeek": "This Week",
+    "upcomingDeadlines": "Upcoming Deadlines",
+    "activityTimeline": "Activity Timeline",
+    "progressBreakdown": "Progress Breakdown",
+    "announcements": "Announcements",
+    "helpAndSupport": "Help & Support",
+    "myProjects": "My Projects"
+  }
+}

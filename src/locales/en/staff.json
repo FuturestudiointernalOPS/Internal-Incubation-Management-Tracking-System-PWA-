@@ -1,0 +1,8 @@
+{
+  "staff": {
+    "dashboard": "Staff Dashboard",
+    "submitReport": "Submit Report",
+    "myReports": "My Reports",
+    "recentActivity": "Recent Activity"
+  }
+}

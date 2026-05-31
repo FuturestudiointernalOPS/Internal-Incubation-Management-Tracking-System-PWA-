@@ -1,0 +1,31 @@
+{
+  "admin": {
+    "command": "ADMIN COMMAND",
+    "programOperations": "Program Operations",
+    "internalOperations": "Internal Operations",
+    "teamAccountability": "Team Accountability",
+    "risksAndBlockers": "Risks & Blockers",
+    "historicalIntelligence": "Historical Intelligence",
+    "activePrograms": "Active Programs",
+    "totalParticipants": "Total Participants",
+    "operationalStaff": "Operational Staff",
+    "mondayStandups": "Monday Stand-Ups",
+    "fridayRetros": "Friday Retros",
+    "blockersReported": "Blockers Reported",
+    "blockerRate": "Blocker Rate",
+    "consistent": "Consistent",
+    "atRisk": "At Risk",
+    "inactive": "Inactive",
+    "topBlockers": "Top Blockers This Month",
+    "openSupportRequests": "Open Support Requests",
+    "quickActions": "Quick Actions",
+    "viewAllBlockers": "View All Blockers",
+    "blockerReports": "Blocker Reports",
+    "reportArchive": "Report Archive",
+    "reportsHub": "Reports Hub",
+    "reportResponses": "Report Responses",
+    "newProgram": "New Program",
+    "viewAllPrograms": "View All Programs",
+    "viewAllReports": "View All Reports"
+  }
+}

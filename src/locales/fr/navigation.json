@@ -1,0 +1,27 @@
+{
+  "navigation": {
+    "dashboard": "Tableau de bord",
+    "programs": "Programmes",
+    "allPrograms": "Tous les programmes",
+    "createProgram": "Créer un programme",
+    "progress": "Progression",
+    "communication": "Communication",
+    "campaigns": "Campagnes",
+    "forms": "Formulaires",
+    "contacts": "Contacts",
+    "knowledgeBase": "Base de connaissances",
+    "reports": "Rapports",
+    "reportResponses": "Réponses aux rapports",
+    "internalReports": "Rapports internes",
+    "settings": "Paramètres",
+    "profile": "Profil",
+    "logout": "Déconnexion",
+    "mainOperations": "Opérations principales",
+    "userProtocol": "Protocole utilisateur",
+    "intelFeed": "Flux de renseignements",
+    "noNewIntel": "Aucun nouveau renseignement",
+    "projects": "Projets",
+    "sessions": "Sessions",
+    "reviews": "Révisions"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "teacher": {
+    "dashboard": "QG tactique de l'instructeur",
+    "reviews": "Révision des soumissions",
+    "pendingReviews": "Révisions en attente",
+    "sessions": "Gestion des sessions",
+    "upcomingSessions": "Sessions à venir"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "admin": {
+    "command": "COMMANDE ADMIN",
+    "programOperations": "Opérations des programmes",
+    "internalOperations": "Opérations internes",
+    "teamAccountability": "Responsabilité d'équipe",
+    "risksAndBlockers": "Risques et blocages",
+    "historicalIntelligence": "Renseignements historiques",
+    "activePrograms": "Programmes actifs",
+    "totalParticipants": "Nombre total de participants",
+    "operationalStaff": "Personnel opérationnel",
+    "mondayStandups": "Points du lundi",
+    "fridayRetros": "Rétrospectives du vendredi",
+    "blockersReported": "Blocages signalés",
+    "blockerRate": "Taux de blocage",
+    "consistent": "Régulier",
+    "atRisk": "À risque",
+    "inactive": "Inactif",
+    "topBlockers": "Principaux blocages ce mois-ci",
+    "openSupportRequests": "Demandes d'assistance ouvertes",
+    "quickActions": "Actions rapides",
+    "viewAllBlockers": "Voir tous les blocages",
+    "blockerReports": "Rapports de blocage",
+    "reportArchive": "Archives des rapports",
+    "reportsHub": "Centre des rapports",
+    "reportResponses": "Réponses aux rapports",
+    "newProgram": "Nouveau programme",
+    "viewAllPrograms": "Voir tous les programmes",
+    "viewAllReports": "Voir tous les rapports"
+  }
+}

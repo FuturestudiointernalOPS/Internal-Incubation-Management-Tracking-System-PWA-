@@ -24,8 +24,7 @@ import {
   useEffect,
   useCallback,
 } from "react";
-import en from "@/translations/en";
-import fr from "@/translations/fr";
+import { LOCALE_REGISTRY } from "@/lib/locales";
 
 // ─── Supported Languages ───
 export const SUPPORTED_LANGUAGES = [
@@ -37,7 +36,7 @@ export const DEFAULT_LANGUAGE = "en";
 
 // ─── Language Registry ───
 // Add new languages here. Only English is required to have all keys.
-const LANGUAGES = { en, fr };
+const LANGUAGES = LOCALE_REGISTRY;
 
 // ─── Deep key resolver ───
 // t('auth.login.title') → translations.en.auth.login.title

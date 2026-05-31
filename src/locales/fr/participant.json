@@ -1,0 +1,12 @@
+{
+  "participant": {
+    "dashboard": "Mon tableau de bord",
+    "thisWeek": "Cette semaine",
+    "upcomingDeadlines": "Échéances à venir",
+    "activityTimeline": "Chronologie des activités",
+    "progressBreakdown": "Répartition de la progression",
+    "announcements": "Annonces",
+    "helpAndSupport": "Aide et support",
+    "myProjects": "Mes projets"
+  }
+}

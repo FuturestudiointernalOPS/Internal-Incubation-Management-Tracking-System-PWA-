@@ -1,0 +1,14 @@
+{
+  "status": {
+    "active": "Active",
+    "pending": "Pending",
+    "inProgress": "In Progress",
+    "completed": "Completed",
+    "archived": "Archived",
+    "draft": "Draft",
+    "submitted": "Submitted",
+    "blocked": "Blocked",
+    "carriedOver": "Carried Over",
+    "resolved": "Resolved"
+  }
+}

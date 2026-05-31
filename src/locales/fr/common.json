@@ -1,0 +1,32 @@
+{
+  "common": {
+    "save": "Enregistrer les modifications",
+    "saving": "Enregistrement...",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "update": "Mettre à jour",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "submit": "Soumettre",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "sort": "Trier",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "noResults": "Aucun résultat trouvé",
+    "refresh": "Actualiser",
+    "export": "Exporter",
+    "download": "Télécharger",
+    "upload": "Importer",
+    "viewAll": "Voir tout",
+    "showMore": "Afficher plus",
+    "showLess": "Afficher moins",
+    "required": "Requis",
+    "optional": "Facultatif"
+  }
+}

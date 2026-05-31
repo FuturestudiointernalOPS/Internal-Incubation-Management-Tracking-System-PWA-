@@ -1,0 +1,27 @@
+{
+  "navigation": {
+    "dashboard": "Dashboard",
+    "programs": "Programs",
+    "allPrograms": "All Programs",
+    "createProgram": "Create Program",
+    "progress": "Progress",
+    "communication": "Communication",
+    "campaigns": "Campaigns",
+    "forms": "Forms",
+    "contacts": "Contacts",
+    "knowledgeBase": "Knowledge Base",
+    "reports": "Reports",
+    "reportResponses": "Report Responses",
+    "internalReports": "Internal Reports",
+    "settings": "Settings",
+    "profile": "Profile",
+    "logout": "Logout",
+    "mainOperations": "Main Operations",
+    "userProtocol": "User Protocol",
+    "intelFeed": "Intelligence Feed",
+    "noNewIntel": "No new intelligence",
+    "projects": "Projects",
+    "sessions": "Sessions",
+    "reviews": "Reviews"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "teacher": {
+    "dashboard": "Instructor Tactical HQ",
+    "reviews": "Submissions Review",
+    "pendingReviews": "Pending Reviews",
+    "sessions": "Session Management",
+    "upcomingSessions": "Upcoming Sessions"
+  }
+}
