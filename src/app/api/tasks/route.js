@@ -117,6 +117,8 @@ export async function POST(req) {
       created_week,
       created_year,
       carried_over_from_task_id,
+      start_date,
+      end_date,
     } = body;
 
     if (!user_id || !title || !created_week || !created_year) {
@@ -132,8 +134,9 @@ export async function POST(req) {
     const result = await db.execute({
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id,
-         created_week, created_year, carried_over_from_task_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         created_week, created_year, carried_over_from_task_id,
+         start_date, end_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         user_id,
         user_name || "",
@@ -144,6 +147,8 @@ export async function POST(req) {
         created_week,
         created_year,
         carried_over_from_task_id || null,
+        start_date || null,
+        end_date || null,
       ],
     });
 
@@ -184,8 +189,18 @@ export async function PUT(req) {
   try {
     await initDb();
     const body = await req.json();
-    const { id, title, description, status, project_id, user_id, user_name } =
-      body;
+    const {
+      id,
+      title,
+      description,
+      status,
+      project_id,
+      user_id,
+      user_name,
+      start_date,
+      end_date,
+      force_complete,
+    } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -293,7 +308,17 @@ export async function PUT(req) {
     if (project_id !== undefined) {
       updateFields.push("project_id = ?");
       updateArgs.push(project_id || null);
-      changes.push(`project reassigned`);
+      changes.push("project reassigned");
+    }
+    if (start_date !== undefined) {
+      updateFields.push("start_date = ?");
+      updateArgs.push(start_date || null);
+      changes.push("start date updated");
+    }
+    if (end_date !== undefined) {
+      updateFields.push("end_date = ?");
+      updateArgs.push(end_date || null);
+      changes.push("end date updated");
     }
 
     if (updateFields.length === 0) {
