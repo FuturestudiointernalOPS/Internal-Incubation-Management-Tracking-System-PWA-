@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Layers,
+  ListTodo,
   Users,
   Rocket,
   Activity,
@@ -584,6 +585,52 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ── Section B — Internal Operations nav cards ── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            onClick={() => router.push("/admin/tasks")}
+            className="card hover:border-[var(--brand-orange)]/30 transition-all text-left"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <ListTodo className="w-5 h-5 text-blue-500" />
+              <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
+                {t("reports.tasks")}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 leading-relaxed">
+              Track execution status across all teams.
+            </p>
+          </button>
+          <button
+            onClick={() => router.push("/admin/blockers")}
+            className="card hover:border-[var(--brand-orange)]/30 transition-all text-left"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <Shield className="w-5 h-5 text-rose-500" />
+              <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">
+                {t("reports.blockers")}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 leading-relaxed">
+              Monitor active blockers, resolution progress, and aging issues.
+            </p>
+          </button>
+          <button
+            onClick={() => router.push("/admin/projects")}
+            className="card hover:border-[var(--brand-orange)]/30 transition-all text-left"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <Briefcase className="w-5 h-5 text-emerald-500" />
+              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                {t("reports.companyReports")}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 leading-relaxed">
+              View project progress, task completion rates, and blocker impact.
+            </p>
+          </button>
         </div>
 
         {/* ═══════════════════════════════════════════════ */}

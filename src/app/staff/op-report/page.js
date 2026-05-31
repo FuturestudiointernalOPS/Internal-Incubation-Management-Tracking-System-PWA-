@@ -94,6 +94,8 @@ export default function StaffOpReport() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskProject, setNewTaskProject] = useState("");
+  const [newTaskStartDate, setNewTaskStartDate] = useState("");
+  const [newTaskEndDate, setNewTaskEndDate] = useState("");
   const [creatingTask, setCreatingTask] = useState(false);
   const [reconciledTasks, setReconciledTasks] = useState({});
 
@@ -599,6 +601,20 @@ export default function StaffOpReport() {
                         placeholder={`${t("reports.projectName")} or ${t("reports.independentTask")} (optional)`}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
                       />
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="date"
+                          value={newTaskStartDate}
+                          onChange={(e) => setNewTaskStartDate(e.target.value)}
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                        />
+                        <input
+                          type="date"
+                          value={newTaskEndDate}
+                          onChange={(e) => setNewTaskEndDate(e.target.value)}
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                        />
+                      </div>
                       <button
                         type="button"
                         disabled={creatingTask || !newTaskTitle.trim()}
@@ -609,9 +625,7 @@ export default function StaffOpReport() {
                             const userId = user.cid || user.id;
                             const res = await fetch("/api/tasks", {
                               method: "POST",
-                              headers: {
-                                "Content-Type": "application/json",
-                              },
+                              headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 title: newTaskTitle.trim(),
                                 description: newTaskDescription.trim() || null,
@@ -620,6 +634,8 @@ export default function StaffOpReport() {
                                   t("reports.independentTask"),
                                 user_id: userId,
                                 status: "pending",
+                                start_date: newTaskStartDate || null,
+                                end_date: newTaskEndDate || null,
                               }),
                             });
                             const data = await res.json();
@@ -628,6 +644,8 @@ export default function StaffOpReport() {
                               setNewTaskTitle("");
                               setNewTaskDescription("");
                               setNewTaskProject("");
+                              setNewTaskStartDate("");
+                              setNewTaskEndDate("");
                               setTaskCreationOpen(false);
                               fetchTasks();
                             } else {
