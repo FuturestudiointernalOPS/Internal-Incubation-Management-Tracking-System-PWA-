@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   Rocket,
   Target,
@@ -37,6 +38,7 @@ export default function ParticipantProjectsOverview() {
   const [supportForm, setSupportForm] = useState({ category: "", message: "" });
   const [supportSending, setSupportSending] = useState(false);
   const [toast, setToast] = useState(null);
+  const { t } = useI18n();
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
@@ -131,7 +133,7 @@ export default function ParticipantProjectsOverview() {
             <BookOpen className="w-10 h-10 text-[var(--brand-orange)]" />
           </div>
           <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight">
-            No Programs Found
+            {t("common.noResults")}
           </h2>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
             You are not currently enrolled in any active programs. Please
@@ -161,11 +163,11 @@ export default function ParticipantProjectsOverview() {
           <div className="flex items-center gap-3 mb-2">
             <Rocket className="w-5 h-5 text-[var(--brand-orange)]" />
             <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.3em]">
-              Participant Portal
+              {t("participant.dashboard")}
             </span>
           </div>
           <h1 className="text-3xl lg:text-4xl font-black text-[var(--text-primary)] tracking-tight uppercase">
-            My Projects
+            {t("participant.myProjects")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-2">
             You are enrolled in{" "}
@@ -185,7 +187,7 @@ export default function ParticipantProjectsOverview() {
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.2em]">
-                This Week
+                {t("participant.thisWeek")}
               </span>
             </div>
             <div className="space-y-2.5">
@@ -262,7 +264,7 @@ export default function ParticipantProjectsOverview() {
                 });
                 return total === 0 ? (
                   <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-2">
-                    All caught up! No pending items.
+                    {t("common.noResults")}
                   </p>
                 ) : null;
               })()}
@@ -274,7 +276,7 @@ export default function ParticipantProjectsOverview() {
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" />
               <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">
-                Upcoming Deadlines
+                {t("participant.upcomingDeadlines")}
               </span>
             </div>
             <div className="space-y-2.5">
@@ -314,7 +316,7 @@ export default function ParticipantProjectsOverview() {
                     if (!sub || sub.status === "pending") {
                       items.push({
                         text: d.title,
-                        date: sub ? "Pending Review" : "Not Submitted",
+                        date: sub ? t("status.pending") : t("reports.pending"),
                         type: "deliverable",
                         program: prog.name,
                       });
@@ -324,7 +326,7 @@ export default function ParticipantProjectsOverview() {
                 if (items.length === 0) {
                   return (
                     <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-2">
-                      No upcoming deadlines.
+                      {t("common.noResults")}
                     </p>
                   );
                 }
@@ -376,7 +378,7 @@ export default function ParticipantProjectsOverview() {
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.2em]">
-                Recent Activity
+                {t("participant.activityTimeline")}
               </span>
             </div>
             <div className="space-y-2">
@@ -431,7 +433,7 @@ export default function ParticipantProjectsOverview() {
                 if (activities.length === 0) {
                   return (
                     <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-4">
-                      No recent activity.
+                      {t("common.noResults")}
                     </p>
                   );
                 }
@@ -462,7 +464,7 @@ export default function ParticipantProjectsOverview() {
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-[var(--brand-orange)]merald-500" />
               <span className="text-[9px] font-black text-[var(--brand-orange)]merald-500 uppercase tracking-[0.2em]">
-                My Progress
+                {t("participant.progressBreakdown")}
               </span>
             </div>
             <div className="space-y-4">
@@ -521,19 +523,19 @@ export default function ParticipantProjectsOverview() {
                 return (
                   <>
                     <ProgressBar
-                      label="Sessions"
+                      label={t("navigation.sessions")}
                       value={sessionPct}
                       detail={`${completedSessions}/${totalSessions}`}
                       color="bg-tertiarylue-500"
                     />
                     <ProgressBar
-                      label="Assignments"
+                      label={t("navigation.progress")}
                       value={delsPct}
                       detail={`${completedDels}/${totalDels}`}
                       color="bg-[var(--brand-orange)]"
                     />
                     <ProgressBar
-                      label="Submissions"
+                      label={t("common.submit")}
                       value={approvalPct}
                       detail={`${approvedSubs} approved`}
                       color="bg-tertiarymerald-500"
@@ -541,7 +543,7 @@ export default function ParticipantProjectsOverview() {
                     {pendingSubs > 0 && (
                       <div className="p-2 bg-tertiarymber-500/10 rounded-lg border border-amber-500/20 text-center">
                         <p className="text-[10px] font-black text-amber-500">
-                          {pendingSubs} pending review
+                          {pendingSubs} {t("status.pending")}
                         </p>
                       </div>
                     )}
@@ -569,7 +571,7 @@ export default function ParticipantProjectsOverview() {
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-[var(--brand-orange)]lue-500" />
                 <span className="text-[9px] font-black text-[var(--brand-orange)]lue-500 uppercase tracking-[0.2em]">
-                  Announcements
+                  {t("participant.announcements")}
                 </span>
               </div>
               <div className="space-y-3">
@@ -654,7 +656,7 @@ export default function ParticipantProjectsOverview() {
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
                       <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                        Progress
+                        {t("navigation.progress")}
                       </span>
                       <span className="text-sm font-black text-[var(--text-primary)]">
                         {pct}%
@@ -678,15 +680,16 @@ export default function ParticipantProjectsOverview() {
                   <div className="flex items-center gap-6 text-[9px] font-semibold text-[var(--text-secondary)]">
                     <span className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                      Week {week} of {totalWeeks}
+                      {t("time.week")} {week} of {totalWeeks}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Target className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                      {completedDels}/{totalDels} deliverables
+                      {completedDels}/{totalDels} {t("navigation.progress")}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                      {completedSessions}/{sessionCount} sessions
+                      {completedSessions}/{sessionCount}{" "}
+                      {t("navigation.sessions")}
                     </span>
                   </div>
                 </div>
@@ -728,7 +731,7 @@ export default function ParticipantProjectsOverview() {
             >
               <div className="flex justify-between items-center">
                 <h3 className="text-[var(--brand-orange)]ase font-black uppercase tracking-tight text-[var(--text-primary)]">
-                  Need Help?
+                  {t("participant.helpAndSupport")}
                 </h3>
                 <button onClick={() => setShowSupport(false)}>
                   <X className="w-5 h-5" />
@@ -782,10 +785,10 @@ export default function ParticipantProjectsOverview() {
                 className="w-full btn btn-primary py-4 gap-2"
               >
                 {supportSending ? (
-                  "Sending..."
+                  t("common.saving")
                 ) : (
                   <>
-                    <Send className="w-4 h-4" /> Send Request
+                    <Send className="w-4 h-4" /> {t("common.submit")}
                   </>
                 )}
               </button>

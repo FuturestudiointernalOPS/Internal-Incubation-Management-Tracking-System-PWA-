@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   BarChart3,
   Search,
@@ -96,6 +97,7 @@ export default function AdminOpReports() {
   // Tasks tab state
   const [allTasks, setAllTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
+  const { t } = useI18n();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -228,44 +230,54 @@ export default function AdminOpReports() {
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              Dashboard
+              {t("navigation.dashboard")}
             </button>
             <div className="flex items-center gap-2 mt-2">
               <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Operational Reports
+                {t("reports.operationalReports")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Company Reports
+              {t("reports.companyReports")}
             </h1>
           </div>
 
           <div className="flex gap-3">
-            <StatCard label="Total Reports" value={reports.length} />
-            <StatCard label="Team Members" value={users.length} />
-            <StatCard label="This Month" value={filteredReports.length} />
+            <StatCard
+              label={t("reports.totalReports")}
+              value={reports.length}
+            />
+            <StatCard label={t("reports.teamMembers")} value={users.length} />
+            <StatCard
+              label={t("reports.thisMonth")}
+              value={filteredReports.length}
+            />
           </div>
         </header>
 
         {/* TAB NAVIGATION */}
         <div className="flex gap-1 border-b border-[var(--border-primary)]">
           {[
-            { id: "feed", label: "Report Feed", icon: Activity },
-            { id: "monthly", label: "Monthly Breakdown", icon: Calendar },
+            { id: "feed", label: t("reports.reportFeed"), icon: Activity },
+            {
+              id: "monthly",
+              label: t("reports.monthlyBreakdown"),
+              icon: Calendar,
+            },
             {
               id: "tasks",
-              label: "Tasks",
+              label: t("reports.tasks"),
               icon: ListTodo,
             },
             {
               id: "blockers",
-              label: "Blockers",
+              label: t("reports.blockers"),
               icon: AlertTriangle,
             },
             {
               id: "trends",
-              label: "Trends & History",
+              label: t("reports.trends"),
               icon: TrendingUp,
             },
           ].map((tab) => (
@@ -291,7 +303,7 @@ export default function AdminOpReports() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, week, year..."
+              placeholder={t("common.search")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
@@ -320,8 +332,8 @@ export default function AdminOpReports() {
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">All Types</option>
-              <option value="standup">Stand-Up (Monday)</option>
-              <option value="retro">Retro (Friday)</option>
+              <option value="standup">{t("reports.mondayStandup")}</option>
+              <option value="retro">{t("reports.fridayRetro")}</option>
             </select>
           </div>
 
@@ -390,7 +402,7 @@ export default function AdminOpReports() {
                 <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
                   {viewingUser
                     ? `${viewingUser.name}'s Reports`
-                    : "Recent Reports"}
+                    : t("reports.recentReports")}
                 </h3>
                 {viewingUser && (
                   <button
@@ -408,7 +420,7 @@ export default function AdminOpReports() {
                 <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
                   <FileText className="w-16 h-16 mb-4" />
                   <p className="text-[10px] font-bold uppercase tracking-widest">
-                    No operational reports found
+                    {t("reports.noReportsFound")}
                   </p>
                 </div>
               ) : (
@@ -436,33 +448,33 @@ export default function AdminOpReports() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {[
                 {
-                  label: "Total",
+                  label: t("reports.totalReports"),
                   value: allTasks.length,
                   color: "text-[var(--text-primary)]",
                   bg: "bg-white/5",
                 },
                 {
-                  label: "In Progress",
+                  label: t("reports.inProgress"),
                   value: allTasks.filter((t) => t.status === "in_progress")
                     .length,
                   color: "text-blue-500",
                   bg: "bg-blue-500/10",
                 },
                 {
-                  label: "Blocked",
+                  label: t("status.blocked"),
                   value: allTasks.filter((t) => t.status === "blocked").length,
                   color: "text-rose-500",
                   bg: "bg-rose-500/10",
                 },
                 {
-                  label: "Completed",
+                  label: t("reports.completed"),
                   value: allTasks.filter((t) => t.status === "completed")
                     .length,
                   color: "text-emerald-500",
                   bg: "bg-emerald-500/10",
                 },
                 {
-                  label: "Carried Over",
+                  label: t("reports.carriedOver"),
                   value: allTasks.filter((t) => t.status === "carried_over")
                     .length,
                   color: "text-amber-500",
@@ -491,13 +503,13 @@ export default function AdminOpReports() {
             {/* Recent Tasks Table */}
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
-                Recent Tasks
+                {t("reports.recentReports")}
               </h3>
               <button
                 onClick={() => router.push("/admin/tasks")}
                 className="text-[9px] font-black text-indigo-500 uppercase hover:underline flex items-center gap-1"
               >
-                <ListTodo className="w-3 h-3" /> View All Tasks
+                <ListTodo className="w-3 h-3" /> {t("reports.viewAllTasks")}
               </button>
             </div>
 
@@ -507,7 +519,7 @@ export default function AdminOpReports() {
               <div className="card py-20 text-center opacity-40 border-dashed">
                 <ListTodo className="w-12 h-12 mx-auto mb-3" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">
-                  No tasks found
+                  {t("reports.noTasksFound")}
                 </p>
               </div>
             ) : (
@@ -575,11 +587,11 @@ export default function AdminOpReports() {
                               }`}
                             >
                               {{
-                                pending: "Pending",
-                                in_progress: "In Progress",
-                                blocked: "Blocked",
-                                completed: "Completed",
-                                carried_over: "Carried Over",
+                                pending: t("status.pending"),
+                                in_progress: t("reports.inProgress"),
+                                blocked: t("status.blocked"),
+                                completed: t("status.completed"),
+                                carried_over: t("reports.carriedOver"),
                               }[task.status] || task.status}
                             </span>
                           </td>
@@ -610,13 +622,13 @@ export default function AdminOpReports() {
         {activeTab === "blockers" && (
           <div className="space-y-6">
             <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
-              Blockers
+              {t("reports.blockers")}
             </h3>
             {blockerData.length === 0 ? (
               <div className="card py-20 text-center opacity-40 border-dashed">
                 <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">
-                  No blockers reported
+                  {t("reports.noBlockersFound")}
                 </p>
               </div>
             ) : (
@@ -841,7 +853,10 @@ export default function AdminOpReports() {
                           : "bg-amber-500/10 text-amber-500")
                       }
                     >
-                      {r.status}
+                      {{
+                        submitted: t("status.submitted"),
+                        draft: t("status.draft"),
+                      }[r.status] || r.status}
                     </span>
                   </div>
                 </button>
@@ -929,7 +944,10 @@ function ReportCard({ report, onClick }) {
                 : "bg-amber-500/10 text-amber-500"
             }`}
           >
-            {report.status}
+            {{
+              submitted: t("status.submitted"),
+              draft: t("status.draft"),
+            }[report.status] || report.status}
           </span>
           <button className="btn btn-secondary !p-3 rounded-xl border-[var(--border-primary)] group-hover:border-[var(--brand-orange)]">
             <Eye className="w-4 h-4" />
@@ -1437,8 +1455,8 @@ function ReportDetailModal({ report, onClose }) {
           <h1 className="text-2xl font-bold text-black">{report.user_name}</h1>
           <p className="text-sm text-gray-600 mt-1">
             {report.report_type === "standup"
-              ? "Monday Stand-Up"
-              : "Friday Retro"}{" "}
+              ? t("reports.mondayStandup")
+              : t("reports.fridayRetro")}{" "}
             — Week {report.week_number} · {report.year}
           </p>
         </div>
@@ -1492,7 +1510,7 @@ function ReportDetailModal({ report, onClose }) {
           onClick={onClose}
           className="btn btn-primary w-full py-4 font-bold uppercase tracking-widest print:hidden"
         >
-          Close Report
+          {t("common.close")}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   ArrowLeft,
   Calendar,
@@ -53,6 +54,8 @@ export default function ParticipantProjectDetail({ params }) {
     challenges: "",
     suggestions: "",
   });
+  const { t } = useI18n();
+
   const [grades] = useState({
     individualScore: 0,
     groupScore: 0,
@@ -161,13 +164,13 @@ export default function ParticipantProjectDetail({ params }) {
         <div className="max-w-lg mx-auto mt-20 text-center">
           <AlertCircle className="w-12 h-12 text-slate-600 mx-auto mb-4" />
           <h2 className="text-xl font-black text-white uppercase">
-            Program Not Found
+            {t("common.error")}
           </h2>
           <button
             onClick={() => router.push("/participant")}
             className="mt-6 text-[10px] font-black text-[#FF6600] uppercase tracking-widest hover:underline"
           >
-            ← Back to Projects
+            ← {t("common.back")}
           </button>
         </div>
       </DashboardLayout>
@@ -251,7 +254,7 @@ export default function ParticipantProjectDetail({ params }) {
           className="inline-flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-all group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          Back to Projects
+          {t("common.back")}
         </button>
 
         {/* ─── PROGRAM HEADER ─── */}
@@ -261,7 +264,7 @@ export default function ParticipantProjectDetail({ params }) {
               <div className="flex items-center gap-3 mb-2">
                 <Target className="w-4 h-4 text-[#FF6600]" />
                 <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.3em]">
-                  Active Program
+                  {t("participant.dashboard")}
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-[#FF6600]/10 text-[#FF6600] text-[9px] font-black uppercase tracking-widest">
                   Week {currentWeek}
@@ -279,7 +282,7 @@ export default function ParticipantProjectDetail({ params }) {
             <div className="w-full lg:w-64 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  Progress
+                  {t("navigation.progress")}
                 </span>
                 <span className="text-lg font-black text-white">
                   {metrics.percentComplete || 0}%
@@ -299,7 +302,7 @@ export default function ParticipantProjectDetail({ params }) {
                     (s) => s.status === "completed" || s.status === "current",
                   ).length
                 }{" "}
-                / {sessions.length} sessions completed
+                / {sessions.length} {t("navigation.sessions")}
               </p>
             </div>
           </div>
@@ -331,7 +334,8 @@ export default function ParticipantProjectDetail({ params }) {
             {/* LEFT: Week calendar */}
             <div className="lg:col-span-1 space-y-4">
               <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-3">
-                <Calendar className="w-4 h-4 text-[#FF6600]" /> Program Timeline
+                <Calendar className="w-4 h-4 text-[#FF6600]" />{" "}
+                {t("navigation.progress")}
               </h2>
               <div className="space-y-2">
                 {weeks.map((week) => (
@@ -434,7 +438,7 @@ export default function ParticipantProjectDetail({ params }) {
                                     <p
                                       className={`text-[8px] font-semibold uppercase ${!status ? "text-slate-600" : status === "approved" || status === "completed" ? "text-emerald-500" : status === "submitted" || status === "reviewed" ? "text-[#FF6600]" : "text-slate-600"}`}
                                     >
-                                      {status || "Pending"}
+                                      {status || t("status.pending")}
                                     </p>
                                   </div>
                                   {status === "approved" ||
@@ -457,7 +461,7 @@ export default function ParticipantProjectDetail({ params }) {
                             {week.sessions.length === 0 &&
                               week.deliverables.length === 0 && (
                                 <p className="text-[10px] text-slate-600 italic py-2">
-                                  No content for this week.
+                                  {t("common.noResults")}
                                 </p>
                               )}
                           </div>
@@ -470,7 +474,7 @@ export default function ParticipantProjectDetail({ params }) {
                   <div className="ios-card bg-[#0F172A] border-white/5 !p-8 text-center">
                     <Calendar className="w-8 h-8 text-slate-600 mx-auto mb-3" />
                     <p className="text-sm text-slate-500 font-semibold">
-                      No weeks have been configured yet.
+                      {t("common.noResults")}
                     </p>
                   </div>
                 )}
@@ -490,7 +494,7 @@ export default function ParticipantProjectDetail({ params }) {
                     <div className="ios-card bg-[#0F172A] border-white/5 !p-8 text-center">
                       <FileText className="w-8 h-8 text-slate-600 mx-auto mb-3" />
                       <p className="text-sm text-slate-500 font-semibold">
-                        No deliverables for this week.
+                        {t("common.noResults")}
                       </p>
                     </div>
                   )}
@@ -523,11 +527,11 @@ export default function ParticipantProjectDetail({ params }) {
                                   className={`text-[9px] font-semibold uppercase tracking-widest ${!status ? "text-slate-500" : status === "approved" || status === "completed" ? "text-emerald-500" : status === "submitted" || status === "reviewed" ? "text-[#FF6600]" : "text-slate-500"}`}
                                 >
                                   {!status
-                                    ? "Pending"
+                                    ? t("status.pending")
                                     : status === "approved"
-                                      ? "Completed"
+                                      ? t("status.completed")
                                       : status === "reviewed"
-                                        ? "Under Review"
+                                        ? t("status.inProgress")
                                         : status}
                                 </p>
                               </div>
@@ -583,7 +587,7 @@ export default function ParticipantProjectDetail({ params }) {
                 <div className="ios-card bg-[#0F172A] border-white/5 !p-8 text-center col-span-full">
                   <BookOpen className="w-8 h-8 text-slate-600 mx-auto mb-3" />
                   <p className="text-sm text-slate-500 font-semibold">
-                    No materials have been assigned yet.
+                    {t("common.noResults")}
                   </p>
                 </div>
               ) : (
@@ -713,7 +717,7 @@ export default function ParticipantProjectDetail({ params }) {
                   <div className="ios-card bg-[#0F172A] border-white/5 !p-8 text-center">
                     <MessageSquare className="w-8 h-8 text-slate-600 mx-auto mb-3" />
                     <p className="text-sm text-slate-500 font-semibold">
-                      No messages from your PM yet.
+                      {t("common.noResults")}
                     </p>
                   </div>
                 ) : (
@@ -824,7 +828,7 @@ export default function ParticipantProjectDetail({ params }) {
                     {deliverables.length}
                   </p>
                   <p className="text-[8px] text-slate-500 font-semibold uppercase tracking-widest">
-                    Total
+                    {t("navigation.progress")}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-emerald-500/5">
@@ -842,7 +846,7 @@ export default function ParticipantProjectDetail({ params }) {
                     }
                   </p>
                   <p className="text-[8px] text-emerald-400/70 font-semibold uppercase tracking-widest">
-                    Done
+                    {t("status.completed")}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-[#FF6600]/5">
@@ -856,7 +860,7 @@ export default function ParticipantProjectDetail({ params }) {
                     }
                   </p>
                   <p className="text-[8px] text-[#FF6600]/70 font-semibold uppercase tracking-widest">
-                    Pending
+                    {t("status.pending")}
                   </p>
                 </div>
               </div>
@@ -891,7 +895,7 @@ export default function ParticipantProjectDetail({ params }) {
                 ))}
                 {sessions.length === 0 && (
                   <p className="text-[10px] text-slate-600 italic text-center py-4">
-                    No sessions scheduled.
+                    {t("common.noResults")}
                   </p>
                 )}
               </div>

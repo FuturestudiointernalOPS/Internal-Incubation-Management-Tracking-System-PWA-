@@ -15,12 +15,14 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 export default function PMProgressHub() {
   const [programs, setPrograms] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const { t } = useI18n();
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -57,10 +59,10 @@ export default function PMProgressHub() {
               </div>
               <div>
                 <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
-                  Progress Registry
+                  {t("pm.dashboard")}
                 </h2>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">
-                  Tactical fulfillment auditing across all assigned theaters
+                  {t("pm.teamOverview")}
                 </p>
               </div>
             </div>
@@ -71,7 +73,7 @@ export default function PMProgressHub() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
               <input
                 type="text"
-                placeholder="Search Programs..."
+                placeholder={t("common.search")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm font-bold text-white outline-none focus:border-[#FF6600]/40 focus:bg-white/[0.08] transition-all"
@@ -115,7 +117,7 @@ export default function PMProgressHub() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-end">
                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
-                        Current Velocity
+                        {t("status.inProgress")}
                       </p>
                       <p className="text-sm font-black text-[#FF6600] italic leading-none">
                         {progress.toFixed(1)}%
@@ -136,7 +138,7 @@ export default function PMProgressHub() {
                 <div className="flex items-center gap-8 px-12 border-l border-white/5 hidden lg:flex">
                   <div className="text-center">
                     <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
-                      Complete
+                      {t("status.completed")}
                     </p>
                     <p className="text-xl font-black text-emerald-400 italic">
                       {prog.sessions_completed || 0}/{prog.sessions_count || 0}
@@ -145,7 +147,7 @@ export default function PMProgressHub() {
                   <div className="w-px h-8 bg-white/5" />
                   <div className="text-center">
                     <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
-                      Submissions
+                      {t("common.submit")}
                     </p>
                     <p className="text-xl font-black text-[#FF6600] italic">
                       {prog.submissions_approved || 0}/
@@ -155,7 +157,7 @@ export default function PMProgressHub() {
                   <div className="w-px h-8 bg-white/5" />
                   <div className="text-center">
                     <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
-                      Status
+                      {t("status.active")}
                     </p>
                     <p
                       className="text-xs font-black uppercase tracking-tighter italic"
@@ -163,7 +165,7 @@ export default function PMProgressHub() {
                         color: prog.status === "active" ? "#22c55e" : "#FF6600",
                       }}
                     >
-                      {prog.status || "Active"}
+                      {prog.status || t("status.active")}
                     </p>
                   </div>
                 </div>
@@ -179,9 +181,9 @@ export default function PMProgressHub() {
             <div className="ios-card bg-white/[0.01] border-dashed border-white/10 !p-24 flex flex-col items-center justify-center gap-6 opacity-40">
               <Target className="w-16 h-16 text-slate-800" />
               <p className="text-sm font-black text-slate-800 uppercase tracking-widest italic text-center leading-relaxed">
-                No assigned programs detected in your theater.
+                {t("common.noResults")}
                 <br />
-                Awaiting tactical deployment.
+                {t("common.loading")}
               </p>
             </div>
           )}

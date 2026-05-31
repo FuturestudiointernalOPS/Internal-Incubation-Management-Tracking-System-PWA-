@@ -1,0 +1,11 @@
+{
+  "time": {
+    "created": "Created",
+    "updated": "Updated",
+    "week": "Week",
+    "today": "Today",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "completedAt": "Completed at"
+  }
+}

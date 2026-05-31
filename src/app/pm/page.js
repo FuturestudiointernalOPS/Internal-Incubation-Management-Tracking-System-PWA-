@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * PROJECT MANAGER OPERATIONS HUB ÔÇö OPTIMIZED (V3)
@@ -40,6 +41,7 @@ export default function PMDashboard() {
     averageEngagement: "0%",
   });
   const [schedule, setSchedule] = useState([]);
+  const { t } = useI18n();
 
   useEffect(() => {
     const userString = localStorage.getItem("user");
@@ -123,15 +125,14 @@ export default function PMDashboard() {
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[#FF6600]" />
               <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.4em]">
-                Operations Hub
+                {t("pm.dashboard")}
               </span>
             </div>
             <h1
               className="text-5xl font-black tracking-tighter uppercase italic"
               style={{ color: "var(--text-primary)" }}
             >
-              Program{" "}
-              <span style={{ color: "var(--text-secondary)" }}>Oversight</span>
+              {t("pm.dashboard")}
             </h1>
           </div>
 
@@ -144,10 +145,10 @@ export default function PMDashboard() {
               }}
             >
               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">
-                System Integrity
+                {t("pm.teamOverview")}
               </span>
               <span className="text-emerald-500 font-black text-xs uppercase italic flex items-center gap-2">
-                <Activity className="w-3 h-3" /> Optimal Mode
+                <Activity className="w-3 h-3" /> {t("status.active")}
               </span>
             </div>
           </div>
@@ -157,19 +158,19 @@ export default function PMDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             {
-              label: "Total Participants",
+              label: t("pm.dashboard"),
               value: stats.totalParticipants,
               icon: Users,
               color: "text-[#FF6600]",
             },
             {
-              label: "Active Milestones",
+              label: t("admin.activePrograms"),
               value: stats.activeDeliverables,
               icon: Target,
               color: "text-[#FF6600]",
             },
             {
-              label: "Avg Engagement",
+              label: t("pm.teamOverview"),
               value: stats.averageEngagement,
               icon: TrendingUp,
               color: "text-emerald-400",
@@ -179,7 +180,7 @@ export default function PMDashboard() {
               <div className="flex justify-between items-center mb-4">
                 <stat.icon className={`w-6 h-6 ${stat.color} opacity-40`} />
                 <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest italic">
-                  Live Metric
+                  {t("time.thisWeek")}
                 </span>
               </div>
               <h4
@@ -205,7 +206,7 @@ export default function PMDashboard() {
             }}
           >
             <button className="px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-[#FF6600] text-black">
-              Active Programs
+              {t("admin.activePrograms")}
             </button>
             <button
               onClick={() =>
@@ -215,7 +216,7 @@ export default function PMDashboard() {
               }
               className="px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"
             >
-              Full Timeline
+              {t("time.thisMonth")}
             </button>
           </div>
 
@@ -224,7 +225,7 @@ export default function PMDashboard() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search programs..."
+              placeholder={t("common.search")}
               className="w-full border rounded-xl py-3.5 pl-12 pr-4 text-xs font-bold outline-none focus:border-[#FF6600]/50 transition-all"
               style={{
                 background: "var(--bg-secondary)",
@@ -241,19 +242,19 @@ export default function PMDashboard() {
             <thead>
               <tr className="bg-white/[0.02] border-b border-white/5">
                 <th className="px-8 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
-                  Operational Program
+                  {t("pm.programs")}
                 </th>
                 <th className="px-8 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
-                  Cohort Status
+                  {t("status.active")}
                 </th>
                 <th className="px-8 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
-                  Participation
+                  {t("pm.teamOverview")}
                 </th>
                 <th className="px-8 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
-                  Lifecycle Progress
+                  {t("time.created")}
                 </th>
                 <th className="px-8 py-6 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
-                  Actions
+                  {t("common.submit")}
                 </th>
               </tr>
             </thead>
@@ -277,7 +278,7 @@ export default function PMDashboard() {
                           {p.name}
                         </span>
                         <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1 italic line-clamp-1">
-                          {p.description || "Active Cohort Oversight"}
+                          {p.description || t("status.active")}
                         </span>
                       </div>
                     </div>
@@ -287,10 +288,10 @@ export default function PMDashboard() {
                       <span
                         className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest inline-block w-fit ${p.status === "active" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-slate-500/10 text-slate-500"}`}
                       >
-                        {p.status || "ACTIVE"}
+                        {p.status || t("status.active")}
                       </span>
                       <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest mt-2 italic flex items-center gap-1">
-                        <Clock className="w-2 h-2" /> Start:{" "}
+                        <Clock className="w-2 h-2" /> {t("time.created")}:
                         {new Date(p.created_at).toLocaleDateString()}
                       </span>
                     </div>
@@ -310,7 +311,7 @@ export default function PMDashboard() {
                         className="text-xs font-black italic"
                         style={{ color: "var(--text-primary)" }}
                       >
-                        {p.participant_count || 0} Members
+                        {p.participant_count || 0} {t("pm.teamOverview")}
                       </span>
                     </div>
                   </td>
@@ -318,7 +319,7 @@ export default function PMDashboard() {
                     <div className="space-y-3 w-40">
                       <div className="flex justify-between items-center">
                         <span className="text-[9px] font-black text-slate-600 uppercase italic">
-                          Completion
+                          {t("status.completed")}
                         </span>
                         <span className="text-[10px] font-black text-[#FF6600] italic">
                           {Math.round(p.completion_index || 0)}%
@@ -354,7 +355,7 @@ export default function PMDashboard() {
                     colSpan="5"
                     className="px-8 py-20 text-center text-slate-700 uppercase font-black italic tracking-widest"
                   >
-                    No programs anchored in your operational sector.
+                    {t("common.noResults")}
                   </td>
                 </tr>
               )}
@@ -373,10 +374,10 @@ export default function PMDashboard() {
                 className="text-xl font-black uppercase italic tracking-tighter"
                 style={{ color: "var(--text-primary)" }}
               >
-                Upcoming Milestones
+                {t("admin.viewAllPrograms")}
               </h3>
               <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest italic">
-                Live Feed
+                {t("time.thisWeek")}
               </span>
             </div>
             <div className="space-y-4">
@@ -420,7 +421,7 @@ export default function PMDashboard() {
               ))}
               {schedule.length === 0 && (
                 <p className="text-[10px] font-black text-slate-800 italic uppercase">
-                  Timeline clear.
+                  {t("common.noResults")}
                 </p>
               )}
             </div>
@@ -438,18 +439,18 @@ export default function PMDashboard() {
                 className="text-2xl font-black uppercase italic tracking-tighter"
                 style={{ color: "var(--text-primary)" }}
               >
-                Strategic Outreach
+                {t("navigation.communication")}
               </h3>
               <p className="text-xs font-bold text-slate-400 uppercase leading-relaxed tracking-tight">
-                Synchronize with your cohort members and operational staff.
-                Communications are restricted to your assigned identities.
+                {t("navigation.communication")}
               </p>
             </div>
             <button
               onClick={() => router.push("/pm/communications/contacts")}
               className="w-full bg-[#FF6600] text-black font-black uppercase italic tracking-widest py-5 rounded-2xl hover:bg-black hover:text-white transition-all flex items-center justify-center gap-3 mt-10"
             >
-              <MessageSquare className="w-5 h-5" /> Open Outreach Terminal
+              <MessageSquare className="w-5 h-5" />{" "}
+              {t("navigation.communication")}
             </button>
           </div>
         </div>

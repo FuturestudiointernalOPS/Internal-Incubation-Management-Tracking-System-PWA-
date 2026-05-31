@@ -73,7 +73,7 @@ export function I18nProvider({ children }) {
       if (activeResult != null) return activeResult;
 
       // Fallback to English
-      const englishResult = resolveKey(en, key);
+      const englishResult = resolveKey(LANGUAGES[DEFAULT_LANGUAGE], key);
       if (englishResult != null) return englishResult;
 
       // Last resort: return the key itself as a visible signal

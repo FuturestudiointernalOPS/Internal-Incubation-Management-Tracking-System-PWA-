@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * STAFF OPERATIONAL REPORT PAGE
@@ -42,6 +43,7 @@ function getCurrentWeek() {
 
 export default function StaffOpReport() {
   const router = useRouter();
+  const { t } = useI18n();
   const [user, setUser] = useState(null);
   const [reportType, setReportType] = useState("standup"); // "standup" | "retro"
   const [weekInfo, setWeekInfo] = useState(getCurrentWeek());
@@ -316,17 +318,17 @@ export default function StaffOpReport() {
 
         notify(
           status === "submitted"
-            ? "Report submitted successfully!"
-            : "Report saved as draft.",
+            ? t("reports.reportSubmitted")
+            : t("reports.reportSaved"),
           "success",
         );
         fetchReport();
         fetchHistory();
       } else {
-        notify(data.error || "Failed to save.", "error");
+        notify(data.error || t("reports.failedToSave"), "error");
       }
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("errors.networkError"), "error");
     } finally {
       setSaving(false);
     }
@@ -371,7 +373,7 @@ export default function StaffOpReport() {
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Weekly Report
+              {t("reports.weeklyReport")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
               Track your weekly priorities, deliverables, and progress
@@ -387,10 +389,12 @@ export default function StaffOpReport() {
             </button>
             <div className="text-center px-4">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Week {weekInfo.week} — {weekInfo.year}
+                {t("time.week")} {weekInfo.week} — {weekInfo.year}
               </p>
               <p className="text-[9px] font-bold text-[var(--text-secondary)] opacity-50 uppercase tracking-widest mt-0.5">
-                {reportType === "standup" ? "Monday Stand-Up" : "Friday Retro"}
+                {reportType === "standup"
+                  ? t("reports.mondayStandup")
+                  : t("reports.fridayRetro")}
               </p>
             </div>
             <button
@@ -412,7 +416,7 @@ export default function StaffOpReport() {
                 : "text-slate-500 hover:text-white"
             }`}
           >
-            <Calendar className="w-4 h-4" /> Monday Stand-Up
+            <Calendar className="w-4 h-4" /> {t("reports.mondayStandup")}
           </button>
           <button
             onClick={() => setReportType("retro")}
@@ -422,7 +426,7 @@ export default function StaffOpReport() {
                 : "text-slate-500 hover:text-white"
             }`}
           >
-            <Trophy className="w-4 h-4" /> Friday Retro
+            <Trophy className="w-4 h-4" /> {t("reports.fridayRetro")}
           </button>
         </div>
 
@@ -443,7 +447,7 @@ export default function StaffOpReport() {
               <>
                 {/* ─── OUTSTANDING WORK (Phase 4: Task Integration) ─── */}
                 <Section
-                  title="Outstanding Work"
+                  title={t("reports.outstandingWork")}
                   icon={FileText}
                   color="text-[var(--brand-orange)]"
                 >
@@ -451,12 +455,12 @@ export default function StaffOpReport() {
                     <div className="flex items-center gap-2 py-3">
                       <div className="w-4 h-4 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        Loading tasks...
+                        {t("common.loading")}
                       </span>
                     </div>
                   ) : tasks.length === 0 ? (
                     <p className="text-[10px] font-bold text-slate-500 italic py-3">
-                      No outstanding tasks found.
+                      {t("reports.noTasksFound")}
                     </p>
                   ) : (
                     <div className="space-y-4">
@@ -465,7 +469,8 @@ export default function StaffOpReport() {
                         0 && (
                         <div>
                           <h4 className="text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-2 flex items-center gap-1.5">
-                            <ChevronRight className="w-3 h-3" /> Carry Over
+                            <ChevronRight className="w-3 h-3" />{" "}
+                            {t("reports.carryOver")}
                           </h4>
                           <div className="space-y-1.5">
                             {tasks
@@ -480,7 +485,7 @@ export default function StaffOpReport() {
                                     {task.title}
                                   </span>
                                   <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500 shrink-0">
-                                    carried
+                                    {t("status.carriedOver")}
                                   </span>
                                 </div>
                               ))}
@@ -493,7 +498,8 @@ export default function StaffOpReport() {
                         0 && (
                         <div>
                           <h4 className="text-[9px] font-black uppercase tracking-widest text-rose-500 mb-2 flex items-center gap-1.5">
-                            <AlertTriangle className="w-3 h-3" /> Blocked
+                            <AlertTriangle className="w-3 h-3" />{" "}
+                            {t("reports.blocked")}
                           </h4>
                           <div className="space-y-1.5">
                             {tasks
@@ -508,7 +514,7 @@ export default function StaffOpReport() {
                                     {task.title}
                                   </span>
                                   <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 shrink-0">
-                                    blocked
+                                    {t("status.blocked")}
                                   </span>
                                 </div>
                               ))}
@@ -521,7 +527,7 @@ export default function StaffOpReport() {
                         0 && (
                         <div>
                           <h4 className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-2 flex items-center gap-1.5">
-                            <Target className="w-3 h-3" /> Active
+                            <Target className="w-3 h-3" /> {t("reports.active")}
                           </h4>
                           <div className="space-y-1.5">
                             {tasks
@@ -536,7 +542,7 @@ export default function StaffOpReport() {
                                     {task.title}
                                   </span>
                                   <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 shrink-0">
-                                    active
+                                    {t("status.active")}
                                   </span>
                                 </div>
                               ))}
@@ -557,7 +563,7 @@ export default function StaffOpReport() {
                     <div className="flex items-center gap-2">
                       <FileText className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
                       <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-                        Create Task
+                        {t("reports.createTask")}
                       </span>
                     </div>
                     <svg
@@ -576,21 +582,21 @@ export default function StaffOpReport() {
                         type="text"
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
-                        placeholder="Task title (required)"
+                        placeholder={`${t("reports.taskTitle")} (required)`}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
                       />
                       <textarea
                         value={newTaskDescription}
                         onChange={(e) => setNewTaskDescription(e.target.value)}
                         rows={2}
-                        placeholder="Description (optional)"
+                        placeholder={`${t("reports.taskDescription")} (optional)`}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
                       />
                       <input
                         type="text"
                         value={newTaskProject}
                         onChange={(e) => setNewTaskProject(e.target.value)}
-                        placeholder="Project name or 'Independent Task' (optional)"
+                        placeholder={`${t("reports.projectName")} or ${t("reports.independentTask")} (optional)`}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
                       />
                       <button
@@ -610,7 +616,8 @@ export default function StaffOpReport() {
                                 title: newTaskTitle.trim(),
                                 description: newTaskDescription.trim() || null,
                                 project:
-                                  newTaskProject.trim() || "Independent Task",
+                                  newTaskProject.trim() ||
+                                  t("reports.independentTask"),
                                 user_id: userId,
                                 status: "pending",
                               }),
@@ -637,7 +644,7 @@ export default function StaffOpReport() {
                         }}
                         className="w-full px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
                       >
-                        {creatingTask ? "Adding..." : "Add Task"}
+                        {creatingTask ? "Adding..." : t("reports.addTask")}
                       </button>
                     </div>
                   )}
@@ -992,22 +999,22 @@ export default function StaffOpReport() {
 
                 {/* TASK RECONCILIATION — Phase 5 */}
                 <Section
-                  title="Task Reconciliation"
+                  title={t("reports.taskReconciliation")}
                   icon={CheckCircle2}
                   color="text-purple-500"
                 >
                   <div className="space-y-3">
                     <p className="text-xs text-[var(--text-secondary)] mb-1">
-                      Review your outstanding tasks
+                      {t("reports.reviewTasks")}
                     </p>
 
                     {loadingTasks ? (
                       <p className="text-xs text-slate-500 italic">
-                        Loading tasks...
+                        {t("common.loading")}
                       </p>
                     ) : tasks.length === 0 ? (
                       <p className="text-xs text-slate-500 italic">
-                        No outstanding tasks to reconcile.
+                        {t("reports.noTasksFound")}
                       </p>
                     ) : (
                       <>
@@ -1064,7 +1071,7 @@ export default function StaffOpReport() {
                                         : "bg-primary text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-emerald-500/50"
                                     }`}
                                   >
-                                    Complete
+                                    {t("reports.completed")}
                                   </button>
                                   <button
                                     type="button"
@@ -1080,7 +1087,7 @@ export default function StaffOpReport() {
                                         : "bg-primary text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-indigo-500/50"
                                     }`}
                                   >
-                                    Carry Over
+                                    {t("reports.carryOver")}
                                   </button>
                                 </div>
                               </div>
@@ -1212,7 +1219,7 @@ export default function StaffOpReport() {
                 className="flex-1 btn btn-secondary gap-2 py-4"
               >
                 <Save className="w-4 h-4" />
-                {saving ? "Saving..." : "Save as Draft"}
+                {saving ? t("common.loading") : t("reports.saveDraft")}
               </button>
               <button
                 onClick={() => handleSubmit("submitted")}
@@ -1220,7 +1227,7 @@ export default function StaffOpReport() {
                 className="flex-1 btn btn-primary gap-2 py-4"
               >
                 <Send className="w-4 h-4" />
-                {saving ? "Submitting..." : "Submit Report"}
+                {saving ? t("common.loading") : t("reports.submitReport")}
               </button>
             </div>
           </div>
@@ -1228,7 +1235,7 @@ export default function StaffOpReport() {
           {/* SIDEBAR — Report History */}
           <div className="space-y-4">
             <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest border-b border-[var(--border-primary)] pb-3 flex items-center gap-2">
-              <Clock className="w-3 h-3" /> Your Report History
+              <Clock className="w-3 h-3" /> {t("staff.myReports")}
             </h3>
             <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
               {history.length === 0 ? (
@@ -1260,8 +1267,8 @@ export default function StaffOpReport() {
                         <p className="text-[9px] font-black uppercase tracking-wider">
                           W{report.week_number} ·{" "}
                           {report.report_type === "standup"
-                            ? "Stand-Up"
-                            : "Retro"}
+                            ? t("reports.mondayStandup")
+                            : t("reports.fridayRetro")}
                         </p>
                         <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
                           {new Date(report.created_at).toLocaleDateString()}

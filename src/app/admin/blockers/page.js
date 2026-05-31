@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   Search,
   Filter,
@@ -62,6 +63,7 @@ export default function AdminBlockers() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterUser, setFilterUser] = useState("All Users");
   const [viewingBlocker, setViewingBlocker] = useState(null);
+  const { t } = useI18n();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -156,11 +158,11 @@ export default function AdminBlockers() {
             <div className="flex items-center gap-2 mt-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Internal Operations
+                {t("navigation.internalReports")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Blockers
+              {t("reports.blockers")}
             </h1>
           </div>
 
@@ -169,13 +171,13 @@ export default function AdminBlockers() {
               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
                 <AlertTriangle className="w-4 h-4 text-rose-500" />
                 <span className="text-xs font-black text-rose-500">
-                  {stats.active} Active
+                  {stats.active} {t("reports.active")}
                 </span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 <span className="text-xs font-black text-emerald-500">
-                  {stats.resolved} Resolved
+                  {stats.resolved} {t("reports.resolved")}
                 </span>
               </div>
             </div>
@@ -188,7 +190,7 @@ export default function AdminBlockers() {
             <AlertTriangle className="w-6 h-6 text-rose-500" />
             <div>
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                Active Blockers
+                {t("reports.active")}
               </p>
               <p className="text-2xl font-black text-rose-500">
                 {stats.active}
@@ -199,7 +201,7 @@ export default function AdminBlockers() {
             <CheckCircle2 className="w-6 h-6 text-emerald-500" />
             <div>
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                Resolved Blockers
+                {t("reports.resolved")}
               </p>
               <p className="text-2xl font-black text-emerald-500">
                 {stats.resolved}
@@ -210,7 +212,7 @@ export default function AdminBlockers() {
             <Shield className="w-6 h-6 text-[var(--brand-orange)]" />
             <div>
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                Total Blockers
+                {t("reports.blockers")}
               </p>
               <p className="text-2xl font-black">{stats.total}</p>
             </div>
@@ -224,7 +226,7 @@ export default function AdminBlockers() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search blockers, users..."
+              placeholder={t("common.search")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
@@ -253,8 +255,8 @@ export default function AdminBlockers() {
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="resolved">Resolved</option>
+              <option value="active">{t("status.active")}</option>
+              <option value="resolved">{t("status.resolved")}</option>
             </select>
           </div>
         </div>
@@ -266,7 +268,7 @@ export default function AdminBlockers() {
           <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
             <Shield className="w-16 h-16 mb-4" />
             <p className="text-[10px] font-bold uppercase tracking-widest">
-              No blockers found
+              {t("reports.noBlockersFound")}
             </p>
             <p className="text-[9px] text-slate-500 mt-2">
               Blockers will appear here once tied to tasks.
@@ -294,10 +296,10 @@ export default function AdminBlockers() {
                       Status
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Created
+                      {t("time.created")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Resolved
+                      {t("time.updated")}
                     </th>
                   </tr>
                 </thead>
@@ -360,7 +362,9 @@ export default function AdminBlockers() {
                               : "bg-emerald-500/10 text-emerald-500"
                           }`}
                         >
-                          {blocker.status === "active" ? "Active" : "Resolved"}
+                          {blocker.status === "active"
+                            ? t("status.active")
+                            : t("status.resolved")}
                         </span>
                       </td>
                       <td className="text-center p-4">
@@ -466,8 +470,8 @@ export default function AdminBlockers() {
                       }`}
                     >
                       {viewingBlocker.status === "active"
-                        ? "Active"
-                        : "Resolved"}
+                        ? t("status.active")
+                        : t("status.resolved")}
                     </span>
                   </div>
                 </div>
@@ -475,7 +479,7 @@ export default function AdminBlockers() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Created
+                      {t("time.created")}
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
                       {new Date(viewingBlocker.created_at).toLocaleDateString()}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   Layers,
   Users,
@@ -154,6 +155,7 @@ export default function AdminDashboard() {
   const [processingId, setProcessingId] = useState(null);
   const [expandedSections, setExpandedSections] = useState({});
   const router = useRouter();
+  const { t } = useI18n();
 
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -305,11 +307,11 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
               <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
-                Operational Intelligence
+                {t("reports.operationalReports")}
               </span>
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-[var(--text-primary)]">
-              ADMIN COMMAND
+              {t("admin.command")}
             </h1>
           </div>
           <div className="flex gap-3">
@@ -317,7 +319,7 @@ export default function AdminDashboard() {
               onClick={() => router.push("/admin/programs/new")}
               className="btn btn-primary gap-2"
             >
-              <Plus className="w-4 h-4" /> New Program
+              <Plus className="w-4 h-4" /> {t("admin.newProgram")}
             </button>
           </div>
         </header>
@@ -370,7 +372,7 @@ export default function AdminDashboard() {
         <div className="space-y-6">
           <SectionHeader
             number="A"
-            title="Program Operations"
+            title={t("admin.programOperations")}
             subtitle="Educational / Program Performance"
             icon={Briefcase}
             color="bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
@@ -379,13 +381,13 @@ export default function AdminDashboard() {
                 onClick={() => router.push("/admin/programs")}
                 className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline"
               >
-                View All Programs
+                {t("admin.viewAllPrograms")}
               </button>
             }
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard
-              title="Active Programs"
+              title={t("admin.activePrograms")}
               value={stats.programs}
               icon={Layers}
               color="text-[var(--brand-orange)]"
@@ -394,7 +396,7 @@ export default function AdminDashboard() {
               loading={loading}
             />
             <StatCard
-              title="Total Participants"
+              title={t("admin.totalParticipants")}
               value={stats.participants}
               icon={Users}
               color="text-blue-500"
@@ -402,7 +404,7 @@ export default function AdminDashboard() {
               loading={loading}
             />
             <StatCard
-              title="Operational Staff"
+              title={t("admin.operationalStaff")}
               value={stats.totalStaff}
               icon={Rocket}
               color="text-emerald-500"
@@ -418,7 +420,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between mb-6">
                 <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[var(--brand-orange)]" />{" "}
-                  Recent Signal Feed
+                  {t("reports.recentReports")}
                 </h4>
               </div>
               <div className="space-y-3">
@@ -447,7 +449,7 @@ export default function AdminDashboard() {
                   ))
                 ) : (
                   <p className="text-[10px] text-[var(--text-secondary)] italic opacity-50 py-8 text-center">
-                    Awaiting incoming signals...
+                    {t("common.noResults")}
                   </p>
                 )}
               </div>
@@ -456,14 +458,14 @@ export default function AdminDashboard() {
             <div className="card">
               <div className="flex items-center justify-between mb-6">
                 <h4 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-emerald-500" /> Active
-                  Programs
+                  <Layers className="w-4 h-4 text-emerald-500" />{" "}
+                  {t("admin.activePrograms")}
                 </h4>
                 <button
                   onClick={() => router.push("/admin/programs")}
                   className="text-[9px] font-bold text-[var(--brand-orange)] uppercase hover:underline"
                 >
-                  View All
+                  {t("common.viewAll")}
                 </button>
               </div>
               <div className="space-y-3">
@@ -497,7 +499,7 @@ export default function AdminDashboard() {
                   ))
                 ) : (
                   <p className="text-[10px] text-[var(--text-secondary)] italic opacity-50 py-8 text-center">
-                    No active programs found.
+                    {t("common.noResults")}
                   </p>
                 )}
               </div>
@@ -511,7 +513,7 @@ export default function AdminDashboard() {
         <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
           <SectionHeader
             number="B"
-            title="Internal Operations"
+            title={t("admin.internalOperations")}
             subtitle="Staff Reporting & Operational Activity"
             icon={BarChart3}
             color="bg-indigo-500/10 text-indigo-500"
@@ -520,13 +522,13 @@ export default function AdminDashboard() {
                 onClick={() => router.push("/admin/op-reports")}
                 className="text-[9px] font-black text-indigo-400 uppercase hover:underline"
               >
-                View All Reports
+                {t("admin.viewAllReports")}
               </button>
             }
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard
-              title="Monday Stand-Ups"
+              title={t("admin.mondayStandups")}
               value={opStats.standups}
               icon={Calendar}
               color="text-[var(--brand-orange)]"
@@ -535,7 +537,7 @@ export default function AdminDashboard() {
               onClick={() => router.push("/admin/op-reports")}
             />
             <StatCard
-              title="Friday Retros"
+              title={t("admin.fridayRetros")}
               value={opStats.retros}
               icon={CheckCircle2}
               color="text-emerald-500"
@@ -543,7 +545,7 @@ export default function AdminDashboard() {
               onClick={() => router.push("/admin/op-reports")}
             />
             <StatCard
-              title="Blockers Reported"
+              title={t("admin.blockersReported")}
               value={opStats.blockers}
               icon={AlertTriangle}
               color="text-rose-500"
@@ -564,7 +566,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                  Blocker Rate
+                  {t("admin.blockerRate")}
                 </p>
                 <p className="text-lg font-black">
                   {opStats.standups + opStats.retros > 0
@@ -590,7 +592,7 @@ export default function AdminDashboard() {
         <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
           <SectionHeader
             number="C"
-            title="Team Accountability"
+            title={t("admin.teamAccountability")}
             subtitle="Reporting Reliability & Staff Consistency"
             icon={Users}
             color="bg-emerald-500/10 text-emerald-500"
@@ -618,7 +620,7 @@ export default function AdminDashboard() {
               <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
               <div>
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                  Consistent
+                  {t("admin.consistent")}
                 </p>
                 <p className="text-xl font-black">
                   {
@@ -632,7 +634,7 @@ export default function AdminDashboard() {
               <Clock className="w-5 h-5 text-amber-500 shrink-0" />
               <div>
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                  At Risk
+                  {t("admin.atRisk")}
                 </p>
                 <p className="text-xl font-black">
                   {
@@ -648,7 +650,7 @@ export default function AdminDashboard() {
               <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
               <div>
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                  Inactive
+                  {t("admin.inactive")}
                 </p>
                 <p className="text-xl font-black">
                   {stats.totalStaff - staffReports.length > 0
@@ -667,22 +669,22 @@ export default function AdminDashboard() {
                   <thead>
                     <tr className="border-b border-[var(--border-primary)]">
                       <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Team Member
+                        {t("reports.teamMembers")}
                       </th>
                       <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Stand-Ups
+                        {t("reports.mondayStandup")}
                       </th>
                       <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Retros
+                        {t("reports.fridayRetro")}
                       </th>
                       <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Blockers
+                        {t("reports.blockers")}
                       </th>
                       <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Status
+                        {t("common.filter")}
                       </th>
                       <th className="text-right p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Last Report
+                        {t("time.updated")}
                       </th>
                     </tr>
                   </thead>
@@ -744,10 +746,10 @@ export default function AdminDashboard() {
                                 }`}
                               >
                                 {status === "active"
-                                  ? "✅ Active"
+                                  ? t("status.active")
                                   : status === "at_risk"
-                                    ? "⚠️ At Risk"
-                                    : "🔴 Inactive"}
+                                    ? t("admin.atRisk")
+                                    : t("admin.inactive")}
                               </span>
                             </td>
                             <td className="text-right p-4 text-[10px] text-slate-500">
@@ -764,7 +766,7 @@ export default function AdminDashboard() {
                           colSpan={6}
                           className="p-8 text-center text-[10px] text-slate-500 italic"
                         >
-                          No reports submitted yet.
+                          {t("reports.noReportsFound")}
                         </td>
                       </tr>
                     )}
@@ -789,7 +791,7 @@ export default function AdminDashboard() {
         <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
           <SectionHeader
             number="D"
-            title="Risks & Blockers"
+            title={t("admin.risksAndBlockers")}
             subtitle="Recurring Operational Problems"
             icon={AlertTriangle}
             color="bg-rose-500/10 text-rose-500"
@@ -798,7 +800,7 @@ export default function AdminDashboard() {
             {/* Top blockers by type */}
             <div className="card">
               <h4 className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-4">
-                Top Blockers This Month
+                {t("admin.topBlockers")}
               </h4>
               {blockerTypes.length > 0 ? (
                 <div className="space-y-3">
@@ -828,7 +830,7 @@ export default function AdminDashboard() {
                 <div className="py-12 text-center">
                   <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3 opacity-40" />
                   <p className="text-[10px] text-slate-500 italic">
-                    No blockers reported yet.
+                    {t("reports.noBlockersFound")}
                   </p>
                 </div>
               )}
@@ -838,7 +840,7 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               <div className="card">
                 <h4 className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-4">
-                  Open Support Requests
+                  {t("admin.openSupportRequests")}
                 </h4>
                 {opStats.support > 0 ? (
                   <p className="text-3xl font-black text-amber-500">
@@ -848,14 +850,14 @@ export default function AdminDashboard() {
                   <div className="py-8 text-center">
                     <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-40" />
                     <p className="text-[10px] text-slate-500 italic">
-                      All clear — no pending requests.
+                      {t("common.noResults")}
                     </p>
                   </div>
                 )}
               </div>
               <div className="card">
                 <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                  Quick Actions
+                  {t("admin.quickActions")}
                 </h4>
                 <div className="space-y-2">
                   <button
@@ -863,7 +865,7 @@ export default function AdminDashboard() {
                     className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-rose-500/30 transition-all"
                   >
                     <span className="text-[10px] font-bold uppercase tracking-tight">
-                      View All Blockers
+                      {t("admin.viewAllBlockers")}
                     </span>
                     <Eye className="w-3.5 h-3.5 text-rose-500" />
                   </button>
@@ -874,7 +876,7 @@ export default function AdminDashboard() {
                     className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-amber-500/30 transition-all"
                   >
                     <span className="text-[10px] font-bold uppercase tracking-tight">
-                      Blocker Reports
+                      {t("admin.blockerReports")}
                     </span>
                     <BarChart3 className="w-3.5 h-3.5 text-amber-500" />
                   </button>
@@ -890,7 +892,7 @@ export default function AdminDashboard() {
         <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
           <SectionHeader
             number="E"
-            title="Historical Intelligence"
+            title={t("admin.historicalIntelligence")}
             subtitle="Long-Term Operational Visibility"
             icon={Clock}
             color="bg-blue-500/10 text-blue-500"
@@ -912,7 +914,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3 mb-3">
                 <Calendar className="w-5 h-5 text-blue-500" />
                 <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
-                  Report Archive
+                  {t("admin.reportArchive")}
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 leading-relaxed">
@@ -927,7 +929,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3 mb-3">
                 <BarChart3 className="w-5 h-5 text-blue-500" />
                 <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
-                  Reports Hub
+                  {t("admin.reportsHub")}
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 leading-relaxed">
@@ -941,7 +943,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3 mb-3">
                 <FileText className="w-5 h-5 text-blue-500" />
                 <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
-                  Report Responses
+                  {t("admin.reportResponses")}
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 leading-relaxed">

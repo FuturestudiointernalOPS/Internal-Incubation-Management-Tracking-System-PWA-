@@ -1,0 +1,11 @@
+{
+  "time": {
+    "created": "Créé",
+    "updated": "Mis à jour",
+    "week": "Semaine",
+    "today": "Aujourd'hui",
+    "thisWeek": "Cette semaine",
+    "thisMonth": "Ce mois-ci",
+    "completedAt": "Terminé le"
+  }
+}

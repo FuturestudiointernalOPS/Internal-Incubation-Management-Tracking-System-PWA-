@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   BarChart3,
   Search,
@@ -68,11 +69,14 @@ const STATUS_CONFIG = {
   },
 };
 
-function formatStatusLabel(status) {
+function formatStatusLabel(status, t) {
   const config = STATUS_CONFIG[status];
-  return config
-    ? config.label
-    : status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  if (config) {
+    const statusKey =
+      "status." + status.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    return t ? t(statusKey) : config.label;
+  }
+  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function getStatusColor(status) {
@@ -97,6 +101,7 @@ export default function AdminTasks() {
   const [sortBy, setSortBy] = useState("newest");
   const [viewingTask, setViewingTask] = useState(null);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const { t } = useI18n();
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -226,23 +231,25 @@ export default function AdminTasks() {
             <div className="flex items-center gap-2 mt-2">
               <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Internal Operations
+                {t("navigation.internalReports")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Task Management
+              {t("reports.taskManagement")}
             </h1>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-xs font-black">{tasks.length} Tasks</span>
+              <span className="text-xs font-black">
+                {tasks.length} {t("reports.tasks")}
+              </span>
             </div>
             <button
               onClick={fetchTasks}
               className="p-2 rounded-xl hover:bg-white/5 transition-all"
-              title="Refresh"
+              title={t("common.refresh")}
             >
               <RefreshCw className="w-4 h-4 text-slate-500" />
             </button>
@@ -253,37 +260,37 @@ export default function AdminTasks() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             {
-              label: "Total",
+              label: t("reports.totalReports"),
               value: stats.total,
               color: "text-[var(--text-primary)]",
               bg: "bg-white/5",
             },
             {
-              label: "Pending",
+              label: t("reports.pending"),
               value: stats.pending,
               color: "text-slate-400",
               bg: "bg-slate-500/10",
             },
             {
-              label: "In Progress",
+              label: t("reports.inProgress"),
               value: stats.inProgress,
               color: "text-blue-500",
               bg: "bg-blue-500/10",
             },
             {
-              label: "Blocked",
+              label: t("reports.blocked"),
               value: stats.blocked,
               color: "text-rose-500",
               bg: "bg-rose-500/10",
             },
             {
-              label: "Completed",
+              label: t("reports.completed"),
               value: stats.completed,
               color: "text-emerald-500",
               bg: "bg-emerald-500/10",
             },
             {
-              label: "Carried Over",
+              label: t("reports.carriedOver"),
               value: stats.carriedOver,
               color: "text-amber-500",
               bg: "bg-amber-500/10",
@@ -312,7 +319,7 @@ export default function AdminTasks() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search tasks, users, weeks..."
+              placeholder={t("common.search")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
@@ -341,11 +348,11 @@ export default function AdminTasks() {
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="blocked">Blocked</option>
-              <option value="completed">Completed</option>
-              <option value="carried_over">Carried Over</option>
+              <option value="pending">{t("status.pending")}</option>
+              <option value="in_progress">{t("status.inProgress")}</option>
+              <option value="blocked">{t("status.blocked")}</option>
+              <option value="completed">{t("status.completed")}</option>
+              <option value="carried_over">{t("status.carriedOver")}</option>
             </select>
           </div>
 
@@ -389,7 +396,7 @@ export default function AdminTasks() {
           <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
             <ListTodo className="w-16 h-16 mb-4" />
             <p className="text-[10px] font-bold uppercase tracking-widest">
-              No tasks found
+              {t("reports.noTasksFound")}
             </p>
             <p className="text-[9px] text-slate-500 mt-2">
               Tasks will appear here once created during standups.
@@ -414,13 +421,13 @@ export default function AdminTasks() {
                       Status
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Created
+                      {t("time.created")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Updated
+                      {t("time.updated")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Carry-Over
+                      {t("reports.carryOver")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                       Blockers
@@ -473,7 +480,7 @@ export default function AdminTasks() {
                         <span
                           className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${getStatusBg(task.status)} ${getStatusColor(task.status)}`}
                         >
-                          {formatStatusLabel(task.status)}
+                          {formatStatusLabel(task.status, t)}
                         </span>
                       </td>
                       <td className="text-center p-4">
@@ -633,12 +640,12 @@ export default function AdminTasks() {
                     <span
                       className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${getStatusBg(viewingTask.status)} ${getStatusColor(viewingTask.status)}`}
                     >
-                      {formatStatusLabel(viewingTask.status)}
+                      {formatStatusLabel(viewingTask.status, t)}
                     </span>
                   </div>
                   <div>
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Carry-Over Count
+                      {t("reports.carryOver")}
                     </p>
                     <p className="text-xs font-bold text-amber-500">
                       {getCarryOverCount(viewingTask)}
@@ -649,7 +656,7 @@ export default function AdminTasks() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Created
+                      {t("time.created")}
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
                       Week {viewingTask.created_week} ·{" "}
@@ -658,7 +665,7 @@ export default function AdminTasks() {
                   </div>
                   <div>
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Last Updated
+                      {t("time.updated")}
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
                       {new Date(
@@ -682,7 +689,7 @@ export default function AdminTasks() {
                 {viewingTask.carried_over_from_task_id && (
                   <div className="bg-amber-500/5 p-3 rounded-xl">
                     <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-1">
-                      Carry-Over Chain
+                      {t("reports.carryOver")}
                     </p>
                     <p className="text-[10px] text-slate-500">
                       Originally created as Task #
@@ -709,7 +716,9 @@ export default function AdminTasks() {
                           <span
                             className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"}`}
                           >
-                            {b.status}
+                            {b.status === "active"
+                              ? t("status.active")
+                              : t("status.resolved")}
                           </span>
                         </div>
                       ))}
@@ -719,7 +728,7 @@ export default function AdminTasks() {
 
                 <div className="pt-4 border-t border-[var(--border-primary)]">
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                    Quick Status Update
+                    {t("admin.quickActions")}
                   </p>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {["pending", "in_progress", "blocked", "completed"].map(
@@ -734,7 +743,10 @@ export default function AdminTasks() {
                             }}
                             className={`text-[8px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border transition-all ${STATUS_CONFIG[s]?.bg} ${STATUS_CONFIG[s]?.color} ${STATUS_CONFIG[s]?.border} hover:brightness-110`}
                           >
-                            {STATUS_CONFIG[s]?.label}
+                            {t(
+                              "status." +
+                                (s === "in_progress" ? "inProgress" : s),
+                            )}
                           </button>
                         );
                       },

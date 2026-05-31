@@ -29,6 +29,8 @@ import {
   Library,
   Globe,
   BarChart3,
+  UserCheck,
+  UploadCloud,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -260,6 +262,18 @@ const NAVIGATION_MATRIX = {
       ],
     },
     {
+      id: "pending_users",
+      name: "PENDING USERS",
+      icon: UserCheck,
+      href: "/admin/pending-users",
+    },
+    {
+      id: "bulk_upload",
+      name: "BULK UPLOAD",
+      icon: UploadCloud,
+      href: "/admin/bulk-upload",
+    },
+    {
       id: "knowledge",
       name: "KNOWLEDGE BASE",
       icon: Library,
@@ -298,7 +312,13 @@ const NAVIGATION_MATRIX = {
       href: "/admin/projects",
     },
     { id: "logs", name: "ACTIVITY LOGS", icon: FileText, href: "/admin/logs" },
-    { id: "reports", name: "REPORTS", icon: BarChart3, href: "/admin/reports" },
+    {
+      id: "reports",
+      name: "REPORTS",
+      icon: BarChart3,
+    
+      href: "/admin/reports",
+    },
   ],
   program_manager: [
     { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: "/pm" },
@@ -508,7 +528,12 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     return items;
   }, [user.role, role, pmPrograms]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/session-logout", { method: "POST" });
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
     localStorage.clear();
     router.replace("/login");
   };

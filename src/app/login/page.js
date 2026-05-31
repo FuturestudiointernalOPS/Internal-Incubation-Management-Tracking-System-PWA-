@@ -30,7 +30,7 @@ export default function LoginPage() {
     setErrorMsg("");
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/session-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -40,9 +40,7 @@ export default function LoginPage() {
 
       if (data.success) {
         setSuccess(true);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        localStorage.setItem("impactos_lang", data.user.language);
-        // Show success state then redirect like terminal does
+        // Show success state then redirect
         setTimeout(() => {
           if (data.user.role === "super_admin") {
             router.push("/admin");
@@ -130,6 +128,16 @@ export default function LoginPage() {
                   )}
                 </button>
               </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => router.push("/forgot-password")}
+                className="text-[9px] font-bold text-[var(--brand-orange)] hover:underline uppercase tracking-wider"
+              >
+                Forgot Password?
+              </button>
             </div>
 
             <button
