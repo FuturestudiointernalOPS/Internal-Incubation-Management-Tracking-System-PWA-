@@ -115,6 +115,7 @@ export async function POST(req) {
       description,
       status,
       project_id,
+      category,
       created_week,
       created_year,
       carried_over_from_task_id,
@@ -132,28 +133,98 @@ export async function POST(req) {
       );
     }
 
+    // Phase 1: Task must have project_id OR category (not both empty)
+    if (!project_id && !category) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Task must be linked to a project or have a category.",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Phase 5: Auto-generate start_date from created_at if not provided
+    const finalStartDate = start_date || new Date().toISOString().split("T")[0];
+    const finalEndDate = end_date || null;
+
+    // Phase 2: Check project assignment if project_id provided
+    let finalStatus = status || "pending";
+    let pendingApproval = false;
+
+    if (project_id) {
+      const memberCheck = await db.execute({
+        sql: "SELECT id FROM project_members WHERE project_id = ? AND user_cid = ?",
+        args: [parseInt(project_id), user_id],
+      });
+
+      if (memberCheck.rows.length === 0) {
+        // Staff not assigned to this project — flag for approval
+        finalStatus = "pending_project_approval";
+        pendingApproval = true;
+      }
+    }
+
     const result = await db.execute({
       sql: `INSERT INTO tasks
-        (user_id, user_name, title, description, status, project_id,
+        (user_id, user_name, title, description, status, project_id, category,
          created_week, created_year, carried_over_from_task_id,
          start_date, end_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         user_id,
         user_name || "",
         title,
         description || null,
-        status || "pending",
+        finalStatus,
         project_id || null,
+        category || null,
         created_week,
         created_year,
         carried_over_from_task_id || null,
-        start_date || null,
-        end_date || null,
+        finalStartDate,
+        finalEndDate,
       ],
     });
 
     const taskId = Number(result.lastInsertRowid);
+
+    // Phase 2: Create approval request + notification if pending
+    if (pendingApproval && project_id) {
+      // Create approval request record
+      await db.execute({
+        sql: `INSERT INTO project_approval_requests
+          (task_id, requester_id, requester_name, project_id, status)
+          VALUES (?, ?, ?, ?, 'pending')`,
+        args: [taskId, user_id, user_name || "", parseInt(project_id)],
+      });
+
+      // Notify Super Admin / PMs
+      try {
+        const projectInfo = await db.execute({
+          sql: "SELECT name FROM v2_projects WHERE id = ?",
+          args: [parseInt(project_id)],
+        });
+        const projectName =
+          projectInfo.rows[0]?.name || `Project #${project_id}`;
+
+        await fetch(new URL("/api/notifications", req.url).toString(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recipient_id: "sa",
+            title: "Project Assignment Request",
+            message: `${user_name || user_id} requested to link task "${title}" to "${projectName}"`,
+            type: "approval",
+          }),
+        });
+      } catch (notifErr) {
+        console.error(
+          "Failed to send approval notification:",
+          notifErr.message,
+        );
+      }
+    }
 
     // Audit log: Task Created
     await logAuditEvent({
@@ -161,12 +232,13 @@ export async function POST(req) {
       entity_id: taskId,
       user_id,
       user_name: user_name || "",
-      action: "created",
-      details: `Task "${title}" created (Week ${created_week}, ${created_year})`,
+      action: pendingApproval ? "created_pending_approval" : "created",
+      details: `Task "${title}" created${pendingApproval ? " (pending project approval)" : ""} (Week ${created_week}, ${created_year})`,
       metadata: {
         title,
-        status: status || "pending",
+        status: finalStatus,
         project_id,
+        category,
         created_week,
         created_year,
       },
@@ -178,15 +250,18 @@ export async function POST(req) {
       project_id,
       actor_id: user_id,
       target_user_id: user_id,
-      action_type: ACTION_TYPES.TASK_CREATED,
-      new_state: { title, status: status || "pending", project_id },
-      description: `Task "${title}" created`,
+      action_type: pendingApproval
+        ? ACTION_TYPES.TASK_UPDATED
+        : ACTION_TYPES.TASK_CREATED,
+      new_state: { title, status: finalStatus, project_id, category },
+      description: `Task "${title}" created${pendingApproval ? " (pending project approval)" : ""}`,
     });
 
     return NextResponse.json({
       success: true,
       id: taskId,
-      action: "created",
+      action: pendingApproval ? "created_pending_approval" : "created",
+      pendingApproval,
     });
   } catch (error) {
     console.error("POST tasks error:", error);
@@ -320,9 +395,36 @@ export async function PUT(req) {
       changes.push(`status changed to ${status}`);
     }
     if (project_id !== undefined) {
+      const projectChanged = String(project_id) !== String(task.project_id);
       updateFields.push("project_id = ?");
       updateArgs.push(project_id || null);
       changes.push("project reassigned");
+
+      if (projectChanged && project_id) {
+        // Phase 5: Re-validate project assignment on change
+        const memberCheck = await db.execute({
+          sql: "SELECT id FROM project_members WHERE project_id = ? AND user_cid = ?",
+          args: [parseInt(project_id), user_id || task.user_id],
+        });
+
+        if (memberCheck.rows.length === 0) {
+          // Staff not assigned — reset to pending approval
+          updateFields.push("status = 'pending_project_approval'");
+          // Create new approval request
+          await db.execute({
+            sql: `INSERT INTO project_approval_requests
+              (task_id, requester_id, requester_name, project_id, status)
+              VALUES (?, ?, ?, ?, 'pending')`,
+            args: [
+              parseInt(id),
+              user_id || task.user_id,
+              user_name || task.user_name || "",
+              parseInt(project_id),
+            ],
+          });
+          changes.push("project reassignment requires approval");
+        }
+      }
     }
     // ─── SCHEDULE DRIFT DETECTION (Phase 2/11) ───
     if (start_date !== undefined) {

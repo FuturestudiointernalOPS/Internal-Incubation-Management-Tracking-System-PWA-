@@ -79,6 +79,13 @@ const STATUS_CONFIG = {
     border: "border-indigo-500/20",
     boardBg: "bg-indigo-500/5",
   },
+  pending_project_approval: {
+    label: "Pending Approval",
+    color: "text-amber-400",
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/20",
+    boardBg: "bg-amber-500/5",
+  },
 };
 
 const DATE_PRESETS = [
@@ -415,6 +422,7 @@ export default function WorkManagementHub() {
 
   const BOARD_STATUSES = [
     "pending",
+    "pending_project_approval",
     "in_progress",
     "blocked",
     "carried_over",
@@ -891,6 +899,61 @@ export default function WorkManagementHub() {
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Phase 3: Approval Actions for Pending Tasks */}
+              {viewingTask.status === "pending_project_approval" && (
+                <div className="space-y-3 p-4 bg-amber-500/5 rounded-xl border border-amber-500/20">
+                  <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <AlertTriangle className="w-3 h-3" /> Pending Project
+                    Approval
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    This task was created for a project the owner is not
+                    assigned to.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        await fetch("/api/tasks/approve", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            task_id: viewingTask.id,
+                            reviewer_id: "sa",
+                            reviewer_name: "Super Admin",
+                            action: "approve",
+                          }),
+                        });
+                        setViewingTask(null);
+                        fetchAll();
+                      }}
+                      className="flex-1 py-2.5 bg-emerald-500 text-black rounded-xl text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
+                    >
+                      Approve & Link
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await fetch("/api/tasks/approve", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            task_id: viewingTask.id,
+                            reviewer_id: "sa",
+                            reviewer_name: "Super Admin",
+                            action: "reject",
+                            reason: "Rejected by Super Admin",
+                          }),
+                        });
+                        setViewingTask(null);
+                        fetchAll();
+                      }}
+                      className="flex-1 py-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
+                    >
+                      Reject
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
