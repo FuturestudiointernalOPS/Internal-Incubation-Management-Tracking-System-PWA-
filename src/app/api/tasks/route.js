@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent, isTaskLocked } from "@/lib/audit";
+import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
 
 /**
  * TASKS API
@@ -169,6 +170,17 @@ export async function POST(req) {
         created_week,
         created_year,
       },
+    });
+
+    // Immutable task audit trail
+    await logTaskEvent({
+      task_id: taskId,
+      project_id,
+      actor_id: user_id,
+      target_user_id: user_id,
+      action_type: ACTION_TYPES.TASK_CREATED,
+      new_state: { title, status: status || "pending", project_id },
+      description: `Task "${title}" created`,
     });
 
     return NextResponse.json({
@@ -350,6 +362,26 @@ export async function PUT(req) {
         project_id: project_id || task.project_id,
       },
     });
+
+    // Immutable task audit trail
+    if (status !== undefined && status !== task.status) {
+      const actionType =
+        status === "completed"
+          ? ACTION_TYPES.TASK_COMPLETED
+          : status === "carried_over"
+            ? ACTION_TYPES.TASK_CARRIED_OVER
+            : ACTION_TYPES.TASK_UPDATED;
+      await logTaskEvent({
+        task_id: parseInt(id),
+        project_id: project_id || task.project_id,
+        actor_id: user_id || task.user_id,
+        target_user_id: user_id || task.user_id,
+        action_type: actionType,
+        previous_state: { status: task.status },
+        new_state: { status, title: title || task.title },
+        description: `Task status changed from ${task.status} to ${status}`,
+      });
+    }
 
     return NextResponse.json({
       success: true,

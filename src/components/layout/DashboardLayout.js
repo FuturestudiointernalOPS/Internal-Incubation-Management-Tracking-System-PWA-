@@ -313,6 +313,12 @@ const NAVIGATION_MATRIX = {
       icon: Briefcase,
       href: "/admin/projects",
     },
+    {
+      id: "intelligence",
+      name: "INTELLIGENCE",
+      icon: TrendingUp,
+      href: "/admin/intelligence",
+    },
   ],
   admin: [
     { id: "dashboard", name: "DASHBOARD", icon: ShieldCheck, href: "/admin" },
@@ -457,7 +463,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
-
 
   const { toggleTheme, theme } = useTheme();
   const [user, setUser] = useState({});
@@ -647,9 +652,14 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           <div className="flex items-center gap-4 ml-auto relative z-10">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-md" style={{color: "var(--text-secondary)"}}
+              className="p-2 rounded-md"
+              style={{ color: "var(--text-secondary)" }}
             >
-              {theme === "dark" ? (<Sun className="w-4 h-4" />) : (<Moon className="w-4 h-4" />)}
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
             </button>
             <button
               onClick={() => switchLang(lang === "en" ? "fr" : "en")}
