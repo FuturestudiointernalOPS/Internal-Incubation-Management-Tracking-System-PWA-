@@ -89,7 +89,9 @@ const DATE_PRESETS = [
 ];
 
 function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
@@ -134,7 +136,9 @@ export default function WorkManagementHub() {
   // Project lookup
   const projectMap = useMemo(() => {
     const map = {};
-    projects.forEach((p) => { map[p.id] = p.name; });
+    projects.forEach((p) => {
+      map[p.id] = p.name;
+    });
     return map;
   }, [projects]);
 
@@ -159,7 +163,9 @@ export default function WorkManagementHub() {
     }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
 
   // ─── FILTERING ───
   const filteredTasks = useMemo(() => {
@@ -179,10 +185,16 @@ export default function WorkManagementHub() {
 
       // Project
       if (filterProject === "independent" && t.project_id) return false;
-      if (filterProject !== "all" && filterProject !== "independent" && String(t.project_id) !== filterProject) return false;
+      if (
+        filterProject !== "all" &&
+        filterProject !== "independent" &&
+        String(t.project_id) !== filterProject
+      )
+        return false;
 
       // Category
-      if (filterCategory !== "all" && t.category !== filterCategory) return false;
+      if (filterCategory !== "all" && t.category !== filterCategory)
+        return false;
 
       // User
       if (filterUser !== "all" && t.user_id !== filterUser) return false;
@@ -196,36 +208,60 @@ export default function WorkManagementHub() {
         const taskYear = t.created_year || currentYear;
 
         if (filterDate === "this_week") {
-          if (taskWeek !== currentWeek || taskYear !== currentYear) return false;
+          if (taskWeek !== currentWeek || taskYear !== currentYear)
+            return false;
         } else if (filterDate === "last_week") {
           const lastWeek = currentWeek === 1 ? 52 : currentWeek - 1;
           const lastYear = currentWeek === 1 ? currentYear - 1 : currentYear;
           if (taskWeek !== lastWeek || taskYear !== lastYear) return false;
         } else if (filterDate === "this_month") {
           const taskDate = t.created_at ? new Date(t.created_at) : now;
-          if (taskDate.getMonth() !== now.getMonth() || taskDate.getFullYear() !== now.getFullYear()) return false;
+          if (
+            taskDate.getMonth() !== now.getMonth() ||
+            taskDate.getFullYear() !== now.getFullYear()
+          )
+            return false;
         }
       }
 
       return true;
     });
-  }, [tasks, search, filterStatus, filterProject, filterCategory, filterUser, filterDate]);
+  }, [
+    tasks,
+    search,
+    filterStatus,
+    filterProject,
+    filterCategory,
+    filterUser,
+    filterDate,
+  ]);
 
   // ─── STATS ───
-  const stats = useMemo(() => ({
-    total: filteredTasks.length,
-    pending: filteredTasks.filter((t) => t.status === "pending").length,
-    inProgress: filteredTasks.filter((t) => t.status === "in_progress").length,
-    blocked: filteredTasks.filter((t) => t.status === "blocked").length,
-    completed: filteredTasks.filter((t) => t.status === "completed").length,
-    carriedOver: filteredTasks.filter((t) => t.status === "carried_over").length,
-    activeBlockers: filteredTasks.reduce((sum, t) => sum + ((t.blockers || []).filter((b) => b.status === "active").length), 0),
-  }), [filteredTasks]);
+  const stats = useMemo(
+    () => ({
+      total: filteredTasks.length,
+      pending: filteredTasks.filter((t) => t.status === "pending").length,
+      inProgress: filteredTasks.filter((t) => t.status === "in_progress")
+        .length,
+      blocked: filteredTasks.filter((t) => t.status === "blocked").length,
+      completed: filteredTasks.filter((t) => t.status === "completed").length,
+      carriedOver: filteredTasks.filter((t) => t.status === "carried_over")
+        .length,
+      activeBlockers: filteredTasks.reduce(
+        (sum, t) =>
+          sum + (t.blockers || []).filter((b) => b.status === "active").length,
+        0,
+      ),
+    }),
+    [filteredTasks],
+  );
 
   // ─── RENDERERS ───
   const renderTaskRow = (task) => {
     const config = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
-    const activeBlockers = (task.blockers || []).filter((b) => b.status === "active");
+    const activeBlockers = (task.blockers || []).filter(
+      (b) => b.status === "active",
+    );
     const projectName = task.project_id ? projectMap[task.project_id] : null;
 
     return (
@@ -236,7 +272,9 @@ export default function WorkManagementHub() {
       >
         <td className="p-3">
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${config.color.replace("text-", "bg-")}`} />
+            <div
+              className={`w-2 h-2 rounded-full ${config.color.replace("text-", "bg-")}`}
+            />
             <span className="text-xs font-bold text-[var(--text-primary)] truncate max-w-[220px]">
               {task.title}
             </span>
@@ -261,7 +299,9 @@ export default function WorkManagementHub() {
           </span>
         </td>
         <td className="p-3">
-          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${config.bg} ${config.color}`}>
+          <span
+            className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${config.bg} ${config.color}`}
+          >
             {config.label}
           </span>
         </td>
@@ -269,7 +309,9 @@ export default function WorkManagementHub() {
           {activeBlockers.length > 0 ? (
             <div className="flex items-center gap-1">
               <Shield className="w-3 h-3 text-rose-400" />
-              <span className="text-[10px] font-bold text-rose-400">{activeBlockers.length}</span>
+              <span className="text-[10px] font-bold text-rose-400">
+                {activeBlockers.length}
+              </span>
             </div>
           ) : (
             <span className="text-[10px] text-slate-600">—</span>
@@ -290,11 +332,17 @@ export default function WorkManagementHub() {
 
     return (
       <div key={statusKey} className="flex-shrink-0 w-72">
-        <div className={`rounded-xl border ${config.border} ${config.boardBg} p-3`}>
+        <div
+          className={`rounded-xl border ${config.border} ${config.boardBg} p-3`}
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className={`w-2.5 h-2.5 rounded-full ${config.color.replace("text-", "bg-")}`} />
-              <span className={`text-[10px] font-black uppercase tracking-wider ${config.color}`}>
+              <div
+                className={`w-2.5 h-2.5 rounded-full ${config.color.replace("text-", "bg-")}`}
+              />
+              <span
+                className={`text-[10px] font-black uppercase tracking-wider ${config.color}`}
+              >
                 {config.label}
               </span>
             </div>
@@ -305,11 +353,17 @@ export default function WorkManagementHub() {
 
           <div className="space-y-2 max-h-[calc(100vh-340px)] overflow-y-auto custom-scrollbar pr-1">
             {columnTasks.length === 0 ? (
-              <p className="text-[9px] text-slate-600 italic text-center py-6">No tasks</p>
+              <p className="text-[9px] text-slate-600 italic text-center py-6">
+                No tasks
+              </p>
             ) : (
               columnTasks.map((task) => {
-                const projectName = task.project_id ? projectMap[task.project_id] : null;
-                const activeBlockers = (task.blockers || []).filter((b) => b.status === "active");
+                const projectName = task.project_id
+                  ? projectMap[task.project_id]
+                  : null;
+                const activeBlockers = (task.blockers || []).filter(
+                  (b) => b.status === "active",
+                );
 
                 return (
                   <div
@@ -335,13 +389,19 @@ export default function WorkManagementHub() {
                       {activeBlockers.length > 0 && (
                         <div className="flex items-center gap-1">
                           <Shield className="w-2.5 h-2.5 text-rose-400" />
-                          <span className="text-[8px] font-bold text-rose-400">{activeBlockers.length}</span>
+                          <span className="text-[8px] font-bold text-rose-400">
+                            {activeBlockers.length}
+                          </span>
                         </div>
                       )}
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[8px] text-slate-500">{task.user_name || "—"}</span>
-                      <span className="text-[8px] text-slate-500">W{task.created_week || "—"}</span>
+                      <span className="text-[8px] text-slate-500">
+                        {task.user_name || "—"}
+                      </span>
+                      <span className="text-[8px] text-slate-500">
+                        W{task.created_week || "—"}
+                      </span>
                     </div>
                   </div>
                 );
@@ -353,7 +413,13 @@ export default function WorkManagementHub() {
     );
   };
 
-  const BOARD_STATUSES = ["pending", "in_progress", "blocked", "carried_over", "completed"];
+  const BOARD_STATUSES = [
+    "pending",
+    "in_progress",
+    "blocked",
+    "carried_over",
+    "completed",
+  ];
 
   return (
     <DashboardLayout role="super_admin">
@@ -365,7 +431,8 @@ export default function WorkManagementHub() {
               onClick={() => router.push("/admin")}
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
-              <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" /> Dashboard
+              <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
+              Dashboard
             </button>
             <div className="flex items-center gap-2 mt-1">
               <LayoutGrid className="w-4 h-4 text-[var(--brand-orange)]" />
@@ -391,51 +458,89 @@ export default function WorkManagementHub() {
         {/* ─── EXECUTIVE METRICS ─── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
           <div className="card !p-3 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-slate-500/10"><ListTodo className="w-3.5 h-3.5 text-slate-400" /></div>
+            <div className="p-1.5 rounded-lg bg-slate-500/10">
+              <ListTodo className="w-3.5 h-3.5 text-slate-400" />
+            </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Total</p>
+              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                Total
+              </p>
               <p className="text-base font-black">{stats.total}</p>
             </div>
           </div>
           <div className="card !p-3 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-blue-500/10"><Target className="w-3.5 h-3.5 text-blue-400" /></div>
+            <div className="p-1.5 rounded-lg bg-blue-500/10">
+              <Target className="w-3.5 h-3.5 text-blue-400" />
+            </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Active</p>
-              <p className="text-base font-black text-blue-400">{stats.inProgress}</p>
+              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                Active
+              </p>
+              <p className="text-base font-black text-blue-400">
+                {stats.inProgress}
+              </p>
             </div>
           </div>
           <div className="card !p-3 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-500/10"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /></div>
+            <div className="p-1.5 rounded-lg bg-emerald-500/10">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Completed</p>
-              <p className="text-base font-black text-emerald-400">{stats.completed}</p>
+              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                Completed
+              </p>
+              <p className="text-base font-black text-emerald-400">
+                {stats.completed}
+              </p>
             </div>
           </div>
           <div className="card !p-3 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-indigo-500/10"><TrendingUp className="w-3.5 h-3.5 text-indigo-400" /></div>
+            <div className="p-1.5 rounded-lg bg-indigo-500/10">
+              <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
+            </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Carried</p>
-              <p className="text-base font-black text-indigo-400">{stats.carriedOver}</p>
+              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                Carried
+              </p>
+              <p className="text-base font-black text-indigo-400">
+                {stats.carriedOver}
+              </p>
             </div>
           </div>
           <div className="card !p-3 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-rose-500/10"><Shield className="w-3.5 h-3.5 text-rose-400" /></div>
+            <div className="p-1.5 rounded-lg bg-rose-500/10">
+              <Shield className="w-3.5 h-3.5 text-rose-400" />
+            </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Blockers</p>
-              <p className="text-base font-black text-rose-400">{stats.activeBlockers}</p>
+              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                Blockers
+              </p>
+              <p className="text-base font-black text-rose-400">
+                {stats.activeBlockers}
+              </p>
             </div>
           </div>
           <div className="card !p-3 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-amber-500/10"><Clock className="w-3.5 h-3.5 text-amber-400" /></div>
+            <div className="p-1.5 rounded-lg bg-amber-500/10">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+            </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Pending</p>
-              <p className="text-base font-black text-amber-400">{stats.pending}</p>
+              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                Pending
+              </p>
+              <p className="text-base font-black text-amber-400">
+                {stats.pending}
+              </p>
             </div>
           </div>
           <div className="card !p-3 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-slate-500/10"><AlertTriangle className="w-3.5 h-3.5 text-slate-400" /></div>
+            <div className="p-1.5 rounded-lg bg-slate-500/10">
+              <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />
+            </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Blocked</p>
+              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                Blocked
+              </p>
               <p className="text-base font-black">{stats.blocked}</p>
             </div>
           </div>
@@ -462,7 +567,9 @@ export default function WorkManagementHub() {
           >
             <option value="all">All Statuses</option>
             {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-              <option key={key} value={key}>{cfg.label}</option>
+              <option key={key} value={key}>
+                {cfg.label}
+              </option>
             ))}
           </select>
 
@@ -474,9 +581,13 @@ export default function WorkManagementHub() {
           >
             <option value="all">All Projects</option>
             <option value="independent">Independent Work</option>
-            {projects.filter((p) => p.status !== "Archived").map((p) => (
-              <option key={p.id} value={String(p.id)}>{p.name}</option>
-            ))}
+            {projects
+              .filter((p) => p.status !== "Archived")
+              .map((p) => (
+                <option key={p.id} value={String(p.id)}>
+                  {p.name}
+                </option>
+              ))}
           </select>
 
           {/* Category filter */}
@@ -487,7 +598,9 @@ export default function WorkManagementHub() {
           >
             <option value="all">All Categories</option>
             {categories.map((c) => (
-              <option key={c.name} value={c.name}>{c.label}</option>
+              <option key={c.name} value={c.name}>
+                {c.label}
+              </option>
             ))}
           </select>
 
@@ -499,7 +612,9 @@ export default function WorkManagementHub() {
           >
             <option value="all">All Staff</option>
             {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.name}</option>
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
             ))}
           </select>
 
@@ -510,7 +625,9 @@ export default function WorkManagementHub() {
             className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
           >
             {DATE_PRESETS.map((d) => (
-              <option key={d.id} value={d.id}>{d.label}</option>
+              <option key={d.id} value={d.id}>
+                {d.label}
+              </option>
             ))}
           </select>
 
@@ -544,8 +661,12 @@ export default function WorkManagementHub() {
         ) : filteredTasks.length === 0 && search ? (
           <div className="card py-20 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
             <Search className="w-10 h-10 mb-3" />
-            <p className="text-[10px] font-bold uppercase tracking-widest">No matching tasks</p>
-            <p className="text-[9px] text-slate-500 mt-1">Try adjusting your filters.</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest">
+              No matching tasks
+            </p>
+            <p className="text-[9px] text-slate-500 mt-1">
+              Try adjusting your filters.
+            </p>
           </div>
         ) : viewMode === "table" ? (
           /* ─── TABLE VIEW ─── */
@@ -554,17 +675,27 @@ export default function WorkManagementHub() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[var(--border-primary)]">
-                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">Task</th>
-                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">Project / Category</th>
-                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">Owner</th>
-                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">Status</th>
-                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">Blockers</th>
-                    <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">Week</th>
+                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Task
+                    </th>
+                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Project / Category
+                    </th>
+                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Owner
+                    </th>
+                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Status
+                    </th>
+                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Blockers
+                    </th>
+                    <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Week
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredTasks.map(renderTaskRow)}
-                </tbody>
+                <tbody>{filteredTasks.map(renderTaskRow)}</tbody>
               </table>
             </div>
           </div>
@@ -588,18 +719,30 @@ export default function WorkManagementHub() {
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    {(viewingTask.blockers || []).filter((b) => b.status === "active").length > 0 && (
+                    {(viewingTask.blockers || []).filter(
+                      (b) => b.status === "active",
+                    ).length > 0 && (
                       <Shield className="w-3.5 h-3.5 text-rose-400" />
                     )}
-                    <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${(STATUS_CONFIG[viewingTask.status] || STATUS_CONFIG.pending).bg} ${(STATUS_CONFIG[viewingTask.status] || STATUS_CONFIG.pending).color}`}>
-                      {(STATUS_CONFIG[viewingTask.status] || STATUS_CONFIG.pending).label}
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${(STATUS_CONFIG[viewingTask.status] || STATUS_CONFIG.pending).bg} ${(STATUS_CONFIG[viewingTask.status] || STATUS_CONFIG.pending).color}`}
+                    >
+                      {
+                        (
+                          STATUS_CONFIG[viewingTask.status] ||
+                          STATUS_CONFIG.pending
+                        ).label
+                      }
                     </span>
                   </div>
                   <h3 className="text-lg font-black text-[var(--text-primary)]">
                     {viewingTask.title}
                   </h3>
                 </div>
-                <button onClick={() => setViewingTask(null)} className="p-1 hover:bg-white/5 rounded-lg">
+                <button
+                  onClick={() => setViewingTask(null)}
+                  className="p-1 hover:bg-white/5 rounded-lg"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -607,34 +750,92 @@ export default function WorkManagementHub() {
               {/* Metadata */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Owner</p>
-                  <p className="text-xs font-bold text-[var(--text-primary)]">{viewingTask.user_name || "—"}</p>
-                </div>
-                <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Project</p>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Owner
+                  </p>
                   <p className="text-xs font-bold text-[var(--text-primary)]">
-                    {viewingTask.project_id ? (projectMap[viewingTask.project_id] || "—") : viewingTask.category ? viewingTask.category.replace(/_/g, " ") : "Independent"}
+                    {viewingTask.user_name || "—"}
                   </p>
                 </div>
                 <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Created</p>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Project
+                  </p>
                   <p className="text-xs font-bold text-[var(--text-primary)]">
-                    {viewingTask.created_at ? new Date(viewingTask.created_at).toLocaleDateString() : "—"}
+                    {viewingTask.project_id
+                      ? projectMap[viewingTask.project_id] || "—"
+                      : viewingTask.category
+                        ? viewingTask.category.replace(/_/g, " ")
+                        : "Independent"}
                   </p>
                 </div>
                 <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Week</p>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Created
+                  </p>
                   <p className="text-xs font-bold text-[var(--text-primary)]">
-                    W{viewingTask.created_week || "—"} · {viewingTask.created_year || "—"}
+                    {viewingTask.created_at
+                      ? new Date(viewingTask.created_at).toLocaleDateString()
+                      : "—"}
+                  </p>
+                </div>
+                <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Week
+                  </p>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">
+                    W{viewingTask.created_week || "—"} ·{" "}
+                    {viewingTask.created_year || "—"}
                   </p>
                 </div>
               </div>
 
+              {/* Schedule Drift (Phase 11) — visible to Super Admin */}
+              {(viewingTask.first_scheduled_start_date ||
+                viewingTask.first_scheduled_end_date ||
+                viewingTask.reschedule_count > 0) && (
+                <div className="p-3 bg-amber-500/5 rounded-xl border border-amber-500/20">
+                  <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3 h-3" /> Schedule Drift
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-[10px]">
+                    {viewingTask.reschedule_count > 0 && (
+                      <div>
+                        <p className="text-[8px] text-slate-500">Rescheduled</p>
+                        <p className="font-bold text-amber-400">
+                          {viewingTask.reschedule_count}x
+                        </p>
+                      </div>
+                    )}
+                    {viewingTask.first_scheduled_start_date && (
+                      <div>
+                        <p className="text-[8px] text-slate-500">First Start</p>
+                        <p className="font-bold text-[var(--text-primary)]">
+                          {viewingTask.first_scheduled_start_date}
+                        </p>
+                      </div>
+                    )}
+                    {viewingTask.first_scheduled_end_date && (
+                      <div>
+                        <p className="text-[8px] text-slate-500">First End</p>
+                        <p className="font-bold text-[var(--text-primary)]">
+                          {viewingTask.first_scheduled_end_date}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Description */}
               {viewingTask.description && (
                 <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Description</p>
-                  <p className="text-xs font-bold text-[var(--text-primary)] whitespace-pre-wrap">{viewingTask.description}</p>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Description
+                  </p>
+                  <p className="text-xs font-bold text-[var(--text-primary)] whitespace-pre-wrap">
+                    {viewingTask.description}
+                  </p>
                 </div>
               )}
 
@@ -643,14 +844,22 @@ export default function WorkManagementHub() {
                 <div className="grid grid-cols-2 gap-3">
                   {viewingTask.start_date && (
                     <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Start</p>
-                      <p className="text-xs font-bold text-[var(--text-primary)]">{viewingTask.start_date}</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                        Start
+                      </p>
+                      <p className="text-xs font-bold text-[var(--text-primary)]">
+                        {viewingTask.start_date}
+                      </p>
                     </div>
                   )}
                   {viewingTask.end_date && (
                     <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Due</p>
-                      <p className="text-xs font-bold text-[var(--text-primary)]">{viewingTask.end_date}</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                        Due
+                      </p>
+                      <p className="text-xs font-bold text-[var(--text-primary)]">
+                        {viewingTask.end_date}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -659,17 +868,25 @@ export default function WorkManagementHub() {
               {/* Blockers */}
               {viewingTask.blockers && viewingTask.blockers.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Blockers</p>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                    Blockers
+                  </p>
                   {viewingTask.blockers.map((b) => (
                     <div
                       key={b.id}
                       className={`flex items-center justify-between p-2 rounded-lg border ${b.status === "active" ? "border-rose-500/20 bg-rose-500/5" : "border-emerald-500/20 bg-emerald-500/5"}`}
                     >
                       <div className="flex items-center gap-2">
-                        <Shield className={`w-3 h-3 ${b.status === "active" ? "text-rose-400" : "text-emerald-400"}`} />
-                        <span className="text-[11px] font-bold text-[var(--text-primary)]">{b.title}</span>
+                        <Shield
+                          className={`w-3 h-3 ${b.status === "active" ? "text-rose-400" : "text-emerald-400"}`}
+                        />
+                        <span className="text-[11px] font-bold text-[var(--text-primary)]">
+                          {b.title}
+                        </span>
                       </div>
-                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                      <span
+                        className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
+                      >
                         {b.status}
                       </span>
                     </div>

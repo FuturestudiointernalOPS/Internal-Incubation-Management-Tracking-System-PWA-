@@ -14,6 +14,10 @@ import {
   Save,
   FileText,
   Users,
+  BarChart3,
+  Shield,
+  Plus,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -45,7 +49,7 @@ export default function StaffOpReport() {
   const router = useRouter();
   const { t } = useI18n();
   const [user, setUser] = useState(null);
-  const [reportType, setReportType] = useState("standup"); // "standup" | "retro"
+  const [reportType, setReportType] = useState("standup"); // "standup" | "retro" | "summary"
   const [weekInfo, setWeekInfo] = useState(getCurrentWeek());
   const [existingReport, setExistingReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -440,6 +444,16 @@ export default function StaffOpReport() {
             }`}
           >
             <Trophy className="w-4 h-4" /> {t("reports.fridayRetro")}
+          </button>
+          <button
+            onClick={() => setReportType("summary")}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+              reportType === "summary"
+                ? "bg-[var(--brand-orange)] text-black shadow-lg"
+                : "text-slate-500 hover:text-white"
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" /> Weekly Summary
           </button>
         </div>
 
