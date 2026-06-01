@@ -893,6 +893,7 @@ function StatCard({ label, value }) {
 }
 
 function ReportCard({ report, onClick }) {
+  const { t } = useI18n();
   return (
     <div
       className="card group hover:border-[var(--brand-orange)] transition-all bg-secondary/50 cursor-pointer"
@@ -1207,6 +1208,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
 }
 
 function ReportDetailModal({ report, onClose }) {
+  const { t } = useI18n();
   const [expandedSections, setExpandedSections] = useState({
     standup: report.report_type === "standup",
     retro: report.report_type === "retro",
