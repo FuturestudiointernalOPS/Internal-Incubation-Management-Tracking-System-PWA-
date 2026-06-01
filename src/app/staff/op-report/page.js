@@ -399,6 +399,7 @@ export default function StaffOpReport() {
       {
         id: Date.now(),
         name: "",
+        description: "",
         project_id: null,
         category: "",
         blockers: [],
@@ -689,121 +690,6 @@ export default function StaffOpReport() {
                   )}
                 </Section>
 
-                {/* ─── CREATE TASK (Phase 4: Task Creation) ─── */}
-                <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => setTaskCreationOpen(!taskCreationOpen)}
-                    className="w-full flex items-center justify-between text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-                        {t("reports.createTask")}
-                      </span>
-                    </div>
-                    <svg
-                      className={`w-4 h-4 text-slate-500 transition-transform ${taskCreationOpen ? "rotate-180" : ""}`}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  {taskCreationOpen && (
-                    <div className="space-y-3 pt-2 border-t border-[var(--border-primary)]">
-                      <input
-                        type="text"
-                        value={newTaskTitle}
-                        onChange={(e) => setNewTaskTitle(e.target.value)}
-                        placeholder={`${t("reports.taskTitle")} (required)`}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
-                      />
-                      <textarea
-                        value={newTaskDescription}
-                        onChange={(e) => setNewTaskDescription(e.target.value)}
-                        rows={2}
-                        placeholder={`${t("reports.taskDescription")} (optional)`}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
-                      />
-                      <input
-                        type="text"
-                        value={newTaskProject}
-                        onChange={(e) => setNewTaskProject(e.target.value)}
-                        placeholder={`${t("reports.projectName")} or ${t("reports.independentTask")} (optional)`}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
-                      />
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="date"
-                          value={newTaskStartDate}
-                          onChange={(e) => setNewTaskStartDate(e.target.value)}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
-                        />
-                        <input
-                          type="date"
-                          value={newTaskEndDate}
-                          onChange={(e) => setNewTaskEndDate(e.target.value)}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        disabled={creatingTask || !newTaskTitle.trim()}
-                        onClick={async () => {
-                          if (!newTaskTitle.trim()) return;
-                          setCreatingTask(true);
-                          try {
-                            const userId = user.cid || user.id;
-                            const weekData = getCurrentWeek();
-                            const res = await fetch("/api/tasks", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                title: newTaskTitle.trim(),
-                                description: newTaskDescription.trim() || null,
-                                project_id: newTaskProject.trim() || null,
-                                user_id: userId,
-                                user_name: user.name || "",
-                                status: "pending",
-                                created_week: weekData.week,
-                                created_year: weekData.year,
-                                start_date: newTaskStartDate || null,
-                                end_date: newTaskEndDate || null,
-                              }),
-                            });
-                            const data = await res.json();
-                            if (res.ok) {
-                              notify("Task created successfully!");
-                              setNewTaskTitle("");
-                              setNewTaskDescription("");
-                              setNewTaskProject("");
-                              setNewTaskStartDate("");
-                              setNewTaskEndDate("");
-                              setTaskCreationOpen(false);
-                              fetchTasks();
-                            } else {
-                              notify(
-                                data.error || "Failed to create task.",
-                                "error",
-                              );
-                            }
-                          } catch (e) {
-                            notify("Network error creating task.", "error");
-                          } finally {
-                            setCreatingTask(false);
-                          }
-                        }}
-                        className="w-full px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
-                      >
-                        {creatingTask ? "Adding..." : t("reports.addTask")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
                 {/* ─── SECTION 1: Weekly Focus — Task Row Table ─── */}
                 <Section
                   title="Weekly Focus"
@@ -832,6 +718,15 @@ export default function StaffOpReport() {
                             }
                             placeholder="Task name..."
                             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                          />
+                          <input
+                            type="text"
+                            value={row.description || ""}
+                            onChange={(e) =>
+                              updateTaskRow(idx, "description", e.target.value)
+                            }
+                            placeholder="Brief description (optional)"
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                           />
                           <div className="flex gap-2">
                             {/* Project Dropdown */}
@@ -888,26 +783,17 @@ export default function StaffOpReport() {
                             {/* Collaborators */}
                             <div className="relative flex-1">
                               <select
-                                multiple
-                                value={row.collaborators || []}
+                                value={row.collaborators?.[0] || ""}
                                 onChange={(e) =>
                                   updateTaskRow(
                                     idx,
                                     "collaborators",
-                                    Array.from(
-                                      e.target.selectedOptions,
-                                      (o) => o.value,
-                                    ),
+                                    e.target.value ? [e.target.value] : [],
                                   )
                                 }
-                                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1 text-[8px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
-                                size="1"
+                                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1 text-[8px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
                               >
-                                <option value="" disabled>
-                                  {row.collaborators?.length > 0
-                                    ? `${row.collaborators.length} collaborator${row.collaborators.length > 1 ? "s" : ""}`
-                                    : "Support"}
-                                </option>
+                                <option value="">Support</option>
                                 {allStaff.map((s) => (
                                   <option key={s.id} value={s.id}>
                                     {s.name}
