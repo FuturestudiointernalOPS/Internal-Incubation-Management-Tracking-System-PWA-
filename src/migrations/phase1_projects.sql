@@ -3,6 +3,16 @@
 -- Run this in Supabase SQL Editor before deploying the new code.
 -- ============================================================================
 
+-- 0. Create v2_projects table if it doesn't exist yet
+CREATE TABLE IF NOT EXISTS v2_projects (
+  id SERIAL PRIMARY KEY,
+  program_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  status TEXT DEFAULT 'Active',
+  meta TEXT DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- 1. Project Members table
 CREATE TABLE IF NOT EXISTS project_members (
   id SERIAL PRIMARY KEY,
