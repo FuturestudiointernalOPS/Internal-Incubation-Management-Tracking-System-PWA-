@@ -30,6 +30,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  LayoutGrid,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -591,7 +592,21 @@ export default function AdminDashboard() {
         </div>
 
         {/* ── Section B — Internal Operations nav cards ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <button
+            onClick={() => router.push("/admin/work")}
+            className="card hover:border-[var(--brand-orange)]/30 transition-all text-left ring-1 ring-[var(--brand-orange)]/20"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <LayoutGrid className="w-5 h-5 text-[var(--brand-orange)]" />
+              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-widest">
+                Work Management
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 leading-relaxed">
+              Centralized hub for all tasks, projects, categories, and blockers.
+            </p>
+          </button>
           <button
             onClick={() => router.push("/admin/tasks")}
             className="card hover:border-[var(--brand-orange)]/30 transition-all text-left"

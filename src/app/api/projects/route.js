@@ -1,34 +1,62 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
 
+/**
+ * PROJECTS API
+ *
+ * GET   /api/projects?program_id=X&user_cid=X
+ * POST  /api/projects
+ * PUT   /api/projects
+ *
+ * Supports:
+ * - Creating projects (POST)
+ * - Editing projects, archiving (PUT)
+ * - Fetching all projects or filtered by program or user assignment (GET)
+ */
+
 export async function POST(req) {
   try {
     await initDb();
     const body = await req.json();
-    const { 
-      program_id, 
-      name, 
-      status, 
-      type, 
-      concept_note, 
-      assigned_pm_id 
-    } = body;
+    const { program_id, name, status, type, concept_note, assigned_pm_id } =
+      body;
 
     if (!program_id || !name) {
-      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Program ID and name are required." },
+        { status: 400 },
+      );
     }
 
-    const meta = JSON.stringify({ type, concept_note, assigned_pm_id });
-    
-    const result = await db.execute({
-      sql: 'INSERT INTO v2_projects (program_id, name, status, meta) VALUES (?, ?, ?, ?)',
-      args: [program_id, name, status || 'Active', meta]
+    // Build meta with all extra fields
+    const meta = JSON.stringify({
+      type: type || null,
+      concept_note: concept_note || null,
+      assigned_pm_id: assigned_pm_id || null,
     });
 
-    return NextResponse.json({ success: true, project_id: result.lastInsertRowid });
+    const result = await db.execute({
+      sql: "INSERT INTO v2_projects (program_id, name, status, meta) VALUES (?, ?, ?, ?)",
+      args: [program_id, name, status || "Active", meta],
+    });
+
+    const projectId = result.lastInsertRowid;
+
+    // If a PM lead was assigned, add them as a project member with lead role
+    if (assigned_pm_id) {
+      await db.execute({
+        sql: "INSERT INTO project_members (project_id, user_cid, role) VALUES (?, ?, 'lead') ON CONFLICT (project_id, user_cid) DO UPDATE SET role = 'lead'",
+        args: [projectId, assigned_pm_id],
+      });
+    }
+
+    return NextResponse.json({ success: true, project_id: projectId });
   } catch (error) {
-    console.error("Project Save Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error("POST /api/projects error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
 
@@ -36,33 +64,163 @@ export async function GET(req) {
   try {
     await initDb();
     const { searchParams } = new URL(req.url);
-    const program_id = searchParams.get('program_id');
+    const program_id = searchParams.get("program_id");
+    const user_cid = searchParams.get("user_cid");
+    const include_archived = searchParams.get("include_archived");
 
     let query = `
-      SELECT p.*, pr.name as program_name 
+      SELECT p.*, pr.name as program_name
       FROM v2_projects p
       LEFT JOIN v2_programs pr ON p.program_id = pr.id
     `;
-    let args = [];
+    const conditions = [];
+    const args = [];
 
+    // Filter by program
     if (program_id) {
-       query += " WHERE p.program_id = ?";
-       args.push(program_id);
+      conditions.push("p.program_id = ?");
+      args.push(program_id);
+    }
+
+    // Filter by user membership
+    if (user_cid) {
+      query += `
+        INNER JOIN project_members pm ON p.id = pm.project_id AND pm.user_cid = ?
+      `;
+      args.push(user_cid);
+    }
+
+    // Exclude archived unless explicitly requested
+    if (include_archived !== "true") {
+      conditions.push("p.status != 'Archived'");
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
     }
 
     query += " ORDER BY p.created_at DESC";
 
     const result = await db.execute({ sql: query, args });
 
-    // Parse meta JSON for each project
-    const projects = result.rows.map(row => ({
-      ...row,
-      meta: row.meta ? JSON.parse(row.meta) : {}
-    }));
+    // Parse meta JSON for each project and attach member info
+    const projects = await Promise.all(
+      result.rows.map(async (row) => {
+        const meta = row.meta ? JSON.parse(row.meta) : {};
+
+        // Get member count and lead info
+        const memberRes = await db.execute({
+          sql: "SELECT user_cid, role FROM project_members WHERE project_id = ?",
+          args: [row.id],
+        });
+
+        return {
+          ...row,
+          meta,
+          members: memberRes.rows || [],
+        };
+      }),
+    );
 
     return NextResponse.json({ success: true, projects });
   } catch (error) {
-    console.error("Project Fetch Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error("GET /api/projects error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const body = await req.json();
+    const { id, name, status, type, concept_note, assigned_pm_id } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Project ID is required." },
+        { status: 400 },
+      );
+    }
+
+    const updateFields = [];
+    const updateArgs = [];
+
+    if (name !== undefined) {
+      updateFields.push("name = ?");
+      updateArgs.push(name);
+    }
+    if (status !== undefined) {
+      updateFields.push("status = ?");
+      updateArgs.push(status);
+    }
+
+    // If meta fields changed, update the meta JSON
+    if (
+      type !== undefined ||
+      concept_note !== undefined ||
+      assigned_pm_id !== undefined
+    ) {
+      // Fetch current meta
+      const current = await db.execute({
+        sql: "SELECT meta FROM v2_projects WHERE id = ?",
+        args: [parseInt(id)],
+      });
+
+      const currentMeta = current.rows[0]?.meta
+        ? JSON.parse(current.rows[0].meta)
+        : {};
+
+      const newMeta = JSON.stringify({
+        ...currentMeta,
+        ...(type !== undefined ? { type } : {}),
+        ...(concept_note !== undefined ? { concept_note } : {}),
+        ...(assigned_pm_id !== undefined ? { assigned_pm_id } : {}),
+      });
+
+      updateFields.push("meta = ?");
+      updateArgs.push(newMeta);
+    }
+
+    if (updateFields.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "No fields to update." },
+        { status: 400 },
+      );
+    }
+
+    updateArgs.push(parseInt(id));
+
+    await db.execute({
+      sql: `UPDATE v2_projects SET ${updateFields.join(", ")} WHERE id = ?`,
+      args: updateArgs,
+    });
+
+    // Update project lead in members table if provided
+    if (assigned_pm_id !== undefined) {
+      // Remove existing lead(s)
+      await db.execute({
+        sql: "DELETE FROM project_members WHERE project_id = ? AND role = 'lead'",
+        args: [parseInt(id)],
+      });
+
+      // Assign new lead if provided
+      if (assigned_pm_id) {
+        await db.execute({
+          sql: "INSERT INTO project_members (project_id, user_cid, role) VALUES (?, ?, 'lead') ON CONFLICT (project_id, user_cid) DO UPDATE SET role = 'lead'",
+          args: [parseInt(id), assigned_pm_id],
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, action: "updated" });
+  } catch (error) {
+    console.error("PUT /api/projects error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
