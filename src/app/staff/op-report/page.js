@@ -103,6 +103,14 @@ export default function StaffOpReport() {
   const [creatingTask, setCreatingTask] = useState(false);
   const [reconciledTasks, setReconciledTasks] = useState({});
 
+  // Structured task row state
+  const [assignedProjects, setAssignedProjects] = useState([]);
+  const [allStaff, setAllStaff] = useState([]);
+  const [taskRows, setTaskRows] = useState([]);
+  const [blockerModal, setBlockerModal] = useState(null); // { taskRowIndex } or null
+  const [newBlockerDesc, setNewBlockerDesc] = useState("");
+  const [staffSearch, setStaffSearch] = useState("");
+
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
@@ -224,6 +232,39 @@ export default function StaffOpReport() {
       setLoadingTasks(false);
     }
   }, [user]);
+
+  // Fetch assigned projects for dropdown
+  const fetchAssignedProjects = useCallback(async () => {
+    if (!user?.cid && !user?.id) return;
+    try {
+      const userId = user.cid || user.id;
+      const res = await fetch(`/api/projects/assignments?user_cid=${userId}`);
+      const data = await res.json();
+      if (data.success) setAssignedProjects(data.projects || []);
+    } catch (e) {
+      console.error("Failed to fetch assigned projects:", e);
+    }
+  }, [user]);
+
+  // Fetch all staff for collaborator selection
+  const fetchAllStaff = useCallback(async () => {
+    try {
+      const res = await fetch("/api/contacts");
+      const data = await res.json();
+      if (data.success) {
+        const staff = (data.contacts || [])
+          .filter((c) => c.status === "active" || c.role === "super_admin")
+          .map((c) => ({
+            id: c.cid || c.id,
+            name: c.name,
+            email: c.email,
+          }));
+        setAllStaff(staff);
+      }
+    } catch (e) {
+      console.error("Failed to fetch staff:", e);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -349,6 +390,74 @@ export default function StaffOpReport() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ─── TASK ROW MANAGEMENT ───
+  const addTaskRow = () => {
+    setTaskRows((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        name: "",
+        project_id: null,
+        category: "",
+        blockers: [],
+        collaborators: [],
+        // Retro fields
+        status: null, // "completed" | "uncompleted"
+        uncompleted_reason: "",
+      },
+    ]);
+  };
+
+  const updateTaskRow = (index, field, value) => {
+    setTaskRows((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const removeTaskRow = (index) => {
+    setTaskRows((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const addBlockerToRow = (rowIndex, description) => {
+    setTaskRows((prev) => {
+      const updated = [...prev];
+      updated[rowIndex] = {
+        ...updated[rowIndex],
+        blockers: [
+          ...(updated[rowIndex].blockers || []),
+          {
+            id: Date.now(),
+            description,
+            status: "Active",
+            created_at: new Date().toISOString(),
+          },
+        ],
+      };
+      return updated;
+    });
+  };
+
+  const resolveBlocker = (rowIndex, blockerId) => {
+    setTaskRows((prev) => {
+      const updated = [...prev];
+      updated[rowIndex] = {
+        ...updated[rowIndex],
+        blockers: (updated[rowIndex].blockers || []).map((b) =>
+          b.id === blockerId
+            ? {
+                ...b,
+                status: "Resolved",
+                resolved_at: new Date().toISOString(),
+              }
+            : b,
+        ),
+      };
+      return updated;
+    });
   };
 
   const navigateWeek = (direction) => {
@@ -695,176 +804,159 @@ export default function StaffOpReport() {
                   )}
                 </div>
 
-                {/* ─── SECTION 1: Weekly Focus ─── */}
+                {/* ─── SECTION 1: Weekly Focus — Task Row Table ─── */}
                 <Section
-                  title="Top Priorities This Week"
+                  title="Weekly Focus"
                   icon={Target}
                   color="text-[var(--brand-orange)]"
-                  required
                 >
+                  <p className="text-[10px] text-slate-500 mb-3">
+                    Define all tasks you plan to work on this week. Each task
+                    must have a name and a project or category.
+                  </p>
+
+                  {/* Task Row Table */}
                   <div className="space-y-2">
-                    {/* Bullet list */}
-                    <div className="space-y-1.5">
-                      {form.top_priorities.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)] shrink-0" />
-                          <span className="flex-1 text-xs font-bold text-[var(--text-primary)]">
-                            {item}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setForm((p) => ({
-                                ...p,
-                                top_priorities: p.top_priorities.filter(
-                                  (_, i) => i !== idx,
-                                ),
-                              }))
-                            }
-                            className="text-rose-500/50 hover:text-rose-500 transition-all shrink-0"
-                          >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {/* Add input */}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newPriority}
-                        onChange={(e) => setNewPriority(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && newPriority.trim()) {
-                            e.preventDefault();
-                            setForm((p) => ({
-                              ...p,
-                              top_priorities: [
-                                ...p.top_priorities,
-                                newPriority.trim(),
-                              ],
-                            }));
-                            setNewPriority("");
-                          }
-                        }}
-                        placeholder="Type a priority and press Enter..."
-                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (newPriority.trim()) {
-                            setForm((p) => ({
-                              ...p,
-                              top_priorities: [
-                                ...p.top_priorities,
-                                newPriority.trim(),
-                              ],
-                            }));
-                            setNewPriority("");
-                          }
-                        }}
-                        className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                    {taskRows.map((row, idx) => (
+                      <div
+                        key={row.id}
+                        className="flex items-start gap-2 p-3 rounded-xl border border-[var(--border-primary)] bg-secondary"
                       >
-                        Add
-                      </button>
-                    </div>
+                        {/* Task Name */}
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <input
+                            type="text"
+                            value={row.name}
+                            onChange={(e) =>
+                              updateTaskRow(idx, "name", e.target.value)
+                            }
+                            placeholder="Task name..."
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                          />
+                          <div className="flex gap-2">
+                            {/* Project Dropdown */}
+                            <select
+                              value={row.project_id || ""}
+                              onChange={(e) =>
+                                updateTaskRow(
+                                  idx,
+                                  "project_id",
+                                  e.target.value || null,
+                                )
+                              }
+                              className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                            >
+                              <option value="">No Project</option>
+                              {assignedProjects.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                            {/* Category (shown when no project) */}
+                            {!row.project_id && (
+                              <select
+                                value={row.category}
+                                onChange={(e) =>
+                                  updateTaskRow(idx, "category", e.target.value)
+                                }
+                                className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                              >
+                                <option value="">Select category...</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Administrative">
+                                  Administrative
+                                </option>
+                                <option value="Technical">Technical</option>
+                                <option value="Logistics">Logistics</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            {/* Blocker button */}
+                            <button
+                              type="button"
+                              onClick={() => setBlockerModal(idx)}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-[8px] font-bold hover:border-rose-500/30 transition-all"
+                            >
+                              <Shield className="w-3 h-3 text-rose-400" />
+                              {row.blockers?.length > 0
+                                ? `${row.blockers.length} Blocker${row.blockers.length > 1 ? "s" : ""}`
+                                : "Blockers"}
+                            </button>
+                            {/* Collaborators */}
+                            <div className="relative flex-1">
+                              <select
+                                multiple
+                                value={row.collaborators || []}
+                                onChange={(e) =>
+                                  updateTaskRow(
+                                    idx,
+                                    "collaborators",
+                                    Array.from(
+                                      e.target.selectedOptions,
+                                      (o) => o.value,
+                                    ),
+                                  )
+                                }
+                                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1 text-[8px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                                size="1"
+                              >
+                                <option value="" disabled>
+                                  {row.collaborators?.length > 0
+                                    ? `${row.collaborators.length} collaborator${row.collaborators.length > 1 ? "s" : ""}`
+                                    : "Support"}
+                                </option>
+                                {allStaff.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Remove button */}
+                        <button
+                          type="button"
+                          onClick={() => removeTaskRow(idx)}
+                          className="p-1.5 text-rose-500/50 hover:text-rose-500 transition-all shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
+
+                  {/* Add Task Row button */}
+                  <button
+                    type="button"
+                    onClick={addTaskRow}
+                    className="w-full py-3 mt-2 border-2 border-dashed border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Task
+                  </button>
                 </Section>
 
+                {/* ─── Projects / Tasks To Focus On (kept for backward compat) ─── */}
                 <Section
-                  title="Expected Deliverables"
-                  icon={CheckCircle2}
-                  color="text-blue-500"
-                  required
+                  title="Additional Notes"
+                  icon={FileText}
+                  color="text-slate-500"
                 >
-                  <div className="space-y-2">
-                    {/* Bullet list */}
-                    <div className="space-y-1.5">
-                      {form.expected_deliverables.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                          <span className="flex-1 text-xs font-bold text-[var(--text-primary)]">
-                            {item}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setForm((p) => ({
-                                ...p,
-                                expected_deliverables:
-                                  p.expected_deliverables.filter(
-                                    (_, i) => i !== idx,
-                                  ),
-                              }))
-                            }
-                            className="text-rose-500/50 hover:text-rose-500 transition-all shrink-0"
-                          >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {/* Add input */}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newDeliverable}
-                        onChange={(e) => setNewDeliverable(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && newDeliverable.trim()) {
-                            e.preventDefault();
-                            setForm((p) => ({
-                              ...p,
-                              expected_deliverables: [
-                                ...p.expected_deliverables,
-                                newDeliverable.trim(),
-                              ],
-                            }));
-                            setNewDeliverable("");
-                          }
-                        }}
-                        placeholder="Type a deliverable and press Enter..."
-                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-blue-500 transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (newDeliverable.trim()) {
-                            setForm((p) => ({
-                              ...p,
-                              expected_deliverables: [
-                                ...p.expected_deliverables,
-                                newDeliverable.trim(),
-                              ],
-                            }));
-                            setNewDeliverable("");
-                          }
-                        }}
-                        className="px-4 py-2.5 bg-blue-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
+                  <input
+                    type="text"
+                    value={form.additional_notes}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        additional_notes: e.target.value,
+                      }))
+                    }
+                    placeholder="Anything else to note?"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
+                  />
                 </Section>
 
                 {/* ─── SECTION 2: Work Planning ─── */}
@@ -1361,6 +1453,109 @@ export default function StaffOpReport() {
           </div>
         </div>
       </div>
+
+      {/* ─── BLOCKER MODAL ─── */}
+      {blockerModal !== null && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setBlockerModal(null)}
+        >
+          <div
+            className="card w-full max-w-md space-y-4 border-rose-500/30"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-rose-400" />
+                <span className="text-xs font-black uppercase tracking-wider text-rose-400">
+                  Blockers
+                </span>
+              </div>
+              <button onClick={() => setBlockerModal(null)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-[10px] text-slate-500">
+              Task:{" "}
+              <span className="font-bold text-[var(--text-primary)]">
+                {taskRows[blockerModal]?.name || "Untitled"}
+              </span>
+            </p>
+
+            {/* Existing blockers */}
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {(taskRows[blockerModal]?.blockers || []).length === 0 && (
+                <p className="text-[10px] text-slate-600 italic text-center py-4">
+                  No blockers declared yet.
+                </p>
+              )}
+              {(taskRows[blockerModal]?.blockers || []).map((b) => (
+                <div
+                  key={b.id}
+                  className={`flex items-center justify-between p-2.5 rounded-lg border ${
+                    b.status === "Resolved"
+                      ? "border-emerald-500/20 bg-emerald-500/5"
+                      : "border-rose-500/20 bg-rose-500/5"
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                      {b.description}
+                    </p>
+                    {b.resolved_at && (
+                      <p className="text-[8px] text-slate-500">
+                        Resolved {new Date(b.resolved_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  {b.status === "Active" ? (
+                    <button
+                      onClick={() => resolveBlocker(blockerModal, b.id)}
+                      className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all shrink-0"
+                    >
+                      Resolve
+                    </button>
+                  ) : (
+                    <span className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg">
+                      Resolved
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Add new blocker */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newBlockerDesc}
+                onChange={(e) => setNewBlockerDesc(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newBlockerDesc.trim()) {
+                    e.preventDefault();
+                    addBlockerToRow(blockerModal, newBlockerDesc.trim());
+                    setNewBlockerDesc("");
+                  }
+                }}
+                placeholder="Describe blocker..."
+                className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all"
+              />
+              <button
+                onClick={() => {
+                  if (newBlockerDesc.trim()) {
+                    addBlockerToRow(blockerModal, newBlockerDesc.trim());
+                    setNewBlockerDesc("");
+                  }
+                }}
+                className="px-3 py-2 bg-rose-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
