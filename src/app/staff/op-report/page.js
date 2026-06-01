@@ -209,9 +209,10 @@ export default function StaffOpReport() {
           ),
         ),
       );
-      const allTasks = results.flatMap((data) =>
-        Array.isArray(data) ? data : data.tasks || [],
-      );
+      const allTasks = results.flatMap((data) => {
+        if (!data || typeof data !== "object") return [];
+        return Array.isArray(data) ? data : data.tasks || [];
+      });
       setTasks(allTasks);
     } catch (e) {
       console.error("Failed to fetch tasks:", e);
@@ -221,12 +222,22 @@ export default function StaffOpReport() {
   }, [user]);
 
   useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    if (!u.id && !u.cid) {
+    try {
+      const saved = localStorage.getItem("user");
+      if (!saved) {
+        router.push("/login");
+        return;
+      }
+      const u = JSON.parse(saved);
+      if (!u.id && !u.cid) {
+        router.push("/login");
+        return;
+      }
+      setUser(u);
+    } catch (e) {
+      console.error("Failed to parse user from localStorage:", e);
       router.push("/login");
-      return;
     }
-    setUser(u);
   }, [router]);
 
   useEffect(() => {
@@ -623,17 +634,19 @@ export default function StaffOpReport() {
                           setCreatingTask(true);
                           try {
                             const userId = user.cid || user.id;
+                            const weekData = getCurrentWeek();
                             const res = await fetch("/api/tasks", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 title: newTaskTitle.trim(),
                                 description: newTaskDescription.trim() || null,
-                                project:
-                                  newTaskProject.trim() ||
-                                  t("reports.independentTask"),
+                                project_id: newTaskProject.trim() || null,
                                 user_id: userId,
+                                user_name: user.name || "",
                                 status: "pending",
+                                created_week: weekData.week,
+                                created_year: weekData.year,
                                 start_date: newTaskStartDate || null,
                                 end_date: newTaskEndDate || null,
                               }),
