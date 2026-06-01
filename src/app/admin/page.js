@@ -258,17 +258,20 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    const userString = localStorage.getItem("user");
-    if (!userString) {
-      router.replace("/login");
-      return;
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        if (!data.authenticated || data.user.role !== "super_admin") {
+          router.replace("/login");
+          return;
+        }
+        fetchDashboardData();
+      } catch {
+        router.replace("/login");
+      }
     }
-    const user = JSON.parse(userString);
-    if (user.role !== "super_admin") {
-      router.replace("/login");
-      return;
-    }
-    fetchDashboardData();
+    checkAuth();
   }, [router, fetchDashboardData]);
 
   const handleApproval = async (notif) => {

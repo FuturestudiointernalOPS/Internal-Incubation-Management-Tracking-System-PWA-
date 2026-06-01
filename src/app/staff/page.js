@@ -23,38 +23,19 @@ export default function StaffDashboard() {
   const [user, setUser] = useState({});
 
   useEffect(() => {
-    const userString = localStorage.getItem("user");
-    if (!userString) {
-      router.replace("/login");
-      return;
-    }
-    const parsedUser = JSON.parse(userString);
-    if (
-      parsedUser.role !== "staff" &&
-      parsedUser.role !== "super_admin" &&
-      parsedUser.role !== "teacher"
-    ) {
-      router.replace("/login");
-      return;
-    }
-
-    const checkAssignments = async () => {
+    async function checkAuth() {
       try {
-        const res = await fetch(
-          `/api/v2/teacher/full-state?cid=${parsedUser.cid || parsedUser.id}`,
-        );
+        const res = await fetch("/api/auth/session");
         const data = await res.json();
-        if (
-          data.success &&
-          (data.programs?.length > 0 || data.teams?.length > 0)
-        ) {
-          router.replace("/teacher");
+        if (!data.authenticated || (data.user.role !== "staff" && data.user.role !== "super_admin" && data.user.role !== "teacher")) {
+          router.replace("/login");
+          return;
         }
-      } catch (e) {}
-    };
-
-    setUser(parsedUser);
-    checkAssignments();
+      } catch {
+        router.replace("/login");
+      }
+    }
+    checkAuth();
   }, [router]);
 
   return (

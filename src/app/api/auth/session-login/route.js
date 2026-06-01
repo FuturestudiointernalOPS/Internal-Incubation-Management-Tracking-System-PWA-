@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { createSession } from "@/lib/auth";
+import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 
 export async function POST(req) {
   try {
@@ -11,7 +11,7 @@ export async function POST(req) {
     if (!email || !password) {
       return NextResponse.json(
         { success: false, error: "Email and password required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -26,7 +26,7 @@ export async function POST(req) {
     if (result.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Invalid credentials." },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -45,7 +45,7 @@ export async function POST(req) {
     if (!isMatch) {
       return NextResponse.json(
         { success: false, error: "Invalid credentials." },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -54,9 +54,10 @@ export async function POST(req) {
       return NextResponse.json(
         {
           success: false,
-          error: "Your account is pending approval. Please wait for an administrator to approve your account.",
+          error:
+            "Your account is pending approval. Please wait for an administrator to approve your account.",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -66,7 +67,7 @@ export async function POST(req) {
           success: false,
           error: "Your account has been suspended. Contact your administrator.",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -99,10 +100,11 @@ export async function POST(req) {
       finalRole = "staff";
     }
 
-    // Create session
-    await createSession(user.cid, finalRole);
+    // Create session (DB insert) and get token
+    const { token, maxAge } = await createSession(user.cid, finalRole);
 
-    return NextResponse.json({
+    // Build response and set cookie directly on it
+    const response = NextResponse.json({
       success: true,
       user: {
         cid: user.cid,
@@ -113,11 +115,13 @@ export async function POST(req) {
         language: user.language || "en",
       },
     });
+
+    return setSessionCookieOnResponse(response, token, maxAge);
   } catch (error) {
     console.error("Session login error:", error);
     return NextResponse.json(
       { success: false, error: "Authentication system failure." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -90,14 +90,20 @@ export default function InvitePage({ params }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "var(--bg-primary)" }}
+      >
         <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden text-slate-100 font-sans">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden font-sans"
+      style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}
+    >
       {/* Dynamic Background */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-orange-600/30 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[50%] bg-blue-600/20 blur-[100px] rounded-full pointer-events-none" />
@@ -107,17 +113,23 @@ export default function InvitePage({ params }) {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md relative z-10"
       >
-        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 p-8 rounded-3xl shadow-2xl">
+        <div
+          className="backdrop-blur-xl border p-8 rounded-3xl shadow-2xl"
+          style={{
+            background: "var(--surface-1)",
+            borderColor: "var(--border-primary)",
+          }}
+        >
           <div className="text-center mb-8">
             <div className="bg-orange-500/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-orange-500/20">
               <ShieldCheck className="text-orange-500 w-8 h-8" />
             </div>
             <h1 className="text-2xl font-bold mb-2">Join the Platform</h1>
-            <p className="text-slate-400 text-sm">
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               {inviteData?.program_name ? (
                 <>
                   You have been invited to{" "}
-                  <strong className="text-white">
+                  <strong style={{ color: "var(--text-primary)" }}>
                     {inviteData.program_name}
                   </strong>
                 </>
@@ -167,7 +179,7 @@ export default function InvitePage({ params }) {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-950/50 border border-slate-800 rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-slate-600"
+                  className="w-full pl-12 pr-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-[var(--text-tertiary)]"
                 />
               </div>
 
@@ -182,7 +194,7 @@ export default function InvitePage({ params }) {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-950/50 border border-slate-800 rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-slate-600"
+                  className="w-full pl-12 pr-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-[var(--text-tertiary)]"
                 />
               </div>
 
@@ -196,7 +208,7 @@ export default function InvitePage({ params }) {
                   placeholder="Phone Number (Optional)"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-950/50 border border-slate-800 rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-slate-600"
+                  className="w-full pl-12 pr-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-[var(--text-tertiary)]"
                 />
               </div>
 
@@ -211,7 +223,7 @@ export default function InvitePage({ params }) {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-950/50 border border-slate-800 rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-slate-600"
+                  className="w-full pl-12 pr-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-[var(--text-tertiary)]"
                 />
               </div>
 

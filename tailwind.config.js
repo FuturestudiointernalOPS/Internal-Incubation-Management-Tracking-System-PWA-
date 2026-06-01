@@ -11,6 +11,11 @@ module.exports = {
         primary: "var(--bg-primary)",
         secondary: "var(--bg-secondary)",
         tertiary: "var(--bg-tertiary)",
+        surface: {
+          1: "var(--surface-1)",
+          2: "var(--surface-2)",
+          3: "var(--surface-3)",
+        },
       },
       colors: {
         border: "hsl(var(--border))",

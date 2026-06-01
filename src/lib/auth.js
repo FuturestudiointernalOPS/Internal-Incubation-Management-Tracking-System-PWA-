@@ -2,13 +2,14 @@ import db, { initDb } from "@/lib/db";
 import { cookies } from "next/headers";
 import { v4 as uuidv4 } from "uuid";
 
-const SESSION_COOKIE_NAME = "impactos_session";
+export const SESSION_COOKIE_NAME = "impactos_session";
 const SESSION_DURATION_HOURS = 24;
 const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
 
 /**
  * Creates a new session for a user.
- * Stores session in database and sets HTTP-only cookie.
+ * Stores session in database and returns the token and maxAge.
+ * The caller is responsible for setting the cookie on the response.
  */
 export async function createSession(userCid, userRole) {
   await initDb();
@@ -26,20 +27,15 @@ export async function createSession(userCid, userRole) {
   await db.execute({
     sql: `INSERT INTO user_sessions (token, user_cid, role, expires_at)
           VALUES (?, ?, ?, ?)`,
-    args: [token, userCid, userRole, expiresAt.toISOString().replace('T', ' ').replace('Z', '')],
+    args: [
+      token,
+      userCid,
+      userRole,
+      expiresAt.toISOString().replace("T", " ").replace("Z", ""),
+    ],
   });
 
-  // Set HTTP-only cookie
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_DURATION_HOURS * 60 * 60, // seconds
-  });
-
-  return token;
+  return { token, maxAge: SESSION_DURATION_HOURS * 60 * 60 };
 }
 
 /**
@@ -85,6 +81,21 @@ export async function getSession() {
     console.error("Session validation error:", error);
     return null;
   }
+}
+
+/**
+ * Sets the session cookie on a NextResponse object.
+ * This is more reliable than using cookies().set() in route handlers.
+ */
+export function setSessionCookieOnResponse(response, token, maxAge) {
+  response.cookies.set(SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge,
+  });
+  return response;
 }
 
 /**

@@ -36,6 +36,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
+import { useTheme } from "@/lib/ThemeProvider";
 
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
@@ -457,14 +458,8 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  const toggleTheme = () => {
-    const current =
-      document.documentElement.getAttribute("data-theme") || "dark";
-    const next = current === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("impactos_theme", next);
-  };
 
+  const { toggleTheme, theme } = useTheme();
   const [user, setUser] = useState({});
   const [authChecked, setAuthChecked] = useState(false);
   const [pmPrograms, setPmPrograms] = useState([]);
@@ -652,10 +647,9 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           <div className="flex items-center gap-4 ml-auto relative z-10">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-md hover:bg-primary text-[var(--text-secondary)]"
+              className="p-2 rounded-md" style={{color: "var(--text-secondary)"}}
             >
-              <Sun className="w-4 h-4 dark:hidden" />
-              <Moon className="w-4 h-4 hidden dark:block" />
+              {theme === "dark" ? (<Sun className="w-4 h-4" />) : (<Moon className="w-4 h-4" />)}
             </button>
             <button
               onClick={() => switchLang(lang === "en" ? "fr" : "en")}

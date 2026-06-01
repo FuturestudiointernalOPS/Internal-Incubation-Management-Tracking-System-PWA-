@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { createSession } from "@/lib/auth";
+import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
 export async function POST(req) {
@@ -197,14 +197,20 @@ export async function POST(req) {
       responseUser.team_id = user.id;
     }
 
-    // Create session with HTTP-only cookie for route protection
+    // Create session (DB insert) and get token
     try {
-      await createSession(responseUser.cid || responseUser.id, finalRole);
+      const { token, maxAge } = await createSession(
+        responseUser.cid || responseUser.id,
+        finalRole,
+      );
+      // Build response and set cookie directly on it
+      const response = NextResponse.json({ success: true, user: responseUser });
+      return setSessionCookieOnResponse(response, token, maxAge);
     } catch (sessionErr) {
-      console.error("Session creation failed (non-fatal):", sessionErr.message);
+      console.error("Session creation failed:", sessionErr.message);
+      // Still return success so user can proceed (degraded UX)
+      return NextResponse.json({ success: true, user: responseUser });
     }
-
-    return NextResponse.json({ success: true, user: responseUser });
   } catch (err) {
     console.error("Auth V1 Error:", err);
     return NextResponse.json(

@@ -33,7 +33,11 @@ import { TableSkeleton } from "@/components/ui/Skeleton";
  */
 
 const SEVERITY_CONFIG = {
-  low: { label: "Low", color: "text-slate-400", bg: "bg-slate-500/10" },
+  low: {
+    label: "Low",
+    color: "text-[var(--text-secondary)]",
+    bg: "bg-[var(--border-primary)]/20",
+  },
   medium: { label: "Medium", color: "text-amber-500", bg: "bg-amber-500/10" },
   high: { label: "High", color: "text-rose-500", bg: "bg-rose-500/10" },
   critical: { label: "Critical", color: "text-red-600", bg: "bg-red-600/10" },
@@ -46,12 +50,12 @@ function formatSeverity(severity) {
 
 function getSeverityColor(severity) {
   const config = SEVERITY_CONFIG[severity];
-  return config ? config.color : "text-slate-400";
+  return config ? config.color : "text-[var(--text-secondary)]";
 }
 
 function getSeverityBg(severity) {
   const config = SEVERITY_CONFIG[severity];
-  return config ? config.bg : "bg-slate-500/10";
+  return config ? config.bg : "bg-[var(--border-primary)]/20";
 }
 
 export default function AdminBlockers() {
@@ -189,7 +193,10 @@ export default function AdminBlockers() {
           <div className="card flex items-center gap-4 p-5 border-l-4 border-rose-500">
             <AlertTriangle className="w-6 h-6 text-rose-500" />
             <div>
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+              <p
+                className="text-[9px] font-bold uppercase tracking-widest"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 {t("reports.active")}
               </p>
               <p className="text-2xl font-black text-rose-500">
@@ -200,7 +207,10 @@ export default function AdminBlockers() {
           <div className="card flex items-center gap-4 p-5 border-l-4 border-emerald-500">
             <CheckCircle2 className="w-6 h-6 text-emerald-500" />
             <div>
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+              <p
+                className="text-[9px] font-bold uppercase tracking-widest"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 {t("reports.resolved")}
               </p>
               <p className="text-2xl font-black text-emerald-500">
@@ -211,7 +221,10 @@ export default function AdminBlockers() {
           <div className="card flex items-center gap-4 p-5 border-l-4 border-[var(--brand-orange)]">
             <Shield className="w-6 h-6 text-[var(--brand-orange)]" />
             <div>
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+              <p
+                className="text-[9px] font-bold uppercase tracking-widest"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 {t("reports.blockers")}
               </p>
               <p className="text-2xl font-black">{stats.total}</p>
@@ -222,17 +235,24 @@ export default function AdminBlockers() {
         {/* FILTERS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
+              style={{ color: "var(--text-secondary)" }}
+            />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("common.search")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+              style={{ color: "var(--text-primary)" }}
             />
           </div>
 
           <div className="relative">
-            <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Users
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
+              style={{ color: "var(--text-secondary)" }}
+            />
             <select
               value={filterUser}
               onChange={(e) => setFilterUser(e.target.value)}
@@ -248,7 +268,10 @@ export default function AdminBlockers() {
           </div>
 
           <div className="relative">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Filter
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
+              style={{ color: "var(--text-secondary)" }}
+            />
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -270,7 +293,10 @@ export default function AdminBlockers() {
             <p className="text-[10px] font-bold uppercase tracking-widest">
               {t("reports.noBlockersFound")}
             </p>
-            <p className="text-[9px] text-slate-500 mt-2">
+            <p
+              className="text-[9px] mt-2"
+              style={{ color: "var(--text-secondary)" }}
+            >
               Blockers will appear here once tied to tasks.
             </p>
           </div>
@@ -280,25 +306,46 @@ export default function AdminBlockers() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[var(--border-primary)]">
-                    <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th
+                      className="text-left p-4 text-[8px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Blocker
                     </th>
-                    <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th
+                      className="text-left p-4 text-[8px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Owner
                     </th>
-                    <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th
+                      className="text-left p-4 text-[8px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Linked Task
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th
+                      className="text-center p-4 text-[8px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Severity
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th
+                      className="text-center p-4 text-[8px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Status
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th
+                      className="text-center p-4 text-[8px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       {t("time.created")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th
+                      className="text-center p-4 text-[8px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       {t("time.updated")}
                     </th>
                   </tr>
@@ -322,7 +369,10 @@ export default function AdminBlockers() {
                             {blocker.title}
                           </p>
                           {blocker.description && (
-                            <p className="text-[9px] text-slate-500 mt-0.5 line-clamp-1">
+                            <p
+                              className="text-[9px] mt-0.5 line-clamp-1"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
                               {blocker.description}
                             </p>
                           )}
@@ -341,7 +391,8 @@ export default function AdminBlockers() {
                       <td className="p-4">
                         <button
                           onClick={() => router.push(`/admin/tasks`)}
-                          className="text-[10px] font-bold text-indigo-500 hover:underline flex items-center gap-1"
+                          className="text-[10px] font-bold hover:underline flex items-center gap-1"
+                          style={{ color: "var(--chart-info)" }}
                         >
                           <ListTodo className="w-3 h-3" />
                           {getTaskTitle(blocker.task_id)}
@@ -368,12 +419,18 @@ export default function AdminBlockers() {
                         </span>
                       </td>
                       <td className="text-center p-4">
-                        <span className="text-[9px] text-slate-500">
+                        <span
+                          className="text-[9px]"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
                           {new Date(blocker.created_at).toLocaleDateString()}
                         </span>
                       </td>
                       <td className="text-center p-4">
-                        <span className="text-[9px] text-slate-500">
+                        <span
+                          className="text-[9px]"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
                           {blocker.resolved_at
                             ? new Date(blocker.resolved_at).toLocaleDateString()
                             : "—"}
@@ -409,7 +466,10 @@ export default function AdminBlockers() {
 
               <div className="space-y-4">
                 <div>
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  <p
+                    className="text-[8px] font-black uppercase tracking-widest mb-1"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
                     Title
                   </p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">
@@ -419,7 +479,10 @@ export default function AdminBlockers() {
 
                 {viewingBlocker.description && (
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p
+                      className="text-[8px] font-black uppercase tracking-widest mb-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Description
                     </p>
                     <p className="text-xs text-[var(--text-secondary)]">
@@ -430,7 +493,10 @@ export default function AdminBlockers() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p
+                      className="text-[8px] font-black uppercase tracking-widest mb-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Owner
                     </p>
                     <p className="text-xs font-bold text-[var(--text-primary)]">
@@ -438,10 +504,16 @@ export default function AdminBlockers() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p
+                      className="text-[8px] font-black uppercase tracking-widest mb-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Linked Task
                     </p>
-                    <p className="text-xs font-bold text-indigo-500">
+                    <p
+                      className="text-xs font-bold"
+                      style={{ color: "var(--chart-info)" }}
+                    >
                       {getTaskTitle(viewingBlocker.task_id)}
                     </p>
                   </div>
@@ -449,7 +521,10 @@ export default function AdminBlockers() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p
+                      className="text-[8px] font-black uppercase tracking-widest mb-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Severity
                     </p>
                     <span
@@ -459,7 +534,10 @@ export default function AdminBlockers() {
                     </span>
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p
+                      className="text-[8px] font-black uppercase tracking-widest mb-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Status
                     </p>
                     <span
@@ -478,7 +556,10 @@ export default function AdminBlockers() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p
+                      className="text-[8px] font-black uppercase tracking-widest mb-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       {t("time.created")}
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
@@ -487,7 +568,10 @@ export default function AdminBlockers() {
                   </div>
                   {viewingBlocker.resolved_at && (
                     <div>
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                      <p
+                        className="text-[8px] font-black uppercase tracking-widest mb-1"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
                         Resolved At
                       </p>
                       <p className="text-[10px] font-bold text-emerald-500">
@@ -503,7 +587,10 @@ export default function AdminBlockers() {
                   <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest">
                     Super Admin Notice
                   </p>
-                  <p className="text-[10px] text-slate-500 mt-1">
+                  <p
+                    className="text-[10px] mt-1"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
                     Only{" "}
                     <span className="font-bold text-white">
                       {viewingBlocker.user_name || "the blocker creator"}

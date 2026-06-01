@@ -44,18 +44,25 @@ export default function PMDashboard() {
   const { t } = useI18n();
 
   useEffect(() => {
-    const userString = localStorage.getItem("user");
-    if (!userString) {
-      router.replace("/login");
-      return;
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        if (
+          !data.authenticated ||
+          (data.user.role !== "program_manager" &&
+            data.user.role !== "super_admin")
+        ) {
+          router.replace("/login");
+          return;
+        }
+        fetchPMPrograms(data.user.cid);
+        fetchGlobalSchedule();
+      } catch {
+        router.replace("/login");
+      }
     }
-    const user = JSON.parse(userString);
-    if (user.role !== "program_manager" && user.role !== "super_admin") {
-      router.replace("/login");
-      return;
-    }
-    fetchPMPrograms(user.cid || user.id);
-    fetchGlobalSchedule();
+    checkAuth();
   }, [router]);
 
   const fetchGlobalSchedule = async () => {
