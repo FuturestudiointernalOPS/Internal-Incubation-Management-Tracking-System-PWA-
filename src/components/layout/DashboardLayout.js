@@ -260,19 +260,17 @@ const NAVIGATION_MATRIX = {
           name: "CONTACTS",
           href: "/admin/communications/contacts",
         },
+        {
+          id: "pending_users",
+          name: "PENDING USERS",
+          href: "/admin/pending-users",
+        },
+        {
+          id: "bulk_upload",
+          name: "BULK UPLOAD",
+          href: "/admin/bulk-upload",
+        },
       ],
-    },
-    {
-      id: "pending_users",
-      name: "PENDING USERS",
-      icon: UserCheck,
-      href: "/admin/pending-users",
-    },
-    {
-      id: "bulk_upload",
-      name: "BULK UPLOAD",
-      icon: UploadCloud,
-      href: "/admin/bulk-upload",
     },
     {
       id: "knowledge",
@@ -294,6 +292,11 @@ const NAVIGATION_MATRIX = {
           id: "internal_reports",
           name: "INTERNAL REPORTS",
           href: "/admin/op-reports",
+        },
+        {
+          id: "work_management",
+          name: "WORK MANAGEMENT",
+          href: "/admin/work",
         },
         {
           id: "tasks",

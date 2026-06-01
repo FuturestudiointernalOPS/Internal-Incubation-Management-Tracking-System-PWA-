@@ -290,6 +290,8 @@ export async function PUT(req) {
     let auditAction = "updated";
     let auditDetails = "";
     const changes = [];
+    let needsRescheduleInc = false;
+    let dateChangeLog = null; // { field, old_val, new_val } for task_audit_logs
 
     if (title !== undefined && title !== task.title) {
       updateFields.push("title = ?");
@@ -322,15 +324,60 @@ export async function PUT(req) {
       updateArgs.push(project_id || null);
       changes.push("project reassigned");
     }
+    // ─── SCHEDULE DRIFT DETECTION (Phase 2/11) ───
     if (start_date !== undefined) {
+      const dateChanged = start_date !== (task.start_date || null);
       updateFields.push("start_date = ?");
       updateArgs.push(start_date || null);
-      changes.push("start date updated");
+
+      if (dateChanged) {
+        dateChangeLog = {
+          field: "start_date",
+          old_val: task.start_date,
+          new_val: start_date,
+        };
+        changes.push("start date updated");
+        // First schedule: immutable once set
+        if (!task.first_scheduled_start_date && start_date) {
+          updateFields.push("first_scheduled_start_date = ?");
+          updateArgs.push(start_date);
+          changes.push("first schedule captured");
+        } else if (
+          task.first_scheduled_start_date &&
+          start_date !== task.first_scheduled_start_date
+        ) {
+          // Drift detected — increment reschedule count via separate update
+          needsRescheduleInc = true;
+          changes.push("schedule drift detected");
+        }
+      }
     }
     if (end_date !== undefined) {
+      const dateChanged = end_date !== (task.end_date || null);
       updateFields.push("end_date = ?");
       updateArgs.push(end_date || null);
-      changes.push("end date updated");
+
+      if (dateChanged) {
+        dateChangeLog = {
+          field: "end_date",
+          old_val: task.end_date,
+          new_val: end_date,
+        };
+        changes.push("end date updated");
+        // First schedule: immutable once set
+        if (!task.first_scheduled_end_date && end_date) {
+          updateFields.push("first_scheduled_end_date = ?");
+          updateArgs.push(end_date);
+          changes.push("first schedule captured");
+        } else if (
+          task.first_scheduled_end_date &&
+          end_date !== task.first_scheduled_end_date
+        ) {
+          // Drift detected — increment reschedule count via separate update
+          needsRescheduleInc = true;
+          changes.push("schedule drift detected");
+        }
+      }
     }
 
     if (updateFields.length === 0) {
@@ -347,6 +394,37 @@ export async function PUT(req) {
       sql: `UPDATE tasks SET ${updateFields.join(", ")} WHERE id = ?`,
       args: updateArgs,
     });
+
+    // ─── Reschedule increment (Phase 2/11) ───
+    if (needsRescheduleInc) {
+      await db.execute({
+        sql: "UPDATE tasks SET reschedule_count = COALESCE(reschedule_count, 0) + 1 WHERE id = ?",
+        args: [parseInt(id)],
+      });
+    }
+
+    // ─── Task audit log for date changes (Phase 11) ───
+    if (dateChangeLog) {
+      await db.execute({
+        sql: `INSERT INTO task_audit_logs
+          (task_id, user_id, user_name, action, field_name, old_value, new_value, metadata)
+          VALUES (?, ?, ?, 'schedule_changed', ?, ?, ?, ?)`,
+        args: [
+          parseInt(id),
+          user_id || task.user_id,
+          user_name || task.user_name || "",
+          dateChangeLog.field,
+          String(dateChangeLog.old_val || ""),
+          String(dateChangeLog.new_val || ""),
+          needsRescheduleInc
+            ? JSON.stringify({
+                drift: true,
+                reschedule_count_incremented: true,
+              })
+            : null,
+        ],
+      });
+    }
 
     // Audit log
     await logAuditEvent({
