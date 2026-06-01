@@ -578,6 +578,7 @@ function ContactsPageContent() {
                               setNewGroupProgramId(f.program_id);
                               setShowGroupModal(f);
                             }}
+                            title="Edit Segment"
                             className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-primary text-slate-500 hover:text-[var(--brand-orange)]"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
@@ -587,12 +588,14 @@ function ContactsPageContent() {
                               setGroupKeysForm({ ...f });
                               setShowGroupKeysModal(f);
                             }}
+                            title="Access Keys"
                             className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-primary text-slate-500 hover:text-blue-500"
                           >
                             <Key className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => copyJoinLink(name)}
+                            title="Copy Join Link"
                             className={`p-2.5 rounded-lg border border-[var(--border-primary)] transition-all ${copiedGroup === name ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" : "bg-primary text-slate-500 hover:text-[var(--brand-orange)]"}`}
                           >
                             {copiedGroup === name ? (
@@ -771,6 +774,11 @@ function ContactsPageContent() {
                               onClick={() =>
                                 toggleStatus(c.cid, c.status, c.group_name)
                               }
+                              title={
+                                c.status === "active"
+                                  ? "Deactivate"
+                                  : "Activate"
+                              }
                               className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500 transition-all"
                             >
                               {c.status === "active" ? (
@@ -784,19 +792,21 @@ function ContactsPageContent() {
                                 setForm(c);
                                 setShowManualModal(true);
                               }}
+                              title="Edit Contact"
                               className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-[var(--brand-orange)]"
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handlePivotToEntity(c)}
-                              title="Entity Pivot"
+                              title="Pivot to Entity"
                               className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500"
                             >
                               <TrendingUp className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleResetPassword(c)}
+                              title="Reset Password"
                               className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-blue-500"
                             >
                               <Key className="w-4 h-4" />
