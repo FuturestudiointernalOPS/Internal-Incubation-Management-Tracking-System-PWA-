@@ -775,14 +775,25 @@ export default function StaffOpReport() {
                       {history.filter((r) => r.report_type === "standup")
                         .length === 0 && (
                         <tr>
-                          <td colSpan={4} className="px-4 py-12 text-center">
+                          <td colSpan={4} className="px-4 py-8 text-center">
                             <Target className="w-8 h-8 mx-auto mb-3 text-slate-500 opacity-30" />
-                            <p className="text-[12px] font-medium text-slate-500">
-                              No stand-ups yet
+                            <p className="text-[12px] font-medium text-slate-500 mb-1">
+                              No stand-up reports yet
                             </p>
-                            <p className="text-[10px] text-slate-600 mt-1">
-                              Create your first weekly plan
+                            <p className="text-[10px] text-slate-600 mb-4">
+                              {tasks.length > 0
+                                ? `You have ${tasks.length} task${tasks.length > 1 ? "s" : ""} — create a stand-up to track them weekly`
+                                : "Create your first stand-up to plan your week"}
                             </p>
+                            <button
+                              onClick={() => {
+                                setShowStandupModal(true);
+                                setWeekInfo(getCurrentWeek());
+                              }}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
+                            >
+                              <Plus className="w-4 h-4" /> Create Stand-Up
+                            </button>
                           </td>
                         </tr>
                       )}
