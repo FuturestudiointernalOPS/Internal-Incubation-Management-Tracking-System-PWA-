@@ -540,9 +540,15 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   const navItems = useMemo(() => {
     // Priority: user.role (from session) > role (from prop) > fallback 'admin'
     const activeRole = user.role || role || "admin";
-    const items = [
-      ...(NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin),
-    ];
+    const matrix = NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin;
+    console.log("forensic | DashboardLayout nav:", {
+      userRole: user.role,
+      propRole: role,
+      activeRole,
+      matrixKeys: matrix.map((i) => i.id),
+      hasReports: matrix.some((i) => i.id === "reports"),
+    });
+    const items = [...matrix];
 
     if (
       (activeRole === "program_manager" || activeRole === "super_admin") &&
