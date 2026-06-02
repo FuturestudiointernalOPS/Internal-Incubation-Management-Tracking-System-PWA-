@@ -6,9 +6,8 @@ import db, { initDb } from "@/lib/db";
  *
  * GET /api/projects/assignments?user_cid=X
  *
- * Returns all active projects a user is assigned to,
- * along with their role in each project.
- * Used by staff for task creation filtering in standups/retros.
+ * Returns all active projects a user is assigned to.
+ * If project_members table doesn't exist, returns empty array.
  */
 export async function GET(req) {
   try {
@@ -23,20 +22,27 @@ export async function GET(req) {
       );
     }
 
-    const result = await db.execute({
-      sql: `
-        SELECT p.id, p.name, p.status, p.program_id, pr.name as program_name,
-               pm.role as member_role
-        FROM project_members pm
-        INNER JOIN v2_projects p ON pm.project_id = p.id
-        LEFT JOIN v2_programs pr ON p.program_id = pr.id
-        WHERE pm.user_cid = ? AND p.status != 'Archived'
-        ORDER BY p.name ASC
-      `,
-      args: [user_cid],
-    });
+    let projects = [];
+    try {
+      const result = await db.execute({
+        sql: `
+          SELECT p.id, p.name, p.status, p.program_id, pr.name as program_name,
+                 pm.role as member_role
+          FROM project_members pm
+          INNER JOIN v2_projects p ON pm.project_id = p.id
+          LEFT JOIN v2_programs pr ON p.program_id = pr.id
+          WHERE pm.user_cid = ? AND p.status != 'Archived'
+          ORDER BY p.name ASC
+        `,
+        args: [user_cid],
+      });
+      projects = result.rows;
+    } catch (e) {
+      // project_members table may not exist yet
+      projects = [];
+    }
 
-    return NextResponse.json({ success: true, projects: result.rows });
+    return NextResponse.json({ success: true, projects });
   } catch (error) {
     console.error("GET /api/projects/assignments error:", error);
     return NextResponse.json(
