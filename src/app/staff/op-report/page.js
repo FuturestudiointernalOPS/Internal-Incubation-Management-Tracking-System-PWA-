@@ -251,6 +251,28 @@ export default function StaffOpReport() {
     try {
       const res = await fetch("/api/contacts");
       const data = await res.json();
+      console.log("forensic | /api/contacts response:", {
+        success: data.success,
+        totalContacts: (data.contacts || []).length,
+        activeFutureStudio: (data.contacts || []).filter(
+          (c) =>
+            c.status === "active" &&
+            c.group_name?.toUpperCase() === "FUTURE STUDIO",
+        ).length,
+        sample: (data.contacts || [])
+          .filter(
+            (c) =>
+              c.status === "active" &&
+              c.group_name?.toUpperCase() === "FUTURE STUDIO",
+          )
+          .slice(0, 3)
+          .map((c) => ({
+            name: c.name,
+            group: c.group_name,
+            status: c.status,
+            cid: c.cid,
+          })),
+      });
       if (data.success) {
         // Only active staff from FUTURE STUDIO group
         const staff = (data.contacts || [])
@@ -265,6 +287,7 @@ export default function StaffOpReport() {
             email: c.email,
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
+        console.log("forensic | staff list set:", staff.length, "members");
         setAllStaff(staff);
       }
     } catch (e) {
@@ -296,8 +319,17 @@ export default function StaffOpReport() {
       fetchReport();
       fetchHistory();
       fetchTasks();
+      fetchAssignedProjects();
+      fetchAllStaff();
     }
-  }, [user, fetchReport, fetchHistory, fetchTasks]);
+  }, [
+    user,
+    fetchReport,
+    fetchHistory,
+    fetchTasks,
+    fetchAssignedProjects,
+    fetchAllStaff,
+  ]);
 
   const handleSubmit = async (status = "submitted") => {
     if (!user) return;
