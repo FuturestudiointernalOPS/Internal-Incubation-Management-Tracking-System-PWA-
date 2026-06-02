@@ -64,6 +64,7 @@ export default function StaffOpReport() {
     category: "",
     due_date: "",
     collaborator: "",
+    collaborator_note: "",
   });
 
   // Form state
@@ -417,7 +418,12 @@ export default function StaffOpReport() {
         due_date: newTaskForm.due_date || "",
         blockers: [],
         collaborators: newTaskForm.collaborator
-          ? [newTaskForm.collaborator]
+          ? [
+              {
+                id: newTaskForm.collaborator,
+                note: newTaskForm.collaborator_note,
+              },
+            ]
           : [],
         status: null,
         uncompleted_reason: "",
@@ -429,6 +435,7 @@ export default function StaffOpReport() {
       category: "",
       due_date: "",
       collaborator: "",
+      collaborator_note: "",
     });
     setShowTaskForm(false);
   };
@@ -630,26 +637,129 @@ export default function StaffOpReport() {
           {/* REPORT FORM */}
           <div className="lg:col-span-2 space-y-8">
             {reportType === "standup" ? (
-              <div className="space-y-8">
-                {/* ═══════════════════════════════════════ */}
-                {/* MONDAY STAND-UP EMPTY STATE            */}
-                {/* ═══════════════════════════════════════ */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div>
-                    <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight">
-                      Monday Stand-Up
-                    </h2>
-                    <p className="text-[10px] text-slate-500 font-bold mt-1">
-                      Plan your work for this week.
-                    </p>
+              <div className="space-y-6">
+                {existingReport?.status === "submitted" ? (
+                  /* ═══════════════════════════════════════ */
+                  {/* SUBMITTED PLAN — Column View          */}
+                  /* ═══════════════════════════════════════ */
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                          This Week's Plan
+                        </h2>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Week {weekInfo.week} — {weekInfo.year}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowStandupModal(true)}
+                        className="flex items-center gap-1.5 px-4 py-2 text-[11px] font-semibold text-[var(--brand-orange)] border border-[var(--brand-orange)]/30 rounded-lg hover:bg-[var(--brand-orange)]/5 transition-all"
+                      >
+                        Edit Plan
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Carry Over Tasks */}
+                      {tasks.filter((t) => t.status === "carried_over").length >
+                        0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-indigo-400 mb-2 flex items-center gap-1.5">
+                            <ChevronRight className="w-3 h-3" /> Carry Over
+                          </p>
+                          <div className="space-y-1">
+                            {tasks
+                              .filter((t) => t.status === "carried_over")
+                              .map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="flex items-center gap-3 px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)]"
+                                >
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                                  <span className="flex-1 text-[12px] font-medium text-[var(--text-primary)]">
+                                    {task.title}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500">
+                                    Due: {task.end_date || "—"}
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Weekly Focus Tasks */}
+                      {tasks.filter(
+                        (t) =>
+                          t.created_week === weekInfo.week &&
+                          t.created_year === weekInfo.year &&
+                          t.status !== "carried_over",
+                      ).length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-[var(--brand-orange)] mb-2 flex items-center gap-1.5">
+                            <Target className="w-3 h-3" /> Weekly Focus
+                          </p>
+                          <div className="space-y-1">
+                            {tasks
+                              .filter(
+                                (t) =>
+                                  t.created_week === weekInfo.week &&
+                                  t.created_year === weekInfo.year &&
+                                  t.status !== "carried_over",
+                              )
+                              .map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="flex items-center gap-3 px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)]"
+                                >
+                                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)] shrink-0" />
+                                  <span className="flex-1 text-[12px] font-medium text-[var(--text-primary)]">
+                                    {task.title}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500">
+                                    {task.end_date || "—"}
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Notes */}
+                      {existingReport.additional_notes && (
+                        <div className="px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                          <p className="text-[9px] font-semibold text-slate-500 mb-0.5">
+                            Notes
+                          </p>
+                          <p className="text-[11px] text-[var(--text-primary)]">
+                            {existingReport.additional_notes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  /* ═══════════════════════════════════════ */
+                  {/* MONDAY STAND-UP EMPTY STATE            */}
+                  /* ═══════════════════════════════════════ */
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                        Monday Stand-Up
+                      </h2>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Plan your work for this week.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowStandupModal(true)}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
+                    >
+                      <Plus className="w-4 h-4" /> Create Stand-Up
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setShowStandupModal(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-                  >
-                    <Plus className="w-4 h-4" /> Create Stand-Up
-                  </button>
-                </div>
+                )}
               </div>
             ) : (
               <div className="space-y-8">
@@ -899,34 +1009,35 @@ export default function StaffOpReport() {
           onClick={() => setShowStandupModal(false)}
         >
           <div
-            className="card w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-6 border-[var(--brand-orange)]/30"
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between sticky top-0 bg-secondary pb-4 border-b border-[var(--border-primary)] z-10">
-              <div>
-                <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
-                  Create Standup
-                </h3>
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
-                  Week {weekInfo.week} — {weekInfo.year}
-                </p>
+            <div className="sticky top-0 z-10 bg-primary border-b border-[var(--border-primary)]">
+              <div className="flex items-center justify-between px-6 py-4">
+                <div>
+                  <h2 className="text-base font-bold text-[var(--text-primary)]">
+                    Standup — Week {weekInfo.week}
+                  </h2>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {weekInfo.year}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowStandupModal(false)}
+                  className="p-1.5 hover:bg-tertiary rounded-md transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setShowStandupModal(false)}
-                className="p-2 hover:bg-white/5 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="px-6 py-4 space-y-6">
               {/* Section 1 — Carry Over Tasks */}
-              <Section
-                title="Carry Over Tasks"
-                icon={ChevronRight}
-                color="text-indigo-400"
-              >
+              <div>
+                <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
+                  <ChevronRight className="w-3.5 h-3.5" /> Carry Over Tasks
+                </h3>
                 {tasks.filter((t) => t.status === "carried_over").length ===
                 0 ? (
                   <p className="text-[10px] text-slate-600 italic py-2">
@@ -989,14 +1100,13 @@ export default function StaffOpReport() {
                       ))}
                   </div>
                 )}
-              </Section>
+              </div>
 
               {/* Section 2 — Weekly Focus */}
-              <Section
-                title="Weekly Focus"
-                icon={Target}
-                color="text-[var(--brand-orange)]"
-              >
+              <div>
+                <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5" /> Weekly Focus
+                </h3>
                 {/* Added tasks summary */}
                 {taskRows.length > 0 && (
                   <div className="space-y-1 mb-3">
@@ -1158,6 +1268,20 @@ export default function StaffOpReport() {
                             </option>
                           ))}
                         </select>
+                        {newTaskForm.collaborator && (
+                          <input
+                            type="text"
+                            value={newTaskForm.collaborator_note}
+                            onChange={(e) =>
+                              setNewTaskForm((p) => ({
+                                ...p,
+                                collaborator_note: e.target.value,
+                              }))
+                            }
+                            placeholder="What do you need from them?"
+                            className="w-full mt-1.5 bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                          />
+                        )}
                       </div>
                     </div>
 
@@ -1178,6 +1302,7 @@ export default function StaffOpReport() {
                             category: "",
                             due_date: "",
                             collaborator: "",
+                            collaborator_note: "",
                           });
                         }}
                         className="px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"
@@ -1194,14 +1319,13 @@ export default function StaffOpReport() {
                     <Plus className="w-4 h-4" /> Add Weekly Focus
                   </button>
                 )}
-              </Section>
+              </div>
 
               {/* Additional Notes */}
-              <Section
-                title="Additional Notes"
-                icon={FileText}
-                color="text-slate-500"
-              >
+              <div>
+                <h3 className="text-[11px] font-semibold text-slate-500 mb-2">
+                  Additional Notes
+                </h3>
                 <textarea
                   value={form.additional_notes}
                   onChange={(e) =>
@@ -1214,11 +1338,11 @@ export default function StaffOpReport() {
                   placeholder="Anything else to note?"
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
                 />
-              </Section>
+              </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-4 border-t border-[var(--border-primary)] sticky bottom-0 bg-secondary">
+            <div className="flex gap-3 pt-4 border-t border-[var(--border-primary)] sticky bottom-0 bg-primary px-6 py-4">
               <button
                 onClick={() => {
                   handleSubmit("draft");
