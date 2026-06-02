@@ -57,6 +57,7 @@ export default function StaffOpReport() {
   const [toast, setToast] = useState(null);
   const [history, setHistory] = useState([]);
   const [showStandupModal, setShowStandupModal] = useState(false);
+  const [expandedWeek, setExpandedWeek] = useState(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [newTaskForm, setNewTaskForm] = useState({
     name: "",
@@ -756,20 +757,153 @@ export default function StaffOpReport() {
                               <td className="px-4 py-3 text-right">
                                 <button
                                   onClick={() => {
-                                    setWeekInfo({
-                                      week: report.week_number,
-                                      year: report.year,
-                                    });
-                                    setShowStandupModal(true);
+                                    const key = `${report.week_number}-${report.year}`;
+                                    setExpandedWeek(
+                                      expandedWeek === key ? null : key,
+                                    );
                                   }}
-                                  className="text-[11px] font-medium text-[var(--brand-orange)] hover:underline"
+                                  className="text-[11px] font-medium text-[var(--brand-orange)] hover:underline flex items-center gap-1 ml-auto"
                                 >
-                                  {report.status === "submitted"
-                                    ? "View"
-                                    : "Edit"}
+                                  {expandedWeek ===
+                                  `${report.week_number}-${report.year}`
+                                    ? "Collapse"
+                                    : "View"}
+                                  <ChevronDown
+                                    className={`w-3 h-3 transition-transform ${
+                                      expandedWeek ===
+                                      `${report.week_number}-${report.year}`
+                                        ? "rotate-180"
+                                        : ""
+                                    }`}
+                                  />
                                 </button>
                               </td>
                             </tr>
+                            {expandedWeek ===
+                              `${report.week_number}-${report.year}` && (
+                              <tr key={`tasks-${report.id}`}>
+                                <td colSpan={4} className="px-0 py-0">
+                                  <div className="bg-tertiary/50 border-t border-[var(--border-primary)]">
+                                    <div className="p-4">
+                                      {tasks.filter(
+                                        (t) =>
+                                          t.created_week ===
+                                            report.week_number &&
+                                          t.created_year === report.year,
+                                      ).length === 0 ? (
+                                        <p className="text-[11px] text-slate-500 text-center py-4">
+                                          No tasks for this week
+                                        </p>
+                                      ) : (
+                                        <div className="overflow-hidden rounded-lg border border-[var(--border-primary)]">
+                                          <table className="w-full">
+                                            <thead>
+                                              <tr className="bg-primary border-b border-[var(--border-primary)]">
+                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  Task
+                                                </th>
+                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  Project
+                                                </th>
+                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  Due
+                                                </th>
+                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  Blockers
+                                                </th>
+                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  Status
+                                                </th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {tasks
+                                                .filter(
+                                                  (t) =>
+                                                    t.created_week ===
+                                                      report.week_number &&
+                                                    t.created_year ===
+                                                      report.year,
+                                                )
+                                                .map((task) => {
+                                                  const config =
+                                                    STATUS_CONFIG[
+                                                      task.status
+                                                    ] || STATUS_CONFIG.pending;
+                                                  const activeBlockers = (
+                                                    task.blockers || []
+                                                  ).filter(
+                                                    (b) =>
+                                                      b.status === "active",
+                                                  );
+                                                  return (
+                                                    <tr
+                                                      key={task.id}
+                                                      className="border-b border-[var(--border-primary)]/40 hover:bg-primary/50 transition-colors"
+                                                    >
+                                                      <td className="px-3 py-2.5">
+                                                        <div className="flex items-center gap-2">
+                                                          <div
+                                                            className={`w-1.5 h-1.5 rounded-full ${config.color.replace("text-", "bg-")} shrink-0`}
+                                                          />
+                                                          <span className="text-[12px] font-medium text-[var(--text-primary)]">
+                                                            {task.title}
+                                                          </span>
+                                                        </div>
+                                                      </td>
+                                                      <td className="px-3 py-2.5 text-[11px] text-slate-500">
+                                                        {task.project_id
+                                                          ? (assignedProjects.find(
+                                                              (p) =>
+                                                                String(
+                                                                  p.id,
+                                                                ) ===
+                                                                String(
+                                                                  task.project_id,
+                                                                ),
+                                                            )?.name) ||
+                                                            "Project"
+                                                          : task.category ||
+                                                            "—"}
+                                                      </td>
+                                                      <td className="px-3 py-2.5 text-[11px] text-slate-500">
+                                                        {task.end_date ||
+                                                          "—"}
+                                                      </td>
+                                                      <td className="px-3 py-2.5">
+                                                        {activeBlockers.length >
+                                                        0 ? (
+                                                          <span className="flex items-center gap-1 text-[10px] text-rose-400">
+                                                            <Shield className="w-3 h-3" />
+                                                            {
+                                                              activeBlockers.length
+                                                            }
+                                                          </span>
+                                                        ) : (
+                                                          <span className="text-[10px] text-slate-600">
+                                                            —
+                                                          </span>
+                                                        )}
+                                                      </td>
+                                                      <td className="px-3 py-2.5">
+                                                        <span
+                                                          className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}
+                                                        >
+                                                          {config.label}
+                                                        </span>
+                                                      </td>
+                                                    </tr>
+                                                  );
+                                                })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
                           );
                         })}
                       {history.filter((r) => r.report_type === "standup")
