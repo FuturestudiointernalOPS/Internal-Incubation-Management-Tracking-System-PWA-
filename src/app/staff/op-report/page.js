@@ -57,6 +57,14 @@ export default function StaffOpReport() {
   const [toast, setToast] = useState(null);
   const [history, setHistory] = useState([]);
   const [showStandupModal, setShowStandupModal] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [newTaskForm, setNewTaskForm] = useState({
+    name: "",
+    project_id: "",
+    category: "",
+    due_date: "",
+    collaborator: "",
+  });
 
   // Form state
   const [form, setForm] = useState({
@@ -396,23 +404,33 @@ export default function StaffOpReport() {
 
   // ─── TASK ROW MANAGEMENT ───
   const addTaskRow = () => {
+    if (!newTaskForm.name.trim()) return;
     setTaskRows((prev) => [
       ...prev,
       {
         id: Date.now(),
-        name: "",
+        name: newTaskForm.name.trim(),
         description: "",
-        project_id: null,
-        category: "",
+        project_id: newTaskForm.project_id || null,
+        category: newTaskForm.category || "",
         start_date: "",
-        due_date: "",
+        due_date: newTaskForm.due_date || "",
         blockers: [],
-        collaborators: [],
-        // Retro fields
-        status: null, // "completed" | "uncompleted"
+        collaborators: newTaskForm.collaborator
+          ? [newTaskForm.collaborator]
+          : [],
+        status: null,
         uncompleted_reason: "",
       },
     ]);
+    setNewTaskForm({
+      name: "",
+      project_id: "",
+      category: "",
+      due_date: "",
+      collaborator: "",
+    });
+    setShowTaskForm(false);
   };
 
   const updateTaskRow = (index, field, value) => {
@@ -979,132 +997,203 @@ export default function StaffOpReport() {
                 icon={Target}
                 color="text-[var(--brand-orange)]"
               >
-                <div className="space-y-1">
-                  {taskRows.map((row, idx) => (
-                    <div
-                      key={row.id}
-                      className="flex items-start gap-2 p-2.5 border-b border-[var(--border-primary)] last:border-b-0 hover:bg-tertiary/50 transition-all group"
-                    >
-                      <div className="flex-1 min-w-0 grid grid-cols-12 gap-2 items-start">
-                        {/* Task Name - 3 cols */}
-                        <div className="col-span-3">
-                          <input
-                            type="text"
-                            value={row.name}
-                            onChange={(e) =>
-                              updateTaskRow(idx, "name", e.target.value)
-                            }
-                            placeholder="Task name *"
-                            className="w-full bg-transparent border-0 border-b border-transparent focus:border-[var(--brand-orange)] px-1 py-1 text-[11px] font-bold text-[var(--text-primary)] outline-none transition-all"
-                          />
-                        </div>
-                        {/* Project - 2 cols */}
-                        <div className="col-span-2">
-                          <select
-                            value={row.project_id || ""}
-                            onChange={(e) =>
-                              updateTaskRow(
-                                idx,
-                                "project_id",
-                                e.target.value || null,
-                              )
-                            }
-                            className="w-full bg-transparent border-0 px-1 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:ring-0"
-                          >
-                            <option value="">Project</option>
-                            {assignedProjects.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
-                          {!row.project_id && (
-                            <select
-                              value={row.category}
-                              onChange={(e) =>
-                                updateTaskRow(idx, "category", e.target.value)
-                              }
-                              className="w-full bg-transparent border-0 px-1 py-0.5 text-[9px] font-bold text-purple-400 outline-none appearance-none cursor-pointer"
-                            >
-                              <option value="">Category</option>
-                              <option value="Operations">Operations</option>
-                              <option value="Administration">Admin</option>
-                              <option value="Marketing">Marketing</option>
-                              <option value="Finance">Finance</option>
-                              <option value="Logistics">Logistics</option>
-                              <option value="HR">HR</option>
-                              <option value="Technology">Technology</option>
-                              <option value="Other">Other</option>
-                            </select>
-                          )}
-                        </div>
-                        {/* Due Date - 2 cols */}
-                        <div className="col-span-2">
-                          <input
-                            type="date"
-                            value={row.due_date || ""}
-                            onChange={(e) =>
-                              updateTaskRow(idx, "due_date", e.target.value)
-                            }
-                            className="w-full bg-transparent border-0 px-1 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:ring-0"
-                          />
-                        </div>
-                        {/* Collaborators - 2 cols */}
-                        <div className="col-span-2">
-                          <select
-                            value={row.collaborators?.[0] || ""}
-                            onChange={(e) =>
-                              updateTaskRow(
-                                idx,
-                                "collaborators",
-                                e.target.value ? [e.target.value] : [],
-                              )
-                            }
-                            className="w-full bg-transparent border-0 px-1 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:ring-0"
-                          >
-                            <option value="">Collab</option>
-                            {allStaff.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {/* Blockers + Actions - 1 col */}
-                        <div className="col-span-1 flex items-center gap-1">
-                          <button
-                            type="button"
+                {/* Added tasks summary */}
+                {taskRows.length > 0 && (
+                  <div className="space-y-1 mb-3">
+                    {taskRows.map((row, idx) => (
+                      <div
+                        key={row.id}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)]"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)] shrink-0" />
+                        <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
+                          {row.name}
+                        </span>
+                        <span className="text-[9px] text-slate-500">
+                          {row.project_id
+                            ? assignedProjects.find(
+                                (p) => String(p.id) === String(row.project_id),
+                              )?.name || "Project"
+                            : row.category || ""}
+                        </span>
+                        {row.due_date && (
+                          <span className="text-[9px] text-slate-500">
+                            {row.due_date}
+                          </span>
+                        )}
+                        {row.blockers?.length > 0 && (
+                          <span
                             onClick={() => setBlockerModal(idx)}
-                            className="text-[9px] text-slate-500 hover:text-rose-400 transition-all px-1 py-1"
-                            title="Blockers"
+                            className="flex items-center gap-1 text-[9px] text-rose-400 cursor-pointer hover:text-rose-300"
                           >
-                            <Shield className="w-3.5 h-3.5" />
-                            {row.blockers?.length > 0 && (
-                              <span className="ml-0.5 text-[8px] font-bold text-rose-400">
-                                {row.blockers.length}
-                              </span>
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeTaskRow(idx)}
-                            className="opacity-0 group-hover:opacity-100 text-rose-500/50 hover:text-rose-500 transition-all"
+                            <Shield className="w-3 h-3" />
+                            {row.blockers.length}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => removeTaskRow(idx)}
+                          className="text-rose-500/50 hover:text-rose-500"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Task creation form — layered */}
+                {showTaskForm ? (
+                  <div className="p-4 rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/[0.02] space-y-3">
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                      New Task
+                    </p>
+
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                        Task Name
+                      </label>
+                      <input
+                        type="text"
+                        value={newTaskForm.name}
+                        onChange={(e) =>
+                          setNewTaskForm((p) => ({
+                            ...p,
+                            name: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. Email Migration"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Project
+                        </label>
+                        <select
+                          value={newTaskForm.project_id}
+                          onChange={(e) =>
+                            setNewTaskForm((p) => ({
+                              ...p,
+                              project_id: e.target.value,
+                              category: "",
+                            }))
+                          }
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                        >
+                          <option value="">No Project</option>
+                          {assignedProjects.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {!newTaskForm.project_id && (
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                            Category
+                          </label>
+                          <select
+                            value={newTaskForm.category}
+                            onChange={(e) =>
+                              setNewTaskForm((p) => ({
+                                ...p,
+                                category: e.target.value,
+                              }))
+                            }
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-purple-400 outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
                           >
-                            <X className="w-3 h-3" />
-                          </button>
+                            <option value="">Select...</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Administration">Admin</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Logistics">Logistics</option>
+                            <option value="HR">HR</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Other">Other</option>
+                          </select>
                         </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Due Date
+                        </label>
+                        <input
+                          type="date"
+                          value={newTaskForm.due_date}
+                          onChange={(e) =>
+                            setNewTaskForm((p) => ({
+                              ...p,
+                              due_date: e.target.value,
+                            }))
+                          }
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Collaborator
+                        </label>
+                        <select
+                          value={newTaskForm.collaborator}
+                          onChange={(e) =>
+                            setNewTaskForm((p) => ({
+                              ...p,
+                              collaborator: e.target.value,
+                            }))
+                          }
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                        >
+                          <option value="">None</option>
+                          {allStaff.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
-                  ))}
 
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={addTaskRow}
+                        disabled={!newTaskForm.name.trim()}
+                        className="flex-1 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
+                      >
+                        Add Task
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowTaskForm(false);
+                          setNewTaskForm({
+                            name: "",
+                            project_id: "",
+                            category: "",
+                            due_date: "",
+                            collaborator: "",
+                          });
+                        }}
+                        className="px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                   <button
-                    type="button"
-                    onClick={addTaskRow}
-                    className="w-full py-2 px-3 text-left text-[10px] font-bold text-slate-500 hover:text-[var(--brand-orange)] hover:bg-tertiary/50 rounded-lg transition-all flex items-center gap-2"
+                    onClick={() => setShowTaskForm(true)}
+                    className="w-full py-3 border-2 border-dashed border-[var(--border-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-2"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Add Weekly Focus
+                    <Plus className="w-4 h-4" /> Add Weekly Focus
                   </button>
-                </div>
+                )}
               </Section>
 
               {/* Additional Notes */}
