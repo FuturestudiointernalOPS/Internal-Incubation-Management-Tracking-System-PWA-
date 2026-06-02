@@ -1083,7 +1083,7 @@ export default function StaffOpReport() {
                                                   <td className="px-3 py-2.5"><span className={`text-[11px] font-medium ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"}`}>{task.title}</span></td>
                                                   <td className="px-3 py-2.5 text-[10px] text-slate-500">{task.project_id ? (assignedProjects.find(p => String(p.id) === String(task.project_id))?.name || "Project") : task.category || "—"}</td>
                                                   <td className="px-3 py-2.5 text-[10px] text-slate-500">{formatDate(task.end_date)}</td>
-                                                  <td className="px-3 py-2.5">{ab.length > 0 ? <span className="text-[9px] text-rose-400 font-medium">{ab.length} active</span> : <span className="text-[9px] text-slate-600">0</span>}</td>
+                                                  <td className="px-3 py-2.5"><div className="flex items-center gap-1.5">{ab.length > 0 ? <span className="text-[9px] text-rose-400 font-medium">{ab.length} active</span> : <span className="text-[9px] text-slate-600">0</span>}<button onClick={() => setBlockerModal({type:'api',taskId:task.id})} className="text-[9px] text-[var(--brand-orange)] hover:underline ml-1">Manage</button></div></td>
                                                   <td className="px-3 py-2.5"><span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>{cfg.label}</span></td>
                                                 </tr>
                                               );})}
@@ -1507,7 +1507,7 @@ export default function StaffOpReport() {
             <p className="text-[10px] text-slate-500">
               Task:{" "}
               <span className="font-bold text-[var(--text-primary)]">
-                {taskRows[blockerModal]?.name || "Untitled"}
+                {blockerModal.type === 'api' ? tasks.find(t => t.id === blockerModal.taskId)?.title || 'Task' : taskRows[blockerModal]?.name || 'Untitled'}
               </span>
             </p>
 
@@ -1539,7 +1539,7 @@ export default function StaffOpReport() {
                   </div>
                   {b.status === "Active" ? (
                     <button
-                      onClick={() => resolveBlocker(blockerModal, b.id)}
+                      onClick={async () => { if (blockerModal.type === 'api') { await fetch('/api/blockers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: b.id, user_id: user?.cid || user?.id, status: 'resolved', resolved_by: user?.cid || user?.id }) }); fetchTasks(); } else { resolveBlocker(blockerModal, b.id); } }}
                       className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all shrink-0"
                     >
                       Resolve
@@ -1562,7 +1562,7 @@ export default function StaffOpReport() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newBlockerDesc.trim()) {
                     e.preventDefault();
-                    addBlockerToRow(blockerModal, newBlockerDesc.trim());
+                    blockerModal.type === 'api' ? (async () => { await fetch('/api/blockers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: blockerModal.taskId, user_id: user?.cid || user?.id, user_name: user?.name || '', title: newBlockerDesc.trim() }) }); setNewBlockerDesc(''); fetchTasks(); })() : addBlockerToRow(blockerModal, newBlockerDesc.trim());
                     setNewBlockerDesc("");
                   }
                 }}
