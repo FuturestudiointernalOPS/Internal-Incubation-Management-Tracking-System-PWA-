@@ -1666,7 +1666,7 @@ export default function StaffOpReport() {
               </button>
             </div>
 
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-[var(--text-secondary)]">
               Task:{" "}
               <span className="font-bold text-[var(--text-primary)]">
                 {blockerModal.type === "api"
@@ -1685,7 +1685,7 @@ export default function StaffOpReport() {
                         ?.blockers || []
                     : taskRows[blockerModal]?.blockers || [];
                 return bs.length === 0 ? (
-                  <p className="text-[10px] text-slate-600 italic text-center py-4">
+                  <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-4">
                     No blockers declared yet.
                   </p>
                 ) : (
@@ -1703,7 +1703,7 @@ export default function StaffOpReport() {
                           {b.description}
                         </p>
                         {b.resolved_at && (
-                          <p className="text-[8px] text-slate-500">
+                          <p className="text-[8px] text-[var(--text-secondary)]">
                             Resolved{" "}
                             {new Date(b.resolved_at).toLocaleDateString()}
                           </p>
