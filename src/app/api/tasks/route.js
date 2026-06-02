@@ -606,6 +606,25 @@ export async function DELETE(req) {
       );
     }
 
+    // Carry-over tasks cannot be deleted (standup commitment rule)
+    const taskCheck = await db.execute({
+      sql: "SELECT status FROM tasks WHERE id = ?",
+      args: [parseInt(id)],
+    });
+    if (
+      taskCheck.rows.length > 0 &&
+      taskCheck.rows[0].status === "carried_over"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Carry-over tasks cannot be deleted. They must be completed or resolved.",
+        },
+        { status: 403 },
+      );
+    }
+
     // Get task info before deleting
     const taskInfo = await db.execute({
       sql: "SELECT title, user_id, user_name FROM tasks WHERE id = ?",

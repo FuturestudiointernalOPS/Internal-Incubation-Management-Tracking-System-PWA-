@@ -608,62 +608,42 @@ export default function StaffOpReport() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8">
           {/* REPORT FORM */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="space-y-8">
             {reportType === "standup" ? (
               <div className="space-y-8">
                 {/* ═══════════════════════════════════════ */}
                 {/* THIS WEEK'S PLAN                       */}
                 {/* ═══════════════════════════════════════ */}
-                {existingReport?.status === "submitted" ? (
-                  <>
-                    <Section
-                      title="This Week's Plan"
-                      icon={Target}
-                      color="text-emerald-400"
+                {/* Standup status + action */}
+                <div className="text-center space-y-4">
+                  {existingReport?.status === "submitted" ? (
+                    <div
+                      onClick={() => setShowStandupModal(true)}
+                      className="cursor-pointer p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 space-y-2 hover:bg-emerald-500/10 transition-all"
                     >
-                      <div className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                            Standup Submitted for W{weekInfo.week}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-400">
-                          You have defined your plan for this week. View your
-                          carry-over tasks and active work below.
-                        </p>
+                      <div className="flex items-center justify-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                          Standup Submitted for W{weekInfo.week}
+                        </span>
                       </div>
-                    </Section>
-                  </>
-                ) : (
-                  <Section
-                    title="This Week's Plan"
-                    icon={Target}
-                    color="text-[var(--brand-orange)]"
-                  >
-                    <div className="text-center py-8 space-y-4">
-                      <p className="text-[10px] text-slate-500">
-                        You haven't defined your plan for this week yet.
+                      <p className="text-[9px] text-slate-500">
+                        Click to update your plan
                       </p>
-                      <button
-                        onClick={() => setShowStandupModal(true)}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-                      >
-                        <Plus className="w-4 h-4" /> Create Standup
-                      </button>
                     </div>
-                  </Section>
-                )}
+                  ) : (
+                    <p className="text-[10px] text-slate-500">
+                      You haven't defined your plan for this week yet.
+                    </p>
+                  )}
 
-                {/* Always show Create button even if submitted */}
-                <div className="flex justify-center">
                   <button
                     onClick={() => setShowStandupModal(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                    className="inline-flex items-center gap-2 px-8 py-4 bg-[var(--brand-orange)] text-black rounded-xl text-[11px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-lg shadow-orange-500/20"
                   >
-                    <Plus className="w-4 h-4" /> Create New Standup
+                    <Plus className="w-5 h-5" /> Create Standup
                   </button>
                 </div>
               </div>
@@ -903,89 +883,6 @@ export default function StaffOpReport() {
                 <Send className="w-4 h-4" />
                 {saving ? t("common.loading") : t("reports.submitReport")}
               </button>
-            </div>
-          </div>
-
-          {/* SIDEBAR — Report History */}
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest border-b border-[var(--border-primary)] pb-3 flex items-center gap-2">
-              <Clock className="w-3 h-3" /> {t("staff.myReports")}
-            </h3>
-            <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
-              {history.length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic text-center py-8">
-                  No reports submitted yet.
-                </p>
-              ) : (
-                history.map((report) => (
-                  <button
-                    key={report.id}
-                    onClick={() => {
-                      setWeekInfo({
-                        week: report.week_number,
-                        year: report.year,
-                      });
-                      setReportType(report.report_type);
-                    }}
-                    className="w-full flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          report.report_type === "standup"
-                            ? "bg-[var(--brand-orange)]"
-                            : "bg-emerald-500"
-                        }`}
-                      />
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-wider">
-                          W{report.week_number} ·{" "}
-                          {report.report_type === "standup"
-                            ? t("reports.mondayStandup")
-                            : t("reports.fridayRetro")}
-                        </p>
-                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                          {new Date(report.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-                        report.status === "submitted"
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : "bg-amber-500/10 text-amber-500"
-                      }`}
-                    >
-                      {report.status}
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-
-            {/* SUMMARY STATS */}
-            <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] space-y-3 mt-6">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                Your Stats
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-primary rounded-lg text-center">
-                  <p className="text-lg font-black text-[var(--brand-orange)]">
-                    {history.filter((r) => r.report_type === "standup").length}
-                  </p>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                    Stand-Ups
-                  </p>
-                </div>
-                <div className="p-2 bg-primary rounded-lg text-center">
-                  <p className="text-lg font-black text-emerald-500">
-                    {history.filter((r) => r.report_type === "retro").length}
-                  </p>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                    Retros
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
