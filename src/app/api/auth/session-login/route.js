@@ -94,6 +94,7 @@ export async function POST(req) {
     } else if (activeTeammateAssignment.rows.length > 0) {
       finalRole = "teacher";
     } else if (
+      user.role === "staff" ||
       user.group_name?.toUpperCase() === "STAFF" ||
       user.group_name?.toUpperCase() === "FUTURE STUDIO"
     ) {
