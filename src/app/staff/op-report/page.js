@@ -614,36 +614,22 @@ export default function StaffOpReport() {
             {reportType === "standup" ? (
               <div className="space-y-8">
                 {/* ═══════════════════════════════════════ */}
-                {/* THIS WEEK'S PLAN                       */}
+                {/* MONDAY STAND-UP EMPTY STATE            */}
                 {/* ═══════════════════════════════════════ */}
-                {/* Standup status + action */}
-                <div className="text-center space-y-4">
-                  {existingReport?.status === "submitted" ? (
-                    <div
-                      onClick={() => setShowStandupModal(true)}
-                      className="cursor-pointer p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 space-y-2 hover:bg-emerald-500/10 transition-all"
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                          Standup Submitted for W{weekInfo.week}
-                        </span>
-                      </div>
-                      <p className="text-[9px] text-slate-500">
-                        Click to update your plan
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-[10px] text-slate-500">
-                      You haven't defined your plan for this week yet.
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight">
+                      Monday Stand-Up
+                    </h2>
+                    <p className="text-[10px] text-slate-500 font-bold mt-1">
+                      Plan your work for this week.
                     </p>
-                  )}
-
+                  </div>
                   <button
                     onClick={() => setShowStandupModal(true)}
-                    className="inline-flex items-center gap-2 px-8 py-4 bg-[var(--brand-orange)] text-black rounded-xl text-[11px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-lg shadow-orange-500/20"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                   >
-                    <Plus className="w-5 h-5" /> Create Standup
+                    <Plus className="w-4 h-4" /> Create Stand-Up
                   </button>
                 </div>
               </div>
@@ -993,14 +979,15 @@ export default function StaffOpReport() {
                 icon={Target}
                 color="text-[var(--brand-orange)]"
               >
-                <div className="space-y-3">
+                <div className="space-y-1">
                   {taskRows.map((row, idx) => (
                     <div
                       key={row.id}
-                      className="p-4 rounded-xl border border-[var(--border-primary)] bg-secondary space-y-2"
+                      className="flex items-start gap-2 p-2.5 border-b border-[var(--border-primary)] last:border-b-0 hover:bg-tertiary/50 transition-all group"
                     >
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex-1 min-w-0 grid grid-cols-12 gap-2 items-start">
+                        {/* Task Name - 3 cols */}
+                        <div className="col-span-3">
                           <input
                             type="text"
                             value={row.name}
@@ -1008,119 +995,104 @@ export default function StaffOpReport() {
                               updateTaskRow(idx, "name", e.target.value)
                             }
                             placeholder="Task name *"
-                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                            className="w-full bg-transparent border-0 border-b border-transparent focus:border-[var(--brand-orange)] px-1 py-1 text-[11px] font-bold text-[var(--text-primary)] outline-none transition-all"
                           />
-                          <input
-                            type="text"
-                            value={row.description || ""}
-                            onChange={(e) =>
-                              updateTaskRow(idx, "description", e.target.value)
-                            }
-                            placeholder="Brief description (optional)"
-                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                          />
-                          <div className="grid grid-cols-2 gap-2">
-                            <select
-                              value={row.project_id || ""}
-                              onChange={(e) =>
-                                updateTaskRow(
-                                  idx,
-                                  "project_id",
-                                  e.target.value || null,
-                                )
-                              }
-                              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-                            >
-                              <option value="">No Project</option>
-                              {assignedProjects.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}
-                                </option>
-                              ))}
-                            </select>
-                            {!row.project_id ? (
-                              <select
-                                value={row.category}
-                                onChange={(e) =>
-                                  updateTaskRow(idx, "category", e.target.value)
-                                }
-                                className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-                              >
-                                <option value="">Category *</option>
-                                <option value="Operations">Operations</option>
-                                <option value="Administration">
-                                  Administration
-                                </option>
-                                <option value="Finance">Finance</option>
-                                <option value="Marketing">Marketing</option>
-                                <option value="Content">Content</option>
-                                <option value="Research">Research</option>
-                                <option value="Technology">Technology</option>
-                                <option value="Logistics">Logistics</option>
-                                <option value="Other">Other</option>
-                              </select>
-                            ) : (
-                              <div className="flex items-center text-[8px] text-slate-500 italic px-2">
-                                Project selected
-                              </div>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <input
-                              type="date"
-                              value={row.start_date || ""}
-                              onChange={(e) =>
-                                updateTaskRow(idx, "start_date", e.target.value)
-                              }
-                              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                            />
-                            <input
-                              type="date"
-                              value={row.due_date || ""}
-                              onChange={(e) =>
-                                updateTaskRow(idx, "due_date", e.target.value)
-                              }
-                              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <select
-                              value={row.collaborators?.[0] || ""}
-                              onChange={(e) =>
-                                updateTaskRow(
-                                  idx,
-                                  "collaborators",
-                                  e.target.value ? [e.target.value] : [],
-                                )
-                              }
-                              className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1.5 text-[8px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-                            >
-                              <option value="">Collaborator</option>
-                              {allStaff.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => setBlockerModal(idx)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--border-primary)] text-[8px] font-bold hover:border-rose-500/30 transition-all"
-                            >
-                              <Shield className="w-3 h-3 text-rose-400" />
-                              {row.blockers?.length > 0
-                                ? `${row.blockers.length} Blocker${row.blockers.length > 1 ? "s" : ""}`
-                                : "Blockers"}
-                            </button>
-                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeTaskRow(idx)}
-                          className="p-1 text-rose-500/50 hover:text-rose-500 transition-all shrink-0"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                        {/* Project - 2 cols */}
+                        <div className="col-span-2">
+                          <select
+                            value={row.project_id || ""}
+                            onChange={(e) =>
+                              updateTaskRow(
+                                idx,
+                                "project_id",
+                                e.target.value || null,
+                              )
+                            }
+                            className="w-full bg-transparent border-0 px-1 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:ring-0"
+                          >
+                            <option value="">Project</option>
+                            {assignedProjects.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                          {!row.project_id && (
+                            <select
+                              value={row.category}
+                              onChange={(e) =>
+                                updateTaskRow(idx, "category", e.target.value)
+                              }
+                              className="w-full bg-transparent border-0 px-1 py-0.5 text-[9px] font-bold text-purple-400 outline-none appearance-none cursor-pointer"
+                            >
+                              <option value="">Category</option>
+                              <option value="Operations">Operations</option>
+                              <option value="Administration">Admin</option>
+                              <option value="Marketing">Marketing</option>
+                              <option value="Finance">Finance</option>
+                              <option value="Logistics">Logistics</option>
+                              <option value="HR">HR</option>
+                              <option value="Technology">Technology</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          )}
+                        </div>
+                        {/* Due Date - 2 cols */}
+                        <div className="col-span-2">
+                          <input
+                            type="date"
+                            value={row.due_date || ""}
+                            onChange={(e) =>
+                              updateTaskRow(idx, "due_date", e.target.value)
+                            }
+                            className="w-full bg-transparent border-0 px-1 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:ring-0"
+                          />
+                        </div>
+                        {/* Collaborators - 2 cols */}
+                        <div className="col-span-2">
+                          <select
+                            value={row.collaborators?.[0] || ""}
+                            onChange={(e) =>
+                              updateTaskRow(
+                                idx,
+                                "collaborators",
+                                e.target.value ? [e.target.value] : [],
+                              )
+                            }
+                            className="w-full bg-transparent border-0 px-1 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:ring-0"
+                          >
+                            <option value="">Collab</option>
+                            {allStaff.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {/* Blockers + Actions - 1 col */}
+                        <div className="col-span-1 flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setBlockerModal(idx)}
+                            className="text-[9px] text-slate-500 hover:text-rose-400 transition-all px-1 py-1"
+                            title="Blockers"
+                          >
+                            <Shield className="w-3.5 h-3.5" />
+                            {row.blockers?.length > 0 && (
+                              <span className="ml-0.5 text-[8px] font-bold text-rose-400">
+                                {row.blockers.length}
+                              </span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeTaskRow(idx)}
+                            className="opacity-0 group-hover:opacity-100 text-rose-500/50 hover:text-rose-500 transition-all"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1128,7 +1100,7 @@ export default function StaffOpReport() {
                   <button
                     type="button"
                     onClick={addTaskRow}
-                    className="w-full py-3 border-2 border-dashed border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-2 px-3 text-left text-[10px] font-bold text-slate-500 hover:text-[var(--brand-orange)] hover:bg-tertiary/50 rounded-lg transition-all flex items-center gap-2"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Weekly Focus
                   </button>
