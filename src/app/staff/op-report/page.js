@@ -246,19 +246,25 @@ export default function StaffOpReport() {
     }
   }, [user]);
 
-  // Fetch all staff for collaborator selection
+  // Fetch Future Studio staff for collaborator selection
   const fetchAllStaff = useCallback(async () => {
     try {
       const res = await fetch("/api/contacts");
       const data = await res.json();
       if (data.success) {
+        // Only active staff from FUTURE STUDIO group
         const staff = (data.contacts || [])
-          .filter((c) => c.status === "active" || c.role === "super_admin")
+          .filter(
+            (c) =>
+              c.status === "active" &&
+              c.group_name?.toUpperCase() === "FUTURE STUDIO",
+          )
           .map((c) => ({
             id: c.cid || c.id,
             name: c.name,
             email: c.email,
-          }));
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
         setAllStaff(staff);
       }
     } catch (e) {
@@ -295,20 +301,6 @@ export default function StaffOpReport() {
 
   const handleSubmit = async (status = "submitted") => {
     if (!user) return;
-
-    // Validate required fields for stand-up (only on submit, not draft)
-    if (reportType === "standup" && status === "submitted") {
-      if (
-        form.top_priorities.length === 0 ||
-        form.expected_deliverables.length === 0
-      ) {
-        notify(
-          "Please add at least one priority and one deliverable.",
-          "error",
-        );
-        return;
-      }
-    }
 
     setSaving(true);
     try {
@@ -435,10 +427,37 @@ export default function StaffOpReport() {
           {
             id: Date.now(),
             description,
+            severity: "medium",
             status: "Active",
             created_at: new Date().toISOString(),
           },
         ],
+      };
+      return updated;
+    });
+  };
+
+  const updateBlockerInRow = (rowIndex, blockerId, updates) => {
+    setTaskRows((prev) => {
+      const updated = [...prev];
+      updated[rowIndex] = {
+        ...updated[rowIndex],
+        blockers: (updated[rowIndex].blockers || []).map((b) =>
+          b.id === blockerId ? { ...b, ...updates } : b,
+        ),
+      };
+      return updated;
+    });
+  };
+
+  const removeBlockerFromRow = (rowIndex, blockerId) => {
+    setTaskRows((prev) => {
+      const updated = [...prev];
+      updated[rowIndex] = {
+        ...updated[rowIndex],
+        blockers: (updated[rowIndex].blockers || []).filter(
+          (b) => b.id !== blockerId,
+        ),
       };
       return updated;
     });
