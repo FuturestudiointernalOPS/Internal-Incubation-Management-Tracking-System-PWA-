@@ -46,6 +46,20 @@ function getCurrentWeek() {
   return { week: getWeekNumber(now), year: now.getFullYear() };
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 const STATUS_CONFIG = {
   pending: {
     label: "Pending",
@@ -903,7 +917,9 @@ export default function StaffOpReport() {
                                                               "—"}
                                                         </td>
                                                         <td className="px-3 py-2.5 text-[11px] text-slate-500">
-                                                          {task.end_date || "—"}
+                                                          {formatDate(
+                                                            task.end_date,
+                                                          )}
                                                         </td>
                                                         <td className="px-3 py-2.5">
                                                           {activeBlockers.length >
@@ -941,7 +957,11 @@ export default function StaffOpReport() {
                                                 week: report.week_number,
                                                 year: report.year,
                                               });
-                                              setShowTaskForm(true);
+                                              setShowStandupModal(true);
+                                              setTimeout(
+                                                () => setShowTaskForm(true),
+                                                100,
+                                              );
                                             }}
                                             className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
                                           >
@@ -1263,7 +1283,7 @@ export default function StaffOpReport() {
                             </p>
                             <div className="flex flex-wrap gap-2 mt-1">
                               <span className="text-[8px] text-slate-500">
-                                Due: {task.end_date || "—"}
+                                Due: {formatDate(task.end_date)}
                               </span>
                               {(task.blockers || []).filter(
                                 (b) => b.status === "active",
