@@ -551,7 +551,7 @@ export default function StaffOpReport() {
       updated[rowIndex] = {
         ...updated[rowIndex],
         blockers: [
-          ...(updated[rowIndex].blockers || []),
+          ...(updated[rowIndex]?.blockers || []),
           {
             id: Date.now(),
             description,
@@ -570,7 +570,7 @@ export default function StaffOpReport() {
       const updated = [...prev];
       updated[rowIndex] = {
         ...updated[rowIndex],
-        blockers: (updated[rowIndex].blockers || []).map((b) =>
+        blockers: (updated[rowIndex]?.blockers || []).map((b) =>
           b.id === blockerId ? { ...b, ...updates } : b,
         ),
       };
@@ -583,7 +583,7 @@ export default function StaffOpReport() {
       const updated = [...prev];
       updated[rowIndex] = {
         ...updated[rowIndex],
-        blockers: (updated[rowIndex].blockers || []).filter(
+        blockers: (updated[rowIndex]?.blockers || []).filter(
           (b) => b.id !== blockerId,
         ),
       };
@@ -596,7 +596,7 @@ export default function StaffOpReport() {
       const updated = [...prev];
       updated[rowIndex] = {
         ...updated[rowIndex],
-        blockers: (updated[rowIndex].blockers || []).map((b) =>
+        blockers: (updated[rowIndex]?.blockers || []).map((b) =>
           b.id === blockerId
             ? {
                 ...b,
