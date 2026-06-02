@@ -97,8 +97,8 @@ export async function POST(req) {
       user.role === "staff" ||
       user.role === "project_manager" ||
       user.role === "admin" ||
-      user.group_name?.toUpperCase() === "STAFF" ||
-      user.group_name?.toUpperCase() === "FUTURE STUDIO"
+      (user.group_name || "").toUpperCase().includes("FUTURE STUDIO") ||
+      (user.group_name || "").toUpperCase().includes("STAFF")
     ) {
       finalRole = "staff";
     }

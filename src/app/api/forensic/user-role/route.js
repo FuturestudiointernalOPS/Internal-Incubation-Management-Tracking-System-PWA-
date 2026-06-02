@@ -12,7 +12,10 @@ export async function GET(req) {
     const email = searchParams.get("email");
 
     if (!email) {
-      return NextResponse.json({ error: "email param required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "email param required" },
+        { status: 400 },
+      );
     }
 
     const contact = await db.execute({
@@ -23,7 +26,8 @@ export async function GET(req) {
     return NextResponse.json({
       found: contact.rows.length > 0,
       contact: contact.rows[0] || null,
-      wouldResolveTo: contact.rows.length > 0 ? resolveRole(contact.rows[0]) : null,
+      wouldResolveTo:
+        contact.rows.length > 0 ? resolveRole(contact.rows[0]) : null,
     });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -32,7 +36,14 @@ export async function GET(req) {
 
 function resolveRole(user) {
   if (user.role === "super_admin" || user.id === "sa") return "super_admin";
-  if (user.role === "staff" || user.role === "project_manager" || user.role === "admin") return "staff";
-  if (user.group_name?.toUpperCase() === "STAFF" || user.group_name?.toUpperCase() === "FUTURE STUDIO") return "staff";
+  if (
+    user.role === "staff" ||
+    user.role === "project_manager" ||
+    user.role === "admin"
+  )
+    return "staff";
+  if ((user.group_name || "").toUpperCase().includes("FUTURE STUDIO"))
+    return "staff";
+  if ((user.group_name || "").toUpperCase().includes("STAFF")) return "staff";
   return "participant";
 }
