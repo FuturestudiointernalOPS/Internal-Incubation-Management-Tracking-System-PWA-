@@ -56,6 +56,7 @@ export default function StaffOpReport() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [history, setHistory] = useState([]);
+  const [showStandupModal, setShowStandupModal] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -251,28 +252,6 @@ export default function StaffOpReport() {
     try {
       const res = await fetch("/api/contacts");
       const data = await res.json();
-      console.log("forensic | /api/contacts response:", {
-        success: data.success,
-        totalContacts: (data.contacts || []).length,
-        activeFutureStudio: (data.contacts || []).filter(
-          (c) =>
-            c.status === "active" &&
-            c.group_name?.toUpperCase() === "FUTURE STUDIO",
-        ).length,
-        sample: (data.contacts || [])
-          .filter(
-            (c) =>
-              c.status === "active" &&
-              c.group_name?.toUpperCase() === "FUTURE STUDIO",
-          )
-          .slice(0, 3)
-          .map((c) => ({
-            name: c.name,
-            group: c.group_name,
-            status: c.status,
-            cid: c.cid,
-          })),
-      });
       if (data.success) {
         // Only active staff from FUTURE STUDIO group
         const staff = (data.contacts || [])
@@ -287,7 +266,6 @@ export default function StaffOpReport() {
             email: c.email,
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
-        console.log("forensic | staff list set:", staff.length, "members");
         setAllStaff(staff);
       }
     } catch (e) {
@@ -636,345 +614,58 @@ export default function StaffOpReport() {
             {reportType === "standup" ? (
               <div className="space-y-8">
                 {/* ═══════════════════════════════════════ */}
-                {/* SECTION 1 — Carry Over Tasks           */}
+                {/* THIS WEEK'S PLAN                       */}
                 {/* ═══════════════════════════════════════ */}
-                <Section
-                  title="Carry Over Tasks"
-                  icon={ChevronRight}
-                  color="text-indigo-400"
-                >
-                  {tasks.filter((t) => t.status === "carried_over").length ===
-                  0 ? (
-                    <p className="text-[10px] text-slate-600 italic py-2">
-                      No carry-over tasks.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {tasks
-                        .filter((t) => t.status === "carried_over")
-                        .map((task) => (
-                          <div
-                            key={task.id}
-                            className="flex items-start gap-3 p-3 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.03]"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                                {task.title}
-                              </p>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                <span className="text-[8px] text-slate-500">
-                                  Due: {task.end_date || "—"}
-                                </span>
-                                {(task.blockers || []).filter(
-                                  (b) => b.status === "active",
-                                ).length > 0 && (
-                                  <span className="text-[8px] text-rose-400 flex items-center gap-1">
-                                    <Shield className="w-2.5 h-2.5" />
-                                    {
-                                      (task.blockers || []).filter(
-                                        (b) => b.status === "active",
-                                      ).length
-                                    }{" "}
-                                    active
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex gap-1 shrink-0">
-                              <button
-                                onClick={async () => {
-                                  await fetch("/api/tasks", {
-                                    method: "PUT",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      id: task.id,
-                                      status: "in_progress",
-                                      user_id: user?.cid || user?.id,
-                                    }),
-                                  });
-                                  fetchTasks();
-                                }}
-                                className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
-                              >
-                                Continue
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </Section>
-
-                {/* ═══════════════════════════════════════ */}
-                {/* SECTION 2 — Weekly Focus                */}
-                {/* ═══════════════════════════════════════ */}
-                <Section
-                  title="Weekly Focus"
-                  icon={Target}
-                  color="text-[var(--brand-orange)]"
-                >
-                  <div className="space-y-3">
-                    {taskRows.map((row, idx) => (
-                      <div
-                        key={row.id}
-                        className="p-4 rounded-xl border border-[var(--border-primary)] bg-secondary space-y-2"
-                      >
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1 min-w-0 space-y-2">
-                            {/* Task Name */}
-                            <input
-                              type="text"
-                              value={row.name}
-                              onChange={(e) =>
-                                updateTaskRow(idx, "name", e.target.value)
-                              }
-                              placeholder="Task name *"
-                              className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                            />
-                            {/* Description */}
-                            <input
-                              type="text"
-                              value={row.description || ""}
-                              onChange={(e) =>
-                                updateTaskRow(
-                                  idx,
-                                  "description",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Brief description (optional)"
-                              className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                            />
-                            {/* Project + Category Row */}
-                            <div className="grid grid-cols-2 gap-2">
-                              <select
-                                value={row.project_id || ""}
-                                onChange={(e) =>
-                                  updateTaskRow(
-                                    idx,
-                                    "project_id",
-                                    e.target.value || null,
-                                  )
-                                }
-                                className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-                              >
-                                <option value="">No Project</option>
-                                {assignedProjects.map((p) => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.name}
-                                  </option>
-                                ))}
-                              </select>
-                              {!row.project_id ? (
-                                <select
-                                  value={row.category}
-                                  onChange={(e) =>
-                                    updateTaskRow(
-                                      idx,
-                                      "category",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-                                >
-                                  <option value="">Category *</option>
-                                  <option value="Operations">Operations</option>
-                                  <option value="Administration">
-                                    Administration
-                                  </option>
-                                  <option value="Finance">Finance</option>
-                                  <option value="Marketing">Marketing</option>
-                                  <option value="Content">Content</option>
-                                  <option value="Research">Research</option>
-                                  <option value="Technology">Technology</option>
-                                  <option value="Logistics">Logistics</option>
-                                  <option value="Other">Other</option>
-                                </select>
-                              ) : (
-                                <div className="flex items-center text-[8px] text-slate-500 italic px-2">
-                                  Project selected
-                                </div>
-                              )}
-                            </div>
-                            {/* Dates Row */}
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="date"
-                                value={row.start_date || ""}
-                                onChange={(e) =>
-                                  updateTaskRow(
-                                    idx,
-                                    "start_date",
-                                    e.target.value,
-                                  )
-                                }
-                                className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                              />
-                              <input
-                                type="date"
-                                value={row.due_date || ""}
-                                onChange={(e) =>
-                                  updateTaskRow(idx, "due_date", e.target.value)
-                                }
-                                className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                              />
-                            </div>
-                            {/* Collaborator + Blocker Row */}
-                            <div className="flex gap-2">
-                              <select
-                                value={row.collaborators?.[0] || ""}
-                                onChange={(e) =>
-                                  updateTaskRow(
-                                    idx,
-                                    "collaborators",
-                                    e.target.value ? [e.target.value] : [],
-                                  )
-                                }
-                                className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1.5 text-[8px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-                              >
-                                <option value="">Collaborator</option>
-                                {allStaff.map((s) => (
-                                  <option key={s.id} value={s.id}>
-                                    {s.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                type="button"
-                                onClick={() => setBlockerModal(idx)}
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--border-primary)] text-[8px] font-bold hover:border-rose-500/30 transition-all"
-                              >
-                                <Shield className="w-3 h-3 text-rose-400" />
-                                {row.blockers?.length > 0
-                                  ? `${row.blockers.length} Blocker${row.blockers.length > 1 ? "s" : ""}`
-                                  : "Blockers"}
-                              </button>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeTaskRow(idx)}
-                            className="p-1 text-rose-500/50 hover:text-rose-500 transition-all shrink-0"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={addTaskRow}
-                      className="w-full py-3 border-2 border-dashed border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-2"
+                {existingReport?.status === "submitted" ? (
+                  <>
+                    <Section
+                      title="This Week's Plan"
+                      icon={Target}
+                      color="text-emerald-400"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add Weekly Focus
-                    </button>
-                  </div>
-                </Section>
-
-                {/* ═══════════════════════════════════════ */}
-                {/* SECTION 5 — Active Tasks                */}
-                {/* ═══════════════════════════════════════ */}
-                <Section
-                  title="Active Tasks"
-                  icon={Target}
-                  color="text-emerald-400"
-                >
-                  {loadingTasks ? (
-                    <div className="flex items-center gap-2 py-3">
-                      <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        Loading...
-                      </span>
+                      <div className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                            Standup Submitted for W{weekInfo.week}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400">
+                          You have defined your plan for this week. View your
+                          carry-over tasks and active work below.
+                        </p>
+                      </div>
+                    </Section>
+                  </>
+                ) : (
+                  <Section
+                    title="This Week's Plan"
+                    icon={Target}
+                    color="text-[var(--brand-orange)]"
+                  >
+                    <div className="text-center py-8 space-y-4">
+                      <p className="text-[10px] text-slate-500">
+                        You haven't defined your plan for this week yet.
+                      </p>
+                      <button
+                        onClick={() => setShowStandupModal(true)}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                      >
+                        <Plus className="w-4 h-4" /> Create Standup
+                      </button>
                     </div>
-                  ) : tasks.filter((t) =>
-                      ["in_progress", "carried_over", "pending"].includes(
-                        t.status,
-                      ),
-                    ).length === 0 ? (
-                    <p className="text-[10px] text-slate-600 italic py-2">
-                      No active tasks.
-                    </p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {tasks
-                        .filter((t) =>
-                          ["in_progress", "carried_over", "pending"].includes(
-                            t.status,
-                          ),
-                        )
-                        .map((task) => (
-                          <div
-                            key={task.id}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]"
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                task.status === "in_progress"
-                                  ? "bg-emerald-400"
-                                  : task.status === "carried_over"
-                                    ? "bg-indigo-400"
-                                    : "bg-slate-400"
-                              }`}
-                            />
-                            <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
-                              {task.title}
-                            </span>
-                            <span className="text-[8px] text-slate-500">
-                              {task.end_date || "—"}
-                            </span>
-                            {(task.blockers || []).filter(
-                              (b) => b.status === "active",
-                            ).length > 0 && (
-                              <span className="text-[8px] text-rose-400 flex items-center gap-1">
-                                <Shield className="w-2.5 h-2.5" />
-                                {
-                                  (task.blockers || []).filter(
-                                    (b) => b.status === "active",
-                                  ).length
-                                }
-                              </span>
-                            )}
-                            <span
-                              className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                                task.status === "in_progress"
-                                  ? "bg-emerald-500/10 text-emerald-400"
-                                  : task.status === "carried_over"
-                                    ? "bg-indigo-500/10 text-indigo-400"
-                                    : "bg-slate-500/10 text-slate-400"
-                              }`}
-                            >
-                              {task.status.replace("_", " ")}
-                            </span>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </Section>
+                  </Section>
+                )}
 
-                {/* ═══════════════════════════════════════ */}
-                {/* SECTION 6 — Additional Notes            */}
-                {/* ═══════════════════════════════════════ */}
-                <Section
-                  title="Additional Notes"
-                  icon={FileText}
-                  color="text-slate-500"
-                >
-                  <textarea
-                    value={form.additional_notes}
-                    onChange={(e) =>
-                      setForm((p) => ({
-                        ...p,
-                        additional_notes: e.target.value,
-                      }))
-                    }
-                    rows={2}
-                    placeholder="Anything else to note? Free text for information that doesn't belong inside a task."
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
-                  />
-                </Section>
+                {/* Always show Create button even if submitted */}
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => setShowStandupModal(true)}
+                    className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                  >
+                    <Plus className="w-4 h-4" /> Create New Standup
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-8">
@@ -1299,6 +990,303 @@ export default function StaffOpReport() {
           </div>
         </div>
       </div>
+
+      {/* ─── STANDUP CREATION MODAL ─── */}
+      {showStandupModal && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setShowStandupModal(false)}
+        >
+          <div
+            className="card w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-6 border-[var(--brand-orange)]/30"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between sticky top-0 bg-secondary pb-4 border-b border-[var(--border-primary)] z-10">
+              <div>
+                <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
+                  Create Standup
+                </h3>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+                  Week {weekInfo.week} — {weekInfo.year}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowStandupModal(false)}
+                className="p-2 hover:bg-white/5 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Section 1 — Carry Over Tasks */}
+              <Section
+                title="Carry Over Tasks"
+                icon={ChevronRight}
+                color="text-indigo-400"
+              >
+                {tasks.filter((t) => t.status === "carried_over").length ===
+                0 ? (
+                  <p className="text-[10px] text-slate-600 italic py-2">
+                    No carry-over tasks.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {tasks
+                      .filter((t) => t.status === "carried_over")
+                      .map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-start gap-3 p-3 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.03]"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold text-[var(--text-primary)]">
+                              {task.title}
+                            </p>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              <span className="text-[8px] text-slate-500">
+                                Due: {task.end_date || "—"}
+                              </span>
+                              {(task.blockers || []).filter(
+                                (b) => b.status === "active",
+                              ).length > 0 && (
+                                <span className="text-[8px] text-rose-400 flex items-center gap-1">
+                                  <Shield className="w-2.5 h-2.5" />
+                                  {
+                                    (task.blockers || []).filter(
+                                      (b) => b.status === "active",
+                                    ).length
+                                  }{" "}
+                                  active
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              onClick={async () => {
+                                await fetch("/api/tasks", {
+                                  method: "PUT",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    id: task.id,
+                                    status: "in_progress",
+                                    user_id: user?.cid || user?.id,
+                                  }),
+                                });
+                                fetchTasks();
+                              }}
+                              className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
+                            >
+                              Continue
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </Section>
+
+              {/* Section 2 — Weekly Focus */}
+              <Section
+                title="Weekly Focus"
+                icon={Target}
+                color="text-[var(--brand-orange)]"
+              >
+                <div className="space-y-3">
+                  {taskRows.map((row, idx) => (
+                    <div
+                      key={row.id}
+                      className="p-4 rounded-xl border border-[var(--border-primary)] bg-secondary space-y-2"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <input
+                            type="text"
+                            value={row.name}
+                            onChange={(e) =>
+                              updateTaskRow(idx, "name", e.target.value)
+                            }
+                            placeholder="Task name *"
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                          />
+                          <input
+                            type="text"
+                            value={row.description || ""}
+                            onChange={(e) =>
+                              updateTaskRow(idx, "description", e.target.value)
+                            }
+                            placeholder="Brief description (optional)"
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <select
+                              value={row.project_id || ""}
+                              onChange={(e) =>
+                                updateTaskRow(
+                                  idx,
+                                  "project_id",
+                                  e.target.value || null,
+                                )
+                              }
+                              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                            >
+                              <option value="">No Project</option>
+                              {assignedProjects.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                            {!row.project_id ? (
+                              <select
+                                value={row.category}
+                                onChange={(e) =>
+                                  updateTaskRow(idx, "category", e.target.value)
+                                }
+                                className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                              >
+                                <option value="">Category *</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Administration">
+                                  Administration
+                                </option>
+                                <option value="Finance">Finance</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Content">Content</option>
+                                <option value="Research">Research</option>
+                                <option value="Technology">Technology</option>
+                                <option value="Logistics">Logistics</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            ) : (
+                              <div className="flex items-center text-[8px] text-slate-500 italic px-2">
+                                Project selected
+                              </div>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="date"
+                              value={row.start_date || ""}
+                              onChange={(e) =>
+                                updateTaskRow(idx, "start_date", e.target.value)
+                              }
+                              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                            />
+                            <input
+                              type="date"
+                              value={row.due_date || ""}
+                              onChange={(e) =>
+                                updateTaskRow(idx, "due_date", e.target.value)
+                              }
+                              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <select
+                              value={row.collaborators?.[0] || ""}
+                              onChange={(e) =>
+                                updateTaskRow(
+                                  idx,
+                                  "collaborators",
+                                  e.target.value ? [e.target.value] : [],
+                                )
+                              }
+                              className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1.5 text-[8px] font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                            >
+                              <option value="">Collaborator</option>
+                              {allStaff.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => setBlockerModal(idx)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--border-primary)] text-[8px] font-bold hover:border-rose-500/30 transition-all"
+                            >
+                              <Shield className="w-3 h-3 text-rose-400" />
+                              {row.blockers?.length > 0
+                                ? `${row.blockers.length} Blocker${row.blockers.length > 1 ? "s" : ""}`
+                                : "Blockers"}
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeTaskRow(idx)}
+                          className="p-1 text-rose-500/50 hover:text-rose-500 transition-all shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addTaskRow}
+                    className="w-full py-3 border-2 border-dashed border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Weekly Focus
+                  </button>
+                </div>
+              </Section>
+
+              {/* Additional Notes */}
+              <Section
+                title="Additional Notes"
+                icon={FileText}
+                color="text-slate-500"
+              >
+                <textarea
+                  value={form.additional_notes}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      additional_notes: e.target.value,
+                    }))
+                  }
+                  rows={2}
+                  placeholder="Anything else to note?"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
+                />
+              </Section>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4 border-t border-[var(--border-primary)] sticky bottom-0 bg-secondary">
+              <button
+                onClick={() => {
+                  handleSubmit("draft");
+                  setShowStandupModal(false);
+                }}
+                disabled={saving}
+                className="flex-1 btn btn-secondary gap-2 py-4"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? "Saving..." : "Save Draft"}
+              </button>
+              <button
+                onClick={() => {
+                  handleSubmit("submitted");
+                  setShowStandupModal(false);
+                }}
+                disabled={saving}
+                className="flex-1 btn btn-primary gap-2 py-4"
+              >
+                <Send className="w-4 h-4" />
+                {saving ? "Saving..." : "Submit Standup"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── BLOCKER MODAL ─── */}
       {blockerModal !== null && (
