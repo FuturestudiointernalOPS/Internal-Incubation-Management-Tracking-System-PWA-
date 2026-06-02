@@ -323,6 +323,38 @@ export default function StaffOpReport() {
 
     setSaving(true);
     try {
+      // First: create all task rows as real tasks
+      const userId = user.cid || user.id;
+      const weekData = getCurrentWeek();
+
+      const createdTaskIds = [];
+      for (const row of taskRows) {
+        if (!row.name.trim()) continue;
+        const taskRes = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: row.name.trim(),
+            description: row.description || null,
+            project_id: row.project_id || null,
+            category: row.category || null,
+            user_id: userId,
+            user_name: user.name || "",
+            status: "pending",
+            created_week: weekData.week,
+            created_year: weekData.year,
+            start_date: row.start_date || null,
+            end_date: row.due_date || null,
+            carried_over_from_task_id: null,
+          }),
+        });
+        const taskData = await taskRes.json();
+        if (taskData.success) {
+          createdTaskIds.push(taskData.id);
+        }
+      }
+
+      // Then: submit the report
       const body = {
         user_id: user.cid || user.id,
         user_name: user.name || "",
@@ -391,8 +423,11 @@ export default function StaffOpReport() {
             : t("reports.reportSaved"),
           "success",
         );
+        setTaskRows([]);
+        setShowTaskForm(false);
         fetchReport();
         fetchHistory();
+        fetchTasks();
       } else {
         notify(data.error || t("reports.failedToSave"), "error");
       }
