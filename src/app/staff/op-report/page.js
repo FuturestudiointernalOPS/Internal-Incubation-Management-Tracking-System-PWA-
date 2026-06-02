@@ -1694,8 +1694,8 @@ export default function StaffOpReport() {
                       key={b.id}
                       className={`flex items-center justify-between p-2.5 rounded-lg border ${
                         b.status === "Resolved"
-                          ? "border-emerald-500/20 bg-emerald-500/5"
-                          : "border-rose-500/20 bg-rose-500/5"
+                          ? "border border-emerald-500/30 bg-emerald-500/[0.08]"
+                          : "border border-rose-500/30 bg-rose-500/[0.08]"
                       }`}
                     >
                       <div className="flex-1 min-w-0">
