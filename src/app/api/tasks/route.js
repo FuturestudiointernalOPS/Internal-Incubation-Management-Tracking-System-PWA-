@@ -83,14 +83,22 @@ export async function GET(req) {
 
     const result = await db.execute({ sql, args });
 
-    // For each task, fetch linked blockers
+    // For each task, fetch linked blockers and subtasks
     const tasksWithBlockers = await Promise.all(
       result.rows.map(async (task) => {
         const blockerRes = await db.execute({
           sql: "SELECT id, title, status, severity FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
           args: [task.id],
         });
-        return { ...task, blockers: blockerRes.rows || [] };
+        const subtaskRes = await db.execute({
+          sql: "SELECT id, title, status FROM tasks WHERE parent_task_id = ? ORDER BY created_at ASC",
+          args: [task.id],
+        });
+        return {
+          ...task,
+          blockers: blockerRes.rows || [],
+          subtasks: subtaskRes.rows || [],
+        };
       }),
     );
 

@@ -673,140 +673,122 @@ export default function StaffOpReport() {
           <div className="lg:col-span-2 space-y-8">
             {reportType === "standup" ? (
               <div className="space-y-6">
-                {existingReport?.status === "submitted" ? (
-                  <>
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                          This Week's Plan
-                        </h2>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          Week {weekInfo.week} — {weekInfo.year}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div 
-                      onClick={() => setShowStandupModal(true)}
-                      className="group relative block w-full text-left bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 cursor-pointer hover:border-[var(--brand-orange)]/50 hover:bg-tertiary transition-all duration-300"
-                    >
-                      {/* Edit Hint Overlay on Hover */}
-                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--brand-orange)] bg-[var(--brand-orange)]/10 rounded-lg">
-                          <Plus className="w-3 h-3" /> Edit Plan
-                        </span>
-                      </div>
-
-                      <div className="space-y-6">
-                        {/* Empty State Check */}
-                        {tasks.filter((t) => t.status === "carried_over").length === 0 &&
-                         tasks.filter((t) => t.created_week === weekInfo.week && t.created_year === weekInfo.year && t.status !== "carried_over").length === 0 &&
-                         !existingReport.additional_notes ? (
-                          <div className="flex flex-col items-center justify-center py-8 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <Target className="w-8 h-8 text-[var(--brand-orange)] mb-3 opacity-50" />
-                            <p className="text-sm font-bold text-[var(--text-primary)]">No tasks planned yet</p>
-                            <p className="text-xs text-slate-500 mt-1">Click anywhere to set up your weekly focus</p>
-                          </div>
-                        ) : (
-                          <>
-                            {/* Carry Over Tasks */}
-                            {tasks.filter((t) => t.status === "carried_over").length > 0 && (
-                              <div>
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 mb-3 flex items-center gap-1.5">
-                                  <ChevronRight className="w-3.5 h-3.5" /> Carry Over
-                                </p>
-                                <div className="space-y-2">
-                                  {tasks
-                                    .filter((t) => t.status === "carried_over")
-                                    .map((task) => (
-                                      <div
-                                        key={task.id}
-                                        className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-primary/50 border border-[var(--border-primary)] group-hover:border-indigo-500/20 transition-colors"
-                                      >
-                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
-                                        <span className="flex-1 text-[13px] font-semibold text-[var(--text-primary)]">
-                                          {task.title}
-                                        </span>
-                                        <span className="text-[11px] font-medium text-slate-500">
-                                          Due: {task.end_date || "—"}
-                                        </span>
-                                      </div>
-                                    ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Weekly Focus Tasks */}
-                            {tasks.filter(
-                              (t) =>
-                                t.created_week === weekInfo.week &&
-                                t.created_year === weekInfo.year &&
-                                t.status !== "carried_over",
-                            ).length > 0 && (
-                              <div>
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] mb-3 flex items-center gap-1.5">
-                                  <Target className="w-3.5 h-3.5" /> Weekly Focus
-                                </p>
-                                <div className="space-y-2">
-                                  {tasks
-                                    .filter(
-                                      (t) =>
-                                        t.created_week === weekInfo.week &&
-                                        t.created_year === weekInfo.year &&
-                                        t.status !== "carried_over",
-                                    )
-                                    .map((task) => (
-                                      <div
-                                        key={task.id}
-                                        className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-primary/50 border border-[var(--border-primary)] group-hover:border-[var(--brand-orange)]/20 transition-colors"
-                                      >
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)] shrink-0" />
-                                        <span className="flex-1 text-[13px] font-semibold text-[var(--text-primary)]">
-                                          {task.title}
-                                        </span>
-                                        <span className="text-[11px] font-medium text-slate-500">
-                                          {task.end_date || "—"}
-                                        </span>
-                                      </div>
-                                    ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Additional Notes */}
-                            {existingReport.additional_notes && (
-                              <div className="px-4 py-3 rounded-xl bg-primary/50 border border-[var(--border-primary)]">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">
-                                  Notes
-                                </p>
-                                <p className="text-[12px] font-medium text-[var(--text-primary)] leading-relaxed">
-                                  {existingReport.additional_notes}
-                                </p>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                        Monday Stand-Up
-                      </h2>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Plan your work for this week.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setShowStandupModal(true)}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
-                    >
-                      <Plus className="w-4 h-4" /> Create Stand-Up
-                    </button>
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                      Monday Stand-Up
+                    </h2>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Track and manage your weekly plans
+                    </p>
                   </div>
-                )}
+                  <button
+                    onClick={() => {
+                      setShowStandupModal(true);
+                      setWeekInfo(getCurrentWeek());
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
+                  >
+                    <Plus className="w-4 h-4" /> Create New Stand-Up
+                  </button>
+                </div>
+
+                {/* Standups Table */}
+                <div className="overflow-hidden rounded-xl border border-[var(--border-primary)]">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-tertiary border-b border-[var(--border-primary)]">
+                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                          Week
+                        </th>
+                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                          Total Tasks
+                        </th>
+                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="text-right px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history
+                        .filter((r) => r.report_type === "standup")
+                        .map((report) => {
+                          const taskCount = tasks.filter(
+                            (t) =>
+                              t.created_week === report.week_number &&
+                              t.created_year === report.year,
+                          ).length;
+                          return (
+                            <tr
+                              key={report.id}
+                              className="border-b border-[var(--border-primary)]/50 hover:bg-tertiary/50 transition-colors"
+                            >
+                              <td className="px-4 py-3">
+                                <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+                                  Week {report.week_number}
+                                </span>
+                                <span className="text-[10px] text-slate-500 ml-2">
+                                  {report.year}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-[12px] font-medium text-slate-500">
+                                  {taskCount} tasks
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
+                                    report.status === "submitted"
+                                      ? "bg-emerald-500/10 text-emerald-400"
+                                      : "bg-amber-500/10 text-amber-400"
+                                  }`}
+                                >
+                                  {report.status === "submitted"
+                                    ? "Submitted"
+                                    : "Draft"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  onClick={() => {
+                                    setWeekInfo({
+                                      week: report.week_number,
+                                      year: report.year,
+                                    });
+                                    setShowStandupModal(true);
+                                  }}
+                                  className="text-[11px] font-medium text-[var(--brand-orange)] hover:underline"
+                                >
+                                  {report.status === "submitted"
+                                    ? "View"
+                                    : "Edit"}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      {history.filter((r) => r.report_type === "standup")
+                        .length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-12 text-center">
+                            <Target className="w-8 h-8 mx-auto mb-3 text-slate-500 opacity-30" />
+                            <p className="text-[12px] font-medium text-slate-500">
+                              No stand-ups yet
+                            </p>
+                            <p className="text-[10px] text-slate-600 mt-1">
+                              Create your first weekly plan
+                            </p>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : (
               <div className="space-y-8">
