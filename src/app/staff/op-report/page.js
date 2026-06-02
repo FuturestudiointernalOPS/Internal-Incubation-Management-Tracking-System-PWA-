@@ -934,6 +934,21 @@ export default function StaffOpReport() {
                                             </table>
                                           </div>
                                         )}
+                                        <div className="mt-3">
+                                          <button
+                                            onClick={() => {
+                                              setWeekInfo({
+                                                week: report.week_number,
+                                                year: report.year,
+                                              });
+                                              setShowTaskForm(true);
+                                            }}
+                                            className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
+                                          >
+                                            <Plus className="w-3.5 h-3.5" /> Add
+                                            Task
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   </td>
@@ -1188,26 +1203,6 @@ export default function StaffOpReport() {
                 </Section>
               </div>
             )}
-
-            {/* ACTION BUTTONS */}
-            <div className="flex gap-3 pt-4 border-t border-[var(--border-primary)]">
-              <button
-                onClick={() => handleSubmit("draft")}
-                disabled={saving}
-                className="flex-1 btn btn-secondary gap-2 py-4"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? t("common.loading") : t("reports.saveDraft")}
-              </button>
-              <button
-                onClick={() => handleSubmit("submitted")}
-                disabled={saving}
-                className="flex-1 btn btn-primary gap-2 py-4"
-              >
-                <Send className="w-4 h-4" />
-                {saving ? t("common.loading") : t("reports.submitReport")}
-              </button>
-            </div>
           </div>
         </div>
       </div>
