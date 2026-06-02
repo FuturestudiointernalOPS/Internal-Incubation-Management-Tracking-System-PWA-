@@ -1727,6 +1727,7 @@ export default function StaffOpReport() {
                             } else {
                               resolveBlocker(blockerModal, b.id);
                             }
+                            setBlockerModal(null);
                           }}
                           className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all shrink-0"
                         >
@@ -1777,8 +1778,25 @@ export default function StaffOpReport() {
               <button
                 onClick={() => {
                   if (newBlockerDesc.trim()) {
-                    addBlockerToRow(blockerModal, newBlockerDesc.trim());
-                    setNewBlockerDesc("");
+                    if (blockerModal.type === "api") {
+                      fetch("/api/blockers", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          task_id: blockerModal.taskId,
+                          user_id: user?.cid || user?.id,
+                          user_name: user?.name || "",
+                          title: newBlockerDesc.trim(),
+                        }),
+                      }).then(() => {
+                        setNewBlockerDesc("");
+                        setBlockerModal(null);
+                        fetchTasks();
+                      });
+                    } else {
+                      addBlockerToRow(blockerModal, newBlockerDesc.trim());
+                      setNewBlockerDesc("");
+                    }
                   }
                 }}
                 className="px-3 py-2 bg-rose-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
