@@ -253,7 +253,7 @@ export default function StaffOpReport() {
             completed_work: "",
             unfinished_tasks: "",
             challenges: "",
-            wins: "",
+            wins: [],
             carryover_items: "",
             retro_notes: "",
           });
