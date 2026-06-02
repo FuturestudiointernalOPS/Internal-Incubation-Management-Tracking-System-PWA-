@@ -361,6 +361,18 @@ const NAVIGATION_MATRIX = {
       icon: Activity,
       href: "/pm/progress",
     },
+    {
+      id: "reports",
+      name: "REPORTS",
+      icon: BarChart3,
+      subItems: [
+        {
+          id: "internal_reports",
+          name: "INTERNAL REPORTS",
+          href: "/staff/op-report",
+        },
+      ],
+    },
   ],
   staff: [
     {
