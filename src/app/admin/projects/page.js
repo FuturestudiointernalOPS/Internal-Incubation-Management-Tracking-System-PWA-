@@ -76,6 +76,11 @@ export default function AdminProjects() {
     lead: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (toast) setTimeout(() => setToast(null), 3000);
+  }, [toast]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -169,26 +174,40 @@ export default function AdminProjects() {
         }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.project_id) {
         // Add selected members
+        let memberError = false;
         for (const memberId of selectedMembers) {
-          await fetch("/api/projects/members", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              project_id: data.project_id,
-              user_cid: memberId,
-              role: "member",
-            }),
-          });
+          try {
+            await fetch("/api/projects/members", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                project_id: data.project_id,
+                user_cid: memberId,
+                role: "member",
+              }),
+            });
+          } catch (e) {
+            memberError = true;
+          }
         }
         setShowCreateModal(false);
         setNewProject({ name: "", type: "", lead: "" });
         setSelectedMembers([]);
         fetchData();
+        setToast({
+          type: "success",
+          msg: `Project "${newProject.name.trim()}" created successfully!`,
+        });
+      } else {
+        setToast({
+          type: "error",
+          msg: data.error || "Failed to create project.",
+        });
       }
     } catch (e) {
-      console.error(e);
+      setToast({ type: "error", msg: "Network error creating project." });
     } finally {
       setCreating(false);
     }
@@ -237,6 +256,15 @@ export default function AdminProjects() {
     <DashboardLayout role="super_admin">
       <div className="space-y-8 pb-20 text-left">
         {/* HEADER */}
+        {/* Toast notification */}
+        {toast && (
+          <div
+            className={`fixed top-6 right-6 z-[999] px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest animate-in ${toast.type === "success" ? "bg-emerald-500 text-black" : "bg-rose-500 text-white"}`}
+          >
+            {toast.msg}
+          </div>
+        )}
+
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
           <div className="space-y-2">
             <button
