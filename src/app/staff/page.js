@@ -143,6 +143,15 @@ export default function StaffDashboard() {
   const [ownedProjects, setOwnedProjects] = useState([]);
   const [collabProjects, setCollabProjects] = useState([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const [updateModal, setUpdateModal] = useState(null); // project object or null
+  const [updateForm, setUpdateForm] = useState({
+    accomplishments: "",
+    current_focus: "",
+    blockers: "",
+    next_steps: "",
+    overall_status: "on_track",
+  });
+  const [savingUpdate, setSavingUpdate] = useState(false);
 
   // Auth
   useEffect(() => {
@@ -649,42 +658,62 @@ export default function StaffDashboard() {
                     {ownedProjects.map((project) => (
                       <div
                         key={project.id}
-                        onClick={() =>
-                          router.push(`/admin/projects/${project.id}`)
-                        }
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)] group"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                          <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                            {project.name}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span
-                              className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                                project.status === "Active"
-                                  ? "bg-emerald-500/10 text-emerald-500"
-                                  : project.status === "Paused"
-                                    ? "bg-amber-500/10 text-amber-500"
-                                    : "bg-slate-500/10 text-slate-500"
-                              }`}
-                            >
-                              {project.status || "Active"}
-                            </span>
-                            <span className="text-[8px] text-slate-500">
-                              {(project.taskStats?.in_progress || 0) +
-                                (project.taskStats?.pending || 0)}{" "}
-                              active tasks
-                            </span>
-                            {(project.blockerStats?.active || 0) > 0 && (
-                              <span className="text-[8px] text-rose-500 font-bold">
-                                {project.blockerStats.active} blockers
+                        <div
+                          onClick={() =>
+                            router.push(`/admin/projects/${project.id}`)
+                          }
+                          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                            <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                              {project.name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span
+                                className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                  project.status === "Active"
+                                    ? "bg-emerald-500/10 text-emerald-500"
+                                    : project.status === "Paused"
+                                      ? "bg-amber-500/10 text-amber-500"
+                                      : "bg-slate-500/10 text-slate-500"
+                                }`}
+                              >
+                                {project.status || "Active"}
                               </span>
-                            )}
+                              <span className="text-[8px] text-slate-500">
+                                {(project.taskStats?.in_progress || 0) +
+                                  (project.taskStats?.pending || 0)}{" "}
+                                active tasks
+                              </span>
+                              {(project.blockerStats?.active || 0) > 0 && (
+                                <span className="text-[8px] text-rose-500 font-bold">
+                                  {project.blockerStats.active} blockers
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUpdateModal(project);
+                            setUpdateForm({
+                              accomplishments: "",
+                              current_focus: "",
+                              blockers: "",
+                              next_steps: "",
+                              overall_status: "on_track",
+                            });
+                          }}
+                          className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 transition-all shrink-0 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 opacity-0 group-hover:opacity-100"
+                        >
+                          Post Update
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -1189,6 +1218,169 @@ export default function StaffDashboard() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════ WEEKLY UPDATE MODAL ═══════ */}
+      {updateModal && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setUpdateModal(null)}
+        >
+          <div
+            className="card w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
+                <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                  Weekly Update
+                </h2>
+              </div>
+              <button onClick={() => setUpdateModal(null)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-[10px] text-slate-500 font-bold">
+              {updateModal.name}
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Overall Status
+                </label>
+                <select
+                  value={updateForm.overall_status}
+                  onChange={(e) =>
+                    setUpdateForm((f) => ({
+                      ...f,
+                      overall_status: e.target.value,
+                    }))
+                  }
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer"
+                >
+                  <option value="on_track">On Track</option>
+                  <option value="at_risk">At Risk</option>
+                  <option value="behind">Behind</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Accomplishments
+                </label>
+                <textarea
+                  value={updateForm.accomplishments}
+                  onChange={(e) =>
+                    setUpdateForm((f) => ({
+                      ...f,
+                      accomplishments: e.target.value,
+                    }))
+                  }
+                  placeholder="What got done?"
+                  rows={2}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Current Focus
+                </label>
+                <textarea
+                  value={updateForm.current_focus}
+                  onChange={(e) =>
+                    setUpdateForm((f) => ({
+                      ...f,
+                      current_focus: e.target.value,
+                    }))
+                  }
+                  placeholder="What are you working on?"
+                  rows={2}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Blockers
+                </label>
+                <textarea
+                  value={updateForm.blockers}
+                  onChange={(e) =>
+                    setUpdateForm((f) => ({
+                      ...f,
+                      blockers: e.target.value,
+                    }))
+                  }
+                  placeholder="Any blockers?"
+                  rows={1}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Next Steps
+                </label>
+                <textarea
+                  value={updateForm.next_steps}
+                  onChange={(e) =>
+                    setUpdateForm((f) => ({
+                      ...f,
+                      next_steps: e.target.value,
+                    }))
+                  }
+                  placeholder="What's next?"
+                  rows={1}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={async () => {
+                  setSavingUpdate(true);
+                  try {
+                    await fetch(
+                      `/api/admin/projects/${updateModal.id}/updates`,
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          ...updateForm,
+                          user_id: user.cid || user.id,
+                          user_name: user.name || "",
+                          status: "submitted",
+                        }),
+                      },
+                    );
+                    setUpdateModal(null);
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setSavingUpdate(false);
+                  }
+                }}
+                disabled={
+                  savingUpdate ||
+                  (!updateForm.accomplishments && !updateForm.current_focus)
+                }
+                className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
+              >
+                {savingUpdate ? "Saving..." : "Submit Update"}
+              </button>
+              <button
+                onClick={() => setUpdateModal(null)}
+                className="flex-1 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
