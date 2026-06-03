@@ -224,10 +224,22 @@ export default function StaffDashboard() {
 
       if (allData.success) {
         const allProjects = allData.projects || [];
-        // Owned: owner_id matches user
-        const owned = allProjects.filter(
-          (p) => p.owner_id && String(p.owner_id) === String(userId),
-        );
+        // Owned: owner_id matches user, OR assigned_pm_id in meta matches
+        const owned = allProjects.filter((p) => {
+          // Check owner_id column
+          if (p.owner_id && String(p.owner_id) === String(userId)) return true;
+          // Check meta.assigned_pm_id (legacy)
+          if (p.meta) {
+            const meta =
+              typeof p.meta === "string" ? JSON.parse(p.meta) : p.meta;
+            if (
+              meta.assigned_pm_id &&
+              String(meta.assigned_pm_id) === String(userId)
+            )
+              return true;
+          }
+          return false;
+        });
         setOwnedProjects(owned);
       }
 

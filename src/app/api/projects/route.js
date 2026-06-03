@@ -36,8 +36,14 @@ export async function POST(req) {
     });
 
     const result = await db.execute({
-      sql: "INSERT INTO v2_projects (program_id, name, status, meta) VALUES (?, ?, ?, ?) RETURNING id",
-      args: [program_id || null, name, status || "Active", meta],
+      sql: "INSERT INTO v2_projects (program_id, name, status, meta, owner_id) VALUES (?, ?, ?, ?, ?) RETURNING id",
+      args: [
+        program_id || null,
+        name,
+        status || "Active",
+        meta,
+        assigned_pm_id || null,
+      ],
     });
 
     const projectId = result.rows[0]?.id || result.lastInsertRowid;
@@ -182,6 +188,12 @@ export async function PUT(req) {
 
       updateFields.push("meta = ?");
       updateArgs.push(newMeta);
+
+      // Also sync owner_id column with assigned_pm_id
+      if (assigned_pm_id !== undefined) {
+        updateFields.push("owner_id = ?");
+        updateArgs.push(assigned_pm_id || null);
+      }
     }
 
     if (updateFields.length === 0) {
