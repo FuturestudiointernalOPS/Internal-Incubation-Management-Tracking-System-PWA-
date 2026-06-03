@@ -88,6 +88,8 @@ export default function ProjectDetail() {
   });
   const [savingUpdate, setSavingUpdate] = useState(false);
   const [allStaff, setAllStaff] = useState([]);
+  const [approvalRequests, setApprovalRequests] = useState([]);
+  const [approvalsLoading, setApprovalsLoading] = useState(false);
 
   const projectId = params?.id;
 
@@ -127,6 +129,40 @@ export default function ProjectDetail() {
     }
   }, []);
 
+  const fetchApprovals = useCallback(async () => {
+    if (!projectId) return;
+    setApprovalsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/projects/${projectId}/approvals`);
+      const data = await res.json();
+      if (data.success) setApprovalRequests(data.requests || []);
+    } catch (e) {
+      console.error("Failed to fetch approvals:", e);
+    } finally {
+      setApprovalsLoading(false);
+    }
+  }, [projectId]);
+
+  const handleApprovalAction = async (requestId, action, rejectionReason) => {
+    try {
+      const res = await fetch(`/api/admin/projects/${projectId}/approvals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request_id: requestId,
+          reviewer_id: project.owner_id || "sa",
+          reviewer_name: project.owner_name || "Project Owner",
+          action,
+          rejection_reason: rejectionReason || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) fetchApprovals();
+    } catch (e) {
+      console.error("Approval action error:", e);
+    }
+  };
+
   const fetchUpdates = useCallback(async () => {
     if (!projectId) return;
     setUpdatesLoading(true);
@@ -148,6 +184,10 @@ export default function ProjectDetail() {
   useEffect(() => {
     fetchStaff();
   }, [fetchStaff]);
+
+  useEffect(() => {
+    fetchApprovals();
+  }, [fetchApprovals]);
 
   useEffect(() => {
     fetchUpdates();
@@ -380,6 +420,11 @@ export default function ProjectDetail() {
             },
             { id: "team", label: `TEAM (${members.length})`, icon: Users },
             { id: "updates", label: "WEEKLY UPDATE", icon: FileText },
+            {
+              id: "approvals",
+              label: `REQUESTS (${approvalRequests.filter((r) => r.status === "pending").length})`,
+              icon: UserPlus,
+            },
             { id: "timeline", label: "TIMELINE", icon: Clock },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
@@ -1171,6 +1216,147 @@ export default function ProjectDetail() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ─── TAB: APPROVALS ─── */}
+        {activeTab === "approvals" && (
+          <div className="space-y-4">
+            {approvalsLoading ? (
+              <div className="text-center py-8 text-[10px] text-slate-500 italic">
+                Loading requests...
+              </div>
+            ) : approvalRequests.filter((r) => r.status === "pending")
+                .length === 0 &&
+              approvalRequests.filter((r) => r.status !== "pending").length ===
+                0 ? (
+              <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
+                <UserPlus className="w-12 h-12 mb-3" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">
+                  No contribution requests
+                </p>
+                <p className="text-[9px] text-slate-500 mt-1">
+                  When staff link tasks to this project without being
+                  collaborators, requests appear here.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Pending Requests */}
+                {approvalRequests.filter((r) => r.status === "pending").length >
+                  0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-[9px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5" />
+                      Pending Review (
+                      {
+                        approvalRequests.filter((r) => r.status === "pending")
+                          .length
+                      }
+                      )
+                    </h3>
+                    {approvalRequests
+                      .filter((r) => r.status === "pending")
+                      .map((req) => (
+                        <div
+                          key={req.id}
+                          className="card border-l-4 border-l-amber-500 p-4 space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-bold text-[var(--text-primary)]">
+                                {req.task_title || `Task #${req.task_id}`}
+                              </p>
+                              <p className="text-[9px] text-slate-500 mt-0.5">
+                                by{" "}
+                                {req.requester_name ||
+                                  req.requester_name_lookup ||
+                                  req.requester_id}{" "}
+                                ·{" "}
+                                {new Date(req.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() =>
+                                handleApprovalAction(req.id, "approved")
+                              }
+                              className="px-4 py-2 bg-emerald-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => {
+                                const reason = prompt("Reason for rejection:");
+                                if (reason)
+                                  handleApprovalAction(
+                                    req.id,
+                                    "rejected",
+                                    reason,
+                                  );
+                              }}
+                              className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                {/* History */}
+                {approvalRequests.filter((r) => r.status !== "pending").length >
+                  0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                      History
+                    </h3>
+                    {approvalRequests
+                      .filter((r) => r.status !== "pending")
+                      .map((req) => (
+                        <div
+                          key={req.id}
+                          className={`card p-3 border-l-4 ${
+                            req.status === "approved"
+                              ? "border-l-emerald-500"
+                              : "border-l-rose-500"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                                req.status === "approved"
+                                  ? "bg-emerald-500/10 text-emerald-500"
+                                  : "bg-rose-500/10 text-rose-500"
+                              }`}
+                            >
+                              {req.status}
+                            </span>
+                            <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                              {req.task_title || `Task #${req.task_id}`}
+                            </span>
+                          </div>
+                          <p className="text-[9px] text-slate-500 mt-1">
+                            {req.requester_name || req.requester_id} ·{" "}
+                            {new Date(req.created_at).toLocaleDateString()}
+                            {req.rejection_reason && (
+                              <>
+                                {" "}
+                                · Reason:{" "}
+                                <span className="text-rose-400">
+                                  {req.rejection_reason}
+                                </span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 

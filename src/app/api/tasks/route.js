@@ -240,22 +240,23 @@ export async function POST(req) {
         args: [taskId, user_id, user_name || "", parseInt(project_id)],
       });
 
-      // Notify Super Admin / PMs
+      // Notify project owner (or Super Admin as fallback)
       try {
         const projectInfo = await db.execute({
-          sql: "SELECT name FROM v2_projects WHERE id = ?",
+          sql: "SELECT name, owner_id FROM v2_projects WHERE id = ?",
           args: [parseInt(project_id)],
         });
         const projectName =
           projectInfo.rows[0]?.name || `Project #${project_id}`;
+        const ownerId = projectInfo.rows[0]?.owner_id || "sa";
 
         await fetch(new URL("/api/notifications", req.url).toString(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            recipient_id: "sa",
-            title: "Project Assignment Request",
-            message: `${user_name || user_id} requested to link task "${title}" to "${projectName}"`,
+            recipient_id: ownerId,
+            title: "Project Contribution Request",
+            message: `${user_name || user_id} wants to link task "${title}" to "${projectName}". Please review and approve.`,
             type: "approval",
           }),
         });
