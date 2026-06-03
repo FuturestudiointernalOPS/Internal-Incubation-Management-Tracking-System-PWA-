@@ -165,15 +165,17 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [stateRes, notifRes, opRes] = await Promise.all([
+      const [stateRes, notifRes, opRes, blockerRes] = await Promise.all([
         fetch("/api/superadmin/full-state"),
         fetch("/api/notifications?recipient_id=sa"),
         fetch("/api/op-reports"),
+        fetch("/api/blockers?status=active"),
       ]);
 
       const stateData = await stateRes.json();
       const notifData = await notifRes.json();
       const opData = await opRes.json();
+      const blockerData = await blockerRes.json();
 
       if (stateData.success) {
         setStats(stateData.stats || {});
@@ -192,10 +194,15 @@ export default function AdminDashboard() {
         const blockers = reports.filter((r) => r.has_blockers);
         const support = reports.filter((r) => r.needs_support);
 
+        // Count active blockers from dedicated blockers table
+        const activeBlockersCount = blockerData.success
+          ? (blockerData.blockers || []).length
+          : 0;
+
         setOpStats({
           standups: standups.length,
           retros: retros.length,
-          blockers: blockers.length,
+          blockers: blockers.length + activeBlockersCount,
           support: support.length,
           totalUsers: new Set(reports.map((r) => r.user_id)).size,
         });
