@@ -23,6 +23,8 @@ import {
   ListTodo,
   Shield,
   RefreshCw,
+  Briefcase,
+  ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -45,27 +47,7 @@ function formatLabel(val) {
   return val.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function InfoBlock({ label, value }) {
-  return (
-    <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] print:bg-white print:border-gray-200 print:rounded print:p-2.5">
-      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 print:text-gray-500">
-        {label}
-      </p>
-      <p className="text-xs font-bold text-[var(--text-primary)] leading-snug print:text-black whitespace-pre-wrap">
-        {value || "—"}
-      </p>
-    </div>
-  );
-}
-
-function parseJsonArray(val) {
-  try {
-    const parsed = typeof val === "string" ? JSON.parse(val) : val;
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
+// Note: InfoBlock and parseJsonArray have been removed (unused after task-table refactor)
 
 const MONTHS = [
   "January",
@@ -94,6 +76,11 @@ export default function AdminOpReports() {
   const [viewingReport, setViewingReport] = useState(null);
   const [viewingUser, setViewingUser] = useState(null);
   const [activeTab, setActiveTab] = useState("feed");
+  const [filterProject, setFilterProject] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterBlocker, setFilterBlocker] = useState("all");
+  const [filterCarryOver, setFilterCarryOver] = useState("all");
+  const [allProjects, setAllProjects] = useState([]);
   // Tasks tab state
   const [allTasks, setAllTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -102,8 +89,12 @@ export default function AdminOpReports() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/op-reports");
-      const data = await res.json();
+      const [rRes, pRes] = await Promise.all([
+        fetch("/api/op-reports"),
+        fetch("/api/projects"),
+      ]);
+      const data = await rRes.json();
+      const pData = await pRes.json();
       if (data.success) {
         setReports(data.reports || []);
         const userMap = {};
@@ -118,6 +109,7 @@ export default function AdminOpReports() {
         });
         setUsers(Object.values(userMap));
       }
+      if (pData.success) setAllProjects(pData.projects || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -297,57 +289,104 @@ export default function AdminOpReports() {
         </div>
 
         {/* FILTERS */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("common.search")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
-            />
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("common.search")}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              />
+            </div>
+            <div className="relative">
+              <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <select
+                value={filterUser}
+                onChange={(e) => setFilterUser(e.target.value)}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              >
+                <option>All Users</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              >
+                <option value="all">All Types</option>
+                <option value="standup">{t("reports.mondayStandup")}</option>
+                <option value="retro">{t("reports.fridayRetro")}</option>
+              </select>
+            </div>
+            <div className="relative">
+              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <select
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              >
+                <option value="all">All Months</option>
+                {MONTHS.map((m) => (
+                  <option key={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <select
+                value={filterProject}
+                onChange={(e) => setFilterProject(e.target.value)}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              >
+                <option value="all">All Projects</option>
+                {allProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-
-          <div className="relative">
-            <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <div className="flex flex-wrap gap-2">
             <select
-              value={filterUser}
-              onChange={(e) => setFilterUser(e.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
-              <option>All Users</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
+              <option value="all">All Statuses</option>
+              <option value="completed">Completed</option>
+              <option value="in_progress">Active</option>
+              <option value="blocked">Blocked</option>
+              <option value="carried_over">Carried Over</option>
+              <option value="pending">Pending</option>
             </select>
-          </div>
-
-          <div className="relative">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              value={filterBlocker}
+              onChange={(e) => setFilterBlocker(e.target.value)}
+              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
-              <option value="all">All Types</option>
-              <option value="standup">{t("reports.mondayStandup")}</option>
-              <option value="retro">{t("reports.fridayRetro")}</option>
+              <option value="all">All Blockers</option>
+              <option value="has_blockers">Has Blockers</option>
+              <option value="no_blockers">No Blockers</option>
             </select>
-          </div>
-
-          <div className="relative">
-            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              value={filterCarryOver}
+              onChange={(e) => setFilterCarryOver(e.target.value)}
+              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
-              <option value="all">All Months</option>
-              {MONTHS.map((m) => (
-                <option key={m}>{m}</option>
-              ))}
+              <option value="all">All Carry-Overs</option>
+              <option value="carried">Carried Over</option>
+              <option value="multi_week">Multi-Week (3+)</option>
+              <option value="first_time">First Time</option>
             </select>
           </div>
         </div>
@@ -1209,197 +1248,97 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
 
 function ReportDetailModal({ report, onClose }) {
   const { t } = useI18n();
-  const [expandedSections, setExpandedSections] = useState({
-    standup: report.report_type === "standup",
-    retro: report.report_type === "retro",
+  const [weekTasks, setWeekTasks] = useState([]);
+  const [weekTasksLoading, setWeekTasksLoading] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [expandedTaskMeta, setExpandedTaskMeta] = useState(null);
+  const [taskLogs, setTaskLogs] = useState({});
+
+  useEffect(() => {
+    if (!report?.user_id || !report?.week_number || !report?.year) return;
+    setWeekTasksLoading(true);
+    Promise.all([
+      fetch(
+        `/api/tasks?user_id=${report.user_id}&week=${report.week_number}&year=${report.year}&sort=oldest`,
+      ),
+      fetch("/api/projects"),
+    ])
+      .then(async ([tRes, pRes]) => {
+        const tData = await tRes.json();
+        const pData = await pRes.json();
+        if (tData.success) setWeekTasks(tData.tasks || []);
+        if (pData.success) setProjects(pData.projects || []);
+        setWeekTasksLoading(false);
+      })
+      .catch(() => setWeekTasksLoading(false));
+  }, [report]);
+
+  const projectMap = {};
+  projects.forEach((p) => {
+    projectMap[p.id] = p;
   });
 
-  const toggleSection = (key) => {
-    setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  const renderStatusBadge = (status) => {
+    const cfg = {
+      pending: {
+        label: "Pending",
+        color: "text-slate-400",
+        bg: "bg-slate-500/10",
+      },
+      in_progress: {
+        label: "Active",
+        color: "text-blue-400",
+        bg: "bg-blue-500/10",
+      },
+      blocked: {
+        label: "Blocked",
+        color: "text-rose-400",
+        bg: "bg-rose-500/10",
+      },
+      completed: {
+        label: "Done",
+        color: "text-emerald-400",
+        bg: "bg-emerald-500/10",
+      },
+      carried_over: {
+        label: "Carryover",
+        color: "text-indigo-400",
+        bg: "bg-indigo-500/10",
+      },
+    };
+    const c = cfg[status] || cfg.pending;
+    return (
+      <span
+        className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.color}`}
+      >
+        {c.label}
+      </span>
+    );
   };
 
-  const standupItems =
-    report.report_type === "standup" ? (
-      <>
-        <Section
-          title="Top Priorities This Week"
-          color="text-[var(--brand-orange)]"
-          expanded={expandedSections.standup}
-          onToggle={() => toggleSection("standup")}
-        >
-          <InfoBlock
-            label="Priorities"
-            value={
-              parseJsonArray(report.top_priorities)
-                .map((i) => `• ${i}`)
-                .join("\n") || "—"
-            }
-          />
-        </Section>
-        <Section
-          title="Expected Deliverables"
-          color="text-blue-500"
-          expanded={true}
-        >
-          <InfoBlock
-            label="Deliverables"
-            value={
-              parseJsonArray(report.expected_deliverables)
-                .map((i) => `• ${i}`)
-                .join("\n") || "—"
-            }
-          />
-        </Section>
-        {report.projects_tasks && (
-          <Section
-            title="Projects / Tasks"
-            color="text-indigo-500"
-            expanded={true}
-          >
-            <InfoBlock label="Tasks" value={report.projects_tasks} />
-          </Section>
-        )}
-        {report.has_dependencies != null && (
-          <Section title="Dependencies" color="text-indigo-500" expanded={true}>
-            <InfoBlock
-              label="Has Dependencies"
-              value={report.has_dependencies ? "Yes" : "No"}
-            />
-            {report.dependency_note && (
-              <InfoBlock label="Note" value={report.dependency_note} />
-            )}
-          </Section>
-        )}
-        <Section title="Risks & Support" color="text-rose-500" expanded={true}>
-          <div className="space-y-2">
-            <InfoBlock
-              label="Anticipated Blockers"
-              value={
-                report.has_blockers ? report.blocker_description || "Yes" : "No"
-              }
-            />
-            <InfoBlock
-              label="Needs Support"
-              value={report.needs_support ? report.support_note || "Yes" : "No"}
-            />
-          </div>
-        </Section>
-        {report.additional_notes && (
-          <Section
-            title="Additional Notes"
-            color="text-slate-500"
-            expanded={true}
-          >
-            <InfoBlock label="Notes" value={report.additional_notes} />
-          </Section>
-        )}
-      </>
-    ) : null;
+  const fetchTaskLogs = async (taskId) => {
+    if (taskLogs[taskId]) return;
+    try {
+      const res = await fetch(`/api/tasks/logs?task_id=${taskId}`);
+      const data = await res.json();
+      if (data.success)
+        setTaskLogs((prev) => ({ ...prev, [taskId]: data.logs || [] }));
+    } catch (e) {
+      /* silent */
+    }
+  };
 
-  const retroItems =
-    report.report_type === "retro" ? (
-      <>
-        <Section
-          title="What Was Completed"
-          color="text-emerald-500"
-          expanded={true}
-        >
-          <InfoBlock
-            label="Completed"
-            value={
-              parseJsonArray(report.completed_work)
-                .map((i) => `• ${i}`)
-                .join("\n") || "—"
-            }
-          />
-        </Section>
-        {parseJsonArray(report.unfinished_tasks).length > 0 && (
-          <Section
-            title="What Was Not Completed"
-            color="text-amber-500"
-            expanded={true}
-          >
-            <InfoBlock
-              label="Not Completed"
-              value={
-                parseJsonArray(report.unfinished_tasks)
-                  .map((i) => `• ${i}`)
-                  .join("\n") || "—"
-              }
-            />
-          </Section>
-        )}
-        {report.week_status && (
-          <Section
-            title="Overall Week Status"
-            color="text-purple-500"
-            expanded={true}
-          >
-            <InfoBlock label="Status" value={formatLabel(report.week_status)} />
-          </Section>
-        )}
-        {report.had_blockers != null && (
-          <Section
-            title="Roadblocks & Challenges"
-            color="text-rose-500"
-            expanded={true}
-          >
-            <div className="space-y-2">
-              <InfoBlock
-                label="Experienced Blockers"
-                value={report.had_blockers ? "Yes" : "No"}
-              />
-              {report.blocker_type && (
-                <InfoBlock
-                  label="Blocker Type"
-                  value={formatLabel(report.blocker_type)}
-                />
-              )}
-              {report.blocker_desc && (
-                <InfoBlock label="Description" value={report.blocker_desc} />
-              )}
-            </div>
-          </Section>
-        )}
-        {parseJsonArray(report.wins).length > 0 && (
-          <Section
-            title="Wins & Progress"
-            color="text-[var(--brand-orange)]"
-            expanded={true}
-          >
-            <div className="space-y-2">
-              <InfoBlock
-                label="What Went Well"
-                value={parseJsonArray(report.wins)
-                  .map((i) => `• ${i}`)
-                  .join("\n")}
-              />
-              {report.major_achievement && (
-                <InfoBlock
-                  label="Major Achievement"
-                  value={report.major_achievement}
-                />
-              )}
-            </div>
-          </Section>
-        )}
-        {parseJsonArray(report.carryover_items).length > 0 && (
-          <Section title="Carryover" color="text-indigo-500" expanded={true}>
-            <InfoBlock
-              label="Tasks Carrying Over"
-              value={parseJsonArray(report.carryover_items)
-                .map((i) => `• ${i}`)
-                .join("\n")}
-            />
-          </Section>
-        )}
-        {report.retro_notes && (
-          <Section title="Retro Notes" color="text-slate-500" expanded={true}>
-            <InfoBlock label="Notes" value={report.retro_notes} />
-          </Section>
-        )}
-      </>
-    ) : null;
+  const formatDate = (d) => {
+    if (!d) return "—";
+    try {
+      return new Date(d).toLocaleDateString("en", {
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return d;
+    }
+  };
 
   return (
     <div
@@ -1499,9 +1438,391 @@ function ReportDetailModal({ report, onClose }) {
           </div>
         </div>
 
-        {/* Report content */}
-        {standupItems}
-        {retroItems}
+        {/* Report content — Task Table */}
+        {weekTasksLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-5 h-5 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
+            <span className="ml-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Loading tasks...
+            </span>
+          </div>
+        ) : weekTasks.length === 0 ? (
+          <p className="text-[10px] text-slate-600 italic text-center py-8">
+            No tasks found for this week.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-tertiary border-b border-[var(--border-primary)]">
+                  <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Task
+                  </th>
+                  <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Project
+                  </th>
+                  <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Start
+                  </th>
+                  <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                    End
+                  </th>
+                  <th className="text-center px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Blockers
+                  </th>
+                  <th className="text-center px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Subtasks
+                  </th>
+                  <th className="text-center px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Carry
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {weekTasks.map((task) => {
+                  const activeBlockers = (task.blockers || []).filter(
+                    (b) => b.status === "active",
+                  ).length;
+                  return (
+                    <React.Fragment key={task.id}>
+                      <tr
+                        className="border-b border-[var(--border-primary)]/40 hover:bg-tertiary/30 transition-colors cursor-pointer"
+                        onClick={() => {
+                          const id =
+                            expandedTaskMeta === task.id ? null : task.id;
+                          setExpandedTaskMeta(id);
+                          if (id) fetchTaskLogs(task.id);
+                        }}
+                      >
+                        <td className="px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)]">
+                          <div className="flex items-center gap-1.5">
+                            <ChevronRight
+                              className={`w-3 h-3 text-slate-500 transition-transform ${expandedTaskMeta === task.id ? "rotate-90" : ""}`}
+                            />
+                            {task.title}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                          {projectMap[task.project_id]?.name || "—"}
+                        </td>
+                        <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                          {task.category || "—"}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {renderStatusBadge(task.status)}
+                        </td>
+                        <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                          {formatDate(task.start_date)}
+                        </td>
+                        <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                          {formatDate(task.end_date)}
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          {activeBlockers > 0 ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <Shield className="w-3 h-3 text-rose-400" />
+                              <span className="text-[9px] font-bold text-rose-400">
+                                {activeBlockers}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-600">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          {task.subtasks?.length > 0 ? (
+                            <span className="text-[9px] font-bold text-indigo-400">
+                              {task.subtasks.length}
+                            </span>
+                          ) : (
+                            <span className="text-slate-600">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          {task.status === "carried_over" && (
+                            <span className="text-[8px] font-bold text-indigo-400">
+                              &#10003;
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      {/* Subtask rows */}
+                      {task.subtasks?.length > 0 && (
+                        <tr className="bg-tertiary/20">
+                          <td colSpan={9} className="px-6 py-1.5">
+                            <div className="space-y-0.5">
+                              {task.subtasks.map((sub) => (
+                                <div
+                                  key={sub.id}
+                                  className="flex items-center gap-2 text-[9px]"
+                                >
+                                  <span className="text-slate-500">↳</span>
+                                  <span className="font-medium text-[var(--text-primary)]">
+                                    {sub.title}
+                                  </span>
+                                  <span
+                                    className={`text-[7px] font-bold px-1 py-0.5 rounded ${sub.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"}`}
+                                  >
+                                    {sub.status}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {/* Expandable task metadata row */}
+                      {expandedTaskMeta === task.id && (
+                        <tr className="bg-tertiary/10">
+                          <td colSpan={9} className="px-6 py-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[9px]">
+                              <div>
+                                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                                  Created
+                                </p>
+                                <p className="font-medium text-[var(--text-primary)]">
+                                  {formatDate(task.created_at)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                                  Owner
+                                </p>
+                                <p className="font-medium text-[var(--text-primary)]">
+                                  {task.user_name || "—"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                                  Project
+                                </p>
+                                <p className="font-medium text-[var(--text-primary)]">
+                                  {projectMap[task.project_id]?.name ||
+                                    task.category ||
+                                    "—"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                                  Carry Count
+                                </p>
+                                <p className="font-medium text-[var(--text-primary)]">
+                                  {task.reschedule_count || 0} time
+                                  {(task.reschedule_count || 0) !== 1
+                                    ? "s"
+                                    : ""}
+                                </p>
+                              </div>
+                            </div>
+                            {taskLogs[task.id] &&
+                              taskLogs[task.id].length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-[var(--border-primary)]/20">
+                                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                    Activity Log
+                                  </p>
+                                  <div className="space-y-0.5 max-h-24 overflow-y-auto">
+                                    {taskLogs[task.id]
+                                      .slice(0, 5)
+                                      .map((log, i) => (
+                                        <div
+                                          key={i}
+                                          className="flex items-center gap-2 text-[8px]"
+                                        >
+                                          <span
+                                            className={`w-1.5 h-1.5 rounded-full ${
+                                              log.action_type === "TASK_CREATED"
+                                                ? "bg-emerald-500"
+                                                : log.action_type ===
+                                                    "TASK_ASSIGNED"
+                                                  ? "bg-blue-500"
+                                                  : log.action_type ===
+                                                      "TASK_COMPLETED"
+                                                    ? "bg-emerald-500"
+                                                    : "bg-slate-500"
+                                            }`}
+                                          />
+                                          <span className="text-slate-500">
+                                            {log.action_type?.replace(
+                                              /_/g,
+                                              " ",
+                                            )}
+                                          </span>
+                                          <span className="text-slate-600">
+                                            {log.created_at
+                                              ? new Date(
+                                                  log.created_at,
+                                                ).toLocaleDateString("en", {
+                                                  month: "short",
+                                                  day: "numeric",
+                                                })
+                                              : ""}
+                                          </span>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Blockers detail section */}
+        {weekTasks.some((t) => (t.blockers || []).length > 0) && (
+          <div className="space-y-2">
+            <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest">
+              Blockers
+            </p>
+            {weekTasks
+              .filter((t) => (t.blockers || []).length > 0)
+              .map((task) => (
+                <div key={task.id} className="space-y-1">
+                  <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                    {task.title}
+                  </p>
+                  {task.blockers.map((b) => (
+                    <div
+                      key={b.id}
+                      className="flex items-center gap-2 pl-4 text-[9px]"
+                    >
+                      <Shield
+                        className={`w-2.5 h-2.5 ${b.status === "active" ? "text-rose-400" : "text-emerald-400"}`}
+                      />
+                      <span className="font-medium text-[var(--text-primary)]">
+                        {b.title}
+                      </span>
+                      <span
+                        className={`text-[7px] font-bold px-1 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
+                      >
+                        {b.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+          </div>
+        )}
+
+        {/* Carry-Over Trace */}
+        {weekTasks.filter(
+          (t) => t.status === "carried_over" || (t.reschedule_count || 0) > 0,
+        ).length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
+              Carry-Over History
+            </p>
+            {weekTasks
+              .filter(
+                (t) =>
+                  t.status === "carried_over" || (t.reschedule_count || 0) > 0,
+              )
+              .map((task) => {
+                const weeks = task.reschedule_count || 0;
+                const trace = [];
+                for (let i = weeks; i >= 0; i--) {
+                  let w = report.week_number - i;
+                  let y = report.year;
+                  if (w < 1) {
+                    w += 52;
+                    y--;
+                  }
+                  trace.push(`W${w}`);
+                }
+                return (
+                  <div key={task.id} className="card p-3 border-indigo-500/20">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                        {task.title}
+                      </p>
+                      <span
+                        className={`text-[8px] font-bold px-2 py-0.5 rounded ${weeks >= 3 ? "bg-amber-500/10 text-amber-400" : "bg-indigo-500/10 text-indigo-400"}`}
+                      >
+                        {weeks} week{weeks !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      {trace.map((w, i) => (
+                        <React.Fragment key={w}>
+                          <span
+                            className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${i === trace.length - 1 ? "bg-indigo-500/10 text-indigo-400" : "bg-tertiary text-slate-500"}`}
+                          >
+                            {w}
+                          </span>
+                          {i < trace.length - 1 && (
+                            <ChevronRight className="w-2.5 h-2.5 text-slate-600" />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+
+        {/* Task Action Logs */}
+        {weekTasks.filter((t) => expandedTaskMeta === t.id).length > 0 &&
+          taskLogs[expandedTaskMeta] &&
+          taskLogs[expandedTaskMeta].length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                Assignment History
+              </p>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {taskLogs[expandedTaskMeta].map((log, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between text-[9px] py-1 px-2 rounded-lg bg-tertiary/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[7px] font-bold px-1 py-0.5 rounded ${
+                          log.action_type === "TASK_CREATED"
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : log.action_type === "TASK_ASSIGNED"
+                              ? "bg-blue-500/10 text-blue-400"
+                              : log.action_type === "TASK_ACCEPTED"
+                                ? "bg-indigo-500/10 text-indigo-400"
+                                : log.action_type === "TASK_COMPLETED"
+                                  ? "bg-emerald-500/10 text-emerald-400"
+                                  : log.action_type === "TASK_CARRIED_OVER"
+                                    ? "bg-amber-500/10 text-amber-400"
+                                    : "bg-slate-500/10 text-slate-400"
+                        }`}
+                      >
+                        {log.action_type?.replace(/_/g, " ")}
+                      </span>
+                      <span className="text-slate-500">
+                        {log.description || ""}
+                      </span>
+                    </div>
+                    <span className="text-slate-600">
+                      {log.created_at
+                        ? new Date(log.created_at).toLocaleDateString("en", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         {/* Print footer */}
         <div className="hidden print:!block print:mt-8 print:pt-4 print:border-t print:border-gray-300 print:text-xs print:text-gray-400">
@@ -1516,32 +1837,5 @@ function ReportDetailModal({ report, onClose }) {
         </button>
       </div>
     </div>
-  );
-}
-
-function Section({ title, color, expanded = true, onToggle, children }) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h5
-          className={`text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 border-b border-white/10 pb-2 flex-1 ${color} print:border-gray-200 print:text-gray-700`}
-        >
-          {title}
-        </h5>
-        {onToggle && (
-          <button
-            onClick={onToggle}
-            className="p-1 text-slate-500 hover:text-white transition-all"
-          >
-            {expanded ? (
-              <ChevronUp className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5" />
-            )}
-          </button>
-        )}
-      </div>
-      {expanded && children}
-    </section>
   );
 }
