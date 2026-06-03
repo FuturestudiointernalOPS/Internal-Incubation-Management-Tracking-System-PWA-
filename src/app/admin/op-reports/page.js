@@ -270,11 +270,11 @@ export default function AdminOpReports() {
             </button>
             <div className="flex items-center gap-2 mt-2">
               <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.3em]">
                 {t("reports.operationalReports")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+            <h1 className="text-4xl font-bold tracking-tight text-[var(--text-primary)]">
               {t("reports.companyReports")}
             </h1>
           </div>
@@ -899,28 +899,28 @@ export default function AdminOpReports() {
                       <table className="w-full">
                         <thead>
                           <tr className="bg-tertiary border-b border-[var(--border-primary)]">
-                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                               Blocker
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                               Staff
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                               Task
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                               Project
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                               Created
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                               Resolved
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                               Duration
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                               Status
                             </th>
                           </tr>
@@ -940,10 +940,10 @@ export default function AdminOpReports() {
                                 key={b.id}
                                 className={`border-b border-[var(--border-primary)]/40 ${b.status === "active" ? "bg-rose-500/[0.02]" : ""}`}
                               >
-                                <td className="px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)]">
+                                <td className="px-3 py-2.5 text-xs font-bold text-[var(--text-primary)]">
                                   {b.title}
                                 </td>
-                                <td className="px-3 py-2.5 text-[9px]">
+                                <td className="px-3 py-2.5 text-[10px]">
                                   <div className="flex items-center gap-1.5">
                                     <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
                                       {b.user_name?.charAt(0) || "?"}
@@ -953,30 +953,30 @@ export default function AdminOpReports() {
                                     </span>
                                   </div>
                                 </td>
-                                <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                                <td className="px-3 py-2.5 text-[10px] text-slate-500">
                                   {task?.title || `#${b.task_id}`}
                                 </td>
-                                <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                                <td className="px-3 py-2.5 text-[10px] text-slate-500">
                                   {projectName || task?.category || "—"}
                                 </td>
-                                <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                                <td className="px-3 py-2.5 text-[10px] text-slate-500">
                                   {formatDateTime(b.created_at)}
                                 </td>
-                                <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                                <td className="px-3 py-2.5 text-[10px] text-slate-500">
                                   {b.status === "resolved"
                                     ? formatDateTime(b.resolved_at)
                                     : "—"}
                                 </td>
                                 <td className="px-3 py-2.5">
                                   <span
-                                    className={`text-[9px] font-bold ${b.status === "active" ? "text-rose-400" : "text-emerald-400"}`}
+                                    className={`text-[10px] font-bold ${b.status === "active" ? "text-rose-400" : "text-emerald-400"}`}
                                   >
                                     {duration}
                                   </span>
                                 </td>
                                 <td className="px-3 py-2.5">
                                   <span
-                                    className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
+                                    className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
                                   >
                                     {b.status}
                                   </span>
@@ -992,29 +992,29 @@ export default function AdminOpReports() {
                   {/* Summary stats */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="card p-3">
-                      <p className="text-2xl font-black text-rose-400">
+                      <p className="text-2xl font-bold text-rose-400">
                         {filtered.filter((b) => b.status === "active").length}
                       </p>
-                      <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
                         Active
                       </p>
                     </div>
                     <div className="card p-3">
-                      <p className="text-2xl font-black text-emerald-400">
+                      <p className="text-2xl font-bold text-emerald-400">
                         {filtered.filter((b) => b.status === "resolved").length}
                       </p>
-                      <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
                         Resolved
                       </p>
                     </div>
                     <div className="card p-3">
-                      <p className="text-2xl font-black">{filtered.length}</p>
-                      <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                      <p className="text-2xl font-bold">{filtered.length}</p>
+                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
                         Total
                       </p>
                     </div>
                     <div className="card p-3">
-                      <p className="text-2xl font-black">
+                      <p className="text-2xl font-bold">
                         {(() => {
                           const resolved = filtered.filter(
                             (b) => b.status === "resolved" && b.resolved_at,
@@ -1032,7 +1032,7 @@ export default function AdminOpReports() {
                           return `${h}h`;
                         })()}
                       </p>
-                      <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
                         Avg Resolution
                       </p>
                     </div>
@@ -1247,10 +1247,10 @@ export default function AdminOpReports() {
 function StatCard({ label, value }) {
   return (
     <div className="p-3 bg-secondary border border-[var(--border-primary)] rounded-xl px-5 flex flex-col justify-center shadow-sm min-w-[90px]">
-      <span className="text-[7px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
+      <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
         {label}
       </span>
-      <span className="text-[var(--text-primary)] font-black text-xl leading-none tracking-tighter">
+      <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
         {value}
       </span>
     </div>
