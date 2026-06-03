@@ -125,7 +125,7 @@ const SidebarContent = ({
             const isChildActive = item.subItems.some((sub) =>
               pathname?.startsWith(sub.href),
             );
-            const isOpen = openMenus[item.id] || isChildActive;
+            const isOpen = openMenus[item.id] || false;
 
             return (
               <div key={item.id} className="space-y-1">
@@ -539,6 +539,23 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
         .catch((e) => console.error(e));
     }
   }, [user.role, user.cid, user.id]);
+
+  // Pre-open menus that have an active child route
+  useEffect(() => {
+    const toOpen = {};
+    const checkItems = (items) => {
+      items.forEach((item) => {
+        if (item.subItems) {
+          const hasActiveChild = item.subItems.some((sub) =>
+            pathname?.startsWith(sub.href),
+          );
+          if (hasActiveChild) toOpen[item.id] = true;
+        }
+      });
+    };
+    Object.values(NAVIGATION_MATRIX).forEach((matrix) => checkItems(matrix));
+    setOpenMenus((prev) => ({ ...prev, ...toOpen }));
+  }, [pathname]);
 
   const toggleMenu = useCallback((id) => {
     if (!id) return;

@@ -21,9 +21,9 @@ export async function POST(req) {
     const { program_id, name, status, type, concept_note, assigned_pm_id } =
       body;
 
-    if (!program_id || !name) {
+    if (!name) {
       return NextResponse.json(
-        { success: false, error: "Program ID and name are required." },
+        { success: false, error: "Project name is required." },
         { status: 400 },
       );
     }
@@ -37,7 +37,7 @@ export async function POST(req) {
 
     const result = await db.execute({
       sql: "INSERT INTO v2_projects (program_id, name, status, meta) VALUES (?, ?, ?, ?)",
-      args: [program_id, name, status || "Active", meta],
+      args: [program_id || null, name, status || "Active", meta],
     });
 
     const projectId = result.lastInsertRowid;
