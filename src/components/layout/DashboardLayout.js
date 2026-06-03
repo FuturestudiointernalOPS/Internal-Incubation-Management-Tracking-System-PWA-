@@ -280,6 +280,11 @@ const NAVIGATION_MATRIX = {
           name: "INTERNAL REPORTS",
           href: "/admin/op-reports",
         },
+        {
+          id: "my_projects",
+          name: "MY PROJECTS",
+          href: "/staff",
+        },
       ],
     },
 
@@ -370,6 +375,11 @@ const NAVIGATION_MATRIX = {
           name: "INTERNAL REPORTS",
           href: "/staff/op-report",
         },
+        {
+          id: "my_projects",
+          name: "MY PROJECTS",
+          href: "/staff",
+        },
       ],
     },
   ],
@@ -389,6 +399,11 @@ const NAVIGATION_MATRIX = {
           id: "internal_reports",
           name: "INTERNAL REPORTS",
           href: "/staff/op-report",
+        },
+        {
+          id: "my_projects",
+          name: "MY PROJECTS",
+          href: "/staff",
         },
       ],
     },
