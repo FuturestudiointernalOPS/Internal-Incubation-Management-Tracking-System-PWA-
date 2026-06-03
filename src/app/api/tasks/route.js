@@ -39,6 +39,8 @@ export async function GET(req) {
     const year = searchParams.get("year");
     const role = searchParams.get("role");
     const id = searchParams.get("id");
+    const assigned_to = searchParams.get("assigned_to");
+    const project_id_filter = searchParams.get("project_id");
     const sort = searchParams.get("sort");
     const limit = searchParams.get("limit");
     const brief = searchParams.get("brief") === "true";
@@ -54,6 +56,16 @@ export async function GET(req) {
     if (user_id) {
       sql += " AND user_id = ?";
       args.push(user_id);
+    }
+
+    if (assigned_to) {
+      sql += " AND assigned_to = ?";
+      args.push(assigned_to);
+    }
+
+    if (project_id_filter) {
+      sql += " AND project_id::text = ?";
+      args.push(project_id_filter);
     }
 
     if (status) {
@@ -148,6 +160,7 @@ export async function POST(req) {
       carried_over_from_task_id,
       start_date,
       end_date,
+      assigned_to,
     } = body;
 
     if (!user_id || !title || !created_week || !created_year) {
@@ -196,8 +209,8 @@ export async function POST(req) {
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id, category,
          created_week, created_year, carried_over_from_task_id,
-         start_date, end_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         start_date, end_date, assigned_to)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         user_id,
         user_name || "",
@@ -211,6 +224,7 @@ export async function POST(req) {
         carried_over_from_task_id || null,
         finalStartDate,
         finalEndDate,
+        assigned_to || null,
       ],
     });
 
@@ -313,6 +327,7 @@ export async function PUT(req) {
       user_name,
       start_date,
       end_date,
+      assigned_to,
       force_complete,
     } = body;
 
@@ -453,6 +468,51 @@ export async function PUT(req) {
         }
       }
     }
+
+    // ─── ASSIGNMENT MANAGEMENT ───
+    if (assigned_to !== undefined) {
+      const assignmentChanged =
+        String(assigned_to) !== String(task.assigned_to || "");
+      updateFields.push("assigned_to = ?");
+      updateArgs.push(assigned_to || null);
+
+      if (assignmentChanged && assigned_to) {
+        changes.push(`assigned to user ${assigned_to}`);
+        auditDetails = `Task "${task.title}" assigned to user ${assigned_to}`;
+
+        // Get assignee name for notification
+        let assigneeName = assigned_to;
+        try {
+          const assigneeRes = await db.execute({
+            sql: "SELECT name FROM contacts WHERE cid = ? OR id = ?",
+            args: [assigned_to, assigned_to],
+          });
+          if (assigneeRes.rows.length > 0) {
+            assigneeName = assigneeRes.rows[0].name;
+          }
+        } catch (_) {}
+
+        // Send notification to assignee
+        try {
+          const notifUrl = new URL("/api/notifications", req.url).toString();
+          await fetch(notifUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipient_id: assigned_to,
+              title: "Task Assigned",
+              message: `${user_name || "Someone"} assigned you "${task.title}". Please review and accept.`,
+              type: "assignment",
+            }),
+          });
+        } catch (notifErr) {
+          console.error("Assignment notification failed:", notifErr.message);
+        }
+      } else if (assignmentChanged && !assigned_to) {
+        changes.push("assignment removed");
+        auditDetails = `Assignment removed for task "${task.title}"`;
+      }
+    }
     // ─── SCHEDULE DRIFT DETECTION (Phase 2/11) ───
     if (start_date !== undefined) {
       const dateChanged = start_date !== (task.start_date || null);
@@ -523,6 +583,28 @@ export async function PUT(req) {
       sql: `UPDATE tasks SET ${updateFields.join(", ")} WHERE id = ?`,
       args: updateArgs,
     });
+
+    // ─── Log assignment event to task_assignment_log ───
+    if (assigned_to !== undefined) {
+      const assignmentChanged =
+        String(assigned_to) !== String(task.assigned_to || "");
+      if (assignmentChanged) {
+        await logTaskEvent({
+          task_id: parseInt(id),
+          project_id: project_id || task.project_id,
+          actor_id: user_id || task.user_id,
+          target_user_id: assigned_to || null,
+          action_type: assigned_to
+            ? ACTION_TYPES.TASK_ASSIGNED
+            : ACTION_TYPES.TASK_UPDATED,
+          previous_state: { assigned_to: task.assigned_to },
+          new_state: { assigned_to: assigned_to || null },
+          description: assigned_to
+            ? `Task assigned to ${assigned_to}`
+            : `Assignment removed from task`,
+        });
+      }
+    }
 
     // ─── Reschedule increment (Phase 2/11) ───
     if (needsRescheduleInc) {

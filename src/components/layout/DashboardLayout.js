@@ -252,7 +252,7 @@ const NAVIGATION_MATRIX = {
     {
       id: "projects",
       name: "PROJECTS",
-      icon: Briefcase,
+      icon: Rocket,
       href: "/admin/projects",
     },
 
@@ -330,7 +330,7 @@ const NAVIGATION_MATRIX = {
     {
       id: "projects",
       name: "PROJECTS",
-      icon: Briefcase,
+      icon: Rocket,
       href: "/admin/projects",
     },
     { id: "logs", name: "ACTIVITY LOGS", icon: FileText, href: "/admin/logs" },

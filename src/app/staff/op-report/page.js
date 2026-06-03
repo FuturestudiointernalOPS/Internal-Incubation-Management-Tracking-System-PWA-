@@ -2397,10 +2397,44 @@ export default function StaffOpReport() {
                 {/* Task creation form — layered */}
                 {showTaskForm ? (
                   <div className="p-4 rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/[0.02] space-y-3">
-                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                      New Task
+                    <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider">
+                      ✦ New Task
                     </p>
 
+                    {/* ─── PROJECT SELECTOR (PROMINENT) ─── */}
+                    <div className="p-3 rounded-xl bg-[var(--brand-orange)]/[0.04] border border-[var(--brand-orange)]/20">
+                      <label className="text-[8px] font-black text-[var(--brand-orange)] uppercase tracking-widest block mb-1.5">
+                        Link to Project
+                      </label>
+                      <select
+                        value={newTaskForm.project_id}
+                        onChange={(e) =>
+                          setNewTaskForm((p) => ({
+                            ...p,
+                            project_id: e.target.value,
+                            category: e.target.value ? "" : p.category,
+                          }))
+                        }
+                        className="w-full bg-primary border border-[var(--brand-orange)]/30 rounded-lg px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
+                      >
+                        <option value="">— Not linked to a project —</option>
+                        {assignedProjects.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      {newTaskForm.project_id && (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <Briefcase className="w-3 h-3 text-emerald-500" />
+                          <span className="text-[8px] font-bold text-emerald-500 uppercase tracking-wider">
+                            Task will be auto-linked to project
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ─── TASK NAME ─── */}
                     <div>
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                         Task Name
@@ -2420,31 +2454,9 @@ export default function StaffOpReport() {
                       />
                     </div>
 
+                    {/* ─── CATEGORY (shown when no project) / DUE DATE / COLLABORATOR ─── */}
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                          Project
-                        </label>
-                        <select
-                          value={newTaskForm.project_id}
-                          onChange={(e) =>
-                            setNewTaskForm((p) => ({
-                              ...p,
-                              project_id: e.target.value,
-                              category: "",
-                            }))
-                          }
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-                        >
-                          <option value="">No Project</option>
-                          {assignedProjects.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      {!newTaskForm.project_id && (
+                      {!newTaskForm.project_id ? (
                         <div>
                           <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                             Category
@@ -2470,26 +2482,24 @@ export default function StaffOpReport() {
                             <option value="Other">Other</option>
                           </select>
                         </div>
+                      ) : (
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                            Due Date
+                          </label>
+                          <input
+                            type="date"
+                            value={newTaskForm.due_date}
+                            onChange={(e) =>
+                              setNewTaskForm((p) => ({
+                                ...p,
+                                due_date: e.target.value,
+                              }))
+                            }
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                          />
+                        </div>
                       )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                          Due Date
-                        </label>
-                        <input
-                          type="date"
-                          value={newTaskForm.due_date}
-                          onChange={(e) =>
-                            setNewTaskForm((p) => ({
-                              ...p,
-                              due_date: e.target.value,
-                            }))
-                          }
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                        />
-                      </div>
                       <div>
                         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                           Collaborator
@@ -2527,6 +2537,26 @@ export default function StaffOpReport() {
                         )}
                       </div>
                     </div>
+
+                    {/* ─── DUE DATE (when project is selected, shown in second row) ─── */}
+                    {newTaskForm.project_id && (
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Due Date
+                        </label>
+                        <input
+                          type="date"
+                          value={newTaskForm.due_date}
+                          onChange={(e) =>
+                            setNewTaskForm((p) => ({
+                              ...p,
+                              due_date: e.target.value,
+                            }))
+                          }
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                        />
+                      </div>
+                    )}
 
                     <div className="flex gap-2 pt-2">
                       <button

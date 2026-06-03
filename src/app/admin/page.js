@@ -424,6 +424,15 @@ export default function AdminDashboard() {
               onClick={() => router.push("/admin/communications/contacts")}
               loading={loading}
             />
+            <StatCard
+              title="Projects"
+              value={stats.projects || stats.totalProjects || "—"}
+              icon={Briefcase}
+              color="text-purple-500"
+              subtitle="Active internal projects"
+              onClick={() => router.push("/admin/projects")}
+              loading={loading}
+            />
           </div>
 
           {/* Activity Feed + Active Programs (existing content) */}

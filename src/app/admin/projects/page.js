@@ -467,7 +467,11 @@ export default function AdminProjects() {
                     <tr
                       key={project.id}
                       className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
-                      onClick={() => {
+                      onClick={() =>
+                        router.push(`/admin/projects/${project.id}`)
+                      }
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
                         setShowMemberModal(project.id);
                         setEditProject({
                           id: project.id,

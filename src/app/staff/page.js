@@ -133,6 +133,8 @@ export default function StaffDashboard() {
 
   // Detail drawer
   const [selectedTask, setSelectedTask] = useState(null);
+  const [assignments, setAssignments] = useState([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
   // Auth
   useEffect(() => {
@@ -171,9 +173,29 @@ export default function StaffDashboard() {
     }
   }, [user]);
 
+  // Fetch assignments (tasks assigned TO the user by someone else)
+  const fetchAssignments = useCallback(async () => {
+    if (!user?.cid && !user?.id) return;
+    setAssignmentsLoading(true);
+    try {
+      const userId = user.cid || user.id;
+      const res = await fetch(`/api/tasks?assigned_to=${userId}&brief=true`);
+      const data = await res.json();
+      if (data.success) setAssignments(data.tasks || []);
+    } catch (e) {
+      console.error("Failed to fetch assignments:", e);
+    } finally {
+      setAssignmentsLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  useEffect(() => {
+    fetchAssignments();
+  }, [fetchAssignments]);
 
   // ─── TASK GROUPING ───
   const { calendarTasks, unscheduledTasks, sortedTasks, stats } =
@@ -281,6 +303,29 @@ export default function StaffDashboard() {
       setCalMonth(0);
       setCalYear(calYear + 1);
     } else setCalMonth(calMonth + 1);
+  };
+
+  // ─── ASSIGNMENT RESPONSE (Accept / Decline) ───
+  const handleAssignmentAction = async (taskId, action) => {
+    try {
+      const res = await fetch("/api/tasks/assignment-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: taskId,
+          user_id: user.cid || user.id,
+          user_name: user.name,
+          action,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchAssignments();
+        fetchTasks();
+      }
+    } catch (e) {
+      console.error("Assignment action error:", e);
+    }
   };
 
   // ─── TASK STATUS UPDATE ───
@@ -424,6 +469,113 @@ export default function StaffDashboard() {
             <TrendingUp className="w-4 h-4" /> Retro
           </button>
         </div>
+
+        {/* ═══════ ASSIGNMENTS INBOX ═══════ */}
+        {assignments.filter((a) => a.status !== "completed").length > 0 &&
+          !assignmentsLoading && (
+            <div className="card border-l-4 border-l-amber-500">
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-amber-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+                  My Assignments
+                </span>
+                <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                  {assignments.filter((a) => a.status === "pending").length}{" "}
+                  pending ·{" "}
+                  {assignments.filter((a) => a.status !== "completed").length}{" "}
+                  total
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {assignments
+                  .filter((a) => a.status !== "completed")
+                  .map((task) => {
+                    const isPending = task.status === "pending";
+                    return (
+                      <div
+                        key={task.id}
+                        className={`flex items-center gap-3 p-3 rounded-xl border ${
+                          isPending
+                            ? "border-amber-500/20 bg-amber-500/[0.03]"
+                            : "border-[var(--border-primary)] bg-secondary"
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
+                          {(task.user_name || task.assigned_to || "?").charAt(
+                            0,
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                              {task.title}
+                            </span>
+                            <span
+                              className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                (
+                                  STATUS_CONFIG[task.status] ||
+                                  STATUS_CONFIG.pending
+                                ).bg
+                              } ${
+                                (
+                                  STATUS_CONFIG[task.status] ||
+                                  STATUS_CONFIG.pending
+                                ).color
+                              }`}
+                            >
+                              {
+                                (
+                                  STATUS_CONFIG[task.status] ||
+                                  STATUS_CONFIG.pending
+                                ).label
+                              }
+                            </span>
+                          </div>
+                          <p className="text-[8px] text-slate-500 mt-0.5">
+                            Assigned by: {task.user_name || "System"}
+                            {task.project_id &&
+                              ` · Project: #${task.project_id}`}
+                            {task.end_date && ` · Due: ${task.end_date}`}
+                          </p>
+                        </div>
+                        {isPending ? (
+                          <div className="flex gap-1.5 shrink-0">
+                            <button
+                              onClick={() =>
+                                handleAssignmentAction(task.id, "accepted")
+                              }
+                              className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleAssignmentAction(task.id, "declined")
+                              }
+                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              handleAssignmentAction(
+                                task.id,
+                                "completed_assignment",
+                              )
+                            }
+                            className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0"
+                          >
+                            Complete
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
         {/* ═══════ MAIN GRID: Calendar + Task List ═══════ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
