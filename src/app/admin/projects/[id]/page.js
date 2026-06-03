@@ -20,6 +20,7 @@ import {
   Edit3,
   Send,
   FileText,
+  UserPlus,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";

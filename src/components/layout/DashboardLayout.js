@@ -253,7 +253,10 @@ const NAVIGATION_MATRIX = {
       id: "projects",
       name: "PROJECTS",
       icon: Rocket,
-      href: "/admin/projects",
+      subItems: [
+        { id: "all_projects", name: "ALL PROJECTS", href: "/admin/projects" },
+        { id: "my_projects", name: "MY PROJECTS", href: "/staff" },
+      ],
     },
 
     {

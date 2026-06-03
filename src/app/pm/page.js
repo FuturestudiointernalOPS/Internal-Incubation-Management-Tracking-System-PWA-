@@ -425,9 +425,9 @@ export default function PMDashboard() {
             )}
           </div>
           {pmProjectsLoading ? (
-            <p className="text-[10px] text-slate-500 italic">Loading...</p>
+            <p className="text-[10px] text-slate-500">Loading...</p>
           ) : pmProjects.length === 0 ? (
-            <p className="text-[10px] text-slate-500 italic">No projects yet</p>
+            <p className="text-[10px] text-slate-500">No projects yet</p>
           ) : (
             <div className="space-y-1.5">
               {pmProjects.map((project) => (
