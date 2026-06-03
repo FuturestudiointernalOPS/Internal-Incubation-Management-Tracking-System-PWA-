@@ -81,6 +81,7 @@ export default function AdminOpReports() {
   const [filterBlocker, setFilterBlocker] = useState("all");
   const [filterCarryOver, setFilterCarryOver] = useState("all");
   const [allProjects, setAllProjects] = useState([]);
+  const [blockersList, setBlockersList] = useState([]);
   // Tasks tab state
   const [allTasks, setAllTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -89,12 +90,14 @@ export default function AdminOpReports() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [rRes, pRes] = await Promise.all([
+      const [rRes, pRes, bRes] = await Promise.all([
         fetch("/api/op-reports"),
         fetch("/api/projects"),
+        fetch("/api/blockers"),
       ]);
       const data = await rRes.json();
       const pData = await pRes.json();
+      const bData = await bRes.json();
       if (data.success) {
         setReports(data.reports || []);
         const userMap = {};
@@ -110,6 +113,7 @@ export default function AdminOpReports() {
         setUsers(Object.values(userMap));
       }
       if (pData.success) setAllProjects(pData.projects || []);
+      if (bData.success) setBlockersList(bData.blockers || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -142,24 +146,33 @@ export default function AdminOpReports() {
   }, [activeTab, fetchTasks]);
 
   const filteredReports = useMemo(() => {
-    return reports.filter((r) => {
-      const matchesSearch =
-        r.user_name?.toLowerCase().includes(search.toLowerCase()) ||
-        String(r.week_number).includes(search) ||
-        String(r.year).includes(search);
-      const matchesUser =
-        filterUser === "All Users" || r.user_id === filterUser;
-      const matchesType = filterType === "all" || r.report_type === filterType;
+    return reports
+      .filter((r) => {
+        const matchesSearch =
+          r.user_name?.toLowerCase().includes(search.toLowerCase()) ||
+          String(r.week_number).includes(search) ||
+          String(r.year).includes(search);
+        const matchesUser =
+          filterUser === "All Users" || r.user_id === filterUser;
+        const matchesType =
+          filterType === "all" || r.report_type === filterType;
 
-      let matchesMonth = true;
-      if (filterMonth !== "all") {
-        const created = new Date(r.created_at);
-        const monthIndex = created.getMonth();
-        matchesMonth = MONTHS[monthIndex] === filterMonth;
-      }
+        let matchesMonth = true;
+        if (filterMonth !== "all") {
+          const created = new Date(r.created_at);
+          const monthIndex = created.getMonth();
+          matchesMonth = MONTHS[monthIndex] === filterMonth;
+        }
 
-      return matchesSearch && matchesUser && matchesType && matchesMonth;
-    });
+        return matchesSearch && matchesUser && matchesType && matchesMonth;
+      })
+      .sort((a, b) => {
+        // Sort by year desc, then week desc, then created_at desc
+        if (b.year !== a.year) return b.year - a.year;
+        if (b.week_number !== a.week_number)
+          return b.week_number - a.week_number;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
   }, [reports, search, filterUser, filterType, filterMonth]);
 
   // Compute per-user stats
@@ -191,18 +204,37 @@ export default function AdminOpReports() {
     return Object.values(stats);
   }, [reports]);
 
-  // Aggregated blocker data
+  // Aggregated blocker data (from both op-reports AND dedicated blockers table)
   const blockerData = useMemo(() => {
-    const blockers = reports.filter((r) => r.has_blockers);
+    // From op-reports (old format)
+    const reportBlockers = reports.filter((r) => r.has_blockers);
     const byUser = {};
-    blockers.forEach((r) => {
+    reportBlockers.forEach((r) => {
       if (!byUser[r.user_id])
-        byUser[r.user_id] = { name: r.user_name, count: 0, reports: [] };
+        byUser[r.user_id] = {
+          name: r.user_name,
+          count: 0,
+          reports: [],
+          taskBlockers: 0,
+        };
       byUser[r.user_id].count++;
       byUser[r.user_id].reports.push(r);
     });
-    return Object.values(byUser).sort((a, b) => b.count - a.count);
-  }, [reports]);
+    // From dedicated blockers table (new format)
+    blockersList.forEach((b) => {
+      if (!byUser[b.user_id])
+        byUser[b.user_id] = {
+          name: b.user_name || b.user_id,
+          count: 0,
+          reports: [],
+          taskBlockers: 0,
+        };
+      byUser[b.user_id].taskBlockers++;
+    });
+    return Object.values(byUser).sort(
+      (a, b) => b.count + b.taskBlockers - (a.count + a.taskBlockers),
+    );
+  }, [reports, blockersList]);
 
   const userReports = useMemo(() => {
     if (!viewingUser) return [];
@@ -677,17 +709,30 @@ export default function AdminOpReports() {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 font-black">
-                          {b.count}
+                          {b.count + b.taskBlockers}
                         </div>
                         <div>
                           <p className="text-sm font-black uppercase tracking-tight">
                             {b.name}
                           </p>
                           <p className="text-[9px] text-rose-400 font-bold uppercase tracking-widest">
-                            {b.count} blocked week{b.count > 1 ? "s" : ""}
+                            {b.taskBlockers > 0
+                              ? `${b.taskBlockers} task blockers`
+                              : `${b.count} report blocker${b.count > 1 ? "s" : ""}`}
                           </p>
                         </div>
                       </div>
+                      {b.taskBlockers > 0 && b.count > 0 && (
+                        <div className="text-right text-[8px] text-slate-500">
+                          <span className="font-bold text-rose-400">
+                            {b.taskBlockers}
+                          </span>{" "}
+                          from tasks
+                          <br />
+                          <span className="font-bold">{b.count}</span> from
+                          reports
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       {b.reports.slice(0, 5).map((r) => (
@@ -1361,12 +1406,54 @@ function ReportDetailModal({ report, onClose }) {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                window.printing = true;
-                window.print();
-                setTimeout(() => {
-                  window.printing = false;
-                }, 1000);
+              onClick={async () => {
+                const modalEl = document.getElementById("report-pdf-content");
+                if (!modalEl) return;
+                try {
+                  const html2canvas = (await import("html2canvas")).default;
+                  const { jsPDF } = await import("jspdf");
+                  const canvas = await html2canvas(modalEl, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: "#ffffff",
+                  });
+                  const imgData = canvas.toDataURL("image/png");
+                  const pdf = new jsPDF("p", "mm", "a4");
+                  const pdfWidth = pdf.internal.pageSize.getWidth();
+                  const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                  let heightLeft = pdfHeight;
+                  let position = 0;
+                  const pageHeight = pdf.internal.pageSize.getHeight();
+                  pdf.addImage(
+                    imgData,
+                    "PNG",
+                    0,
+                    position,
+                    pdfWidth,
+                    pdfHeight,
+                  );
+                  heightLeft -= pageHeight;
+                  while (heightLeft > 0) {
+                    position = heightLeft - pdfHeight;
+                    pdf.addPage();
+                    pdf.addImage(
+                      imgData,
+                      "PNG",
+                      0,
+                      position,
+                      pdfWidth,
+                      pdfHeight,
+                    );
+                    heightLeft -= pageHeight;
+                  }
+                  const reportType =
+                    report.report_type === "standup" ? "StandUp" : "Retro";
+                  pdf.save(
+                    `${report.user_name?.replace(/\s+/g, "_")}_Week${report.week_number}_${reportType}.pdf`,
+                  );
+                } catch (e) {
+                  console.error("PDF export error:", e);
+                }
               }}
               className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
             >
@@ -1391,15 +1478,26 @@ function ReportDetailModal({ report, onClose }) {
           </div>
         </div>
 
-        {/* Print header */}
-        <div className="hidden print:!block print:mb-6 print:pb-4 print:border-b print:border-gray-300">
-          <h1 className="text-2xl font-bold text-black">{report.user_name}</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            {report.report_type === "standup"
-              ? t("reports.mondayStandup")
-              : t("reports.fridayRetro")}{" "}
-            — Week {report.week_number} · {report.year}
-          </p>
+        {/* PDF header with logo */}
+        <div
+          className="flex items-center gap-4 p-4 border-b border-[var(--border-primary)]"
+          id="report-pdf-content"
+        >
+          <img
+            src="/brand/logo_full.png"
+            alt="Future Studio"
+            className="h-10 object-contain"
+            crossOrigin="anonymous"
+          />
+          <div>
+            <h1 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
+              {report.user_name}
+            </h1>
+            <p className="text-[10px] text-slate-500">
+              {report.report_type === "standup" ? "Stand-Up" : "Retro"} — Week{" "}
+              {report.week_number} · {report.year}
+            </p>
+          </div>
         </div>
 
         {/* Info bar */}
