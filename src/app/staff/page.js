@@ -161,7 +161,9 @@ export default function StaffDashboard() {
         const data = await res.json();
         if (
           !data.authenticated ||
-          !["staff", "super_admin", "teacher"].includes(data.user.role)
+          !["staff", "super_admin", "teacher", "program_manager"].includes(
+            data.user.role,
+          )
         ) {
           router.replace("/login");
           return;
