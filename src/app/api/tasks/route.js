@@ -164,7 +164,7 @@ export async function POST(req) {
     const finalEndDate = end_date || null;
 
     // Phase 2: Check project assignment if project_id provided
-    let finalStatus = status || "pending";
+    let finalStatus = status || "in_progress";
     let pendingApproval = false;
 
     if (project_id) {
