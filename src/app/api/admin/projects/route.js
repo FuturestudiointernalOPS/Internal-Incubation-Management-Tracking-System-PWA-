@@ -56,15 +56,18 @@ export async function GET(req) {
           args: [pid],
         });
 
-        const tasks = taskStats.rows[0] || {
-          total: 0,
-          completed: 0,
-          in_progress: 0,
-          blocked: 0,
-          carried_over: 0,
-          pending: 0,
+        const tasks = {
+          total: taskStats.rows[0]?.total || 0,
+          completed: taskStats.rows[0]?.completed || 0,
+          in_progress: taskStats.rows[0]?.in_progress || 0,
+          blocked: taskStats.rows[0]?.blocked || 0,
+          carried_over: taskStats.rows[0]?.carried_over || 0,
+          pending: taskStats.rows[0]?.pending || 0,
         };
-        const blockers = blockerStats.rows[0] || { total: 0, active: 0 };
+        const blockers = {
+          total: blockerStats.rows[0]?.total || 0,
+          active: blockerStats.rows[0]?.active || 0,
+        };
 
         // Timeline health — check start_date/end_date coverage
         const datedTasks = await db.execute({
