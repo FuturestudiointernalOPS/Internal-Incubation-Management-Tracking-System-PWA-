@@ -32,15 +32,15 @@ export async function GET(req) {
       projects.map(async (project) => {
         const pid = project.id;
 
-        // Task stats
+        // Task stats — using CASE instead of FILTER for broader compatibility
         const taskStats = await db.execute({
           sql: `SELECT
             COUNT(*) AS total,
-            COUNT(*) FILTER (WHERE status = 'completed') AS completed,
-            COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress,
-            COUNT(*) FILTER (WHERE status = 'blocked') AS blocked,
-            COUNT(*) FILTER (WHERE status = 'carried_over') AS carried_over,
-            COUNT(*) FILTER (WHERE status = 'pending') AS pending
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress,
+            SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) AS blocked,
+            SUM(CASE WHEN status = 'carried_over' THEN 1 ELSE 0 END) AS carried_over,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending
             FROM tasks WHERE project_id = ?`,
           args: [pid],
         });
@@ -49,7 +49,7 @@ export async function GET(req) {
         const blockerStats = await db.execute({
           sql: `SELECT
             COUNT(*) AS total,
-            COUNT(*) FILTER (WHERE b.status = 'active') AS active
+            SUM(CASE WHEN b.status = 'active' THEN 1 ELSE 0 END) AS active
             FROM blockers b
             JOIN tasks t ON b.task_id = t.id
             WHERE t.project_id = ?`,
