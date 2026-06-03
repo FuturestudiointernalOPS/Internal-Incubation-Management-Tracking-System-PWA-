@@ -330,18 +330,35 @@ export default function StaffOpReport() {
     try {
       const userId = user.cid || user.id;
       const statuses = ["pending", "in_progress", "blocked", "carried_over"];
-      const results = await Promise.all(
+      // Fetch tasks created BY the user
+      const ownResults = await Promise.all(
         statuses.map((s) =>
           fetch(`/api/tasks?user_id=${userId}&status=${s}`).then((r) =>
             r.json(),
           ),
         ),
       );
-      const allTasks = results.flatMap((data) => {
+      // Fetch tasks assigned TO the user
+      const assignedRes = await fetch(
+        `/api/tasks?assigned_to=${userId}&brief=true`,
+      );
+      const assignedData = await assignedRes.json();
+
+      const ownTasks = ownResults.flatMap((data) => {
         if (!data || typeof data !== "object") return [];
         return Array.isArray(data) ? data : data.tasks || [];
       });
-      setTasks(allTasks);
+      const assignedTasks = assignedData.success
+        ? assignedData.tasks || []
+        : [];
+
+      // Merge and deduplicate by id
+      const taskMap = new Map();
+      [...ownTasks, ...assignedTasks].forEach((t) => {
+        if (!taskMap.has(t.id)) taskMap.set(t.id, t);
+      });
+
+      setTasks(Array.from(taskMap.values()));
     } catch (e) {
       console.error("Failed to fetch tasks:", e);
     } finally {
