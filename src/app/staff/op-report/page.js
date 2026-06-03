@@ -793,7 +793,16 @@ export default function StaffOpReport() {
                     }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                   >
-                    <Plus className="w-4 h-4" /> Create New Stand-Up
+                    {existingReport ? (
+                      <>
+                        <ChevronRight className="w-4 h-4" /> Continue Current
+                        Stand-Up
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" /> Create New Stand-Up
+                      </>
+                    )}
                   </button>
                 </div>
 
@@ -1051,7 +1060,16 @@ export default function StaffOpReport() {
                               }}
                               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                             >
-                              <Plus className="w-4 h-4" /> Create Stand-Up
+                              {existingReport ? (
+                                <>
+                                  <ChevronRight className="w-4 h-4" /> Continue
+                                  Stand-Up
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-4 h-4" /> Create Stand-Up
+                                </>
+                              )}
                             </button>
                           </td>
                         </tr>
