@@ -19,6 +19,9 @@ import {
   Shield,
   Plus,
   X,
+  ListTodo,
+  Briefcase,
+  Activity,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
