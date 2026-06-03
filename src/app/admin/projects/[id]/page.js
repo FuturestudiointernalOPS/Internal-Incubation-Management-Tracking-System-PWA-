@@ -66,6 +66,19 @@ const TASK_STATUS_BG = {
   pending: "bg-slate-500/10",
 };
 
+function getWeekNumber(date) {
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return {
+    week: Math.ceil(((d - yearStart) / 86400000 + 1) / 7),
+    year: d.getUTCFullYear(),
+  };
+}
+
 export default function ProjectDetail() {
   const router = useRouter();
   const params = useParams();
@@ -90,6 +103,14 @@ export default function ProjectDetail() {
   const [allStaff, setAllStaff] = useState([]);
   const [approvalRequests, setApprovalRequests] = useState([]);
   const [approvalsLoading, setApprovalsLoading] = useState(false);
+  const [showNewTaskForm, setShowNewTaskForm] = useState(false);
+  const [newTaskForm, setNewTaskForm] = useState({
+    title: "",
+    description: "",
+    assigned_to: "",
+    end_date: "",
+  });
+  const [creatingTask, setCreatingTask] = useState(false);
 
   const projectId = params?.id;
 
@@ -542,6 +563,154 @@ export default function ProjectDetail() {
         {/* ─── TAB: TASKS ─── */}
         {activeTab === "tasks" && (
           <div className="space-y-4">
+            {/* Create Task inline */}
+            {showNewTaskForm ? (
+              <div className="card border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/[0.02] space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-widest">
+                    ✦ Create Task
+                  </h3>
+                  <button
+                    onClick={() => setShowNewTaskForm(false)}
+                    className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div>
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Task Name
+                  </label>
+                  <input
+                    value={newTaskForm.title}
+                    onChange={(e) =>
+                      setNewTaskForm((f) => ({
+                        ...f,
+                        title: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Homepage Design"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={newTaskForm.description}
+                    onChange={(e) =>
+                      setNewTaskForm((f) => ({
+                        ...f,
+                        description: e.target.value,
+                      }))
+                    }
+                    placeholder="Optional description"
+                    rows={2}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] resize-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Assign To
+                    </label>
+                    <select
+                      value={newTaskForm.assigned_to}
+                      onChange={(e) =>
+                        setNewTaskForm((f) => ({
+                          ...f,
+                          assigned_to: e.target.value,
+                        }))
+                      }
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
+                    >
+                      <option value="">Unassigned</option>
+                      {members.map((m) => (
+                        <option key={m.member_id} value={m.member_id}>
+                          {m.name || m.member_id}
+                        </option>
+                      ))}
+                      {allStaff.map((s) => (
+                        <option key={s.cid || s.id} value={s.cid || s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newTaskForm.end_date}
+                      onChange={(e) =>
+                        setNewTaskForm((f) => ({
+                          ...f,
+                          end_date: e.target.value,
+                        }))
+                      }
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!newTaskForm.title.trim()) return;
+                    setCreatingTask(true);
+                    try {
+                      const weekInfo = getWeekNumber(new Date());
+                      const res = await fetch("/api/tasks", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          title: newTaskForm.title.trim(),
+                          description: newTaskForm.description || null,
+                          user_id: project.owner_id || "sa",
+                          user_name: project.owner_name || "Project Owner",
+                          assigned_to: newTaskForm.assigned_to || null,
+                          project_id: project.id,
+                          end_date: newTaskForm.end_date || null,
+                          status: "in_progress",
+                          created_week: weekInfo.week,
+                          created_year: weekInfo.year,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        setShowNewTaskForm(false);
+                        setNewTaskForm({
+                          title: "",
+                          description: "",
+                          assigned_to: "",
+                          end_date: "",
+                        });
+                        fetchProject();
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    } finally {
+                      setCreatingTask(false);
+                    }
+                  }}
+                  disabled={creatingTask || !newTaskForm.title.trim()}
+                  className="w-full py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
+                >
+                  {creatingTask ? "Creating..." : "Create Task"}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewTaskForm(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all w-fit"
+              >
+                <Plus className="w-3.5 h-3.5" /> Create Task
+              </button>
+            )}
+
             {/* Task filter */}
             <div className="flex items-center gap-2 flex-wrap">
               {[
