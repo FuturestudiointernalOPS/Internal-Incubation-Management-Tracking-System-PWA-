@@ -40,6 +40,8 @@ export async function GET(req) {
     const role = searchParams.get("role");
     const id = searchParams.get("id");
     const sort = searchParams.get("sort");
+    const limit = searchParams.get("limit");
+    const brief = searchParams.get("brief") === "true";
 
     let sql = "SELECT * FROM tasks WHERE 1=1";
     const args = [];
@@ -81,7 +83,17 @@ export async function GET(req) {
         sql += " ORDER BY created_at DESC";
     }
 
+    if (limit) {
+      sql += " LIMIT ?";
+      args.push(parseInt(limit));
+    }
+
     const result = await db.execute({ sql, args });
+
+    // For brief fetches (tasks tab), skip blockers/subtasks to avoid N+1 perf hit
+    if (brief) {
+      return NextResponse.json({ success: true, tasks: result.rows });
+    }
 
     // For each task, fetch linked blockers and subtasks
     const tasksWithBlockers = await Promise.all(

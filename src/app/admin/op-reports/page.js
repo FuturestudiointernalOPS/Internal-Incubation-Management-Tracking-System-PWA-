@@ -129,7 +129,7 @@ export default function AdminOpReports() {
   const fetchTasks = useCallback(async () => {
     setTasksLoading(true);
     try {
-      const res = await fetch("/api/tasks");
+      const res = await fetch("/api/tasks?brief=true&limit=200");
       const data = await res.json();
       if (data.success) setAllTasks(data.tasks || []);
     } catch (e) {
