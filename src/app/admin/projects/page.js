@@ -85,17 +85,22 @@ export default function AdminProjects() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [projRes, analyticsRes] = await Promise.all([
-        fetch("/api/admin/projects"),
-        fetch("/api/admin/analytics/overview"),
-      ]);
+      const projRes = await fetch("/api/admin/projects");
       const projData = await projRes.json();
-      const analyticsData = await analyticsRes.json();
       if (projData.success) {
         setProjects(projData.projects || []);
         setTotals(projData.totals || {});
       }
-      if (analyticsData.success) setAnalytics(analyticsData.analytics);
+      // Analytics endpoint is optional - silently handle if not available
+      try {
+        const analyticsRes = await fetch("/api/admin/analytics/overview");
+        if (analyticsRes.ok) {
+          const analyticsData = await analyticsRes.json();
+          if (analyticsData.success) setAnalytics(analyticsData.analytics);
+        }
+      } catch (e) {
+        /* analytics unavailable */
+      }
     } catch (e) {
       console.error(e);
     } finally {

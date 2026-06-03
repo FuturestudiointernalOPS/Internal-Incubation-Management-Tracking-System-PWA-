@@ -35,12 +35,12 @@ export async function GET(req) {
         // Task stats
         const taskStats = await db.execute({
           sql: `SELECT
-            COUNT(*)::int AS total,
-            COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
-            COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
-            COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked,
-            COUNT(*) FILTER (WHERE status = 'carried_over')::int AS carried_over,
-            COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
+            COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE status = 'completed') AS completed,
+            COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress,
+            COUNT(*) FILTER (WHERE status = 'blocked') AS blocked,
+            COUNT(*) FILTER (WHERE status = 'carried_over') AS carried_over,
+            COUNT(*) FILTER (WHERE status = 'pending') AS pending
             FROM tasks WHERE project_id = ?`,
           args: [pid],
         });
@@ -48,33 +48,44 @@ export async function GET(req) {
         // Blocker stats
         const blockerStats = await db.execute({
           sql: `SELECT
-            COUNT(*)::int AS total,
-            COUNT(*) FILTER (WHERE b.status = 'active')::int AS active
+            COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE b.status = 'active') AS active
             FROM blockers b
             JOIN tasks t ON b.task_id = t.id
             WHERE t.project_id = ?`,
           args: [pid],
         });
 
-        const tasks = taskStats.rows[0] || { total: 0, completed: 0, in_progress: 0, blocked: 0, carried_over: 0, pending: 0 };
+        const tasks = taskStats.rows[0] || {
+          total: 0,
+          completed: 0,
+          in_progress: 0,
+          blocked: 0,
+          carried_over: 0,
+          pending: 0,
+        };
         const blockers = blockerStats.rows[0] || { total: 0, active: 0 };
 
         // Timeline health — check start_date/end_date coverage
         const datedTasks = await db.execute({
-          sql: "SELECT COUNT(*)::int AS count FROM tasks WHERE project_id = ? AND start_date IS NOT NULL AND end_date IS NOT NULL",
+          sql: "SELECT COUNT(*) AS count FROM tasks WHERE project_id = ? AND start_date IS NOT NULL AND end_date IS NOT NULL",
           args: [pid],
         });
         const datedCount = datedTasks.rows[0]?.count || 0;
-        const timelineHealth = tasks.total > 0 ? Math.round((datedCount / tasks.total) * 100) : 0;
+        const timelineHealth =
+          tasks.total > 0 ? Math.round((datedCount / tasks.total) * 100) : 0;
 
         return {
           ...project,
           taskStats: tasks,
           blockerStats: blockers,
-          completionRate: tasks.total > 0 ? Math.round((tasks.completed / tasks.total) * 100) : 0,
+          completionRate:
+            tasks.total > 0
+              ? Math.round((tasks.completed / tasks.total) * 100)
+              : 0,
           timelineHealth,
         };
-      })
+      }),
     );
 
     // Aggregate totals
@@ -86,12 +97,15 @@ export async function GET(req) {
         acc.activeBlockers += p.blockerStats.active;
         return acc;
       },
-      { totalTasks: 0, completedTasks: 0, totalBlockers: 0, activeBlockers: 0 }
+      { totalTasks: 0, completedTasks: 0, totalBlockers: 0, activeBlockers: 0 },
     );
 
     return NextResponse.json({ success: true, projects: enriched, totals });
   } catch (error) {
     console.error("GET admin/projects error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
