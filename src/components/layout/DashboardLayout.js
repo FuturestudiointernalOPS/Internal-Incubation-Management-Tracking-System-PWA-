@@ -31,6 +31,7 @@ import {
   BarChart3,
   UserCheck,
   UploadCloud,
+  ListTodo,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -45,6 +46,8 @@ const NAV_KEY_MAP = {
   all_programs: "navigation.allPrograms",
   create_program: "navigation.createProgram",
   progress_hub: "navigation.progress",
+  work: "navigation.work",
+  work_hub: "navigation.workHub",
   communication: "navigation.communication",
   campaigns: "navigation.campaigns",
   forms: "navigation.forms",
@@ -225,6 +228,7 @@ const NAVIGATION_MATRIX = {
       icon: LayoutDashboard,
       href: "/admin",
     },
+
     {
       id: "programs",
       name: "PROGRAMS",
@@ -236,17 +240,49 @@ const NAVIGATION_MATRIX = {
           name: "CREATE PROGRAM",
           href: "/admin/programs/new",
         },
+        { id: "progress", name: "PROGRESS", href: "/admin/progress" },
+        {
+          id: "program_reports",
+          name: "PROGRAM REPORTS",
+          href: "/admin/reports/responses",
+        },
       ],
     },
+
     {
-      id: "progress_hub",
-      name: "PROGRESS",
-      icon: Activity,
-      href: "/admin/progress",
+      id: "projects",
+      name: "PROJECTS",
+      icon: Briefcase,
+      href: "/admin/projects",
     },
+
+    {
+      id: "work",
+      name: "WORK",
+      icon: ListTodo,
+      subItems: [
+        { id: "work_hub", name: "WORK HUB", href: "/admin/work" },
+        { id: "tasks", name: "TASKS", href: "/admin/tasks" },
+        { id: "blockers", name: "BLOCKERS", href: "/admin/blockers" },
+      ],
+    },
+
+    {
+      id: "reports",
+      name: "REPORTS",
+      icon: BarChart3,
+      subItems: [
+        {
+          id: "internal_reports",
+          name: "INTERNAL REPORTS",
+          href: "/admin/op-reports",
+        },
+      ],
+    },
+
     {
       id: "communication",
-      name: "COMMUNICATION",
+      name: "COMMUNICATIONS",
       icon: Send,
       subItems: [
         {
@@ -265,57 +301,17 @@ const NAVIGATION_MATRIX = {
           name: "PENDING USERS",
           href: "/admin/pending-users",
         },
-        {
-          id: "bulk_upload",
-          name: "BULK UPLOAD",
-          href: "/admin/bulk-upload",
-        },
+        { id: "bulk_upload", name: "BULK UPLOAD", href: "/admin/bulk-upload" },
       ],
     },
+
     {
       id: "knowledge",
       name: "KNOWLEDGE BASE",
       icon: Library,
       href: "/admin/knowledge",
     },
-    {
-      id: "reports",
-      name: "REPORTS",
-      icon: BarChart3,
-      subItems: [
-        {
-          id: "report_responses",
-          name: "REPORT RESPONSES",
-          href: "/admin/reports/responses",
-        },
-        {
-          id: "internal_reports",
-          name: "INTERNAL REPORTS",
-          href: "/admin/op-reports",
-        },
-        {
-          id: "work_management",
-          name: "WORK MANAGEMENT",
-          href: "/admin/work",
-        },
-        {
-          id: "tasks",
-          name: "TASKS",
-          href: "/admin/tasks",
-        },
-        {
-          id: "blockers",
-          name: "BLOCKERS",
-          href: "/admin/blockers",
-        },
-      ],
-    },
-    {
-      id: "projects",
-      name: "PROJECTS",
-      icon: Briefcase,
-      href: "/admin/projects",
-    },
+
     {
       id: "intelligence",
       name: "INTELLIGENCE",
