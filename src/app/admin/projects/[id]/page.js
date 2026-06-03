@@ -87,6 +87,7 @@ export default function ProjectDetail() {
     notes: "",
   });
   const [savingUpdate, setSavingUpdate] = useState(false);
+  const [allStaff, setAllStaff] = useState([]);
 
   const projectId = params?.id;
 
@@ -110,6 +111,22 @@ export default function ProjectDetail() {
     }
   }, [projectId]);
 
+  const fetchStaff = useCallback(async () => {
+    try {
+      const res = await fetch("/api/contacts");
+      const data = await res.json();
+      if (data.success) {
+        setAllStaff(
+          data.contacts?.filter(
+            (c) => c.status === "active" && c.role !== "participant",
+          ) || [],
+        );
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   const fetchUpdates = useCallback(async () => {
     if (!projectId) return;
     setUpdatesLoading(true);
@@ -127,6 +144,10 @@ export default function ProjectDetail() {
   useEffect(() => {
     fetchProject();
   }, [fetchProject]);
+
+  useEffect(() => {
+    fetchStaff();
+  }, [fetchStaff]);
 
   useEffect(() => {
     fetchUpdates();
@@ -768,49 +789,161 @@ export default function ProjectDetail() {
 
         {/* ─── TAB: TEAM ─── */}
         {activeTab === "team" && (
-          <div className="space-y-4">
-            {members.length === 0 ? (
-              <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
-                <Users className="w-12 h-12 mb-3" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">
-                  No team members yet
-                </p>
-                <p className="text-[9px] text-slate-500 mt-1">
-                  Team is auto-populated from task assignments and
-                  collaborators.
-                </p>
+          <div className="space-y-6">
+            {/* Owner Section */}
+            <div className="card border-l-4 border-l-[var(--brand-orange)]">
+              <div className="flex items-center gap-2 mb-3">
+                <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                  Project Owner
+                </span>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {members.map((member) => (
-                  <div
-                    key={member.member_id}
-                    className="card flex items-center gap-3 p-4"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-xs font-black uppercase">
-                      {(member.name || member.member_id || "?").charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                        {member.name || member.member_id || "Unknown"}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {member.member_role && (
-                          <span className="text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
-                            {member.member_role}
-                          </span>
-                        )}
-                        {member.role && (
-                          <span className="text-[8px] text-slate-500">
-                            {member.role}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+              {project.owner_name ? (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--brand-orange)]/[0.04] border border-[var(--brand-orange)]/20">
+                  <div className="w-10 h-10 rounded-full bg-[var(--brand-orange)]/20 border border-[var(--brand-orange)]/30 flex items-center justify-center text-xs font-black text-[var(--brand-orange)]">
+                    {project.owner_name.charAt(0)}
                   </div>
-                ))}
+                  <div>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">
+                      {project.owner_name}
+                    </p>
+                    <p className="text-[8px] text-slate-500 mt-0.5">
+                      Accountable for project delivery
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[10px] text-slate-500 italic">
+                  No owner assigned
+                </p>
+              )}
+            </div>
+
+            {/* Collaborators Section */}
+            <div className="card border-l-4 border-l-blue-500">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-500" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">
+                    Collaborators
+                  </span>
+                </div>
+                <span className="text-[9px] font-bold text-slate-500">
+                  {members.length} total
+                </span>
               </div>
-            )}
+
+              {/* Collaborator list */}
+              {members.length === 0 ? (
+                <p className="text-[10px] text-slate-500 italic text-center py-6">
+                  No collaborators yet. Add team members to this project.
+                </p>
+              ) : (
+                <div className="space-y-1.5 mb-4">
+                  {members.map((member) => (
+                    <div
+                      key={member.member_id}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-tertiary/50 hover:bg-tertiary transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
+                          {(member.name || member.member_id || "?").charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-[var(--text-primary)]">
+                            {member.name || member.member_id || "Unknown"}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {member.member_role && (
+                              <span className="text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+                                {member.member_role}
+                              </span>
+                            )}
+                            {member.role && (
+                              <span className="text-[8px] text-slate-500">
+                                {member.role}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await fetch(
+                              `/api/projects/members?project_id=${project.id}&user_cid=${member.member_id}`,
+                              { method: "DELETE" },
+                            );
+                            fetchProject();
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        }}
+                        className="text-[8px] font-black uppercase text-rose-400 hover:text-rose-300 px-2 py-1 rounded-lg hover:bg-rose-500/10 transition-all"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add Collaborator */}
+              <div className="pt-3 border-t border-[var(--border-primary)]/30">
+                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Add Collaborator
+                </p>
+                <div className="flex gap-2">
+                  <select
+                    id="add-collab-team"
+                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
+                  >
+                    <option value="">Select staff...</option>
+                    {allStaff
+                      .filter(
+                        (s) =>
+                          s.cid !== (project.owner_id || "") &&
+                          !members.find(
+                            (m) =>
+                              String(m.member_id) === String(s.cid || s.id),
+                          ),
+                      )
+                      .map((s) => (
+                        <option key={s.cid || s.id} value={s.cid || s.id}>
+                          {s.name} ({s.role})
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    onClick={async () => {
+                      const sel = document.getElementById("add-collab-team");
+                      if (sel?.value) {
+                        try {
+                          await fetch("/api/projects/members", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              project_id: project.id,
+                              user_cid: sel.value,
+                              role: "member",
+                            }),
+                          });
+                          sel.value = "";
+                          fetchProject();
+                        } catch (e) {
+                          console.error(e);
+                        }
+                      }
+                    }}
+                    className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

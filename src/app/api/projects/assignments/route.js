@@ -6,8 +6,10 @@ import db, { initDb } from "@/lib/db";
  *
  * GET /api/projects/assignments?user_cid=X
  *
- * Returns all active projects a user is assigned to.
- * If project_members table doesn't exist, returns empty array.
+ * Returns projects grouped by relationship to the user:
+ *   owned:     projects where owner_id = user
+ *   collab:    projects where user is in project_members
+ *   all_active: all active projects (for dropdown)
  */
 export async function GET(req) {
   try {
@@ -22,27 +24,56 @@ export async function GET(req) {
       );
     }
 
-    let projects = [];
+    // Owned: projects where user is the owner
+    let owned = [];
     try {
       const result = await db.execute({
-        sql: `
-          SELECT p.id, p.name, p.status, p.program_id, pr.name as program_name,
-                 pm.role as member_role
-          FROM project_members pm
-          INNER JOIN v2_projects p ON pm.project_id = p.id
-          LEFT JOIN v2_programs pr ON p.program_id = pr.id
-          WHERE pm.user_cid = ? AND p.status != 'Archived'
-          ORDER BY p.name ASC
-        `,
+        sql: `SELECT id, name, status FROM v2_projects
+              WHERE owner_id = ? AND status != 'Archived'
+              ORDER BY name ASC`,
         args: [user_cid],
       });
-      projects = result.rows;
+      owned = result.rows;
     } catch (e) {
-      // project_members table may not exist yet
-      projects = [];
+      owned = [];
     }
 
-    return NextResponse.json({ success: true, projects });
+    // Collaborating: projects where user is in project_members
+    let collab = [];
+    try {
+      const result = await db.execute({
+        sql: `SELECT p.id, p.name, p.status, pm.role as member_role
+              FROM project_members pm
+              INNER JOIN v2_projects p ON pm.project_id::text = p.id::text
+              WHERE pm.user_cid = ? AND p.status != 'Archived'
+              ORDER BY p.name ASC`,
+        args: [user_cid],
+      });
+      collab = result.rows;
+    } catch (e) {
+      collab = [];
+    }
+
+    // All active projects (for unlinked dropdown)
+    let all_active = [];
+    try {
+      const result = await db.execute({
+        sql: `SELECT id, name, status FROM v2_projects
+              WHERE status != 'Archived' AND status != 'Completed'
+              ORDER BY name ASC`,
+        args: [],
+      });
+      all_active = result.rows;
+    } catch (e) {
+      all_active = [];
+    }
+
+    return NextResponse.json({
+      success: true,
+      owned,
+      collab,
+      all_active,
+    });
   } catch (error) {
     console.error("GET /api/projects/assignments error:", error);
     return NextResponse.json(

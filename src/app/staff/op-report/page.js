@@ -117,6 +117,7 @@ export default function StaffOpReport() {
     due_date: "",
     collaborator: "",
     collaborator_note: "",
+    project_search: "",
   });
 
   // Form state
@@ -169,6 +170,8 @@ export default function StaffOpReport() {
 
   // Structured task row state
   const [assignedProjects, setAssignedProjects] = useState([]);
+  const [ownedProjects, setOwnedProjects] = useState([]);
+  const [collabProjects, setCollabProjects] = useState([]);
   const [allStaff, setAllStaff] = useState([]);
   const [taskRows, setTaskRows] = useState([]);
   const [blockerModal, setBlockerModal] = useState(null); // { taskRowIndex } or null
@@ -346,14 +349,30 @@ export default function StaffOpReport() {
     }
   }, [user]);
 
-  // Fetch assigned projects for dropdown
+  // Fetch grouped projects for dropdown (owned, collab, all_active)
   const fetchAssignedProjects = useCallback(async () => {
     if (!user?.cid && !user?.id) return;
     try {
       const userId = user.cid || user.id;
       const res = await fetch(`/api/projects/assignments?user_cid=${userId}`);
       const data = await res.json();
-      if (data.success) setAssignedProjects(data.projects || []);
+      if (data.success) {
+        const owned = data.owned || [];
+        const collab = data.collab || [];
+        const allActive = data.all_active || [];
+        setOwnedProjects(owned);
+        setCollabProjects(collab);
+
+        // Combine all as flat list (deduped) for backward compat
+        const allProjects = [...owned, ...collab, ...allActive];
+        const seen = new Set();
+        const deduped = allProjects.filter((p) => {
+          if (seen.has(String(p.id))) return false;
+          seen.add(String(p.id));
+          return true;
+        });
+        setAssignedProjects(deduped);
+      }
     } catch (e) {
       console.error("Failed to fetch assigned projects:", e);
     }
@@ -574,6 +593,7 @@ export default function StaffOpReport() {
       due_date: "",
       collaborator: "",
       collaborator_note: "",
+      project_search: "",
     });
     setShowTaskForm(false);
   };
@@ -2401,28 +2421,103 @@ export default function StaffOpReport() {
                       ✦ New Task
                     </p>
 
-                    {/* ─── PROJECT SELECTOR (PROMINENT) ─── */}
+                    {/* ─── PROJECT SELECTOR (PROMINENT + GROUPED + SEARCHABLE) ─── */}
                     <div className="p-3 rounded-xl bg-[var(--brand-orange)]/[0.04] border border-[var(--brand-orange)]/20">
                       <label className="text-[8px] font-black text-[var(--brand-orange)] uppercase tracking-widest block mb-1.5">
                         Link to Project
                       </label>
+                      {/* Search input */}
+                      <input
+                        type="text"
+                        value={newTaskForm.project_search || ""}
+                        onChange={(e) =>
+                          setNewTaskForm((p) => ({
+                            ...p,
+                            project_search: e.target.value,
+                            project_id: "",
+                            category: p.category,
+                          }))
+                        }
+                        placeholder="Search projects..."
+                        className="w-full bg-primary border border-[var(--brand-orange)]/30 rounded-lg px-3 py-2 mb-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                      />
                       <select
+                        size={5}
                         value={newTaskForm.project_id}
                         onChange={(e) =>
                           setNewTaskForm((p) => ({
                             ...p,
                             project_id: e.target.value,
                             category: e.target.value ? "" : p.category,
+                            project_search: "",
                           }))
                         }
-                        className="w-full bg-primary border border-[var(--brand-orange)]/30 rounded-lg px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
+                        className="w-full bg-primary border border-[var(--brand-orange)]/30 rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
                       >
-                        <option value="">— Not linked to a project —</option>
-                        {assignedProjects.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
+                        <option value="">— Not linked —</option>
+                        {(() => {
+                          const search = (
+                            newTaskForm.project_search || ""
+                          ).toLowerCase();
+
+                          // Filter projects by search
+                          const filterProjects = (projList) =>
+                            projList.filter(
+                              (p) =>
+                                !search ||
+                                p.name.toLowerCase().includes(search),
+                            );
+
+                          const myProjects = filterProjects(ownedProjects);
+                          const collabProjs = filterProjects(collabProjects);
+                          const otherProjs = filterProjects(
+                            assignedProjects.filter((p) => {
+                              const isOwned = ownedProjects.some(
+                                (o) => String(o.id) === String(p.id),
+                              );
+                              const isCollab = collabProjects.some(
+                                (c) => String(c.id) === String(p.id),
+                              );
+                              return !isOwned && !isCollab;
+                            }),
+                          );
+
+                          const groups = [];
+                          if (myProjects.length > 0) {
+                            groups.push(
+                              <optgroup key="owned" label="─ My Projects ─">
+                                {myProjects.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name}
+                                  </option>
+                                ))}
+                              </optgroup>,
+                            );
+                          }
+                          if (collabProjs.length > 0) {
+                            groups.push(
+                              <optgroup key="collab" label="─ Collaborating ─">
+                                {collabProjs.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name}
+                                  </option>
+                                ))}
+                              </optgroup>,
+                            );
+                          }
+                          if (otherProjs.length > 0) {
+                            groups.push(
+                              <optgroup key="other" label="─ Other Projects ─">
+                                {otherProjs.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name}
+                                  </option>
+                                ))}
+                              </optgroup>,
+                            );
+                          }
+                          return groups;
+                        })()}
                       </select>
                       {newTaskForm.project_id && (
                         <div className="flex items-center gap-1.5 mt-1.5">
@@ -2576,6 +2671,7 @@ export default function StaffOpReport() {
                             due_date: "",
                             collaborator: "",
                             collaborator_note: "",
+                            project_search: "",
                           });
                         }}
                         className="px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"

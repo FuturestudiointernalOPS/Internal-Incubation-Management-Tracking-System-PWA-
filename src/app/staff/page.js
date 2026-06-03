@@ -20,6 +20,11 @@ import {
   ChevronDown,
   MoreHorizontal,
   TrendingUp,
+  Briefcase,
+  Users,
+  Rocket,
+  Search,
+  UserPlus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
@@ -135,6 +140,9 @@ export default function StaffDashboard() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [ownedProjects, setOwnedProjects] = useState([]);
+  const [collabProjects, setCollabProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
 
   // Auth
   useEffect(() => {
@@ -189,6 +197,46 @@ export default function StaffDashboard() {
     }
   }, [user]);
 
+  // Fetch projects where user is owner or collaborator
+  const fetchProjects = useCallback(async () => {
+    if (!user?.cid && !user?.id) return;
+    setProjectsLoading(true);
+    try {
+      const userId = user.cid || user.id;
+
+      // Fetch all projects with stats (for owned projects)
+      const [allRes, collabRes] = await Promise.all([
+        fetch("/api/admin/projects"),
+        fetch(`/api/projects?user_cid=${userId}`),
+      ]);
+
+      const allData = await allRes.json();
+      const collabData = await collabRes.json();
+
+      if (allData.success) {
+        const allProjects = allData.projects || [];
+        // Owned: owner_id matches user
+        const owned = allProjects.filter(
+          (p) => p.owner_id && String(p.owner_id) === String(userId),
+        );
+        setOwnedProjects(owned);
+      }
+
+      if (collabData.success) {
+        const joinedProjects = collabData.projects || [];
+        // Collaborating: user is in project_members but not owner
+        const collab = joinedProjects.filter((p) => {
+          return !(p.owner_id && String(p.owner_id) === String(userId));
+        });
+        setCollabProjects(collab);
+      }
+    } catch (e) {
+      console.error("Failed to fetch projects:", e);
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
@@ -196,6 +244,10 @@ export default function StaffDashboard() {
   useEffect(() => {
     fetchAssignments();
   }, [fetchAssignments]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   // ─── TASK GROUPING ───
   const { calendarTasks, unscheduledTasks, sortedTasks, stats } =
@@ -574,6 +626,123 @@ export default function StaffDashboard() {
                     );
                   })}
               </div>
+            </div>
+          )}
+
+        {/* ═══════ MY PROJECTS ═══════ */}
+        {(ownedProjects.length > 0 || collabProjects.length > 0) &&
+          !projectsLoading && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Owned Projects */}
+              {ownedProjects.length > 0 && (
+                <div className="card border-l-4 border-l-[var(--brand-orange)]">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                      My Projects
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                      {ownedProjects.length}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {ownedProjects.map((project) => (
+                      <div
+                        key={project.id}
+                        onClick={() =>
+                          router.push(`/admin/projects/${project.id}`)
+                        }
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                          <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                            {project.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span
+                              className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                project.status === "Active"
+                                  ? "bg-emerald-500/10 text-emerald-500"
+                                  : project.status === "Paused"
+                                    ? "bg-amber-500/10 text-amber-500"
+                                    : "bg-slate-500/10 text-slate-500"
+                              }`}
+                            >
+                              {project.status || "Active"}
+                            </span>
+                            <span className="text-[8px] text-slate-500">
+                              {(project.taskStats?.in_progress || 0) +
+                                (project.taskStats?.pending || 0)}{" "}
+                              active tasks
+                            </span>
+                            {(project.blockerStats?.active || 0) > 0 && (
+                              <span className="text-[8px] text-rose-500 font-bold">
+                                {project.blockerStats.active} blockers
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Collaborating Projects */}
+              {collabProjects.length > 0 && (
+                <div className="card border-l-4 border-l-blue-500">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users className="w-4 h-4 text-blue-500" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">
+                      Collaborating On
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                      {collabProjects.length}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {collabProjects.map((project) => (
+                      <div
+                        key={project.id}
+                        onClick={() =>
+                          router.push(`/admin/projects/${project.id}`)
+                        }
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                          <Users className="w-4 h-4 text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                            {project.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span
+                              className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                project.status === "Active"
+                                  ? "bg-emerald-500/10 text-emerald-500"
+                                  : project.status === "Paused"
+                                    ? "bg-amber-500/10 text-amber-500"
+                                    : "bg-slate-500/10 text-slate-500"
+                              }`}
+                            >
+                              {project.status || "Active"}
+                            </span>
+                            <span className="text-[8px] text-slate-500">
+                              {(project.taskStats?.in_progress || 0) +
+                                (project.taskStats?.pending || 0)}{" "}
+                              active
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
