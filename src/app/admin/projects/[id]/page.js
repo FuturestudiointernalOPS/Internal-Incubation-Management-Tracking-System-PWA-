@@ -429,42 +429,53 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* ─── TAB NAVIGATION ─── */}
-        <div className="flex items-center gap-1 border-b border-[var(--border-primary)]">
-          {[
-            { id: "overview", label: "OVERVIEW", icon: Activity },
-            { id: "tasks", label: `TASKS (${tasks.length})`, icon: ListTodo },
-            {
-              id: "blockers",
-              label: `BLOCKERS (${blockers.length})`,
-              icon: Shield,
-            },
-            { id: "team", label: `TEAM (${members.length})`, icon: Users },
-            { id: "updates", label: "WEEKLY UPDATE", icon: FileText },
-            {
-              id: "approvals",
-              label: `REQUESTS (${approvalRequests.filter((r) => r.status === "pending").length})`,
-              icon: UserPlus,
-            },
-            { id: "timeline", label: "TIMELINE", icon: Clock },
-          ].map((tab) => {
-            const isActive = activeTab === tab.id;
-            const TabIcon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-2 -mb-[1px] ${
-                  isActive
-                    ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
-                    : "border-transparent text-slate-500 hover:text-[var(--text-primary)]"
-                }`}
-              >
-                <TabIcon className="w-3 h-3" />
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* ─── TAB NAVIGATION (SCROLLABLE) ─── */}
+        <div className="relative">
+          {/* Fade edges */}
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[var(--bg-primary)] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[var(--bg-primary)] to-transparent z-10 pointer-events-none" />
+          <div className="overflow-x-auto custom-scrollbar pb-1">
+            <div className="flex items-center gap-1 border-b border-[var(--border-primary)] min-w-max px-2">
+              {[
+                { id: "overview", label: "OVERVIEW", icon: Activity },
+                {
+                  id: "tasks",
+                  label: `TASKS (${tasks.length})`,
+                  icon: ListTodo,
+                },
+                {
+                  id: "blockers",
+                  label: `BLOCKERS (${blockers.length})`,
+                  icon: Shield,
+                },
+                { id: "team", label: `TEAM (${members.length})`, icon: Users },
+                { id: "updates", label: "UPDATE", icon: FileText },
+                {
+                  id: "approvals",
+                  label: `REQUESTS${approvalRequests.filter((r) => r.status === "pending").length > 0 ? ` (${approvalRequests.filter((r) => r.status === "pending").length})` : ""}`,
+                  icon: UserPlus,
+                },
+                { id: "timeline", label: "TIMELINE", icon: Clock },
+              ].map((tab) => {
+                const isActive = activeTab === tab.id;
+                const TabIcon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-1.5 px-3 py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-2 -mb-[1px] shrink-0 whitespace-nowrap ${
+                      isActive
+                        ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
+                        : "border-transparent text-slate-500 hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    <TabIcon className="w-3 h-3 shrink-0" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* ─── TAB: OVERVIEW ─── */}
