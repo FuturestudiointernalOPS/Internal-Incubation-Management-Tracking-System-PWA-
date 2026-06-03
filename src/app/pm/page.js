@@ -41,7 +41,41 @@ export default function PMDashboard() {
     averageEngagement: "0%",
   });
   const [schedule, setSchedule] = useState([]);
+  const [pmProjects, setPmProjects] = useState([]);
+  const [pmProjectsLoading, setPmProjectsLoading] = useState(true);
   const { t } = useI18n();
+
+  // Fetch projects where user is owner
+  const fetchPmProjects = async (userId) => {
+    setPmProjectsLoading(true);
+    try {
+      const res = await fetch("/api/admin/projects");
+      const data = await res.json();
+      if (data.success) {
+        const all = data.projects || [];
+        const owned = all.filter((p) => {
+          if (p.owner_id && String(p.owner_id) === String(userId)) return true;
+          if (p.meta) {
+            try {
+              const m =
+                typeof p.meta === "string" ? JSON.parse(p.meta) : p.meta;
+              if (
+                m.assigned_pm_id &&
+                String(m.assigned_pm_id) === String(userId)
+              )
+                return true;
+            } catch (e) {}
+          }
+          return false;
+        });
+        setPmProjects(owned);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPmProjectsLoading(false);
+    }
+  };
 
   useEffect(() => {
     async function checkAuth() {
@@ -64,6 +98,13 @@ export default function PMDashboard() {
     }
     checkAuth();
   }, [router]);
+
+  // Fetch PM projects after auth
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const userId = user.cid || user.id;
+    if (userId) fetchPmProjects(userId);
+  }, []);
 
   const fetchGlobalSchedule = async () => {
     try {
@@ -368,6 +409,68 @@ export default function PMDashboard() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* MY PROJECTS */}
+        <div className="card !p-6 border-l-4 border-l-[var(--brand-orange)]">
+          <div className="flex items-center gap-2 mb-4">
+            <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
+            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+              My Projects
+            </span>
+            {pmProjects.length > 0 && (
+              <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                {pmProjects.length}
+              </span>
+            )}
+          </div>
+          {pmProjectsLoading ? (
+            <p className="text-[10px] text-slate-500 italic">Loading...</p>
+          ) : pmProjects.length === 0 ? (
+            <p className="text-[10px] text-slate-500 italic">No projects yet</p>
+          ) : (
+            <div className="space-y-1.5">
+              {pmProjects.map((project) => (
+                <div
+                  key={project.id}
+                  onClick={() => router.push(`/admin/projects/${project.id}`)}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                    <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                      {project.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span
+                        className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                          project.status === "Active"
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : project.status === "Paused"
+                              ? "bg-amber-500/10 text-amber-500"
+                              : "bg-slate-500/10 text-slate-500"
+                        }`}
+                      >
+                        {project.status || "Active"}
+                      </span>
+                      <span className="text-[8px] text-slate-500">
+                        {(project.taskStats?.in_progress || 0) +
+                          (project.taskStats?.pending || 0)}{" "}
+                        active tasks
+                      </span>
+                      {(project.blockerStats?.active || 0) > 0 && (
+                        <span className="text-[8px] text-rose-500 font-bold">
+                          {project.blockerStats.active} blockers
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* CALENDAR QUICK VIEW */}
