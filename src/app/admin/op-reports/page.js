@@ -94,6 +94,22 @@ export default function AdminOpReports() {
   const [blockersList, setBlockersList] = useState([]);
   const [blockerFilterWeek, setBlockerFilterWeek] = useState("all");
   const [blockerFilterStatus, setBlockerFilterStatus] = useState("all");
+  const PAGE_SIZE = 20;
+  const [reportsPage, setReportsPage] = useState(1);
+  const [blockersPage, setBlockersPage] = useState(1);
+
+  useEffect(() => {
+    setReportsPage(1);
+  }, [
+    search,
+    filterUser,
+    filterType,
+    filterMonth,
+    filterProject,
+    filterStatus,
+    filterBlocker,
+    filterCarryOver,
+  ]);
   // Tasks tab state
   const [allTasks, setAllTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -508,13 +524,29 @@ export default function AdminOpReports() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredReports.map((report) => (
-                    <ReportCard
-                      key={report.id}
-                      report={report}
-                      onClick={() => setViewingReport(report)}
-                    />
-                  ))}
+                  {filteredReports
+                    .slice(0, reportsPage * PAGE_SIZE)
+                    .map((report) => (
+                      <ReportCard
+                        key={report.id}
+                        report={report}
+                        onClick={() => setViewingReport(report)}
+                      />
+                    ))}
+                </div>
+              )}
+
+              {/* Load More for reports */}
+              {filteredReports.length > reportsPage * PAGE_SIZE && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={() => setReportsPage((p) => p + 1)}
+                    className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-[var(--brand-orange)]/30 transition-all"
+                  >
+                    Load More (
+                    {filteredReports.length - reportsPage * PAGE_SIZE}{" "}
+                    remaining)
+                  </button>
                 </div>
               )}
             </div>
@@ -926,68 +958,83 @@ export default function AdminOpReports() {
                           </tr>
                         </thead>
                         <tbody>
-                          {filtered.map((b) => {
-                            const task = taskMap[b.task_id];
-                            const projectName = task?.project_id
-                              ? allProjects.find(
-                                  (p) =>
-                                    String(p.id) === String(task.project_id),
-                                )?.name || null
-                              : null;
-                            const duration = computeDuration(b);
-                            return (
-                              <tr
-                                key={b.id}
-                                className={`border-b border-[var(--border-primary)]/40 ${b.status === "active" ? "bg-rose-500/[0.02]" : ""}`}
-                              >
-                                <td className="px-3 py-2.5 text-xs font-bold text-[var(--text-primary)]">
-                                  {b.title}
-                                </td>
-                                <td className="px-3 py-2.5 text-[10px]">
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
-                                      {b.user_name?.charAt(0) || "?"}
+                          {filtered
+                            .slice(0, blockersPage * PAGE_SIZE)
+                            .map((b) => {
+                              const task = taskMap[b.task_id];
+                              const projectName = task?.project_id
+                                ? allProjects.find(
+                                    (p) =>
+                                      String(p.id) === String(task.project_id),
+                                  )?.name || null
+                                : null;
+                              const duration = computeDuration(b);
+                              return (
+                                <tr
+                                  key={b.id}
+                                  className={`border-b border-[var(--border-primary)]/40 ${b.status === "active" ? "bg-rose-500/[0.02]" : ""}`}
+                                >
+                                  <td className="px-3 py-2.5 text-xs font-bold text-[var(--text-primary)]">
+                                    {b.title}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-[10px]">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
+                                        {b.user_name?.charAt(0) || "?"}
+                                      </div>
+                                      <span>
+                                        {b.user_name || b.user_id || "—"}
+                                      </span>
                                     </div>
-                                    <span>
-                                      {b.user_name || b.user_id || "—"}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                    {task?.title || `#${b.task_id}`}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                    {projectName || task?.category || "—"}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                    {formatDateTime(b.created_at)}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                    {b.status === "resolved"
+                                      ? formatDateTime(b.resolved_at)
+                                      : "—"}
+                                  </td>
+                                  <td className="px-3 py-2.5">
+                                    <span
+                                      className={`text-[10px] font-bold ${b.status === "active" ? "text-rose-400" : "text-emerald-400"}`}
+                                    >
+                                      {duration}
                                     </span>
-                                  </div>
-                                </td>
-                                <td className="px-3 py-2.5 text-[10px] text-slate-500">
-                                  {task?.title || `#${b.task_id}`}
-                                </td>
-                                <td className="px-3 py-2.5 text-[10px] text-slate-500">
-                                  {projectName || task?.category || "—"}
-                                </td>
-                                <td className="px-3 py-2.5 text-[10px] text-slate-500">
-                                  {formatDateTime(b.created_at)}
-                                </td>
-                                <td className="px-3 py-2.5 text-[10px] text-slate-500">
-                                  {b.status === "resolved"
-                                    ? formatDateTime(b.resolved_at)
-                                    : "—"}
-                                </td>
-                                <td className="px-3 py-2.5">
-                                  <span
-                                    className={`text-[10px] font-bold ${b.status === "active" ? "text-rose-400" : "text-emerald-400"}`}
-                                  >
-                                    {duration}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-2.5">
-                                  <span
-                                    className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
-                                  >
-                                    {b.status}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
+                                  </td>
+                                  <td className="px-3 py-2.5">
+                                    <span
+                                      className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
+                                    >
+                                      {b.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>
                   </div>
+
+                  {/* Load More for blockers */}
+                  {filtered.length > blockersPage * PAGE_SIZE && (
+                    <div className="flex justify-center px-4 pb-4">
+                      <button
+                        onClick={() => setBlockersPage((p) => p + 1)}
+                        className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-[var(--brand-orange)]/30 transition-all"
+                      >
+                        Load More ({filtered.length - blockersPage * PAGE_SIZE}{" "}
+                        remaining)
+                      </button>
+                    </div>
+                  )}
 
                   {/* Summary stats */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

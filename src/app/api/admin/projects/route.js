@@ -41,7 +41,7 @@ export async function GET(req) {
             SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) AS blocked,
             SUM(CASE WHEN status = 'carried_over' THEN 1 ELSE 0 END) AS carried_over,
             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending
-            FROM tasks WHERE project_id = ?`,
+            FROM tasks WHERE project_id::text = ?::text`,
           args: [pid],
         });
 
@@ -52,7 +52,7 @@ export async function GET(req) {
             SUM(CASE WHEN b.status = 'active' THEN 1 ELSE 0 END) AS active
             FROM blockers b
             JOIN tasks t ON b.task_id = t.id
-            WHERE t.project_id = ?`,
+            WHERE t.project_id::text = ?::text`,
           args: [pid],
         });
 
@@ -70,11 +70,18 @@ export async function GET(req) {
         };
 
         // Timeline health — check start_date/end_date coverage
-        const datedTasks = await db.execute({
-          sql: "SELECT COUNT(*) AS count FROM tasks WHERE project_id = ? AND start_date IS NOT NULL AND end_date IS NOT NULL",
-          args: [pid],
-        });
-        const datedCount = datedTasks.rows[0]?.count || 0;
+        // NOTE: start_date/end_date columns may not exist on all deployments;
+        // gracefully fall back to 0 if the columns are missing.
+        let datedCount = 0;
+        try {
+          const datedTasks = await db.execute({
+            sql: "SELECT COUNT(*) AS count FROM tasks WHERE project_id::text = ?::text AND start_date IS NOT NULL AND end_date IS NOT NULL",
+            args: [pid],
+          });
+          datedCount = datedTasks.rows[0]?.count || 0;
+        } catch (_) {
+          datedCount = 0;
+        }
         const timelineHealth =
           tasks.total > 0 ? Math.round((datedCount / tasks.total) * 100) : 0;
 

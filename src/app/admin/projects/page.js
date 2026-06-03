@@ -93,7 +93,7 @@ export default function AdminProjects() {
       }
       // Analytics endpoint is optional - silently handle if not available
       try {
-        const analyticsRes = await fetch("/api/admin/analytics/overview");
+        const analyticsRes = await fetch("/api/admin/analytics");
         if (analyticsRes.ok) {
           const analyticsData = await analyticsRes.json();
           if (analyticsData.success) setAnalytics(analyticsData.analytics);

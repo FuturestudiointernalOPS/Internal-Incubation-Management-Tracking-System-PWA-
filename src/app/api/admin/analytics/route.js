@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 /**
- * GET /api/admin/analytics/overview
+ * GET /api/admin/analytics
  *
  * Returns high-level execution analytics for the Super Admin dashboard.
  * Aggregates task, blocker, standup, retro, and project stats.
@@ -56,32 +56,50 @@ export async function GET(req) {
     });
 
     // Carry-over rate
-    const carryoverRate = taskStats.rows[0]?.total > 0
-      ? Math.round((taskStats.rows[0].carried_over / taskStats.rows[0].total) * 100)
-      : 0;
+    const carryoverRate =
+      taskStats.rows[0]?.total > 0
+        ? Math.round(
+            (taskStats.rows[0].carried_over / taskStats.rows[0].total) * 100,
+          )
+        : 0;
 
     return NextResponse.json({
       success: true,
       analytics: {
-        tasks: taskStats.rows[0] || { total: 0, completed: 0, in_progress: 0, blocked: 0, carried_over: 0, pending: 0 },
+        tasks: taskStats.rows[0] || {
+          total: 0,
+          completed: 0,
+          in_progress: 0,
+          blocked: 0,
+          carried_over: 0,
+          pending: 0,
+        },
         blockers: blockerStats.rows[0] || { total: 0, active: 0, resolved: 0 },
         reports: reportStats.rows[0] || { standups: 0, retros: 0 },
         projects: projectStats.rows[0]?.total || 0,
         activeUsers: activeUsers.rows[0]?.count || 0,
-        completionRate: taskStats.rows[0]?.total > 0
-          ? Math.round((taskStats.rows[0].completed / taskStats.rows[0].total) * 100)
-          : 0,
+        completionRate:
+          taskStats.rows[0]?.total > 0
+            ? Math.round(
+                (taskStats.rows[0].completed / taskStats.rows[0].total) * 100,
+              )
+            : 0,
         carryoverRate,
       },
     });
   } catch (error) {
     console.error("GET admin/analytics error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
 
 function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
