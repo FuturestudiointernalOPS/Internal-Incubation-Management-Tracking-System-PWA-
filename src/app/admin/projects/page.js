@@ -68,6 +68,14 @@ export default function AdminProjects() {
   });
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [creating, setCreating] = useState(false);
+  const [editProject, setEditProject] = useState({
+    id: null,
+    name: "",
+    type: "",
+    status: "Active",
+    lead: "",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -122,6 +130,29 @@ export default function AdminProjects() {
       console.error(e);
     }
   }, []);
+
+  const handleSaveProject = async () => {
+    if (!editProject.name.trim() || !editProject.id) return;
+    setSavingEdit(true);
+    try {
+      await fetch("/api/projects", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editProject.id,
+          name: editProject.name.trim(),
+          type: editProject.type || null,
+          status: editProject.status,
+          assigned_pm_id: editProject.lead || null,
+        }),
+      });
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const handleCreateProject = async () => {
     if (!newProject.name.trim()) return;
@@ -405,6 +436,13 @@ export default function AdminProjects() {
                       className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
                       onClick={() => {
                         setShowMemberModal(project.id);
+                        setEditProject({
+                          id: project.id,
+                          name: project.name || "",
+                          type: project.type || "",
+                          status: project.status || "Active",
+                          lead: project.assigned_pm_id || "",
+                        });
                         fetchMembers(project.id);
                         fetchStaff();
                       }}
@@ -482,76 +520,142 @@ export default function AdminProjects() {
         )}
       </div>
 
-      {/* MEMBER MANAGEMENT MODAL */}
+      {/* PROJECT EDITOR + COLLABORATORS MODAL */}
       {showMemberModal && (
         <div
           className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
           onClick={() => setShowMemberModal(null)}
         >
           <div
-            className="card w-full max-w-md space-y-4"
+            className="card w-full max-w-lg space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                {projects.find((p) => p.id === showMemberModal)?.name ||
-                  "Project"}{" "}
-                — Members
+                Edit Project
               </h2>
               <button onClick={() => setShowMemberModal(null)}>
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Current members */}
-            <div className="space-y-1.5 max-h-40 overflow-y-auto">
-              {(projectMembers[showMemberModal] || []).length === 0 ? (
-                <p className="text-[10px] text-slate-600 italic text-center py-6">
-                  No members assigned yet.
-                </p>
-              ) : (
-                (projectMembers[showMemberModal] || []).map((m) => (
-                  <div
-                    key={m.user_cid}
-                    className="flex items-center justify-between p-2.5 rounded-lg bg-tertiary/50"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
-                        {m.name?.charAt(0) || "?"}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                          {m.name || m.user_cid}
-                        </p>
-                        <p className="text-[8px] text-slate-500 uppercase">
-                          {m.role}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() =>
-                        handleRemoveMember(showMemberModal, m.user_cid)
-                      }
-                      className="text-[8px] font-black uppercase text-rose-400 hover:text-rose-300"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))
-              )}
+            {/* Editable project fields */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Project Name
+                </label>
+                <input
+                  value={editProject.name}
+                  onChange={(e) =>
+                    setEditProject((p) => ({ ...p, name: e.target.value }))
+                  }
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Type
+                </label>
+                <input
+                  value={editProject.type}
+                  onChange={(e) =>
+                    setEditProject((p) => ({ ...p, type: e.target.value }))
+                  }
+                  placeholder="Internal, Client, R&D"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Status
+                </label>
+                <select
+                  value={editProject.status}
+                  onChange={(e) =>
+                    setEditProject((p) => ({ ...p, status: e.target.value }))
+                  }
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Paused">Paused</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Project Lead
+                </label>
+                <select
+                  value={editProject.lead}
+                  onChange={(e) =>
+                    setEditProject((p) => ({ ...p, lead: e.target.value }))
+                  }
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
+                >
+                  <option value="">No lead</option>
+                  {allStaff.map((s) => (
+                    <option key={s.cid || s.id} value={s.cid || s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Add member */}
-            <div className="pt-2 border-t border-[var(--border-primary)]/30">
+            <button
+              onClick={handleSaveProject}
+              disabled={savingEdit || !editProject.name.trim()}
+              className="w-full py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+            >
+              {savingEdit ? "Saving..." : "Save Changes"}
+            </button>
+
+            {/* Collaborators */}
+            <div className="pt-3 border-t border-[var(--border-primary)]/30">
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Add Member
+                Collaborators
               </p>
+              <div className="space-y-1.5 max-h-32 overflow-y-auto mb-3">
+                {(projectMembers[showMemberModal] || []).length === 0 ? (
+                  <p className="text-[10px] text-slate-600 italic text-center py-4">
+                    No collaborators assigned yet.
+                  </p>
+                ) : (
+                  (projectMembers[showMemberModal] || []).map((m) => (
+                    <div
+                      key={m.user_cid}
+                      className="flex items-center justify-between p-2 rounded-lg bg-tertiary/50"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
+                          {m.name?.charAt(0) || "?"}
+                        </div>
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                          {m.name || m.user_cid}
+                        </span>
+                        <span className="text-[7px] text-slate-500 uppercase">
+                          {m.role}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() =>
+                          handleRemoveMember(showMemberModal, m.user_cid)
+                        }
+                        className="text-[7px] font-black uppercase text-rose-400 hover:text-rose-300"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
               <div className="flex gap-2">
                 <select
-                  id="add-member-select"
+                  id="add-collab-select"
                   className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                 >
-                  <option value="">Select staff...</option>
+                  <option value="">Add collaborator...</option>
                   {allStaff
                     .filter(
                       (s) =>
@@ -561,19 +665,19 @@ export default function AdminProjects() {
                     )
                     .map((s) => (
                       <option key={s.cid || s.id} value={s.cid || s.id}>
-                        {s.name} — {s.role}
+                        {s.name}
                       </option>
                     ))}
                 </select>
                 <button
                   onClick={() => {
-                    const select = document.getElementById("add-member-select");
-                    if (select?.value) {
-                      handleAddMember(showMemberModal, select.value);
-                      select.value = "";
+                    const sel = document.getElementById("add-collab-select");
+                    if (sel?.value) {
+                      handleAddMember(showMemberModal, sel.value);
+                      sel.value = "";
                     }
                   }}
-                  className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110"
+                  className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110"
                 >
                   Add
                 </button>
@@ -650,7 +754,7 @@ export default function AdminProjects() {
               </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Team Members ({selectedMembers.length} selected)
+                  Collaborators ({selectedMembers.length} selected)
                 </label>
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
                   {allStaff.map((s) => {

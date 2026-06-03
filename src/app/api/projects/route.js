@@ -36,11 +36,11 @@ export async function POST(req) {
     });
 
     const result = await db.execute({
-      sql: "INSERT INTO v2_projects (program_id, name, status, meta) VALUES (?, ?, ?, ?)",
+      sql: "INSERT INTO v2_projects (program_id, name, status, meta) VALUES (?, ?, ?, ?) RETURNING id",
       args: [program_id || null, name, status || "Active", meta],
     });
 
-    const projectId = result.lastInsertRowid;
+    const projectId = result.rows[0]?.id || result.lastInsertRowid;
 
     // If a PM lead was assigned, add them as a project member with lead role
     if (assigned_pm_id) {
