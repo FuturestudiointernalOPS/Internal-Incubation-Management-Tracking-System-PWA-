@@ -695,14 +695,9 @@ export default function AdminOpReports() {
             <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
               {t("reports.blockers")}
             </h3>
-            {blockerData.length === 0 ? (
-              <div className="card py-20 text-center opacity-40 border-dashed">
-                <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">
-                  {t("reports.noBlockersFound")}
-                </p>
-              </div>
-            ) : (
+
+            {/* Per-user blocker cards */}
+            {blockerData.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {blockerData.map((b) => (
                   <div key={b.name} className="card border-rose-500/20">
@@ -717,22 +712,11 @@ export default function AdminOpReports() {
                           </p>
                           <p className="text-[9px] text-rose-400 font-bold uppercase tracking-widest">
                             {b.taskBlockers > 0
-                              ? `${b.taskBlockers} task blockers`
+                              ? `${b.taskBlockers} task blocker${b.taskBlockers > 1 ? "s" : ""}`
                               : `${b.count} report blocker${b.count > 1 ? "s" : ""}`}
                           </p>
                         </div>
                       </div>
-                      {b.taskBlockers > 0 && b.count > 0 && (
-                        <div className="text-right text-[8px] text-slate-500">
-                          <span className="font-bold text-rose-400">
-                            {b.taskBlockers}
-                          </span>{" "}
-                          from tasks
-                          <br />
-                          <span className="font-bold">{b.count}</span> from
-                          reports
-                        </div>
-                      )}
                     </div>
                     <div className="space-y-1.5">
                       {b.reports.slice(0, 5).map((r) => (
@@ -757,6 +741,79 @@ export default function AdminOpReports() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Full blocker list from dedicated blockers table */}
+            {blockersList.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-widest">
+                  All Task Blockers
+                </h4>
+                <div className="card !p-0 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-tertiary border-b border-[var(--border-primary)]">
+                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            Blocker
+                          </th>
+                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            Staff
+                          </th>
+                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            Task ID
+                          </th>
+                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                            Created
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {blockersList.map((b) => (
+                          <tr
+                            key={b.id}
+                            className="border-b border-[var(--border-primary)]/40"
+                          >
+                            <td className="px-3 py-2 text-[10px] font-bold text-[var(--text-primary)]">
+                              {b.title}
+                            </td>
+                            <td className="px-3 py-2 text-[9px] text-slate-500">
+                              {b.user_name || b.user_id || "—"}
+                            </td>
+                            <td className="px-3 py-2 text-[9px] text-slate-500">
+                              #{b.task_id}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span
+                                className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
+                              >
+                                {b.status}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-[9px] text-slate-500">
+                              {b.created_at
+                                ? new Date(b.created_at).toLocaleDateString()
+                                : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {blockerData.length === 0 && blockersList.length === 0 && (
+              <div className="card py-20 text-center opacity-40 border-dashed">
+                <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">
+                  {t("reports.noBlockersFound")}
+                </p>
               </div>
             )}
           </div>
