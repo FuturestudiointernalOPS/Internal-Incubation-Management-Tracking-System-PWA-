@@ -47,6 +47,16 @@ function formatLabel(val) {
   return val.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function getWeekNumber(date) {
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
+
 // Note: InfoBlock and parseJsonArray have been removed (unused after task-table refactor)
 
 const MONTHS = [
@@ -82,6 +92,8 @@ export default function AdminOpReports() {
   const [filterCarryOver, setFilterCarryOver] = useState("all");
   const [allProjects, setAllProjects] = useState([]);
   const [blockersList, setBlockersList] = useState([]);
+  const [blockerFilterWeek, setBlockerFilterWeek] = useState("all");
+  const [blockerFilterStatus, setBlockerFilterStatus] = useState("all");
   // Tasks tab state
   const [allTasks, setAllTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -140,10 +152,10 @@ export default function AdminOpReports() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "tasks") {
-      fetchTasks();
+    if (activeTab === "tasks" || activeTab === "blockers") {
+      if (allTasks.length === 0) fetchTasks();
     }
-  }, [activeTab, fetchTasks]);
+  }, [activeTab, fetchTasks, allTasks.length]);
 
   const filteredReports = useMemo(() => {
     return reports
@@ -692,130 +704,342 @@ export default function AdminOpReports() {
 
         {activeTab === "blockers" && (
           <div className="space-y-6">
-            <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
-              {t("reports.blockers")}
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
+                {t("reports.blockers")}
+              </h3>
+              {/* Week selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                  Week
+                </span>
+                <select
+                  value={blockerFilterWeek}
+                  onChange={(e) => setBlockerFilterWeek(e.target.value)}
+                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
+                >
+                  <option value="all">All Weeks</option>
+                  {(() => {
+                    const weeks = new Set();
+                    blockersList.forEach((b) => {
+                      if (b.created_at) {
+                        const d = new Date(b.created_at);
+                        const wk = getWeekNumber(d);
+                        weeks.add(
+                          `${d.getFullYear()}-W${String(wk).padStart(2, "0")}`,
+                        );
+                      }
+                    });
+                    return Array.from(weeks)
+                      .sort()
+                      .reverse()
+                      .map((w) => (
+                        <option key={w} value={w}>
+                          {w}
+                        </option>
+                      ));
+                  })()}
+                </select>
+                <select
+                  value={blockerFilterStatus}
+                  onChange={(e) => setBlockerFilterStatus(e.target.value)}
+                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
+            </div>
 
-            {/* Per-user blocker cards */}
-            {blockerData.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {blockerData.map((b) => (
-                  <div key={b.name} className="card border-rose-500/20">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 font-black">
-                          {b.count + b.taskBlockers}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black uppercase tracking-tight">
-                            {b.name}
-                          </p>
-                          <p className="text-[9px] text-rose-400 font-bold uppercase tracking-widest">
-                            {b.taskBlockers > 0
-                              ? `${b.taskBlockers} task blocker${b.taskBlockers > 1 ? "s" : ""}`
-                              : `${b.count} report blocker${b.count > 1 ? "s" : ""}`}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      {b.reports.slice(0, 5).map((r) => (
-                        <div
-                          key={r.id}
-                          onClick={() => setViewingReport(r)}
-                          className="flex items-center justify-between p-2 rounded-lg bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-rose-500/30 transition-all"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black">
-                              W{r.week_number} · {r.year}
+            {/* Blocker Lifecycle Table */}
+            {(() => {
+              // Build task lookup
+              const taskMap = {};
+              allTasks.forEach((t) => {
+                taskMap[t.id] = t;
+              });
+
+              // Filter blockers
+              let filtered = [...blockersList];
+              if (blockerFilterWeek !== "all") {
+                const [y, w] = blockerFilterWeek.split("-W");
+                filtered = filtered.filter((b) => {
+                  if (!b.created_at) return false;
+                  const d = new Date(b.created_at);
+                  const wk = getWeekNumber(d);
+                  return String(wk) === w && String(d.getFullYear()) === y;
+                });
+              }
+              if (blockerFilterStatus !== "all") {
+                filtered = filtered.filter(
+                  (b) => b.status === blockerFilterStatus,
+                );
+              }
+
+              const computeDuration = (b) => {
+                const start = new Date(b.created_at).getTime();
+                const end =
+                  b.status === "resolved" && b.resolved_at
+                    ? new Date(b.resolved_at).getTime()
+                    : Date.now();
+                const ms = end - start;
+                const days = Math.floor(ms / 86400000);
+                const hours = Math.floor((ms % 86400000) / 3600000);
+                if (days > 0) return `${days}d ${hours}h`;
+                return `${hours}h`;
+              };
+
+              const formatDateTime = (d) => {
+                if (!d) return "—";
+                try {
+                  return new Date(d).toLocaleDateString("en", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                } catch {
+                  return d;
+                }
+              };
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="card py-20 text-center opacity-40 border-dashed">
+                    <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                      No blockers found for selected filters.
+                    </p>
+                  </div>
+                );
+              }
+
+              // Group by user for effort analysis
+              const byUser = {};
+              filtered.forEach((b) => {
+                const key = b.user_id || "unknown";
+                if (!byUser[key])
+                  byUser[key] = {
+                    name: b.user_name || key,
+                    blockers: [],
+                    totalDuration: 0,
+                    resolvedCount: 0,
+                  };
+                byUser[key].blockers.push(b);
+                if (b.status === "resolved" && b.resolved_at) {
+                  const d = new Date(b.resolved_at) - new Date(b.created_at);
+                  byUser[key].totalDuration += d;
+                  byUser[key].resolvedCount++;
+                }
+              });
+
+              const userAvgData = Object.values(byUser)
+                .map((u) => ({
+                  name: u.name,
+                  avgHours:
+                    u.resolvedCount > 0
+                      ? (u.totalDuration / u.resolvedCount / 3600000).toFixed(1)
+                      : "—",
+                  totalBlockers: u.blockers.length,
+                  activeCount: u.blockers.filter((b) => b.status === "active")
+                    .length,
+                }))
+                .sort((a, b) => {
+                  if (a.avgHours === "—") return 1;
+                  if (b.avgHours === "—") return -1;
+                  return parseFloat(b.avgHours) - parseFloat(a.avgHours);
+                });
+
+              return (
+                <>
+                  {/* Effort Analysis Summary */}
+                  {userAvgData.length > 1 && (
+                    <div className="card p-4">
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                        Effort Analysis — Avg Resolution Time
+                      </p>
+                      <div className="space-y-2">
+                        {userAvgData.map((u) => (
+                          <div
+                            key={u.name}
+                            className="flex items-center gap-3 text-[10px]"
+                          >
+                            <span className="w-32 font-bold truncate">
+                              {u.name}
                             </span>
-                            <span className="text-[8px] text-slate-500">
-                              {r.report_type === "standup"
-                                ? "Stand-Up"
-                                : "Retro"}
+                            <div className="flex-1 h-4 rounded bg-tertiary overflow-hidden">
+                              <div
+                                className={`h-full rounded ${parseFloat(u.avgHours) > 48 ? "bg-rose-500" : parseFloat(u.avgHours) > 24 ? "bg-amber-500" : "bg-emerald-500"}`}
+                                style={{
+                                  width: `${Math.min(((parseFloat(u.avgHours) || 0) / 120) * 100, 100)}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="w-24 text-right font-bold">
+                              {u.avgHours === "—"
+                                ? "No data"
+                                : `${u.avgHours}h avg`}
+                            </span>
+                            <span className="w-16 text-right text-slate-500">
+                              {u.activeCount > 0
+                                ? `${u.activeCount} active`
+                                : `${u.totalBlockers} total`}
                             </span>
                           </div>
-                          <Eye className="w-3 h-3 text-slate-500" />
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Main blocker table */}
+                  <div className="card !p-0 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-tertiary border-b border-[var(--border-primary)]">
+                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Blocker
+                            </th>
+                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Staff
+                            </th>
+                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Task
+                            </th>
+                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Project
+                            </th>
+                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Created
+                            </th>
+                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Resolved
+                            </th>
+                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Duration
+                            </th>
+                            <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.map((b) => {
+                            const task = taskMap[b.task_id];
+                            const projectName = task?.project_id
+                              ? allProjects.find(
+                                  (p) =>
+                                    String(p.id) === String(task.project_id),
+                                )?.name || null
+                              : null;
+                            const duration = computeDuration(b);
+                            return (
+                              <tr
+                                key={b.id}
+                                className={`border-b border-[var(--border-primary)]/40 ${b.status === "active" ? "bg-rose-500/[0.02]" : ""}`}
+                              >
+                                <td className="px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)]">
+                                  {b.title}
+                                </td>
+                                <td className="px-3 py-2.5 text-[9px]">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
+                                      {b.user_name?.charAt(0) || "?"}
+                                    </div>
+                                    <span>
+                                      {b.user_name || b.user_id || "—"}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                                  {task?.title || `#${b.task_id}`}
+                                </td>
+                                <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                                  {projectName || task?.category || "—"}
+                                </td>
+                                <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                                  {formatDateTime(b.created_at)}
+                                </td>
+                                <td className="px-3 py-2.5 text-[9px] text-slate-500">
+                                  {b.status === "resolved"
+                                    ? formatDateTime(b.resolved_at)
+                                    : "—"}
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <span
+                                    className={`text-[9px] font-bold ${b.status === "active" ? "text-rose-400" : "text-emerald-400"}`}
+                                  >
+                                    {duration}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <span
+                                    className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
+                                  >
+                                    {b.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
 
-            {/* Full blocker list from dedicated blockers table */}
-            {blockersList.length > 0 && (
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-widest">
-                  All Task Blockers
-                </h4>
-                <div className="card !p-0 overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-tertiary border-b border-[var(--border-primary)]">
-                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                            Blocker
-                          </th>
-                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                            Staff
-                          </th>
-                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                            Task ID
-                          </th>
-                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                            Created
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {blockersList.map((b) => (
-                          <tr
-                            key={b.id}
-                            className="border-b border-[var(--border-primary)]/40"
-                          >
-                            <td className="px-3 py-2 text-[10px] font-bold text-[var(--text-primary)]">
-                              {b.title}
-                            </td>
-                            <td className="px-3 py-2 text-[9px] text-slate-500">
-                              {b.user_name || b.user_id || "—"}
-                            </td>
-                            <td className="px-3 py-2 text-[9px] text-slate-500">
-                              #{b.task_id}
-                            </td>
-                            <td className="px-3 py-2">
-                              <span
-                                className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
-                              >
-                                {b.status}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-[9px] text-slate-500">
-                              {b.created_at
-                                ? new Date(b.created_at).toLocaleDateString()
-                                : "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  {/* Summary stats */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="card p-3">
+                      <p className="text-2xl font-black text-rose-400">
+                        {filtered.filter((b) => b.status === "active").length}
+                      </p>
+                      <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                        Active
+                      </p>
+                    </div>
+                    <div className="card p-3">
+                      <p className="text-2xl font-black text-emerald-400">
+                        {filtered.filter((b) => b.status === "resolved").length}
+                      </p>
+                      <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                        Resolved
+                      </p>
+                    </div>
+                    <div className="card p-3">
+                      <p className="text-2xl font-black">{filtered.length}</p>
+                      <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                        Total
+                      </p>
+                    </div>
+                    <div className="card p-3">
+                      <p className="text-2xl font-black">
+                        {(() => {
+                          const resolved = filtered.filter(
+                            (b) => b.status === "resolved" && b.resolved_at,
+                          );
+                          if (resolved.length === 0) return "—";
+                          const avg =
+                            resolved.reduce(
+                              (s, b) =>
+                                s +
+                                (new Date(b.resolved_at) -
+                                  new Date(b.created_at)),
+                              0,
+                            ) / resolved.length;
+                          const h = Math.floor(avg / 3600000);
+                          return `${h}h`;
+                        })()}
+                      </p>
+                      <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                        Avg Resolution
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {blockerData.length === 0 && blockersList.length === 0 && (
-              <div className="card py-20 text-center opacity-40 border-dashed">
-                <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">
-                  {t("reports.noBlockersFound")}
-                </p>
-              </div>
-            )}
+                </>
+              );
+            })()}
           </div>
         )}
 
