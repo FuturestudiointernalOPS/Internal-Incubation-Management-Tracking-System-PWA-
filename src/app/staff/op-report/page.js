@@ -1700,7 +1700,7 @@ export default function StaffOpReport() {
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                          {b.description}
+                          {b.title || b.description}
                         </p>
                         {b.resolved_at && (
                           <p className="text-[8px] text-[var(--text-secondary)]">
