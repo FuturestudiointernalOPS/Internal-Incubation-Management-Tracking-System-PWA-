@@ -653,140 +653,180 @@ export default function StaffDashboard() {
             </div>
           )}
 
-        {/* ═══════ MY PROJECTS ═══════ */}
+        {/* ═══════ PROJECTS TABLE ═══════ */}
         {(ownedProjects.length > 0 || collabProjects.length > 0) &&
           !projectsLoading && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Owned Projects */}
-              {ownedProjects.length > 0 && (
-                <div className="card border-l-4 border-l-[var(--brand-orange)]">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-                      My Projects
-                    </span>
-                    <span className="text-[9px] font-bold text-slate-500 ml-auto">
-                      {ownedProjects.length}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
+            <div className="card !p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[var(--border-primary)]">
+                      <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Project
+                      </th>
+                      <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Role
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Status
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Active
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Blockers
+                      </th>
+                      <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Update
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {ownedProjects.map((project) => (
-                      <div
-                        key={project.id}
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)] group"
-                      >
-                        <div
-                          onClick={() =>
-                            router.push(`/admin/projects/${project.id}`)
-                          }
-                          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                            <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                              {project.name}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span
-                                className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                                  project.status === "Active"
-                                    ? "bg-emerald-500/10 text-emerald-500"
-                                    : project.status === "Paused"
-                                      ? "bg-amber-500/10 text-amber-500"
-                                      : "bg-slate-500/10 text-slate-500"
-                                }`}
-                              >
-                                {project.status || "Active"}
-                              </span>
-                              <span className="text-[8px] text-slate-500">
-                                {(project.taskStats?.in_progress || 0) +
-                                  (project.taskStats?.pending || 0)}{" "}
-                                active tasks
-                              </span>
-                              {(project.blockerStats?.active || 0) > 0 && (
-                                <span className="text-[8px] text-rose-500 font-bold">
-                                  {project.blockerStats.active} blockers
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setUpdateModal(project);
-                            setUpdateForm({
-                              accomplishments: "",
-                              current_focus: "",
-                              blockers: "",
-                              next_steps: "",
-                              overall_status: "on_track",
-                            });
-                          }}
-                          className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 transition-all shrink-0 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 opacity-0 group-hover:opacity-100"
-                        >
-                          Post Update
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Collaborating Projects */}
-              {collabProjects.length > 0 && (
-                <div className="card border-l-4 border-l-blue-500">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users className="w-4 h-4 text-blue-500" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">
-                      Collaborating On
-                    </span>
-                    <span className="text-[9px] font-bold text-slate-500 ml-auto">
-                      {collabProjects.length}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {collabProjects.map((project) => (
-                      <div
+                      <tr
                         key={project.id}
                         onClick={() =>
                           router.push(`/admin/projects/${project.id}`)
                         }
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                        className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                          <Users className="w-4 h-4 text-blue-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                            {project.name}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span
-                              className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                                project.status === "Active"
-                                  ? "bg-emerald-500/10 text-emerald-500"
-                                  : project.status === "Paused"
-                                    ? "bg-amber-500/10 text-amber-500"
-                                    : "bg-slate-500/10 text-slate-500"
-                              }`}
-                            >
-                              {project.status || "Active"}
-                            </span>
-                            <span className="text-[8px] text-slate-500">
-                              {(project.taskStats?.in_progress || 0) +
-                                (project.taskStats?.pending || 0)}{" "}
-                              active
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                              <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                            </div>
+                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                              {project.name}
                             </span>
                           </div>
-                        </div>
-                      </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+                            Owner
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span
+                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                              project.status === "Active"
+                                ? "bg-emerald-500/10 text-emerald-500"
+                                : project.status === "Paused"
+                                  ? "bg-amber-500/10 text-amber-500"
+                                  : "bg-slate-500/10 text-slate-500"
+                            }`}
+                          >
+                            {project.status || "Active"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="text-[11px] font-bold">
+                            {(project.taskStats?.in_progress || 0) +
+                              (project.taskStats?.pending || 0)}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {(project.blockerStats?.active || 0) > 0 ? (
+                            <span className="text-[11px] font-bold text-rose-500">
+                              {project.blockerStats.active}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-600">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUpdateModal(project);
+                              setUpdateForm({
+                                accomplishments: "",
+                                current_focus: "",
+                                blockers: "",
+                                next_steps: "",
+                                overall_status: "on_track",
+                              });
+                            }}
+                            className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all"
+                          >
+                            Post Update
+                          </button>
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                </div>
-              )}
+                    {collabProjects.map((project) => (
+                      <tr
+                        key={`collab-${project.id}`}
+                        onClick={() =>
+                          router.push(`/admin/projects/${project.id}`)
+                        }
+                        className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                              <Users className="w-3.5 h-3.5 text-blue-500" />
+                            </div>
+                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                              {project.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-blue-500">
+                            Collaborator
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span
+                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                              project.status === "Active"
+                                ? "bg-emerald-500/10 text-emerald-500"
+                                : project.status === "Paused"
+                                  ? "bg-amber-500/10 text-amber-500"
+                                  : "bg-slate-500/10 text-slate-500"
+                            }`}
+                          >
+                            {project.status || "Active"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="text-[11px] font-bold">
+                            {(project.taskStats?.in_progress || 0) +
+                              (project.taskStats?.pending || 0)}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {(project.blockerStats?.active || 0) > 0 ? (
+                            <span className="text-[11px] font-bold text-rose-500">
+                              {project.blockerStats.active}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-600">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <span className="text-[7px] text-slate-600">—</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {ownedProjects.length === 0 &&
+                      collabProjects.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="p-8 text-center text-[10px] text-slate-500"
+                          >
+                            No projects yet
+                          </td>
+                        </tr>
+                      )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
