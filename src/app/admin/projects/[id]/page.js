@@ -794,6 +794,9 @@ export default function ProjectDetail() {
                         <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                           Blockers
                         </th>
+                        <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          Subtasks
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -877,6 +880,17 @@ export default function ProjectDetail() {
                               ) : (
                                 <span className="text-[9px] text-slate-600">
                                   0
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              {task.subtasks && task.subtasks.length > 0 ? (
+                                <span className="text-[10px] font-black text-indigo-500">
+                                  {task.subtasks.length}
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-slate-600">
+                                  —
                                 </span>
                               )}
                             </td>

@@ -60,14 +60,24 @@ export async function GET(req, { params }) {
       args: [id],
     });
 
-    // Attach blockers to each task
+    // Attach blockers and subtasks to each task
     const tasksWithBlockers = await Promise.all(
       (tasksRes.rows || []).map(async (task) => {
-        const blockerRes = await db.execute({
-          sql: "SELECT id, title, status, severity, created_at, resolved_at FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
-          args: [task.id],
-        });
-        return { ...task, blockers: blockerRes.rows || [] };
+        const [blockerRes, subtaskRes] = await Promise.all([
+          db.execute({
+            sql: "SELECT id, title, status, severity, created_at, resolved_at FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
+            args: [task.id],
+          }),
+          db.execute({
+            sql: "SELECT id, title, status FROM tasks WHERE parent_task_id = ? ORDER BY created_at ASC",
+            args: [task.id],
+          }),
+        ]);
+        return {
+          ...task,
+          blockers: blockerRes.rows || [],
+          subtasks: subtaskRes.rows || [],
+        };
       }),
     );
 
