@@ -21,6 +21,8 @@ import {
   Send,
   FileText,
   UserPlus,
+  Plus,
+  Rocket,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
