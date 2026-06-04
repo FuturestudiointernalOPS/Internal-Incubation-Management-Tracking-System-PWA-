@@ -610,7 +610,8 @@ export default function StaffDashboard() {
                             Assigned by: {task.user_name || "System"}
                             {task.project_id &&
                               ` · Project: #${task.project_id}`}
-                            {task.end_date && ` · Due: ${task.end_date}`}
+                            {task.end_date &&
+                              ` · Due: ${new Date(task.end_date).toLocaleDateString()}`}
                           </p>
                         </div>
                         {isPending ? (
@@ -1060,7 +1061,7 @@ export default function StaffDashboard() {
                             )}
                           {task.end_date && (
                             <span className="text-[8px] text-slate-500">
-                              {task.end_date}
+                              {new Date(task.end_date).toLocaleDateString()}
                             </span>
                           )}
                         </div>
@@ -1129,7 +1130,7 @@ export default function StaffDashboard() {
                     Start
                   </p>
                   <p className="text-xs font-bold text-[var(--text-primary)]">
-                    {selectedTask.start_date}
+                    {new Date(selectedTask.start_date).toLocaleDateString()}
                   </p>
                 </div>
               )}
@@ -1139,7 +1140,7 @@ export default function StaffDashboard() {
                     Due
                   </p>
                   <p className="text-xs font-bold text-[var(--text-primary)]">
-                    {selectedTask.end_date}
+                    {new Date(selectedTask.end_date).toLocaleDateString()}
                   </p>
                 </div>
               )}

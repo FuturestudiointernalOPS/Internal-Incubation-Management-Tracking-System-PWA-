@@ -2,10 +2,15 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 /**
- * GET /api/admin/blockers
+ * ADMIN BLOCKERS API
  *
- * Super Admin view: all blockers across all users, with task and project context.
- * Default: active blockers first, resolved below.
+ * GET /api/admin/blockers
+ *   Super Admin view: all blockers across all users.
+ *   Supports filtering by status and task_id.
+ *
+ * PUT /api/admin/blockers
+ *   Override resolve: allows admin/PM to resolve any blocker.
+ *   Body: { id, resolved_by }
  */
 export async function GET(req) {
   try {
@@ -29,13 +34,78 @@ export async function GET(req) {
       args.push(parseInt(task_id));
     }
 
-    sql += " ORDER BY CASE WHEN b.status = 'active' THEN 0 ELSE 1 END, b.created_at DESC";
+    sql +=
+      " ORDER BY CASE WHEN b.status = 'active' THEN 0 ELSE 1 END, b.created_at DESC";
 
     const result = await db.execute({ sql, args });
 
     return NextResponse.json({ success: true, blockers: result.rows });
   } catch (error) {
     console.error("GET admin/blockers error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const { id, resolved_by } = await req.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "blocker id is required" },
+        { status: 400 },
+      );
+    }
+
+    // Fetch the blocker
+    const blockerCheck = await db.execute({
+      sql: "SELECT * FROM blockers WHERE id = ?",
+      args: [parseInt(id)],
+    });
+
+    if (blockerCheck.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Blocker not found" },
+        { status: 404 },
+      );
+    }
+
+    const blocker = blockerCheck.rows[0];
+
+    // Admin override: resolve regardless of ownership
+    await db.execute({
+      sql: "UPDATE blockers SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, resolved_by = ? WHERE id = ?",
+      args: [resolved_by || "admin", parseInt(id)],
+    });
+
+    // Check if the task has any other active blockers
+    const activeBlockers = await db.execute({
+      sql: "SELECT id FROM blockers WHERE task_id = ? AND status = 'active' AND id != ?",
+      args: [blocker.task_id, parseInt(id)],
+    });
+
+    if (activeBlockers.rows.length === 0) {
+      // No more active blockers, revert task to in_progress
+      await db.execute({
+        sql: "UPDATE tasks SET status = 'in_progress', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'blocked'",
+        args: [blocker.task_id],
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      action: "resolved",
+      message: "Blocker resolved by admin.",
+    });
+  } catch (error) {
+    console.error("PUT admin/blockers error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
