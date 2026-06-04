@@ -36,6 +36,89 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 
+function getWeekNumber(date) {
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
+
+function formatDate(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function getCalendarDays(year, month) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startPad = firstDay.getDay();
+  const days = [];
+  for (let i = 0; i < startPad; i++) days.push(null);
+  for (let d = 1; d <= lastDay.getDate(); d++) days.push(d);
+  return days;
+}
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function isToday(d) {
+  const today = new Date();
+  return (
+    d.getDate() === today.getDate() &&
+    d.getMonth() === today.getMonth() &&
+    d.getFullYear() === today.getFullYear()
+  );
+}
+
+const STATUS_CONFIG = {
+  pending: {
+    label: "Pending",
+    color: "text-slate-400",
+    bg: "bg-slate-500/10",
+    dot: "bg-slate-400",
+  },
+  in_progress: {
+    label: "Active",
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+    dot: "bg-blue-400",
+  },
+  blocked: {
+    label: "Blocked",
+    color: "text-rose-400",
+    bg: "bg-rose-500/10",
+    dot: "bg-rose-400",
+  },
+  completed: {
+    label: "Done",
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/10",
+    dot: "bg-emerald-400",
+  },
+  carried_over: {
+    label: "Carryover",
+    color: "text-indigo-400",
+    bg: "bg-indigo-500/10",
+    dot: "bg-indigo-400",
+  },
+};
+
 const ICONS = {
   Layers,
   Users,
@@ -159,6 +242,19 @@ export default function AdminDashboard() {
   const router = useRouter();
   const { t } = useI18n();
 
+  // Dashboard widgets state
+  const now = new Date();
+  const [calYear, setCalYear] = useState(now.getFullYear());
+  const [calMonth, setCalMonth] = useState(now.getMonth());
+  const [tasks, setTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [assignments, setAssignments] = useState([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [activeBlockers, setActiveBlockers] = useState([]);
+  const [blockersLoading, setBlockersLoading] = useState(false);
+  const [resolvingBlocker, setResolvingBlocker] = useState(null);
+
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -265,6 +361,114 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  // Fetch tasks for calendar
+  const fetchWidgetData = useCallback(async () => {
+    setDashboardLoading(true);
+    try {
+      const [taskRes, blockerRes] = await Promise.all([
+        fetch("/api/tasks?brief=true"),
+        fetch("/api/admin/blockers?status=active"),
+      ]);
+      const taskData = await taskRes.json();
+      const blockerData = await blockerRes.json();
+      if (taskData.success) setTasks(taskData.tasks || []);
+      if (blockerData.success) setActiveBlockers(blockerData.blockers || []);
+
+      // Fetch assigned tasks if user has a user ID
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const userId = user.cid || user.id;
+        if (userId) {
+          const assignRes = await fetch(
+            `/api/tasks?assigned_to=${userId}&brief=true`,
+          );
+          const assignData = await assignRes.json();
+          if (assignData.success) setAssignments(assignData.tasks || []);
+        }
+      } catch (_) {}
+    } catch (e) {
+      console.error("Widget data fetch error:", e);
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, []);
+
+  const handlePrevMonth = () => {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear(calYear - 1);
+    } else setCalMonth(calMonth - 1);
+  };
+  const handleNextMonth = () => {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear(calYear + 1);
+    } else setCalMonth(calMonth + 1);
+  };
+
+  const handleResolveBlocker = async (blockerId) => {
+    setResolvingBlocker(blockerId);
+    try {
+      await fetch("/api/admin/blockers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: blockerId, resolved_by: "sa" }),
+      });
+      fetchWidgetData();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResolvingBlocker(null);
+    }
+  };
+
+  // Calendar computed
+  const calendarDays = getCalendarDays(calYear, calMonth);
+
+  const calendarTasks = React.useMemo(() => {
+    const cal = {};
+    (tasks || []).forEach((task) => {
+      if (task.start_date || task.end_date) {
+        const start = task.start_date ? new Date(task.start_date) : null;
+        const end = task.end_date ? new Date(task.end_date) : null;
+        if (start && end) {
+          const current = new Date(start);
+          while (current <= end) {
+            const key = formatDate(
+              current.getFullYear(),
+              current.getMonth(),
+              current.getDate(),
+            );
+            if (!cal[key]) cal[key] = [];
+            cal[key].push(task);
+            current.setDate(current.getDate() + 1);
+          }
+        } else if (start) {
+          const key = formatDate(
+            start.getFullYear(),
+            start.getMonth(),
+            start.getDate(),
+          );
+          if (!cal[key]) cal[key] = [];
+          cal[key].push(task);
+        } else if (end) {
+          const key = formatDate(
+            end.getFullYear(),
+            end.getMonth(),
+            end.getDate(),
+          );
+          if (!cal[key]) cal[key] = [];
+          cal[key].push(task);
+        }
+      }
+    });
+    return cal;
+  }, [tasks]);
+
+  useEffect(() => {
+    fetchWidgetData();
+  }, [fetchWidgetData]);
+
   useEffect(() => {
     async function checkAuth() {
       try {
@@ -335,6 +539,384 @@ export default function AdminDashboard() {
             </button>
           </div>
         </header>
+
+        {/* ═══════ DASHBOARD WIDGETS ═══════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* ─── LEFT: CALENDAR ─── */}
+          <div className="lg:col-span-2">
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
+                  <span className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                    {MONTHS[calMonth]} {calYear}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={handlePrevMonth}
+                    className="p-1.5 rounded-lg hover:bg-tertiary transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCalMonth(now.getMonth());
+                      setCalYear(now.getFullYear());
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={handleNextMonth}
+                    className="p-1.5 rounded-lg hover:bg-tertiary transition-all"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
+                {DAYS.map((d) => (
+                  <div key={d} className="bg-primary p-2 text-center">
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      {d}
+                    </span>
+                  </div>
+                ))}
+                {calendarDays.map((day, idx) => {
+                  if (day === null)
+                    return (
+                      <div
+                        key={`empty-${idx}`}
+                        className="bg-primary p-2 min-h-[90px]"
+                      />
+                    );
+                  const dateStr = formatDate(calYear, calMonth, day);
+                  const dayTasks = calendarTasks[dateStr] || [];
+                  const isCurrent = isToday(new Date(calYear, calMonth, day));
+                  const isPast =
+                    new Date(calYear, calMonth, day) <
+                    new Date(new Date().toDateString());
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`bg-primary p-1.5 min-h-[90px] transition-all ${isCurrent ? "ring-1 ring-[var(--brand-orange)]/40" : ""} ${isPast ? "opacity-60" : ""}`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span
+                          className={`text-[9px] font-bold ${isCurrent ? "text-[var(--brand-orange)]" : "text-slate-500"}`}
+                        >
+                          {day}
+                        </span>
+                        {dayTasks.length > 0 && (
+                          <span className="text-[8px] font-bold text-slate-600">
+                            {dayTasks.length}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-0.5">
+                        {dayTasks.slice(0, 3).map((task) => (
+                          <button
+                            key={task.id}
+                            onClick={() => setSelectedTask(task)}
+                            className={`w-full text-left px-1.5 py-0.5 rounded text-[8px] font-bold truncate leading-tight ${STATUS_CONFIG[task.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[task.status]?.color || "text-slate-400"} hover:brightness-110 transition-all`}
+                          >
+                            {task.title}
+                          </button>
+                        ))}
+                        {dayTasks.length > 3 && (
+                          <span className="text-[7px] text-slate-600 pl-1">
+                            +{dayTasks.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-[var(--border-primary)]">
+                {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                  <div key={key} className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                      {cfg.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ─── RIGHT: SUMMARY WIDGETS ─── */}
+          <div className="space-y-3">
+            {/* Upcoming */}
+            <div className="card">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+                  Upcoming
+                </span>
+              </div>
+              {(() => {
+                const t = new Date();
+                const ts = formatDate(
+                  t.getFullYear(),
+                  t.getMonth(),
+                  t.getDate(),
+                );
+                const tom = new Date(t);
+                tom.setDate(tom.getDate() + 1);
+                const tms = formatDate(
+                  tom.getFullYear(),
+                  tom.getMonth(),
+                  tom.getDate(),
+                );
+                const todayT = calendarTasks[ts] || [];
+                const tomorrowT = calendarTasks[tms] || [];
+                if (todayT.length === 0 && tomorrowT.length === 0)
+                  return (
+                    <p className="text-[9px] text-slate-500 italic">
+                      No upcoming items
+                    </p>
+                  );
+                return (
+                  <>
+                    {todayT.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Today
+                        </p>
+                        {todayT.slice(0, 2).map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => setSelectedTask(t)}
+                            className="block w-full text-left text-[10px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate py-0.5"
+                          >
+                            • {t.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {tomorrowT.length > 0 && (
+                      <div>
+                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Tomorrow
+                        </p>
+                        {tomorrowT.slice(0, 2).map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => setSelectedTask(t)}
+                            className="block w-full text-left text-[10px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate py-0.5"
+                          >
+                            • {t.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Tasks Summary */}
+            <div
+              onClick={() => router.push("/admin/tasks")}
+              className="card cursor-pointer hover:bg-tertiary transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <ListTodo className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  Tasks
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-black text-blue-400">
+                    {
+                      (tasks || []).filter((t) => t.status === "in_progress")
+                        .length
+                    }
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Active
+                  </p>
+                </div>
+                <div>
+                  <p className="text-lg font-black text-rose-400">
+                    {(tasks || []).filter((t) => t.status === "blocked").length}
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Blocked
+                  </p>
+                </div>
+                <div>
+                  <p className="text-lg font-black text-emerald-400">
+                    {
+                      (tasks || []).filter((t) => t.status === "completed")
+                        .length
+                    }
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Done
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Blockers Summary */}
+            <div
+              onClick={() => router.push("/admin/blockers")}
+              className="card cursor-pointer hover:bg-tertiary transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="w-3.5 h-3.5 text-rose-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  Blockers
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-black text-rose-400">
+                    {activeBlockers.length}
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Active
+                  </p>
+                </div>
+                <div>
+                  <p className="text-lg font-black text-rose-500">
+                    {
+                      activeBlockers.filter(
+                        (b) =>
+                          b.severity === "high" || b.severity === "critical",
+                      ).length
+                    }
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    High
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════ ASSIGNED TO ME ═══════ */}
+        {assignments.filter((a) => a.status !== "completed").length > 0 &&
+          !assignmentsLoading && (
+            <div className="card border-l-4 border-l-amber-500">
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-amber-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+                  Assigned To Me
+                </span>
+                <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                  {assignments.filter((a) => a.status === "pending").length}{" "}
+                  awaiting action
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {assignments
+                  .filter((a) => a.status !== "completed")
+                  .map((task) => {
+                    const isPending = task.status === "pending";
+                    return (
+                      <div
+                        key={task.id}
+                        className={`flex items-center gap-3 p-3 rounded-xl border ${isPending ? "border-amber-500/20 bg-amber-500/[0.03]" : "border-[var(--border-primary)] bg-secondary"}`}
+                      >
+                        <div className="w-7 h-7 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
+                          {(task.user_name || task.assigned_to || "?").charAt(
+                            0,
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11px] font-bold text-[var(--text-primary)] truncate block">
+                            {task.title}
+                          </span>
+                          <p className="text-[8px] text-slate-500 mt-0.5">
+                            Assigned by: {task.user_name || "System"}
+                            {task.end_date
+                              ? ` · Due: ${new Date(task.end_date).toLocaleDateString()}`
+                              : ""}
+                          </p>
+                        </div>
+                        {isPending ? (
+                          <div className="flex gap-1.5 shrink-0">
+                            <button
+                              onClick={async () => {
+                                await fetch("/api/tasks/assignment-action", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    task_id: task.id,
+                                    user_id:
+                                      JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      ).cid || "sa",
+                                    action: "accepted",
+                                  }),
+                                });
+                                fetchWidgetData();
+                              }}
+                              className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={async () => {
+                                await fetch("/api/tasks/assignment-action", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    task_id: task.id,
+                                    user_id:
+                                      JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      ).cid || "sa",
+                                    action: "declined",
+                                  }),
+                                });
+                                fetchWidgetData();
+                              }}
+                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              await fetch("/api/tasks/assignment-action", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  task_id: task.id,
+                                  user_id:
+                                    JSON.parse(
+                                      localStorage.getItem("user") || "{}",
+                                    ).cid || "sa",
+                                  action: "completed_assignment",
+                                }),
+                              });
+                              fetchWidgetData();
+                            }}
+                            className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0"
+                          >
+                            Complete
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
         {/* ──────── NOTIFICATIONS ──────── */}
         {notifications.filter((n) => !n.read).length > 0 && (
@@ -1038,6 +1620,85 @@ export default function AdminDashboard() {
         {/* SIDEBAR — BOTTOM SECTION CLEANED               */}
         {/* ═══════════════════════════════════════════════ */}
       </div>
+
+      {/* ═══════ TASK DETAIL DRAWER ═══════ */}
+      {selectedTask && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setSelectedTask(null)}
+        >
+          <div
+            className="card w-full max-w-lg space-y-5 border-[var(--brand-orange)]/30 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${(STATUS_CONFIG[selectedTask.status] || STATUS_CONFIG.pending).bg} ${(STATUS_CONFIG[selectedTask.status] || STATUS_CONFIG.pending).color}`}
+                  >
+                    {
+                      (
+                        STATUS_CONFIG[selectedTask.status] ||
+                        STATUS_CONFIG.pending
+                      ).label
+                    }
+                  </span>
+                  {selectedTask.end_date &&
+                    !["completed", "pending"].includes(selectedTask.status) &&
+                    new Date(selectedTask.end_date) <
+                      new Date(new Date().toDateString()) && (
+                      <span className="text-[8px] font-black text-rose-400 uppercase bg-rose-500/10 px-1.5 py-0.5 rounded">
+                        Overdue
+                      </span>
+                    )}
+                </div>
+                <h3 className="text-lg font-black text-[var(--text-primary)]">
+                  {selectedTask.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="p-1 hover:bg-white/5 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {selectedTask.start_date && (
+                <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Start
+                  </p>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">
+                    {new Date(selectedTask.start_date).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+              {selectedTask.end_date && (
+                <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Due
+                  </p>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">
+                    {new Date(selectedTask.end_date).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+              <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  Created
+                </p>
+                <p className="text-xs font-bold text-[var(--text-primary)]">
+                  {selectedTask.created_at
+                    ? new Date(selectedTask.created_at).toLocaleDateString()
+                    : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
