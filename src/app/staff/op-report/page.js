@@ -114,7 +114,10 @@ export default function StaffOpReport() {
     name: "",
     project_id: "",
     category: "",
+    start_date: "",
+    start_time: "09:00",
     due_date: "",
+    due_time: "17:00",
     collaborator: "",
     collaborator_note: "",
     project_search: "",
@@ -483,8 +486,12 @@ export default function StaffOpReport() {
             status: row.due_date ? "pending" : "in_progress",
             created_week: weekData.week,
             created_year: weekData.year,
-            start_date: row.start_date || null,
-            end_date: row.due_date || null,
+            start_date: row.start_date
+              ? `${row.start_date}T${row.start_time || "09:00"}:00`
+              : null,
+            end_date: row.due_date
+              ? `${row.due_date}T${row.due_time || "17:00"}:00`
+              : null,
             carried_over_from_task_id: null,
           }),
         });
@@ -589,8 +596,10 @@ export default function StaffOpReport() {
         description: "",
         project_id: newTaskForm.project_id || null,
         category: newTaskForm.category || "",
-        start_date: "",
+        start_date: newTaskForm.start_date || "",
+        start_time: newTaskForm.start_time || "09:00",
         due_date: newTaskForm.due_date || "",
+        due_time: newTaskForm.due_time || "17:00",
         blockers: [],
         collaborators: newTaskForm.collaborator
           ? [
@@ -608,7 +617,10 @@ export default function StaffOpReport() {
       name: "",
       project_id: "",
       category: "",
+      start_date: "",
+      start_time: "09:00",
       due_date: "",
+      due_time: "17:00",
       collaborator: "",
       collaborator_note: "",
       project_search: "",
@@ -2679,21 +2691,34 @@ export default function StaffOpReport() {
                           </select>
                         </div>
                       ) : (
-                        <div>
+                        <div className="space-y-1.5">
                           <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                            Due Date
+                            Start
                           </label>
-                          <input
-                            type="date"
-                            value={newTaskForm.due_date}
-                            onChange={(e) =>
-                              setNewTaskForm((p) => ({
-                                ...p,
-                                due_date: e.target.value,
-                              }))
-                            }
-                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                          />
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <input
+                              type="date"
+                              value={newTaskForm.start_date}
+                              onChange={(e) =>
+                                setNewTaskForm((p) => ({
+                                  ...p,
+                                  start_date: e.target.value,
+                                }))
+                              }
+                              className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                            />
+                            <input
+                              type="time"
+                              value={newTaskForm.start_time}
+                              onChange={(e) =>
+                                setNewTaskForm((p) => ({
+                                  ...p,
+                                  start_time: e.target.value,
+                                }))
+                              }
+                              className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                            />
+                          </div>
                         </div>
                       )}
                       <div>
@@ -2734,23 +2759,36 @@ export default function StaffOpReport() {
                       </div>
                     </div>
 
-                    {/* ─── DUE DATE (when project is selected, shown in second row) ─── */}
+                    {/* ─── DUE DATE + TIME (when project is selected) ─── */}
                     {newTaskForm.project_id && (
-                      <div>
+                      <div className="space-y-1.5">
                         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                          Due Date
+                          Due
                         </label>
-                        <input
-                          type="date"
-                          value={newTaskForm.due_date}
-                          onChange={(e) =>
-                            setNewTaskForm((p) => ({
-                              ...p,
-                              due_date: e.target.value,
-                            }))
-                          }
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                        />
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <input
+                            type="date"
+                            value={newTaskForm.due_date}
+                            onChange={(e) =>
+                              setNewTaskForm((p) => ({
+                                ...p,
+                                due_date: e.target.value,
+                              }))
+                            }
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                          />
+                          <input
+                            type="time"
+                            value={newTaskForm.due_time}
+                            onChange={(e) =>
+                              setNewTaskForm((p) => ({
+                                ...p,
+                                due_time: e.target.value,
+                              }))
+                            }
+                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -2769,7 +2807,10 @@ export default function StaffOpReport() {
                             name: "",
                             project_id: "",
                             category: "",
+                            start_date: "",
+                            start_time: "09:00",
                             due_date: "",
+                            due_time: "17:00",
                             collaborator: "",
                             collaborator_note: "",
                             project_search: "",

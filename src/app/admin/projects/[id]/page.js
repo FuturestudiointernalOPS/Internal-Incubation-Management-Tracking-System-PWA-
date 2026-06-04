@@ -111,7 +111,10 @@ export default function ProjectDetail() {
     title: "",
     description: "",
     assigned_to: "",
+    start_date: "",
+    start_time: "09:00",
     end_date: "",
+    end_time: "17:00",
   });
   const [creatingTask, setCreatingTask] = useState(false);
 
@@ -642,7 +645,7 @@ export default function ProjectDetail() {
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] resize-none"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                       Assign To
@@ -672,7 +675,23 @@ export default function ProjectDetail() {
                   </div>
                   <div>
                     <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                      Due Date
+                      Start
+                    </label>
+                    <input
+                      type="date"
+                      value={newTaskForm.start_date}
+                      onChange={(e) =>
+                        setNewTaskForm((f) => ({
+                          ...f,
+                          start_date: e.target.value,
+                        }))
+                      }
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Due
                     </label>
                     <input
                       type="date"
@@ -683,7 +702,23 @@ export default function ProjectDetail() {
                           end_date: e.target.value,
                         }))
                       }
-                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Time
+                    </label>
+                    <input
+                      type="time"
+                      value={newTaskForm.start_time}
+                      onChange={(e) =>
+                        setNewTaskForm((f) => ({
+                          ...f,
+                          start_time: e.target.value,
+                        }))
+                      }
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                     />
                   </div>
                 </div>
@@ -706,7 +741,12 @@ export default function ProjectDetail() {
                           assigned_to:
                             newTaskForm.assigned_to || project.owner_id || null,
                           project_id: project.id,
-                          end_date: newTaskForm.end_date || null,
+                          start_date: newTaskForm.start_date
+                            ? `${newTaskForm.start_date}T${newTaskForm.start_time}:00`
+                            : null,
+                          end_date: newTaskForm.end_date
+                            ? `${newTaskForm.end_date}T${newTaskForm.end_time || "17:00"}:00`
+                            : null,
                           status: newTaskForm.end_date
                             ? "pending"
                             : "in_progress",
@@ -721,7 +761,10 @@ export default function ProjectDetail() {
                           title: "",
                           description: "",
                           assigned_to: "",
+                          start_date: "",
+                          start_time: "09:00",
                           end_date: "",
+                          end_time: "17:00",
                         });
                         fetchProject();
                       }
