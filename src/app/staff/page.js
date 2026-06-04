@@ -152,6 +152,9 @@ export default function StaffDashboard() {
     overall_status: "on_track",
   });
   const [savingUpdate, setSavingUpdate] = useState(false);
+  const [activeBlockers, setActiveBlockers] = useState([]);
+  const [blockersLoading, setBlockersLoading] = useState(false);
+  const [resolvingBlocker, setResolvingBlocker] = useState(null);
 
   // Auth
   useEffect(() => {
@@ -271,6 +274,44 @@ export default function StaffDashboard() {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  // Fetch active blockers for resolve-able view
+  const fetchBlockers = useCallback(async () => {
+    setBlockersLoading(true);
+    try {
+      const res = await fetch("/api/admin/blockers?status=active");
+      const data = await res.json();
+      if (data.success) setActiveBlockers(data.blockers || []);
+    } catch (e) {
+      console.error("Failed to fetch blockers:", e);
+    } finally {
+      setBlockersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBlockers();
+  }, [fetchBlockers]);
+
+  const handleResolveBlocker = async (blockerId) => {
+    setResolvingBlocker(blockerId);
+    try {
+      const res = await fetch("/api/admin/blockers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: blockerId,
+          resolved_by: user.cid || user.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) fetchBlockers();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResolvingBlocker(null);
+    }
+  };
 
   // ─── TASK GROUPING ───
   const { calendarTasks, unscheduledTasks, sortedTasks, stats } =
@@ -653,183 +694,6 @@ export default function StaffDashboard() {
             </div>
           )}
 
-        {/* ═══════ PROJECTS TABLE ═══════ */}
-        {(ownedProjects.length > 0 || collabProjects.length > 0) &&
-          !projectsLoading && (
-            <div className="card !p-0 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[var(--border-primary)]">
-                      <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Project
-                      </th>
-                      <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Role
-                      </th>
-                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Status
-                      </th>
-                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Active
-                      </th>
-                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Blockers
-                      </th>
-                      <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                        Update
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ownedProjects.map((project) => (
-                      <tr
-                        key={project.id}
-                        onClick={() =>
-                          router.push(`/admin/projects/${project.id}`)
-                        }
-                        className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
-                      >
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                              <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                            </div>
-                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                              {project.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <span className="text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
-                            Owner
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <span
-                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                              project.status === "Active"
-                                ? "bg-emerald-500/10 text-emerald-500"
-                                : project.status === "Paused"
-                                  ? "bg-amber-500/10 text-amber-500"
-                                  : "bg-slate-500/10 text-slate-500"
-                            }`}
-                          >
-                            {project.status || "Active"}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <span className="text-[11px] font-bold">
-                            {(project.taskStats?.in_progress || 0) +
-                              (project.taskStats?.pending || 0)}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          {(project.blockerStats?.active || 0) > 0 ? (
-                            <span className="text-[11px] font-bold text-rose-500">
-                              {project.blockerStats.active}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-600">
-                              0
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setUpdateModal(project);
-                              setUpdateForm({
-                                accomplishments: "",
-                                current_focus: "",
-                                blockers: "",
-                                next_steps: "",
-                                overall_status: "on_track",
-                              });
-                            }}
-                            className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all"
-                          >
-                            Post Update
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {collabProjects.map((project) => (
-                      <tr
-                        key={`collab-${project.id}`}
-                        onClick={() =>
-                          router.push(`/admin/projects/${project.id}`)
-                        }
-                        className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
-                      >
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                              <Users className="w-3.5 h-3.5 text-blue-500" />
-                            </div>
-                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                              {project.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <span className="text-[8px] font-black uppercase tracking-wider text-blue-500">
-                            Collaborator
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <span
-                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                              project.status === "Active"
-                                ? "bg-emerald-500/10 text-emerald-500"
-                                : project.status === "Paused"
-                                  ? "bg-amber-500/10 text-amber-500"
-                                  : "bg-slate-500/10 text-slate-500"
-                            }`}
-                          >
-                            {project.status || "Active"}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <span className="text-[11px] font-bold">
-                            {(project.taskStats?.in_progress || 0) +
-                              (project.taskStats?.pending || 0)}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          {(project.blockerStats?.active || 0) > 0 ? (
-                            <span className="text-[11px] font-bold text-rose-500">
-                              {project.blockerStats.active}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-600">
-                              0
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3 text-right">
-                          <span className="text-[7px] text-slate-600">—</span>
-                        </td>
-                      </tr>
-                    ))}
-                    {ownedProjects.length === 0 &&
-                      collabProjects.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan={6}
-                            className="p-8 text-center text-[10px] text-slate-500"
-                          >
-                            No projects yet
-                          </td>
-                        </tr>
-                      )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
         {/* ═══════ MAIN GRID: Calendar + Task List ═══════ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ─── LEFT: CALENDAR ─── */}
@@ -1116,6 +980,220 @@ export default function StaffDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ═══════ PROJECTS TABLE ═══════ */}
+      {(ownedProjects.length > 0 || collabProjects.length > 0) &&
+        !projectsLoading && (
+          <div className="card !p-0 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[var(--border-primary)]">
+                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Project
+                    </th>
+                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Role
+                    </th>
+                    <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Status
+                    </th>
+                    <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Tasks
+                    </th>
+                    <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Blockers
+                    </th>
+                    <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Update
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ownedProjects.map((project) => (
+                    <tr
+                      key={project.id}
+                      onClick={() =>
+                        router.push(`/admin/projects/${project.id}`)
+                      }
+                      className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                    >
+                      <td className="p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                            <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                          </div>
+                          <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                            {project.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+                          Owner
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span
+                          className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                            project.status === "Active"
+                              ? "bg-emerald-500/10 text-emerald-500"
+                              : project.status === "Paused"
+                                ? "bg-amber-500/10 text-amber-500"
+                                : "bg-slate-500/10 text-slate-500"
+                          }`}
+                        >
+                          {project.status || "Active"}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="text-[11px] font-bold">
+                          {project.taskStats?.total || 0}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        {(project.blockerStats?.active || 0) > 0 ? (
+                          <span className="text-[11px] font-bold text-rose-500">
+                            {project.blockerStats.active}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-slate-600">0</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUpdateModal(project);
+                            setUpdateForm({
+                              accomplishments: "",
+                              current_focus: "",
+                              blockers: "",
+                              next_steps: "",
+                              overall_status: "on_track",
+                            });
+                          }}
+                          className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all"
+                        >
+                          Post Update
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {collabProjects.map((project) => (
+                    <tr
+                      key={`collab-${project.id}`}
+                      onClick={() =>
+                        router.push(`/admin/projects/${project.id}`)
+                      }
+                      className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                    >
+                      <td className="p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                            <Users className="w-3.5 h-3.5 text-blue-500" />
+                          </div>
+                          <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                            {project.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-[8px] font-black uppercase tracking-wider text-blue-500">
+                          Collaborator
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span
+                          className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                            project.status === "Active"
+                              ? "bg-emerald-500/10 text-emerald-500"
+                              : project.status === "Paused"
+                                ? "bg-amber-500/10 text-amber-500"
+                                : "bg-slate-500/10 text-slate-500"
+                          }`}
+                        >
+                          {project.status || "Active"}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="text-[11px] font-bold">
+                          {project.taskStats?.total || 0}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        {(project.blockerStats?.active || 0) > 0 ? (
+                          <span className="text-[11px] font-bold text-rose-500">
+                            {project.blockerStats.active}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-slate-600">0</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right">
+                        <span className="text-[7px] text-slate-600">—</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+      {/* ═══════ ACTIVE BLOCKERS ═══════ */}
+      {activeBlockers.length > 0 && !blockersLoading && (
+        <div className="card border-l-4 border-l-rose-500">
+          <div className="flex items-center gap-2 mb-3">
+            <Shield className="w-4 h-4 text-rose-500" />
+            <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">
+              Active Blockers
+            </span>
+            <span className="text-[9px] font-bold text-slate-500 ml-auto">
+              {activeBlockers.length}
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {activeBlockers.map((blocker) => (
+              <div
+                key={blocker.id}
+                className="flex items-center gap-3 p-2.5 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-[var(--text-primary)]">
+                      {blocker.title}
+                    </span>
+                    {blocker.severity && (
+                      <span
+                        className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${
+                          blocker.severity === "critical" ||
+                          blocker.severity === "high"
+                            ? "bg-rose-500/10 text-rose-500"
+                            : "bg-slate-500/10 text-slate-500"
+                        }`}
+                      >
+                        {blocker.severity}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[8px] text-slate-500 mt-0.5">
+                    Task: {blocker.task_title || `#${blocker.task_id}`}
+                    {blocker.task_owner && <> · Owner: {blocker.task_owner}</>}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleResolveBlocker(blocker.id)}
+                  disabled={resolvingBlocker === blocker.id}
+                  className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                >
+                  {resolvingBlocker === blocker.id ? "..." : "Resolve"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ═══════ TASK DETAIL DRAWER ═══════ */}
       {selectedTask && (
