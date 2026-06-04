@@ -112,9 +112,9 @@ export default function ProjectDetail() {
     description: "",
     assigned_to: "",
     start_date: "",
-    start_time: "09:00",
+    start_time: "",
     end_date: "",
-    end_time: "17:00",
+    end_time: "",
   });
   const [creatingTask, setCreatingTask] = useState(false);
 
@@ -742,10 +742,10 @@ export default function ProjectDetail() {
                             newTaskForm.assigned_to || project.owner_id || null,
                           project_id: project.id,
                           start_date: newTaskForm.start_date
-                            ? `${newTaskForm.start_date}T${newTaskForm.start_time}:00`
+                            ? `${newTaskForm.start_date}${newTaskForm.start_time ? `T${newTaskForm.start_time}:00` : ""}`
                             : null,
                           end_date: newTaskForm.end_date
-                            ? `${newTaskForm.end_date}T${newTaskForm.end_time || "17:00"}:00`
+                            ? `${newTaskForm.end_date}${newTaskForm.end_time ? `T${newTaskForm.end_time}:00` : ""}`
                             : null,
                           status: newTaskForm.end_date
                             ? "pending"
@@ -762,9 +762,9 @@ export default function ProjectDetail() {
                           description: "",
                           assigned_to: "",
                           start_date: "",
-                          start_time: "09:00",
+                          start_time: "",
                           end_date: "",
-                          end_time: "17:00",
+                          end_time: "",
                         });
                         fetchProject();
                       }

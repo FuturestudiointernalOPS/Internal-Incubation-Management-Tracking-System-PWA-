@@ -115,9 +115,9 @@ export default function StaffOpReport() {
     project_id: "",
     category: "",
     start_date: "",
-    start_time: "09:00",
+    start_time: "",
     due_date: "",
-    due_time: "17:00",
+    due_time: "",
     collaborator: "",
     collaborator_note: "",
     project_search: "",
@@ -487,10 +487,10 @@ export default function StaffOpReport() {
             created_week: weekData.week,
             created_year: weekData.year,
             start_date: row.start_date
-              ? `${row.start_date}T${row.start_time || "09:00"}:00`
+              ? `${row.start_date}${row.start_time ? `T${row.start_time}:00` : ""}`
               : null,
             end_date: row.due_date
-              ? `${row.due_date}T${row.due_time || "17:00"}:00`
+              ? `${row.due_date}${row.due_time ? `T${row.due_time}:00` : ""}`
               : null,
             carried_over_from_task_id: null,
           }),
@@ -597,9 +597,9 @@ export default function StaffOpReport() {
         project_id: newTaskForm.project_id || null,
         category: newTaskForm.category || "",
         start_date: newTaskForm.start_date || "",
-        start_time: newTaskForm.start_time || "09:00",
+        start_time: newTaskForm.start_time || "",
         due_date: newTaskForm.due_date || "",
-        due_time: newTaskForm.due_time || "17:00",
+        due_time: newTaskForm.due_time || "",
         blockers: [],
         collaborators: newTaskForm.collaborator
           ? [
@@ -618,9 +618,9 @@ export default function StaffOpReport() {
       project_id: "",
       category: "",
       start_date: "",
-      start_time: "09:00",
+      start_time: "",
       due_date: "",
-      due_time: "17:00",
+      due_time: "",
       collaborator: "",
       collaborator_note: "",
       project_search: "",
@@ -2808,9 +2808,9 @@ export default function StaffOpReport() {
                             project_id: "",
                             category: "",
                             start_date: "",
-                            start_time: "09:00",
+                            start_time: "",
                             due_date: "",
-                            due_time: "17:00",
+                            due_time: "",
                             collaborator: "",
                             collaborator_note: "",
                             project_search: "",

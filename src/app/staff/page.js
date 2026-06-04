@@ -499,207 +499,13 @@ export default function StaffDashboard() {
               </span>
             </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-              {stats.total} Tasks ·{" "}
-              {stats.overdue > 0 && (
-                <span className="text-rose-400">{stats.overdue} Overdue</span>
-              )}
-            </span>
-          </div>
         </header>
 
-        {/* ═══════ STATS ROW ═══════ */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          {[
-            {
-              label: "Active",
-              value: stats.active,
-              icon: Target,
-              color: "text-blue-400",
-              bg: "bg-blue-500/10",
-            },
-            {
-              label: "Pending",
-              value: stats.pending,
-              icon: Clock,
-              color: "text-slate-400",
-              bg: "bg-slate-500/10",
-            },
-            {
-              label: "Blocked",
-              value: stats.blocked,
-              icon: Shield,
-              color: "text-rose-400",
-              bg: "bg-rose-500/10",
-            },
-            {
-              label: "Carried",
-              value: stats.carried,
-              icon: TrendingUp,
-              color: "text-indigo-400",
-              bg: "bg-indigo-500/10",
-            },
-            {
-              label: "Completed",
-              value: stats.completed,
-              icon: CheckCircle2,
-              color: "text-emerald-400",
-              bg: "bg-emerald-500/10",
-            },
-          ].map((item) => (
-            <div key={item.label} className="card !p-3 flex items-center gap-2">
-              <div className={`p-1.5 rounded-lg ${item.bg}`}>
-                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
-              </div>
-              <div>
-                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                  {item.label}
-                </p>
-                <p className={`text-base font-black ${item.color}`}>
-                  {item.value}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* ═══════ QUICK ACTIONS ═══════ */}
-        <div className="flex gap-3">
-          <button
-            onClick={() => router.push("/staff/op-report")}
-            className="flex items-center gap-2 px-5 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-          >
-            <FileText className="w-4 h-4" /> Open Report
-          </button>
-          <button
-            onClick={() => router.push("/staff/op-report")}
-            className="flex items-center gap-2 px-5 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
-          >
-            <CheckCircle2 className="w-4 h-4" /> Standup
-          </button>
-          <button
-            onClick={() => router.push("/staff/op-report")}
-            className="flex items-center gap-2 px-5 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
-          >
-            <TrendingUp className="w-4 h-4" /> Retro
-          </button>
-        </div>
-
-        {/* ═══════ ASSIGNMENTS INBOX ═══════ */}
-        {assignments.filter((a) => a.status !== "completed").length > 0 &&
-          !assignmentsLoading && (
-            <div className="card border-l-4 border-l-amber-500">
-              <div className="flex items-center gap-2 mb-3">
-                <Target className="w-4 h-4 text-amber-400" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
-                  My Assignments
-                </span>
-                <span className="text-[9px] font-bold text-slate-500 ml-auto">
-                  {assignments.filter((a) => a.status === "pending").length}{" "}
-                  pending ·{" "}
-                  {assignments.filter((a) => a.status !== "completed").length}{" "}
-                  total
-                </span>
-              </div>
-              <div className="space-y-1.5">
-                {assignments
-                  .filter((a) => a.status !== "completed")
-                  .map((task) => {
-                    const isPending = task.status === "pending";
-                    return (
-                      <div
-                        key={task.id}
-                        className={`flex items-center gap-3 p-3 rounded-xl border ${
-                          isPending
-                            ? "border-amber-500/20 bg-amber-500/[0.03]"
-                            : "border-[var(--border-primary)] bg-secondary"
-                        }`}
-                      >
-                        <div className="w-7 h-7 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
-                          {(task.user_name || task.assigned_to || "?").charAt(
-                            0,
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                              {task.title}
-                            </span>
-                            <span
-                              className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                                (
-                                  STATUS_CONFIG[task.status] ||
-                                  STATUS_CONFIG.pending
-                                ).bg
-                              } ${
-                                (
-                                  STATUS_CONFIG[task.status] ||
-                                  STATUS_CONFIG.pending
-                                ).color
-                              }`}
-                            >
-                              {
-                                (
-                                  STATUS_CONFIG[task.status] ||
-                                  STATUS_CONFIG.pending
-                                ).label
-                              }
-                            </span>
-                          </div>
-                          <p className="text-[8px] text-slate-500 mt-0.5">
-                            Assigned by: {task.user_name || "System"}
-                            {task.project_id &&
-                              ` · Project: #${task.project_id}`}
-                            {task.end_date &&
-                              ` · Due: ${new Date(task.end_date).toLocaleDateString()}`}
-                          </p>
-                        </div>
-                        {isPending ? (
-                          <div className="flex gap-1.5 shrink-0">
-                            <button
-                              onClick={() =>
-                                handleAssignmentAction(task.id, "accepted")
-                              }
-                              className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleAssignmentAction(task.id, "declined")
-                              }
-                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-                            >
-                              Decline
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() =>
-                              handleAssignmentAction(
-                                task.id,
-                                "completed_assignment",
-                              )
-                            }
-                            className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0"
-                          >
-                            Complete
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-
-        {/* ═══════ MAIN GRID: Calendar + Task List ═══════ */}
+        {/* ═══════ MAIN GRID: Calendar + Side Panel ═══════ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* ─── LEFT: CALENDAR ─── */}
+          {/* ─── LEFT: CALENDAR (PRIMARY WIDGET) ─── */}
           <div className="lg:col-span-2">
             <div className="card">
-              {/* Calendar header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
@@ -731,10 +537,7 @@ export default function StaffDashboard() {
                   </button>
                 </div>
               </div>
-
-              {/* Calendar grid */}
               <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
-                {/* Day headers */}
                 {DAYS.map((d) => (
                   <div key={d} className="bg-primary p-2 text-center">
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
@@ -742,8 +545,6 @@ export default function StaffDashboard() {
                     </span>
                   </div>
                 ))}
-
-                {/* Day cells */}
                 {calendarDays.map((day, idx) => {
                   if (day === null)
                     return (
@@ -752,14 +553,12 @@ export default function StaffDashboard() {
                         className="bg-primary p-2 min-h-[90px]"
                       />
                     );
-
                   const dateStr = formatDate(calYear, calMonth, day);
                   const dayTasks = calendarTasks[dateStr] || [];
                   const isCurrent = isToday(new Date(calYear, calMonth, day));
                   const isPast =
                     new Date(calYear, calMonth, day) <
                     new Date(new Date().toDateString());
-
                   return (
                     <div
                       key={dateStr}
@@ -797,8 +596,6 @@ export default function StaffDashboard() {
                   );
                 })}
               </div>
-
-              {/* Legend */}
               <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-[var(--border-primary)]">
                 {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
                   <div key={key} className="flex items-center gap-1.5">
@@ -810,390 +607,515 @@ export default function StaffDashboard() {
                 ))}
               </div>
             </div>
-
-            {/* ─── UNSCHEDULED / BACKLOG ─── */}
-            {unscheduledTasks.length > 0 && (
-              <div className="card mt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
-                    Unscheduled / Backlog
-                  </span>
-                  <span className="text-[9px] font-bold text-slate-500 ml-auto">
-                    {unscheduledTasks.length} items
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {unscheduledTasks.slice(0, 5).map((task) => (
-                    <button
-                      key={task.id}
-                      onClick={() => setSelectedTask(task)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-tertiary transition-all text-left"
-                    >
-                      <div
-                        className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[task.status]?.dot || "bg-slate-400"}`}
-                      />
-                      <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
-                        {task.title}
-                      </span>
-                      <span
-                        className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${STATUS_CONFIG[task.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[task.status]?.color || "text-slate-400"}`}
-                      >
-                        {STATUS_CONFIG[task.status]?.label || task.status}
-                      </span>
-                    </button>
-                  ))}
-                  {unscheduledTasks.length > 5 && (
-                    <p className="text-[9px] text-slate-500 text-center pt-1">
-                      +{unscheduledTasks.length - 5} more unscheduled
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* ─── RIGHT: TASK PRIORITY LIST ─── */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  Task List
+          {/* ─── RIGHT: SUMMARY PANEL ─── */}
+          <div className="space-y-3">
+            {/* Upcoming Work */}
+            <div className="card">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+                  Upcoming
                 </span>
               </div>
-              <span className="text-[9px] font-bold text-slate-500">
-                {sortedTasks.length} tasks
-              </span>
+              {(() => {
+                const today = new Date();
+                const todayStr = formatDate(
+                  today.getFullYear(),
+                  today.getMonth(),
+                  today.getDate(),
+                );
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = formatDate(
+                  tomorrow.getFullYear(),
+                  tomorrow.getMonth(),
+                  tomorrow.getDate(),
+                );
+                const todayTasks = calendarTasks[todayStr] || [];
+                const tomorrowTasks = calendarTasks[tomorrowStr] || [];
+                if (todayTasks.length === 0 && tomorrowTasks.length === 0) {
+                  return (
+                    <p className="text-[9px] text-slate-500 italic">
+                      No upcoming items
+                    </p>
+                  );
+                }
+                return (
+                  <>
+                    {todayTasks.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Today
+                        </p>
+                        {todayTasks.slice(0, 2).map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => setSelectedTask(t)}
+                            className="block w-full text-left text-[10px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate py-0.5"
+                          >
+                            • {t.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {tomorrowTasks.length > 0 && (
+                      <div>
+                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Tomorrow
+                        </p>
+                        {tomorrowTasks.slice(0, 2).map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => setSelectedTask(t)}
+                            className="block w-full text-left text-[10px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate py-0.5"
+                          >
+                            • {t.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
-            <div className="space-y-1.5 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
-              {loading ? (
-                <div className="text-center py-8 text-[10px] text-slate-500 italic">
-                  Loading...
-                </div>
-              ) : sortedTasks.length === 0 ? (
-                <div className="card py-12 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
-                  <Zap className="w-10 h-10 mb-2" />
-                  <p className="text-[9px] font-bold uppercase tracking-widest">
-                    No tasks yet
+            {/* My Tasks Summary */}
+            <div
+              onClick={() => router.push("/staff/op-report")}
+              className="card cursor-pointer hover:bg-tertiary transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <ListTodo className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  My Tasks
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-black text-blue-400">
+                    {stats.active}
                   </p>
-                  <p className="text-[8px] text-slate-500 mt-1">
-                    Create one in your next standup.
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Active
                   </p>
                 </div>
-              ) : (
-                sortedTasks.map((task) => {
-                  const cfg =
-                    STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
-                  const isOverdue =
-                    task.end_date &&
-                    !["completed", "pending"].includes(task.status) &&
-                    new Date(task.end_date) <
-                      new Date(new Date().toDateString());
+                <div>
+                  <p className="text-lg font-black text-rose-400">
+                    {stats.overdue}
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Overdue
+                  </p>
+                </div>
+                <div>
+                  <p className="text-lg font-black text-emerald-400">
+                    {stats.completed}
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Done
+                  </p>
+                </div>
+              </div>
+            </div>
 
-                  return (
-                    <button
-                      key={task.id}
-                      onClick={() => setSelectedTask(task)}
-                      className={`w-full flex items-start gap-3 p-3 rounded-xl border transition-all text-left hover:border-[var(--brand-orange)]/30 ${
-                        isOverdue
-                          ? "border-rose-500/20 bg-rose-500/[0.03]"
-                          : "border-[var(--border-primary)] bg-secondary"
-                      }`}
-                    >
-                      {/* Quick status toggle */}
-                      <div className="flex flex-col gap-1 pt-0.5">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const nextStatus =
-                              task.status === "in_progress"
-                                ? "completed"
-                                : task.status === "pending"
-                                  ? "in_progress"
-                                  : "in_progress";
-                            if (task.status !== "completed")
-                              updateTaskStatus(task.id, nextStatus);
-                          }}
-                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
-                            task.status === "completed"
-                              ? "bg-emerald-500 border-emerald-500"
-                              : task.status === "in_progress"
-                                ? "border-blue-400"
-                                : task.status === "blocked"
-                                  ? "border-rose-400"
-                                  : "border-slate-600"
-                          }`}
-                        >
-                          {task.status === "completed" && (
-                            <CheckCircle2 className="w-3 h-3 text-white" />
-                          )}
-                        </button>
-                      </div>
+            {/* My Projects Summary */}
+            <div
+              onClick={() =>
+                document
+                  .getElementById("projects-section")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+              className="card cursor-pointer hover:bg-tertiary transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  My Projects
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-black text-[var(--brand-orange)]">
+                    {ownedProjects.length}
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Owned
+                  </p>
+                </div>
+                <div>
+                  <p className="text-lg font-black text-blue-400">
+                    {collabProjects.length}
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Collab
+                  </p>
+                </div>
+              </div>
+            </div>
 
-                      {/* Task info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-[11px] font-bold text-[var(--text-primary)] truncate ${task.status === "completed" ? "line-through opacity-50" : ""}`}
-                          >
-                            {task.title}
-                          </span>
-                          {isOverdue && (
-                            <span className="text-[7px] font-black text-rose-400 uppercase tracking-wider bg-rose-500/10 px-1 py-0.5 rounded shrink-0">
-                              Overdue
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span
-                            className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${cfg.bg} ${cfg.color}`}
-                          >
-                            {cfg.label}
-                          </span>
-                          {task.blockers?.length > 0 &&
-                            task.status !== "completed" && (
-                              <span className="flex items-center gap-1 text-[8px] text-rose-400">
-                                <Shield className="w-2.5 h-2.5" />{" "}
-                                {
-                                  task.blockers.filter(
-                                    (b) => b.status === "active",
-                                  ).length
-                                }
-                              </span>
-                            )}
-                          {task.end_date && (
-                            <span className="text-[8px] text-slate-500">
-                              {new Date(task.end_date).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0 mt-1" />
-                    </button>
-                  );
-                })
-              )}
+            {/* Active Blockers Summary */}
+            <div
+              onClick={() =>
+                document
+                  .getElementById("blockers-section")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+              className="card cursor-pointer hover:bg-tertiary transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="w-3.5 h-3.5 text-rose-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  Blockers
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-black text-rose-400">
+                    {activeBlockers.length}
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    Active
+                  </p>
+                </div>
+                <div>
+                  <p className="text-lg font-black text-rose-500">
+                    {
+                      activeBlockers.filter(
+                        (b) =>
+                          b.severity === "high" || b.severity === "critical",
+                      ).length
+                    }
+                  </p>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    High
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ═══════ PROJECTS TABLE ═══════ */}
-      {(ownedProjects.length > 0 || collabProjects.length > 0) &&
-        !projectsLoading && (
-          <div className="card !p-0 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[var(--border-primary)]">
-                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Project
-                    </th>
-                    <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Role
-                    </th>
-                    <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Status
-                    </th>
-                    <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Tasks
-                    </th>
-                    <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Blockers
-                    </th>
-                    <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Update
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ownedProjects.map((project) => (
-                    <tr
-                      key={project.id}
-                      onClick={() =>
-                        router.push(`/admin/projects/${project.id}`)
-                      }
-                      className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
-                    >
-                      <td className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                            <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                          </div>
-                          <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                            {project.name}
-                          </span>
+        {/* ═══════ ASSIGNED TO ME ═══════ */}
+        {assignments.filter((a) => a.status !== "completed").length > 0 &&
+          !assignmentsLoading && (
+            <div
+              className="card border-l-4 border-l-amber-500"
+              id="assignments-section"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-amber-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+                  Assigned To Me
+                </span>
+                <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                  {assignments.filter((a) => a.status === "pending").length}{" "}
+                  awaiting action
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {assignments
+                  .filter((a) => a.status !== "completed")
+                  .map((task) => {
+                    const isPending = task.status === "pending";
+                    return (
+                      <div
+                        key={task.id}
+                        className={`flex items-center gap-3 p-3 rounded-xl border ${isPending ? "border-amber-500/20 bg-amber-500/[0.03]" : "border-[var(--border-primary)] bg-secondary"}`}
+                      >
+                        <div className="w-7 h-7 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
+                          {(task.user_name || task.assigned_to || "?").charAt(
+                            0,
+                          )}
                         </div>
-                      </td>
-                      <td className="p-3">
-                        <span className="text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
-                          Owner
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <span
-                          className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                            project.status === "Active"
-                              ? "bg-emerald-500/10 text-emerald-500"
-                              : project.status === "Paused"
-                                ? "bg-amber-500/10 text-amber-500"
-                                : "bg-slate-500/10 text-slate-500"
-                          }`}
-                        >
-                          {project.status || "Active"}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <span className="text-[11px] font-bold">
-                          {project.taskStats?.total || 0}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        {(project.blockerStats?.active || 0) > 0 ? (
-                          <span className="text-[11px] font-bold text-rose-500">
-                            {project.blockerStats.active}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11px] font-bold text-[var(--text-primary)] truncate block">
+                            {task.title}
                           </span>
-                        ) : (
-                          <span className="text-[11px] text-slate-600">0</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setUpdateModal(project);
-                            setUpdateForm({
-                              accomplishments: "",
-                              current_focus: "",
-                              blockers: "",
-                              next_steps: "",
-                              overall_status: "on_track",
-                            });
-                          }}
-                          className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all"
-                        >
-                          Post Update
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {collabProjects.map((project) => (
-                    <tr
-                      key={`collab-${project.id}`}
-                      onClick={() =>
-                        router.push(`/admin/projects/${project.id}`)
-                      }
-                      className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
-                    >
-                      <td className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                            <Users className="w-3.5 h-3.5 text-blue-500" />
-                          </div>
-                          <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                            {project.name}
-                          </span>
+                          <p className="text-[8px] text-slate-500 mt-0.5">
+                            Assigned by: {task.user_name || "System"}
+                            {task.end_date
+                              ? ` · Due: ${new Date(task.end_date).toLocaleDateString()}`
+                              : ""}
+                          </p>
                         </div>
-                      </td>
-                      <td className="p-3">
-                        <span className="text-[8px] font-black uppercase tracking-wider text-blue-500">
-                          Collaborator
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <span
-                          className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                            project.status === "Active"
-                              ? "bg-emerald-500/10 text-emerald-500"
-                              : project.status === "Paused"
-                                ? "bg-amber-500/10 text-amber-500"
-                                : "bg-slate-500/10 text-slate-500"
-                          }`}
-                        >
-                          {project.status || "Active"}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <span className="text-[11px] font-bold">
-                          {project.taskStats?.total || 0}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        {(project.blockerStats?.active || 0) > 0 ? (
-                          <span className="text-[11px] font-bold text-rose-500">
-                            {project.blockerStats.active}
-                          </span>
+                        {isPending ? (
+                          <div className="flex gap-1.5 shrink-0">
+                            <button
+                              onClick={() =>
+                                handleAssignmentAction(task.id, "accepted")
+                              }
+                              className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleAssignmentAction(task.id, "declined")
+                              }
+                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
+                            >
+                              Decline
+                            </button>
+                          </div>
                         ) : (
-                          <span className="text-[11px] text-slate-600">0</span>
+                          <button
+                            onClick={() =>
+                              handleAssignmentAction(
+                                task.id,
+                                "completed_assignment",
+                              )
+                            }
+                            className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0"
+                          >
+                            Complete
+                          </button>
                         )}
-                      </td>
-                      <td className="p-3 text-right">
-                        <span className="text-[7px] text-slate-600">—</span>
-                      </td>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+        {/* ═══════ QUICK ACTIONS ═══════ */}
+        <div className="flex flex-wrap gap-3" id="quick-actions">
+          <button
+            onClick={() => router.push("/staff/op-report")}
+            className="flex items-center gap-2 px-5 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+          >
+            <FileText className="w-4 h-4" /> Standup
+          </button>
+          <button
+            onClick={() => router.push("/staff/op-report")}
+            className="flex items-center gap-2 px-5 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+          >
+            <TrendingUp className="w-4 h-4" /> Retro
+          </button>
+          <button
+            onClick={() => router.push("/admin/projects")}
+            className="flex items-center gap-2 px-5 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+          >
+            <Rocket className="w-4 h-4" /> Projects
+          </button>
+        </div>
+
+        {/* ═══════ PROJECTS TABLE ═══════ */}
+        {(ownedProjects.length > 0 || collabProjects.length > 0) &&
+          !projectsLoading && (
+            <div className="card !p-0 overflow-hidden" id="projects-section">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  My Projects
+                </span>
+                <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                  {ownedProjects.length + collabProjects.length} total
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[var(--border-primary)]">
+                      <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Project
+                      </th>
+                      <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Role
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Status
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Tasks
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Blockers
+                      </th>
+                      <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Update
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {ownedProjects.map((project) => (
+                      <tr
+                        key={project.id}
+                        onClick={() =>
+                          router.push(`/admin/projects/${project.id}`)
+                        }
+                        className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                              <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                            </div>
+                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                              {project.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+                            Owner
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span
+                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${project.status === "Active" ? "bg-emerald-500/10 text-emerald-500" : project.status === "Paused" ? "bg-amber-500/10 text-amber-500" : "bg-slate-500/10 text-slate-500"}`}
+                          >
+                            {project.status || "Active"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="text-[11px] font-bold">
+                            {project.taskStats?.total || 0}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {(project.blockerStats?.active || 0) > 0 ? (
+                            <span className="text-[11px] font-bold text-rose-500">
+                              {project.blockerStats.active}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-600">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUpdateModal(project);
+                              setUpdateForm({
+                                accomplishments: "",
+                                current_focus: "",
+                                blockers: "",
+                                next_steps: "",
+                                overall_status: "on_track",
+                              });
+                            }}
+                            className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all"
+                          >
+                            Post Update
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {collabProjects.map((project) => (
+                      <tr
+                        key={`collab-${project.id}`}
+                        onClick={() =>
+                          router.push(`/admin/projects/${project.id}`)
+                        }
+                        className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                              <Users className="w-3.5 h-3.5 text-blue-500" />
+                            </div>
+                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                              {project.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-blue-500">
+                            Collaborator
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span
+                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${project.status === "Active" ? "bg-emerald-500/10 text-emerald-500" : project.status === "Paused" ? "bg-amber-500/10 text-amber-500" : "bg-slate-500/10 text-slate-500"}`}
+                          >
+                            {project.status || "Active"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="text-[11px] font-bold">
+                            {project.taskStats?.total || 0}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {(project.blockerStats?.active || 0) > 0 ? (
+                            <span className="text-[11px] font-bold text-rose-500">
+                              {project.blockerStats.active}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-600">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <span className="text-[7px] text-slate-600">—</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+        {/* ═══════ ACTIVE BLOCKERS ─── */}
+        {activeBlockers.length > 0 && !blockersLoading && (
+          <div
+            className="card border-l-4 border-l-rose-500"
+            id="blockers-section"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="w-4 h-4 text-rose-500" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">
+                Active Blockers
+              </span>
+              <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                {activeBlockers.length}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {activeBlockers.map((blocker) => (
+                <div
+                  key={blocker.id}
+                  className="flex items-center gap-3 p-2.5 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-[var(--text-primary)]">
+                        {blocker.title}
+                      </span>
+                      {blocker.severity && (
+                        <span
+                          className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${blocker.severity === "critical" || blocker.severity === "high" ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"}`}
+                        >
+                          {blocker.severity}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[8px] text-slate-500 mt-0.5">
+                      Task: {blocker.task_title || `#${blocker.task_id}`}
+                      {blocker.task_owner && (
+                        <> · Owner: {blocker.task_owner}</>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleResolveBlocker(blocker.id)}
+                    disabled={resolvingBlocker === blocker.id}
+                    className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                  >
+                    {resolvingBlocker === blocker.id ? "..." : "Resolve"}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
-
-      {/* ═══════ ACTIVE BLOCKERS ═══════ */}
-      {activeBlockers.length > 0 && !blockersLoading && (
-        <div className="card border-l-4 border-l-rose-500">
-          <div className="flex items-center gap-2 mb-3">
-            <Shield className="w-4 h-4 text-rose-500" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">
-              Active Blockers
-            </span>
-            <span className="text-[9px] font-bold text-slate-500 ml-auto">
-              {activeBlockers.length}
-            </span>
-          </div>
-          <div className="space-y-1.5">
-            {activeBlockers.map((blocker) => (
-              <div
-                key={blocker.id}
-                className="flex items-center gap-3 p-2.5 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-[var(--text-primary)]">
-                      {blocker.title}
-                    </span>
-                    {blocker.severity && (
-                      <span
-                        className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${
-                          blocker.severity === "critical" ||
-                          blocker.severity === "high"
-                            ? "bg-rose-500/10 text-rose-500"
-                            : "bg-slate-500/10 text-slate-500"
-                        }`}
-                      >
-                        {blocker.severity}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[8px] text-slate-500 mt-0.5">
-                    Task: {blocker.task_title || `#${blocker.task_id}`}
-                    {blocker.task_owner && <> · Owner: {blocker.task_owner}</>}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleResolveBlocker(blocker.id)}
-                  disabled={resolvingBlocker === blocker.id}
-                  className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
-                >
-                  {resolvingBlocker === blocker.id ? "..." : "Resolve"}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* ═══════ TASK DETAIL DRAWER ═══════ */}
       {selectedTask && (
@@ -1205,7 +1127,6 @@ export default function StaffDashboard() {
             className="card w-full max-w-lg space-y-5 border-[var(--brand-orange)]/30 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex justify-between items-start">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -1239,8 +1160,6 @@ export default function StaffDashboard() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            {/* Meta */}
             <div className="grid grid-cols-2 gap-3">
               {selectedTask.start_date && (
                 <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
@@ -1283,8 +1202,6 @@ export default function StaffDashboard() {
                 </div>
               )}
             </div>
-
-            {/* Description */}
             {selectedTask.description && (
               <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
@@ -1295,8 +1212,6 @@ export default function StaffDashboard() {
                 </p>
               </div>
             )}
-
-            {/* Quick status controls */}
             <div className="space-y-2">
               <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
                 Update Status
@@ -1309,19 +1224,13 @@ export default function StaffDashboard() {
                       updateTaskStatus(selectedTask.id, s);
                       setSelectedTask(null);
                     }}
-                    className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${
-                      selectedTask.status === s
-                        ? `${(STATUS_CONFIG[s] || STATUS_CONFIG.pending).bg} ${(STATUS_CONFIG[s] || STATUS_CONFIG.pending).color} border-transparent`
-                        : "bg-primary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"
-                    }`}
+                    className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${selectedTask.status === s ? `${(STATUS_CONFIG[s] || STATUS_CONFIG.pending).bg} ${(STATUS_CONFIG[s] || STATUS_CONFIG.pending).color} border-transparent` : "bg-primary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}
                   >
                     {(STATUS_CONFIG[s] || STATUS_CONFIG.pending).label}
                   </button>
                 ))}
               </div>
             </div>
-
-            {/* Blockers */}
             {selectedTask.blockers && selectedTask.blockers.length > 0 && (
               <div>
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
@@ -1376,11 +1285,9 @@ export default function StaffDashboard() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <p className="text-[10px] text-slate-500 font-bold">
               {updateModal.name}
             </p>
-
             <div className="space-y-3">
               <div>
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
@@ -1443,10 +1350,7 @@ export default function StaffDashboard() {
                 <textarea
                   value={updateForm.blockers}
                   onChange={(e) =>
-                    setUpdateForm((f) => ({
-                      ...f,
-                      blockers: e.target.value,
-                    }))
+                    setUpdateForm((f) => ({ ...f, blockers: e.target.value }))
                   }
                   placeholder="Any blockers?"
                   rows={1}
@@ -1460,10 +1364,7 @@ export default function StaffDashboard() {
                 <textarea
                   value={updateForm.next_steps}
                   onChange={(e) =>
-                    setUpdateForm((f) => ({
-                      ...f,
-                      next_steps: e.target.value,
-                    }))
+                    setUpdateForm((f) => ({ ...f, next_steps: e.target.value }))
                   }
                   placeholder="What's next?"
                   rows={1}
@@ -1471,7 +1372,6 @@ export default function StaffDashboard() {
                 />
               </div>
             </div>
-
             <div className="flex gap-3 pt-2">
               <button
                 onClick={async () => {
@@ -1481,9 +1381,7 @@ export default function StaffDashboard() {
                       `/api/admin/projects/${updateModal.id}/updates`,
                       {
                         method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                        },
+                        headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                           ...updateForm,
                           user_id: user.cid || user.id,
