@@ -187,6 +187,20 @@ export async function POST(req) {
     // Phase 5: Auto-generate start_date from created_at if not provided
     const finalStartDate = start_date || new Date().toISOString().split("T")[0];
     const finalEndDate = end_date || null;
+    const finalAssignedTo = assigned_to || null;
+
+    // If task has a project but no assignee, default to project owner
+    if (!finalAssignedTo && project_id) {
+      try {
+        const ownerRes = await db.execute({
+          sql: "SELECT owner_id FROM v2_projects WHERE id::text = ?",
+          args: [String(project_id)],
+        });
+        if (ownerRes.rows.length > 0 && ownerRes.rows[0].owner_id) {
+          finalAssignedTo = ownerRes.rows[0].owner_id;
+        }
+      } catch (_) {}
+    }
 
     // Phase 2: Check project assignment if project_id provided
     let finalStatus = status || "in_progress";
@@ -224,7 +238,7 @@ export async function POST(req) {
         carried_over_from_task_id || null,
         finalStartDate,
         finalEndDate,
-        assigned_to || null,
+        finalAssignedTo,
       ],
     });
 

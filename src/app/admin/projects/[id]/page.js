@@ -703,7 +703,8 @@ export default function ProjectDetail() {
                           description: newTaskForm.description || null,
                           user_id: project.owner_id || "sa",
                           user_name: project.owner_name || "Project Owner",
-                          assigned_to: newTaskForm.assigned_to || null,
+                          assigned_to:
+                            newTaskForm.assigned_to || project.owner_id || null,
                           project_id: project.id,
                           end_date: newTaskForm.end_date || null,
                           status: newTaskForm.end_date
