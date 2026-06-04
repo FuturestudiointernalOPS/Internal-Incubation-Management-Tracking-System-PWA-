@@ -480,7 +480,7 @@ export default function StaffOpReport() {
             category: row.category || null,
             user_id: userId,
             user_name: user.name || "",
-            status: "pending",
+            status: row.due_date ? "pending" : "in_progress",
             created_week: weekData.week,
             created_year: weekData.year,
             start_date: row.start_date || null,

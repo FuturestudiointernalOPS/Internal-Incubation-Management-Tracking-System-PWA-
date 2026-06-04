@@ -115,6 +115,24 @@ export default function ProjectDetail() {
   });
   const [creatingTask, setCreatingTask] = useState(false);
 
+  const handleTaskStatusChange = async (taskId, newStatus) => {
+    try {
+      await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: taskId,
+          status: newStatus,
+          user_id: project.owner_id || "sa",
+          user_name: project.owner_name || "Project Owner",
+        }),
+      });
+      fetchProject();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const projectId = params?.id;
 
   const fetchProject = useCallback(async () => {
@@ -688,7 +706,9 @@ export default function ProjectDetail() {
                           assigned_to: newTaskForm.assigned_to || null,
                           project_id: project.id,
                           end_date: newTaskForm.end_date || null,
-                          status: "in_progress",
+                          status: newTaskForm.end_date
+                            ? "pending"
+                            : "in_progress",
                           created_week: weekInfo.week,
                           created_year: weekInfo.year,
                         }),
@@ -841,8 +861,16 @@ export default function ProjectDetail() {
                               </div>
                             </td>
                             <td className="p-3 text-center">
-                              <span
-                                className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                              <select
+                                value={task.status}
+                                onChange={(e) =>
+                                  handleTaskStatusChange(
+                                    task.id,
+                                    e.target.value,
+                                  )
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded outline-none appearance-none cursor-pointer ${
                                   TASK_STATUS_BG[task.status] ||
                                   "bg-slate-500/10"
                                 } ${
@@ -850,8 +878,14 @@ export default function ProjectDetail() {
                                   "text-slate-400"
                                 }`}
                               >
-                                {task.status.replace(/_/g, " ")}
-                              </span>
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="blocked">Blocked</option>
+                                <option value="completed">Completed</option>
+                                <option value="carried_over">
+                                  Carried Over
+                                </option>
+                              </select>
                             </td>
                             <td className="p-3 text-center">
                               {task.end_date ? (
