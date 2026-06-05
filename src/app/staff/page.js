@@ -605,57 +605,157 @@ export default function StaffDashboard() {
             </div>
           )}
 
-        {/* ═══════ MY TASKS ═══════ */}
-        {sortedTasks.length > 0 && (
-          <div className="card">
-            <div className="flex items-center gap-2 mb-3">
-              <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                My Tasks
-              </span>
-              <span className="text-[9px] font-bold text-slate-500 ml-auto">
-                {sortedTasks.length} total
-              </span>
+        {/* ═══════ MY PROJECTS ═══════ */}
+        {(ownedProjects.length > 0 || collabProjects.length > 0) &&
+          !projectsLoading && (
+            <div className="card !p-0 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  My Projects
+                </span>
+                <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                  {ownedProjects.length + collabProjects.length} total
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[var(--border-primary)]">
+                      <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Project
+                      </th>
+                      <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Role
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Tasks
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Blockers
+                      </th>
+                      <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Update
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ownedProjects.map((project) => (
+                      <tr
+                        key={project.id}
+                        onClick={() =>
+                          router.push(`/admin/projects/${project.id}`)
+                        }
+                        className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                              <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                            </div>
+                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                              {project.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+                            Owner
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="text-[11px] font-bold">
+                            {project.taskStats?.total || 0}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {(project.blockerStats?.active || 0) > 0 ? (
+                            <span className="text-[11px] font-bold text-rose-500">
+                              {project.blockerStats.active}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-600">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUpdateModal(project);
+                              setUpdateForm({
+                                accomplishments: "",
+                                current_focus: "",
+                                blockers: "",
+                                next_steps: "",
+                                overall_status: "on_track",
+                              });
+                            }}
+                            className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all"
+                          >
+                            Post Update
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {collabProjects.map((project) => (
+                      <tr
+                        key={`collab-${project.id}`}
+                        onClick={() =>
+                          router.push(`/admin/projects/${project.id}`)
+                        }
+                        className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                              <Users className="w-3.5 h-3.5 text-blue-500" />
+                            </div>
+                            <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                              {project.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-blue-500">
+                            Collaborator
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="text-[11px] font-bold">
+                            {project.taskStats?.total || 0}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {(project.blockerStats?.active || 0) > 0 ? (
+                            <span className="text-[11px] font-bold text-rose-500">
+                              {project.blockerStats.active}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-600">
+                              0
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <span className="text-[7px] text-slate-600">—</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="space-y-1 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
-              {sortedTasks.slice(0, 15).map((task) => {
-                const cfg = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => setSelectedTask(task)}
-                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${cfg.dot} shrink-0`}
-                    />
-                    <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
-                      {task.title}
-                    </span>
-                    <span
-                      className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${cfg.bg} ${cfg.color}`}
-                    >
-                      {cfg.label}
-                    </span>
-                    {task.end_date && (
-                      <span className="text-[8px] text-slate-500">
-                        {new Date(task.end_date).toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* ═══════ ACTIVE BLOCKERS ═══════ */}
+        {/* ═══════ PROJECT BLOCKERS ═══════ */}
         {activeBlockers.length > 0 && !blockersLoading && (
           <div className="card border-l-4 border-l-rose-500">
             <div className="flex items-center gap-2 mb-3">
               <Shield className="w-4 h-4 text-rose-500" />
               <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">
-                Active Blockers
+                Project Blockers
               </span>
               <span className="text-[9px] font-bold text-slate-500 ml-auto">
                 {activeBlockers.length}
@@ -681,7 +781,9 @@ export default function StaffDashboard() {
                       )}
                     </div>
                     <p className="text-[8px] text-slate-500 mt-0.5">
-                      Task: {blocker.task_title || `#${blocker.task_id}`}
+                      Project:{" "}
+                      {blocker.project_id ? `#${blocker.project_id}` : "—"}
+                      {blocker.task_title && <> · Task: {blocker.task_title}</>}
                       {blocker.task_owner && (
                         <> · Owner: {blocker.task_owner}</>
                       )}

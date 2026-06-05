@@ -68,6 +68,17 @@ export default function AdminProjects() {
   });
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [creating, setCreating] = useState(false);
+  const [userRole, setUserRole] = useState("");
+
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      setUserRole(u.role || "");
+    } catch (e) {}
+  }, []);
+
+  const canCreate = userRole === "super_admin" || userRole === "admin";
+
   const [editProject, setEditProject] = useState({
     id: null,
     name: "",
@@ -296,15 +307,17 @@ export default function AdminProjects() {
                 {projects.length} Projects
               </span>
             </div>
-            <button
-              onClick={() => {
-                setShowCreateModal(true);
-                fetchStaff();
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-            >
-              <Plus className="w-3.5 h-3.5" /> Create Project
-            </button>
+            {canCreate && (
+              <button
+                onClick={() => {
+                  setShowCreateModal(true);
+                  fetchStaff();
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" /> Create Project
+              </button>
+            )}
             <button
               onClick={fetchData}
               className="p-2 rounded-xl hover:bg-white/5 transition-all"
@@ -725,7 +738,7 @@ export default function AdminProjects() {
       )}
 
       {/* CREATE PROJECT MODAL */}
-      {showCreateModal && (
+      {showCreateModal && canCreate && (
         <div
           className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
           onClick={() => setShowCreateModal(false)}
