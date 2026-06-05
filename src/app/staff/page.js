@@ -604,6 +604,101 @@ export default function StaffDashboard() {
               </div>
             </div>
           )}
+
+        {/* ═══════ MY TASKS ═══════ */}
+        {sortedTasks.length > 0 && (
+          <div className="card">
+            <div className="flex items-center gap-2 mb-3">
+              <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                My Tasks
+              </span>
+              <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                {sortedTasks.length} total
+              </span>
+            </div>
+            <div className="space-y-1 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+              {sortedTasks.slice(0, 15).map((task) => {
+                const cfg = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => setSelectedTask(task)}
+                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full ${cfg.dot} shrink-0`}
+                    />
+                    <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
+                      {task.title}
+                    </span>
+                    <span
+                      className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${cfg.bg} ${cfg.color}`}
+                    >
+                      {cfg.label}
+                    </span>
+                    {task.end_date && (
+                      <span className="text-[8px] text-slate-500">
+                        {new Date(task.end_date).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════ ACTIVE BLOCKERS ═══════ */}
+        {activeBlockers.length > 0 && !blockersLoading && (
+          <div className="card border-l-4 border-l-rose-500">
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="w-4 h-4 text-rose-500" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">
+                Active Blockers
+              </span>
+              <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                {activeBlockers.length}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {activeBlockers.map((blocker) => (
+                <div
+                  key={blocker.id}
+                  className="flex items-center gap-3 p-2.5 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-[var(--text-primary)]">
+                        {blocker.title}
+                      </span>
+                      {blocker.severity && (
+                        <span
+                          className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${blocker.severity === "critical" || blocker.severity === "high" ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"}`}
+                        >
+                          {blocker.severity}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[8px] text-slate-500 mt-0.5">
+                      Task: {blocker.task_title || `#${blocker.task_id}`}
+                      {blocker.task_owner && (
+                        <> · Owner: {blocker.task_owner}</>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleResolveBlocker(blocker.id)}
+                    disabled={resolvingBlocker === blocker.id}
+                    className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                  >
+                    {resolvingBlocker === blocker.id ? "..." : "Resolve"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ═══════ TASK DETAIL DRAWER ═══════ */}
