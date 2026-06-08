@@ -367,19 +367,22 @@ export default function AdminDashboard() {
   const fetchWidgetData = useCallback(async () => {
     setDashboardLoading(true);
     try {
-      const [taskRes, blockerRes] = await Promise.all([
-        fetch("/api/tasks?brief=true"),
-        fetch("/api/admin/blockers?status=active"),
-      ]);
-      const taskData = await taskRes.json();
-      const blockerData = await blockerRes.json();
-      if (taskData.success) setTasks(taskData.tasks || []);
-      if (blockerData.success) setActiveBlockers(blockerData.blockers || []);
-
-      // Fetch assigned tasks if user has a user ID
       try {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
         const userId = user.cid || user.id;
+
+        const [taskRes, blockerRes] = await Promise.all([
+          userId
+            ? fetch(`/api/tasks?user_id=${userId}&brief=true`)
+            : fetch("/api/tasks?brief=true"),
+          fetch("/api/admin/blockers?status=active"),
+        ]);
+        const taskData = await taskRes.json();
+        const blockerData = await blockerRes.json();
+        if (taskData.success) setTasks(taskData.tasks || []);
+        if (blockerData.success) setActiveBlockers(blockerData.blockers || []);
+
+        // Fetch assigned tasks if user has a user ID
         if (userId) {
           const assignRes = await fetch(
             `/api/tasks?assigned_to=${userId}&brief=true`,
