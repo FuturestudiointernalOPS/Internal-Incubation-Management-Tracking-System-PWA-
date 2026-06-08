@@ -255,7 +255,6 @@ const NAVIGATION_MATRIX = {
       icon: Rocket,
       subItems: [
         { id: "all_projects", name: "ALL PROJECTS", href: "/admin/projects" },
-        { id: "my_projects", name: "MY PROJECTS", href: "/staff" },
       ],
     },
 
@@ -279,11 +278,6 @@ const NAVIGATION_MATRIX = {
           id: "internal_reports",
           name: "INTERNAL REPORTS",
           href: "/admin/op-reports",
-        },
-        {
-          id: "my_projects",
-          name: "MY PROJECTS",
-          href: "/staff",
         },
       ],
     },
