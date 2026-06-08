@@ -392,7 +392,10 @@ export default function PMDashboard() {
                 className="p-2 text-center"
                 style={{ background: "var(--bg-primary)" }}
               >
-                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                <span
+                  className="text-[8px] font-black uppercase tracking-widest"
+                  style={{ color: "var(--text-secondary)" }}
+                >
                   {d}
                 </span>
               </div>
@@ -420,12 +423,18 @@ export default function PMDashboard() {
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span
-                      className={`text-[9px] font-bold ${isCurrent ? "text-[#FF6600]" : "text-slate-500"}`}
+                      className={`text-[9px] font-bold ${isCurrent ? "text-[#FF6600]" : ""}`}
+                      style={{
+                        color: isCurrent ? "" : "var(--text-secondary)",
+                      }}
                     >
                       {day}
                     </span>
                     {dayTasks.length > 0 && (
-                      <span className="text-[8px] font-bold text-slate-600">
+                      <span
+                        className="text-[8px] font-bold"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
                         {dayTasks.length}
                       </span>
                     )}
@@ -459,7 +468,10 @@ export default function PMDashboard() {
                       </button>
                     ))}
                     {dayTasks.length > 2 && (
-                      <span className="text-[7px] text-slate-600 pl-1">
+                      <span
+                        className="text-[7px] pl-1"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
                         +{dayTasks.length - 2} more
                       </span>
                     )}
