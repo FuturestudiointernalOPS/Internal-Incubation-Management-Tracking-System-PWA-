@@ -46,13 +46,17 @@ export default function PMDashboard() {
   const [schedule, setSchedule] = useState([]);
   const [pmProjects, setPmProjects] = useState([]);
   const [pmProjectsLoading, setPmProjectsLoading] = useState(true);
+  const [pmTasks, setPmTasks] = useState([]);
+  const [pmTaskLoading, setPmTaskLoading] = useState(false);
+  const [pmBlockers, setPmBlockers] = useState([]);
+  const [pmBlockersLoading, setPmBlockersLoading] = useState(false);
+  const [resolvingPmBlocker, setResolvingPmBlocker] = useState(null);
   const { t } = useI18n();
 
   // Calendar state
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth());
-  const [pmTasks, setPmTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
 
   const handlePrevMonth = () => {
@@ -252,6 +256,40 @@ export default function PMDashboard() {
     }
     fetchTasks();
   }, []);
+
+  // Fetch blockers for dashboard
+  const fetchPmBlockers = useCallback(async () => {
+    setPmBlockersLoading(true);
+    try {
+      const res = await fetch("/api/admin/blockers?status=active");
+      const data = await res.json();
+      if (data.success) setPmBlockers(data.blockers || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPmBlockersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPmBlockers();
+  }, [fetchPmBlockers]);
+
+  const handleResolvePmBlocker = async (blockerId) => {
+    setResolvingPmBlocker(blockerId);
+    try {
+      await fetch("/api/admin/blockers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: blockerId, resolved_by: "sa" }),
+      });
+      fetchPmBlockers();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResolvingPmBlocker(null);
+    }
+  };
 
   const fetchGlobalSchedule = async () => {
     try {
@@ -752,6 +790,178 @@ export default function PMDashboard() {
             </div>
           )}
         </div>
+
+        {/* ═══════ MY TASKS ═══════ */}
+        {(() => {
+          if (pmTaskLoading || !pmTasks) return null;
+          const today = new Date();
+          const todayStr = formatDate(
+            today.getFullYear(),
+            today.getMonth(),
+            today.getDate(),
+          );
+          const endOfWeek = new Date(today);
+          endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
+          const overdue = (pmTasks || []).filter(
+            (t) =>
+              t.end_date &&
+              new Date(t.end_date) < today &&
+              t.status !== "completed",
+          );
+          const todayTasks = (pmTasks || []).filter((t) => {
+            if (!t.end_date) return false;
+            const d = new Date(t.end_date);
+            return (
+              d.toDateString() === today.toDateString() &&
+              t.status !== "completed"
+            );
+          });
+          const weekTasks = (pmTasks || []).filter((t) => {
+            if (!t.end_date || t.status === "completed") return false;
+            const d = new Date(t.end_date);
+            return d > today && d <= endOfWeek;
+          });
+          if (
+            overdue.length === 0 &&
+            todayTasks.length === 0 &&
+            weekTasks.length === 0
+          )
+            return null;
+          return (
+            <div className="card">
+              <div className="flex items-center gap-2 mb-3">
+                <ListTodo className="w-4 h-4 text-[#FF6600]" />
+                <span
+                  className="text-sm font-black uppercase italic"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  My Tasks
+                </span>
+              </div>
+              <div className="space-y-2">
+                {overdue.length > 0 && (
+                  <div>
+                    <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1">
+                      Overdue ({overdue.length})
+                    </p>
+                    {overdue.slice(0, 3).map((t) => (
+                      <div
+                        key={t.id}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 mb-1"
+                      >
+                        <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                          {t.title}
+                        </span>
+                        <span className="text-[8px] text-rose-400">
+                          {t.end_date}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {todayTasks.length > 0 && (
+                  <div>
+                    <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">
+                      Due Today ({todayTasks.length})
+                    </p>
+                    {todayTasks.slice(0, 3).map((t) => (
+                      <div
+                        key={t.id}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 mb-1"
+                      >
+                        <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                          {t.title}
+                        </span>
+                        <span className="text-[8px] text-amber-400">
+                          {t.end_date}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {weekTasks.length > 0 && (
+                  <div>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                      Due This Week ({weekTasks.length})
+                    </p>
+                    {weekTasks.slice(0, 3).map((t) => (
+                      <div
+                        key={t.id}
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-tertiary border border-[var(--border-primary)] mb-1"
+                      >
+                        <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                          {t.title}
+                        </span>
+                        <span className="text-[8px] text-slate-500">
+                          {t.end_date}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ═══════ MY BLOCKERS ═══════ */}
+        {pmBlockers.length > 0 && !pmBlockersLoading && (
+          <div className="card border-l-4 border-l-rose-500">
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="w-4 h-4 text-rose-500" />
+              <span
+                className="text-sm font-black uppercase italic"
+                style={{ color: "var(--text-primary)" }}
+              >
+                My Blockers
+              </span>
+              <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                {pmBlockers.length} active
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {pmBlockers
+                .sort((a, b) => {
+                  const order = { critical: 0, high: 1, medium: 2, low: 3 };
+                  return (order[a.severity] || 99) - (order[b.severity] || 99);
+                })
+                .map((blocker) => (
+                  <div
+                    key={blocker.id}
+                    className="flex items-center gap-3 p-2.5 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                          {blocker.title}
+                        </span>
+                        {blocker.severity && (
+                          <span
+                            className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${blocker.severity === "critical" || blocker.severity === "high" ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"}`}
+                          >
+                            {blocker.severity}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[8px] text-slate-500 mt-0.5">
+                        {blocker.task_title && <>Task: {blocker.task_title}</>}
+                        {blocker.task_owner && (
+                          <> · Owner: {blocker.task_owner}</>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleResolvePmBlocker(blocker.id)}
+                      disabled={resolvingPmBlocker === blocker.id}
+                      className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                    >
+                      {resolvingPmBlocker === blocker.id ? "..." : "Resolve"}
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* CALENDAR QUICK VIEW */}
         <div
