@@ -730,64 +730,155 @@ export default function PMDashboard() {
         </div>
 
         {/* MY PROJECTS */}
-        <div className="card !p-6 border-l-4 border-l-[var(--brand-orange)]">
-          <div className="flex items-center gap-2 mb-4">
-            <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-              My Projects
-            </span>
+        <div className="table-container shadow-none">
+          <div className="flex items-center justify-between px-8 py-6">
+            <div className="flex items-center gap-2">
+              <Rocket className="w-5 h-5 text-[#FF6600]" />
+              <span
+                className="text-base font-black uppercase italic tracking-tighter"
+                style={{ color: "var(--text-primary)" }}
+              >
+                My Projects
+              </span>
+            </div>
             {pmProjects.length > 0 && (
-              <span className="text-[9px] font-bold text-slate-500 ml-auto">
-                {pmProjects.length}
+              <span className="text-[10px] font-black text-slate-500 uppercase italic">
+                {pmProjects.length} total
               </span>
             )}
           </div>
           {pmProjectsLoading ? (
-            <p className="text-[10px] text-slate-500">Loading...</p>
-          ) : pmProjects.length === 0 ? (
-            <p className="text-[10px] text-slate-500">No projects yet</p>
-          ) : (
-            <div className="space-y-1.5">
-              {pmProjects.map((project) => (
-                <div
-                  key={project.id}
-                  onClick={() => router.push(`/admin/projects/${project.id}`)}
-                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                    <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                      {project.name}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span
-                        className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                          project.status === "Active"
-                            ? "bg-emerald-500/10 text-emerald-500"
-                            : project.status === "Paused"
-                              ? "bg-amber-500/10 text-amber-500"
-                              : "bg-slate-500/10 text-slate-500"
-                        }`}
-                      >
-                        {project.status || "Active"}
-                      </span>
-                      <span className="text-[8px] text-slate-500">
-                        {(project.taskStats?.in_progress || 0) +
-                          (project.taskStats?.pending || 0)}{" "}
-                        active tasks
-                      </span>
-                      {(project.blockerStats?.active || 0) > 0 && (
-                        <span className="text-[8px] text-rose-500 font-bold">
-                          {project.blockerStats.active} blockers
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="px-8 py-20 text-center">
+              <p className="text-[10px] text-slate-500 italic">
+                Loading projects...
+              </p>
             </div>
+          ) : pmProjects.length === 0 ? (
+            <div className="px-8 py-20 text-center">
+              <p className="text-[10px] text-slate-500 italic">
+                No projects yet
+              </p>
+            </div>
+          ) : (
+            <table className="data-table w-full border-collapse">
+              <thead>
+                <tr className="bg-white/[0.02] border-b border-white/5">
+                  <th className="px-8 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
+                    Project
+                  </th>
+                  <th className="px-8 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
+                    Status
+                  </th>
+                  <th className="px-8 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
+                    Tasks
+                  </th>
+                  <th className="px-8 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
+                    Blockers
+                  </th>
+                  <th className="px-8 py-6 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
+                    Progress
+                  </th>
+                  <th className="px-8 py-6 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest italic"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {pmProjects.map((project) => {
+                  const total = project.taskStats?.total || 0;
+                  const completed = project.taskStats?.completed || 0;
+                  const rate =
+                    total > 0 ? Math.round((completed / total) * 100) : 0;
+                  return (
+                    <tr
+                      key={project.id}
+                      className="group cursor-pointer hover:bg-white/[0.03] transition-all"
+                      onClick={() =>
+                        router.push(`/admin/projects/${project.id}`)
+                      }
+                    >
+                      <td className="px-8 py-8">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6600]/20 to-transparent border border-[#FF6600]/20 flex items-center justify-center text-[#FF6600]">
+                            <Rocket className="w-5 h-5" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span
+                              className="text-base font-black uppercase italic tracking-tighter"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              {project.name}
+                            </span>
+                            <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1 italic">
+                              {project.type || "Internal"}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-8">
+                        <span
+                          className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest inline-block ${project.status === "Active" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : project.status === "Paused" ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-slate-500/10 text-slate-500 border border-slate-500/20"}`}
+                        >
+                          {project.status || "Active"}
+                        </span>
+                      </td>
+                      <td className="px-8 py-8">
+                        <span
+                          className="text-sm font-black italic"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {total}
+                        </span>
+                        <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">
+                          tasks
+                        </span>
+                      </td>
+                      <td className="px-8 py-8">
+                        {(project.blockerStats?.active || 0) > 0 ? (
+                          <span className="text-sm font-black italic text-rose-500">
+                            {project.blockerStats.active} active
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black text-slate-600 italic">
+                            None
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-8 py-8 text-center">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[9px] font-black text-slate-600 uppercase italic">
+                              Complete
+                            </span>
+                            <span className="text-[10px] font-black text-[#FF6600] italic">
+                              {rate}%
+                            </span>
+                          </div>
+                          <div
+                            className="h-1.5 w-full rounded-full overflow-hidden"
+                            style={{ background: "var(--bg-tertiary)" }}
+                          >
+                            <div
+                              className="h-full bg-[#FF6600] transition-all duration-1000"
+                              style={{ width: `${rate}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-8 text-right">
+                        <div
+                          className="inline-flex items-center justify-center p-3 rounded-xl border text-slate-700 group-hover:text-[#FF6600] group-hover:border-[#FF6600]/30 transition-all"
+                          style={{
+                            background: "var(--bg-secondary)",
+                            borderColor: "var(--border-primary)",
+                          }}
+                        >
+                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
 
