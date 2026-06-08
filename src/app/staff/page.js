@@ -136,6 +136,11 @@ export default function StaffDashboard() {
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth());
 
+  // Unified calendar state
+  const [calEvents, setCalEvents] = useState([]);
+  const [calView, setCalView] = useState("month"); // day | week | month
+  const [selectedEvent, setSelectedEvent] = useState(null);
+
   // Detail drawer
   const [selectedTask, setSelectedTask] = useState(null);
   const [assignments, setAssignments] = useState([]);
@@ -408,6 +413,21 @@ export default function StaffDashboard() {
   const calendarDays = getCalendarDays(calYear, calMonth);
   const todayStr = formatDate(now.getFullYear(), now.getMonth(), now.getDate());
 
+  // Fetch unified calendar events
+  useEffect(() => {
+    async function fetchCalEvents() {
+      try {
+        const userId = user?.cid || user?.id;
+        const res = await fetch(
+          `/api/calendar?user_id=${userId || ""}&year=${calYear}&month=${calMonth + 1}`,
+        );
+        const data = await res.json();
+        if (data.success) setCalEvents(data.events || []);
+      } catch (e) {}
+    }
+    if (user) fetchCalEvents();
+  }, [user, calYear, calMonth]);
+
   const handlePrevMonth = () => {
     if (calMonth === 0) {
       setCalMonth(11);
@@ -501,8 +521,9 @@ export default function StaffDashboard() {
           </div>
         </header>
 
-        {/* ═══════ COMPACT CALENDAR ═══════ */}
+        {/* ═══════ UNIFIED CALENDAR ═══════ */}
         <div className="card !p-3">
+          {/* Calendar header */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
@@ -510,7 +531,19 @@ export default function StaffDashboard() {
                 {MONTHS[calMonth]} {calYear}
               </span>
             </div>
-            <div className="flex gap-0.5">
+            <div className="flex items-center gap-2">
+              {/* View toggles */}
+              <div className="flex gap-0.5 mr-2 border-r border-[var(--border-primary)] pr-2">
+                {["month", "week", "day"].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setCalView(v)}
+                    className={`text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded transition-all ${calView === v ? "bg-[var(--brand-orange)] text-black" : "text-slate-500 hover:text-[var(--text-primary)]"}`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={handlePrevMonth}
                 className="p-1 rounded hover:bg-tertiary transition-all"
@@ -534,65 +567,198 @@ export default function StaffDashboard() {
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
-            {DAYS.map((d) => (
-              <div key={d} className="bg-primary p-1 text-center">
-                <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                  {d}
-                </span>
-              </div>
-            ))}
-            {calendarDays.map((day, idx) => {
-              if (day === null)
+
+          {/* Month View */}
+          {calView === "month" && (
+            <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
+              {DAYS.map((d) => (
+                <div key={d} className="bg-primary p-1 text-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {d}
+                  </span>
+                </div>
+              ))}
+              {calendarDays.map((day, idx) => {
+                if (day === null)
+                  return (
+                    <div
+                      key={`empty-${idx}`}
+                      className="bg-primary p-1 min-h-[55px]"
+                    />
+                  );
+                const dateStr = formatDate(calYear, calMonth, day);
+                const dayEvents = calEvents.filter((e) => e.date === dateStr);
+                const isCurrent = isToday(new Date(calYear, calMonth, day));
+                const isPast =
+                  new Date(calYear, calMonth, day) <
+                  new Date(new Date().toDateString());
                 return (
                   <div
-                    key={`empty-${idx}`}
-                    className="bg-primary p-1 min-h-[55px]"
-                  />
-                );
-              const dateStr = formatDate(calYear, calMonth, day);
-              const dayTasks = calendarTasks[dateStr] || [];
-              const isCurrent = isToday(new Date(calYear, calMonth, day));
-              const isPast =
-                new Date(calYear, calMonth, day) <
-                new Date(new Date().toDateString());
-              return (
-                <div
-                  key={dateStr}
-                  className={`bg-primary p-1 min-h-[55px] transition-all ${isCurrent ? "ring-1 ring-[var(--brand-orange)]/40" : ""} ${isPast ? "opacity-50" : ""}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`text-[8px] font-bold ${isCurrent ? "text-[var(--brand-orange)]" : "text-slate-500"}`}
-                    >
-                      {day}
-                    </span>
-                    {dayTasks.length > 0 && (
-                      <span className="text-[7px] font-bold text-slate-500">
-                        {dayTasks.length}
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-0.5 mt-0.5">
-                    {dayTasks.slice(0, 1).map((task) => (
-                      <button
-                        key={task.id}
-                        onClick={() => setSelectedTask(task)}
-                        className={`w-full text-left px-1 py-0.5 rounded text-[7px] font-bold truncate leading-tight hover:brightness-110 transition-all ${STATUS_CONFIG[task.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[task.status]?.color || "text-slate-400"}`}
+                    key={dateStr}
+                    className={`bg-primary p-1 min-h-[55px] transition-all ${isCurrent ? "ring-1 ring-[var(--brand-orange)]/40" : ""} ${isPast ? "opacity-50" : ""}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`text-[8px] font-bold ${isCurrent ? "text-[var(--brand-orange)]" : "text-slate-500"}`}
                       >
-                        {task.title}
-                      </button>
-                    ))}
-                    {dayTasks.length > 1 && (
-                      <span className="text-[6px] text-slate-500 pl-0.5">
-                        +{dayTasks.length - 1}
+                        {day}
                       </span>
-                    )}
+                      {dayEvents.length > 0 && (
+                        <span className="text-[7px] font-bold text-slate-500">
+                          {dayEvents.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-0.5 mt-0.5">
+                      {dayEvents.slice(0, 1).map((ev) => (
+                        <button
+                          key={ev.id}
+                          onClick={() => setSelectedEvent(ev)}
+                          className={`w-full text-left px-1 py-0.5 rounded text-[7px] font-bold truncate leading-tight hover:brightness-110 transition-all ${
+                            ev.source === "task"
+                              ? ev.type === "task_due"
+                                ? "bg-rose-500/10 text-rose-400"
+                                : "bg-blue-500/10 text-blue-400"
+                              : ev.source === "program"
+                                ? "bg-emerald-500/10 text-emerald-400"
+                                : ev.source === "session"
+                                  ? "bg-amber-500/10 text-amber-400"
+                                  : ev.source === "deliverable"
+                                    ? "bg-purple-500/10 text-purple-400"
+                                    : "bg-slate-500/10 text-slate-400"
+                          }`}
+                        >
+                          {ev.title}
+                        </button>
+                      ))}
+                      {dayEvents.length > 1 && (
+                        <span className="text-[6px] text-slate-500 pl-0.5">
+                          +{dayEvents.length - 1}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Week View */}
+          {calView === "week" && (
+            <div className="space-y-1.5">
+              {(() => {
+                const startOfWeek = new Date(calYear, calMonth, 1);
+                const dayOfWeek = startOfWeek.getDay();
+                startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
+                const days = [];
+                for (let i = 0; i < 7; i++) {
+                  const d = new Date(startOfWeek);
+                  d.setDate(d.getDate() + i);
+                  days.push(d);
+                }
+                return days.map((d) => {
+                  const dateStr = formatDate(
+                    d.getFullYear(),
+                    d.getMonth(),
+                    d.getDate(),
+                  );
+                  const dayEvents = calEvents.filter((e) => e.date === dateStr);
+                  const isCurrent = isToday(d);
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`flex items-start gap-3 p-2 rounded-lg ${isCurrent ? "bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20" : "hover:bg-tertiary"}`}
+                    >
+                      <div className="w-8 text-center shrink-0">
+                        <p
+                          className={`text-[9px] font-black ${isCurrent ? "text-[var(--brand-orange)]" : "text-slate-500"}`}
+                        >
+                          {d.getDate()}
+                        </p>
+                        <p className="text-[6px] font-bold text-slate-600 uppercase">
+                          {DAYS[d.getDay()]}
+                        </p>
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        {dayEvents.length === 0 && (
+                          <p className="text-[8px] text-slate-600 italic">
+                            No events
+                          </p>
+                        )}
+                        {dayEvents.map((ev) => (
+                          <button
+                            key={ev.id}
+                            onClick={() => setSelectedEvent(ev)}
+                            className="block w-full text-left text-[9px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate"
+                          >
+                            • {ev.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+
+          {/* Day View */}
+          {calView === "day" && (
+            <div className="space-y-1.5">
+              {(() => {
+                const today = new Date(calYear, calMonth, now.getDate());
+                const dateStr = formatDate(
+                  today.getFullYear(),
+                  today.getMonth(),
+                  today.getDate(),
+                );
+                const dayEvents = calEvents.filter((e) => e.date === dateStr);
+                return (
+                  <>
+                    <p className="text-[9px] font-bold text-[var(--text-primary)] mb-2">
+                      {today.toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                    {dayEvents.length === 0 && (
+                      <p className="text-[8px] text-slate-600 italic">
+                        No events scheduled for today
+                      </p>
+                    )}
+                    {dayEvents.map((ev) => (
+                      <div
+                        key={ev.id}
+                        onClick={() => setSelectedEvent(ev)}
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-[var(--border-primary)]"
+                      >
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            ev.source === "task"
+                              ? "bg-blue-400"
+                              : ev.source === "program"
+                                ? "bg-emerald-400"
+                                : ev.source === "session"
+                                  ? "bg-amber-400"
+                                  : ev.source === "deliverable"
+                                    ? "bg-purple-400"
+                                    : "bg-slate-400"
+                          }`}
+                        />
+                        <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                          {ev.title}
+                        </span>
+                        <span className="text-[7px] font-black uppercase tracking-wider text-slate-500">
+                          {ev.source}
+                        </span>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         {/* ═══════ QUICK ACTIONS ═══════ */}
@@ -946,6 +1112,87 @@ export default function StaffDashboard() {
           </div>
         )}
       </div>
+
+      {/* ═══════ EVENT DETAIL DRAWER ═══════ */}
+      {selectedEvent && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setSelectedEvent(null)}
+        >
+          <div
+            className="card w-full max-w-sm space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
+                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                  Event
+                </h3>
+              </div>
+              <button onClick={() => setSelectedEvent(null)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm font-bold text-[var(--text-primary)]">
+              {selectedEvent.title}
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                  Date
+                </p>
+                <p className="font-bold">{selectedEvent.date}</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                  Source
+                </p>
+                <p className="font-bold capitalize">{selectedEvent.source}</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                  Type
+                </p>
+                <p className="font-bold capitalize">
+                  {selectedEvent.type?.replace(/_/g, " ")}
+                </p>
+              </div>
+              {selectedEvent.status && (
+                <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                    Status
+                  </p>
+                  <p className="font-bold capitalize">{selectedEvent.status}</p>
+                </div>
+              )}
+            </div>
+            {selectedEvent.description && (
+              <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                  Details
+                </p>
+                <p className="text-[10px] font-bold">
+                  {selectedEvent.description}
+                </p>
+              </div>
+            )}
+            {selectedEvent.source === "task" && (
+              <button
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setSelectedTask(
+                    calEvents.find((e) => e.id === selectedEvent.id),
+                  );
+                }}
+                className="w-full py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
+              >
+                View Task
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ═══════ TASK DETAIL DRAWER ═══════ */}
       {selectedTask && (
