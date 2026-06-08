@@ -32,7 +32,8 @@ export async function GET(req) {
     const userId = searchParams.get("user_id");
     const role = searchParams.get("role");
     const year = parseInt(searchParams.get("year")) || new Date().getFullYear();
-    const month = parseInt(searchParams.get("month")) || new Date().getMonth() + 1;
+    const month =
+      parseInt(searchParams.get("month")) || new Date().getMonth() + 1;
 
     if (!userId) {
       return NextResponse.json(
@@ -197,8 +198,8 @@ export async function GET(req) {
 
     // Filter to requested month
     const monthStr = String(month).padStart(2, "0");
-    const monthEvents = calendarEvents.filter((e) =>
-      e.date && e.date.startsWith(`${year}-${monthStr}`)
+    const monthEvents = calendarEvents.filter(
+      (e) => e.date && e.date.startsWith(`${year}-${monthStr}`),
     );
 
     // ── 3. SUMMARY STATS ──
@@ -322,31 +323,53 @@ export async function GET(req) {
       userPrograms = progRes.rows.slice(0, 5);
     } catch (_) {}
 
-    // Projects where user is owner or collaborator
+    // Projects where user is owner or collaborator (with task/blocker stats)
     let projectCount = 0;
     let userProjects = [];
     try {
       const projRes = await db.execute({
-        sql: `SELECT id, name, status, owner_id, meta
-              FROM v2_projects
-              WHERE owner_id = ?
-              ORDER BY created_at DESC`,
-        args: [userId],
+        sql: `SELECT
+                p.id, p.name, p.status, p.owner_id, p.meta,
+                COALESCE(t_stats.total, 0) AS task_total,
+                COALESCE(t_stats.completed, 0) AS task_completed,
+                COALESCE(b_stats.active, 0) AS blocker_active
+              FROM v2_projects p
+              LEFT JOIN (
+                SELECT project_id,
+                       COUNT(*) AS total,
+                       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+                FROM tasks
+                GROUP BY project_id
+              ) t_stats ON p.id = t_stats.project_id
+              LEFT JOIN (
+                SELECT t.project_id,
+                       COUNT(*) AS active
+                FROM blockers b
+                JOIN tasks t ON b.task_id = t.id
+                WHERE b.status = 'active'
+                GROUP BY t.project_id
+              ) b_stats ON p.id = b_stats.project_id
+              WHERE p.owner_id = ?
+                 OR ? IN ('super_admin', 'admin')
+              ORDER BY p.created_at DESC
+              LIMIT 10`,
+        args: [userId, role],
       });
       projectCount = projRes.rows.length;
-      userProjects = projRes.rows.slice(0, 5);
-    } catch (_) {}
-
-    // Also check collaborator projects
-    try {
-      if (role === "super_admin" || role === "admin") {
-        const allProj = await db.execute({
-          sql: `SELECT id, name, status, owner_id FROM v2_projects ORDER BY created_at DESC LIMIT 5`,
-          args: [],
-        });
-        userProjects = allProj.rows;
-        projectCount = Math.max(projectCount, allProj.rows.length);
-      }
+      userProjects = projRes.rows.map((p) => {
+        const total = parseInt(p.task_total) || 0;
+        const completed = parseInt(p.task_completed) || 0;
+        return {
+          id: p.id,
+          name: p.name,
+          status: p.status,
+          owner_id: p.owner_id,
+          meta: p.meta,
+          taskStats: { total, completed },
+          blockerStats: { active: parseInt(p.blocker_active) || 0 },
+          completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+        };
+      });
     } catch (_) {}
 
     // ── 4. RECENT ACTIVITY ──

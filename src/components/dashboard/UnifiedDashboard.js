@@ -32,34 +32,69 @@ import { useI18n } from "@/lib/i18n";
 // ─── CONSTANTS ─────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG = {
-  pending:    { label: "Pending",     color: "text-slate-400", bg: "bg-slate-500/10",  dot: "bg-slate-400" },
-  in_progress:{ label: "Active",      color: "text-blue-400",  bg: "bg-blue-500/10",   dot: "bg-blue-400" },
-  blocked:    { label: "Blocked",     color: "text-rose-400",  bg: "bg-rose-500/10",   dot: "bg-rose-400" },
-  completed:  { label: "Done",        color: "text-emerald-400",bg: "bg-emerald-500/10",dot: "bg-emerald-400" },
-  carried_over:{label:"Carryover",    color: "text-indigo-400",bg: "bg-indigo-500/10", dot: "bg-indigo-400" },
+  pending: {
+    label: "Pending",
+    color: "text-slate-400",
+    bg: "bg-slate-500/10",
+    dot: "bg-slate-400",
+  },
+  in_progress: {
+    label: "Active",
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+    dot: "bg-blue-400",
+  },
+  blocked: {
+    label: "Blocked",
+    color: "text-rose-400",
+    bg: "bg-rose-500/10",
+    dot: "bg-rose-400",
+  },
+  completed: {
+    label: "Done",
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/10",
+    dot: "bg-emerald-400",
+  },
+  carried_over: {
+    label: "Carryover",
+    color: "text-indigo-400",
+    bg: "bg-indigo-500/10",
+    dot: "bg-indigo-400",
+  },
 };
 
 const EVENT_COLORS = {
-  task:        "bg-blue-500/10 text-blue-400",
-  program:     "bg-emerald-500/10 text-emerald-400",
-  session:     "bg-amber-500/10 text-amber-400",
+  task: "bg-blue-500/10 text-blue-400",
+  program: "bg-emerald-500/10 text-emerald-400",
+  session: "bg-amber-500/10 text-amber-400",
   deliverable: "bg-purple-500/10 text-purple-400",
-  event:       "bg-sky-500/10 text-sky-400",
+  event: "bg-sky-500/10 text-sky-400",
 };
 
 const EVENT_DOTS = {
-  task:        "bg-blue-400",
-  program:     "bg-emerald-400",
-  session:     "bg-amber-400",
+  task: "bg-blue-400",
+  program: "bg-emerald-400",
+  session: "bg-amber-400",
   deliverable: "bg-purple-400",
-  event:       "bg-sky-400",
+  event: "bg-sky-400",
 };
 
 const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
-const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const SEVERITY_SORT = { critical: 0, high: 1, medium: 2, low: 3 };
 
@@ -80,9 +115,11 @@ function getCalendarDays(year, month) {
 
 function isToday(d) {
   const today = new Date();
-  return d.getDate() === today.getDate() &&
-         d.getMonth() === today.getMonth() &&
-         d.getFullYear() === today.getFullYear();
+  return (
+    d.getDate() === today.getDate() &&
+    d.getMonth() === today.getMonth() &&
+    d.getFullYear() === today.getFullYear()
+  );
 }
 
 function getTodayStr() {
@@ -97,12 +134,12 @@ function cn(...classes) {
 // ─── ROLE HIERARCHY HELPERS ────────────────────────────────────────────────
 
 const ROLE_HIERARCHY = {
-  super_admin:    5,
-  admin:          4,
-  program_manager:3,
-  team_lead:      2,
-  staff:          1,
-  teacher:        1,
+  super_admin: 5,
+  admin: 4,
+  program_manager: 3,
+  team_lead: 2,
+  staff: 1,
+  teacher: 1,
 };
 
 function hasMinRole(userRole, minRole) {
@@ -179,23 +216,23 @@ export default function UnifiedDashboard({ role: propRole }) {
 
     return {
       // Summary cards
-      showProgramsCard:   isMgmt && hasPrograms,
-      showProjectsCard:   hasProjects,
-      showTasksCard:      hasTasks,
-      showBlockersCard:   hasBlockers,
-      showOverdueCard:    hasOverdue,
-      showCriticalCard:   hasCritical,
+      showProgramsCard: isMgmt && hasPrograms,
+      showProjectsCard: hasProjects,
+      showTasksCard: hasTasks,
+      showBlockersCard: hasBlockers,
+      showOverdueCard: hasOverdue,
+      showCriticalCard: hasCritical,
       // Attention section
-      showAttention:      hasOverdue || hasCritical || hasDueToday,
+      showAttention: hasOverdue || hasCritical || hasDueToday,
       // Activity
-      showActivity:       hasActivity,
+      showActivity: hasActivity,
       // Quick access panels
-      showQuickPrograms:  isMgmt && hasPrograms,
-      showQuickProjects:  hasProjects,
-      showQuickTasks:     hasTasks,
-      showQuickBlockers:  hasBlockers,
+      showQuickPrograms: isMgmt && hasPrograms,
+      showQuickProjects: hasProjects,
+      showQuickTasks: hasTasks,
+      showQuickBlockers: hasBlockers,
       // Assignments section
-      showAssignments:    hasAssignments,
+      showAssignments: hasAssignments,
     };
   }, [effectiveRole, data]);
 
@@ -207,7 +244,7 @@ export default function UnifiedDashboard({ role: propRole }) {
       const userId = user.cid || user.id;
       const role = effectiveRole;
       const res = await fetch(
-        `/api/dashboard?user_id=${encodeURIComponent(userId)}&role=${encodeURIComponent(role)}&year=${calYear}&month=${calMonth + 1}`
+        `/api/dashboard?user_id=${encodeURIComponent(userId)}&role=${encodeURIComponent(role)}&year=${calYear}&month=${calMonth + 1}`,
       );
       const result = await res.json();
       if (result.success) setData(result);
@@ -226,12 +263,16 @@ export default function UnifiedDashboard({ role: propRole }) {
 
   // ── Calendar navigation ──
   const handlePrevMonth = () => {
-    if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); }
-    else setCalMonth(calMonth - 1);
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear(calYear - 1);
+    } else setCalMonth(calMonth - 1);
   };
   const handleNextMonth = () => {
-    if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); }
-    else setCalMonth(calMonth + 1);
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear(calYear + 1);
+    } else setCalMonth(calMonth + 1);
   };
   const handleToday = () => {
     setCalMonth(now.getMonth());
@@ -267,7 +308,10 @@ export default function UnifiedDashboard({ role: propRole }) {
       await fetch("/api/admin/blockers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: blockerId, resolved_by: user.cid || user.id }),
+        body: JSON.stringify({
+          id: blockerId,
+          resolved_by: user.cid || user.id,
+        }),
       });
       fetchDashboardData();
     } catch (e) {
@@ -278,15 +322,23 @@ export default function UnifiedDashboard({ role: propRole }) {
   };
 
   // ── Calendar computed ──
-  const calendarDays = useMemo(() => getCalendarDays(calYear, calMonth), [calYear, calMonth]);
+  const calendarDays = useMemo(
+    () => getCalendarDays(calYear, calMonth),
+    [calYear, calMonth],
+  );
 
   // ── Loading state ──
   if (loading) {
     return (
       <DashboardLayout role={effectiveRole}>
         <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="w-10 h-10 border-4 border-t-[var(--brand-orange)] rounded-full animate-spin"
-               style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
+          <div
+            className="w-10 h-10 border-4 border-t-[var(--brand-orange)] rounded-full animate-spin"
+            style={{
+              borderColor: "rgba(255,102,0,0.1)",
+              borderTopColor: "var(--brand-orange)",
+            }}
+          />
         </div>
       </DashboardLayout>
     );
@@ -299,8 +351,10 @@ export default function UnifiedDashboard({ role: propRole }) {
           <div className="card text-center space-y-3 p-8">
             <AlertTriangle className="w-10 h-10 text-rose-500 mx-auto" />
             <p className="text-sm font-bold text-rose-400">{error}</p>
-            <button onClick={fetchDashboardData}
-                    className="px-6 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest">
+            <button
+              onClick={fetchDashboardData}
+              className="px-6 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest"
+            >
               Retry
             </button>
           </div>
@@ -322,7 +376,6 @@ export default function UnifiedDashboard({ role: propRole }) {
   return (
     <DashboardLayout role={effectiveRole}>
       <div className="space-y-8 pb-20 text-left">
-
         {/* ═══════ HEADER ═══════ */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 border-b border-[var(--border-primary)] pb-6">
           <div className="space-y-1">
@@ -362,23 +415,29 @@ export default function UnifiedDashboard({ role: propRole }) {
                       "text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded transition-all",
                       calView === v
                         ? "bg-[var(--brand-orange)] text-black"
-                        : "text-slate-500 hover:text-[var(--text-primary)]"
+                        : "text-slate-500 hover:text-[var(--text-primary)]",
                     )}
                   >
                     {v}
                   </button>
                 ))}
               </div>
-              <button onClick={handlePrevMonth}
-                      className="p-1 rounded hover:bg-tertiary transition-all">
+              <button
+                onClick={handlePrevMonth}
+                className="p-1 rounded hover:bg-tertiary transition-all"
+              >
                 <ChevronLeft className="w-3 h-3" />
               </button>
-              <button onClick={handleToday}
-                      className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all">
+              <button
+                onClick={handleToday}
+                className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+              >
                 Today
               </button>
-              <button onClick={handleNextMonth}
-                      className="p-1 rounded hover:bg-tertiary transition-all">
+              <button
+                onClick={handleNextMonth}
+                className="p-1 rounded hover:bg-tertiary transition-all"
+              >
                 <ChevronRight className="w-3 h-3" />
               </button>
             </div>
@@ -389,42 +448,69 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
               {DAYS.map((d) => (
                 <div key={d} className="bg-primary p-1 text-center">
-                  <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">{d}</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {d}
+                  </span>
                 </div>
               ))}
               {calendarDays.map((day, idx) => {
-                if (day === null) return <div key={`empty-${idx}`} className="bg-primary p-1 min-h-[55px]" />;
+                if (day === null)
+                  return (
+                    <div
+                      key={`empty-${idx}`}
+                      className="bg-primary p-1 min-h-[55px]"
+                    />
+                  );
                 const dateStr = formatDate(calYear, calMonth, day);
                 const dayEvents = events.filter((e) => e.date === dateStr);
                 const current = isToday(new Date(calYear, calMonth, day));
-                const past = new Date(calYear, calMonth, day) < new Date(new Date().toDateString());
+                const past =
+                  new Date(calYear, calMonth, day) <
+                  new Date(new Date().toDateString());
                 return (
-                  <div key={dateStr}
-                       className={cn("bg-primary p-1 min-h-[55px] transition-all",
-                         current && "ring-1 ring-[var(--brand-orange)]/40",
-                         past && "opacity-50"
-                       )}>
+                  <div
+                    key={dateStr}
+                    className={cn(
+                      "bg-primary p-1 min-h-[55px] transition-all",
+                      current && "ring-1 ring-[var(--brand-orange)]/40",
+                      past && "opacity-50",
+                    )}
+                  >
                     <div className="flex items-center justify-between">
-                      <span className={cn("text-[8px] font-bold", current ? "text-[var(--brand-orange)]" : "text-slate-500")}>
+                      <span
+                        className={cn(
+                          "text-[8px] font-bold",
+                          current
+                            ? "text-[var(--brand-orange)]"
+                            : "text-slate-500",
+                        )}
+                      >
                         {day}
                       </span>
                       {dayEvents.length > 0 && (
-                        <span className="text-[7px] font-bold text-slate-500">{dayEvents.length}</span>
+                        <span className="text-[7px] font-bold text-slate-500">
+                          {dayEvents.length}
+                        </span>
                       )}
                     </div>
                     <div className="space-y-0.5 mt-0.5">
                       {dayEvents.slice(0, 2).map((ev) => (
-                        <button key={ev.id}
-                                onClick={() => setSelectedEvent(ev)}
-                                className={cn(
-                                  "w-full text-left px-1 py-0.5 rounded text-[7px] font-bold truncate leading-tight hover:brightness-110 transition-all",
-                                  EVENT_COLORS[ev.source] || "bg-slate-500/10 text-slate-400"
-                                )}>
+                        <button
+                          key={ev.id}
+                          onClick={() => setSelectedEvent(ev)}
+                          className={cn(
+                            "w-full text-left px-1 py-0.5 rounded text-[7px] font-bold truncate leading-tight hover:brightness-110 transition-all",
+                            EVENT_COLORS[ev.source] ||
+                              "bg-slate-500/10 text-slate-400",
+                          )}
+                        >
                           {ev.title}
                         </button>
                       ))}
                       {dayEvents.length > 2 && (
-                        <span className="text-[6px] text-slate-500 pl-0.5">+{dayEvents.length - 2}</span>
+                        <span className="text-[6px] text-slate-500 pl-0.5">
+                          +{dayEvents.length - 2}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -438,31 +524,56 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="space-y-1.5">
               {(() => {
                 const startOfWeek = new Date(calYear, calMonth, 1);
-                startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+                startOfWeek.setDate(
+                  startOfWeek.getDate() - startOfWeek.getDay(),
+                );
                 return Array.from({ length: 7 }, (_, i) => {
                   const d = new Date(startOfWeek);
                   d.setDate(d.getDate() + i);
-                  const dateStr = formatDate(d.getFullYear(), d.getMonth(), d.getDate());
+                  const dateStr = formatDate(
+                    d.getFullYear(),
+                    d.getMonth(),
+                    d.getDate(),
+                  );
                   const dayEvents = events.filter((e) => e.date === dateStr);
                   const current = isToday(d);
                   return (
-                    <div key={dateStr}
-                         className={cn("flex items-start gap-3 p-2 rounded-lg",
-                           current ? "bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20" : "hover:bg-tertiary"
-                         )}>
+                    <div
+                      key={dateStr}
+                      className={cn(
+                        "flex items-start gap-3 p-2 rounded-lg",
+                        current
+                          ? "bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20"
+                          : "hover:bg-tertiary",
+                      )}
+                    >
                       <div className="w-8 text-center shrink-0">
-                        <p className={cn("text-[9px] font-black", current ? "text-[var(--brand-orange)]" : "text-slate-500")}>
+                        <p
+                          className={cn(
+                            "text-[9px] font-black",
+                            current
+                              ? "text-[var(--brand-orange)]"
+                              : "text-slate-500",
+                          )}
+                        >
                           {d.getDate()}
                         </p>
-                        <p className="text-[6px] font-bold text-slate-600 uppercase">{DAYS[d.getDay()]}</p>
+                        <p className="text-[6px] font-bold text-slate-600 uppercase">
+                          {DAYS[d.getDay()]}
+                        </p>
                       </div>
                       <div className="flex-1 space-y-1">
                         {dayEvents.length === 0 && (
-                          <p className="text-[8px] text-slate-600 italic">No events</p>
+                          <p className="text-[8px] text-slate-600 italic">
+                            No events
+                          </p>
                         )}
                         {dayEvents.map((ev) => (
-                          <button key={ev.id} onClick={() => setSelectedEvent(ev)}
-                                  className="block w-full text-left text-[9px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate">
+                          <button
+                            key={ev.id}
+                            onClick={() => setSelectedEvent(ev)}
+                            className="block w-full text-left text-[9px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate"
+                          >
                             • {ev.title}
                           </button>
                         ))}
@@ -479,22 +590,44 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="space-y-1.5">
               {(() => {
                 const today = new Date(calYear, calMonth, now.getDate());
-                const dateStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
+                const dateStr = formatDate(
+                  today.getFullYear(),
+                  today.getMonth(),
+                  today.getDate(),
+                );
                 const dayEvents = events.filter((e) => e.date === dateStr);
                 return (
                   <>
                     <p className="text-[9px] font-bold text-[var(--text-primary)] mb-2">
-                      {today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                      {today.toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })}
                     </p>
                     {dayEvents.length === 0 && (
-                      <p className="text-[8px] text-slate-600 italic">No events scheduled for today</p>
+                      <p className="text-[8px] text-slate-600 italic">
+                        No events scheduled for today
+                      </p>
                     )}
                     {dayEvents.map((ev) => (
-                      <div key={ev.id} onClick={() => setSelectedEvent(ev)}
-                           className="flex items-center gap-2 p-2 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-[var(--border-primary)]">
-                        <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", EVENT_DOTS[ev.source] || "bg-slate-400")} />
-                        <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">{ev.title}</span>
-                        <span className="text-[7px] font-black uppercase tracking-wider text-slate-500">{ev.source}</span>
+                      <div
+                        key={ev.id}
+                        onClick={() => setSelectedEvent(ev)}
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-[var(--border-primary)]"
+                      >
+                        <div
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full shrink-0",
+                            EVENT_DOTS[ev.source] || "bg-slate-400",
+                          )}
+                        />
+                        <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                          {ev.title}
+                        </span>
+                        <span className="text-[7px] font-black uppercase tracking-wider text-slate-500">
+                          {ev.source}
+                        </span>
                       </div>
                     ))}
                   </>
@@ -508,15 +641,21 @@ export default function UnifiedDashboard({ role: propRole }) {
             {Object.entries(EVENT_DOTS).map(([key, dotClass]) => (
               <div key={key} className="flex items-center gap-1.5">
                 <div className={cn("w-2 h-2 rounded-full", dotClass)} />
-                <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider">{key}</span>
+                <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider">
+                  {key}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
         {/* ═══════ SECTION 2: SUMMARY CARDS ═══════ */}
-        {(visibility.showProgramsCard || visibility.showProjectsCard || visibility.showTasksCard ||
-          visibility.showBlockersCard || visibility.showOverdueCard || visibility.showCriticalCard) && (
+        {(visibility.showProgramsCard ||
+          visibility.showProjectsCard ||
+          visibility.showTasksCard ||
+          visibility.showBlockersCard ||
+          visibility.showOverdueCard ||
+          visibility.showCriticalCard) && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {visibility.showProgramsCard && (
               <SummaryCard
@@ -580,46 +719,73 @@ export default function UnifiedDashboard({ role: propRole }) {
           <div className="card border-l-4 border-l-amber-500">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-amber-400" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">Assigned To Me</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+                Assigned To Me
+              </span>
               <span className="text-[9px] font-bold text-slate-500 ml-auto">
-                {assignments.filter((a) => a.status === "pending").length} awaiting action
+                {assignments.filter((a) => a.status === "pending").length}{" "}
+                awaiting action
               </span>
             </div>
             <div className="space-y-1.5">
               {assignments.slice(0, 5).map((task) => {
                 const isPending = task.status === "pending";
                 return (
-                  <div key={task.id}
-                       className={cn("flex items-center gap-3 p-3 rounded-xl border",
-                         isPending ? "border-amber-500/20 bg-amber-500/[0.03]" : "border-[var(--border-primary)] bg-secondary"
-                       )}>
+                  <div
+                    key={task.id}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-xl border",
+                      isPending
+                        ? "border-amber-500/20 bg-amber-500/[0.03]"
+                        : "border-[var(--border-primary)] bg-secondary",
+                    )}
+                  >
                     <div className="w-7 h-7 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
                       {(task.user_name || "?").charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className="text-[11px] font-bold text-[var(--text-primary)] truncate block">{task.title}</span>
+                      <span className="text-[11px] font-bold text-[var(--text-primary)] truncate block">
+                        {task.title}
+                      </span>
                       <p className="text-[8px] text-slate-500 mt-0.5">
                         Assigned by: {task.user_name || "System"}
-                        {task.end_date ? ` · Due: ${new Date(task.end_date).toLocaleDateString()}` : ""}
+                        {task.end_date
+                          ? ` · Due: ${new Date(task.end_date).toLocaleDateString()}`
+                          : ""}
                       </p>
                     </div>
                     {isPending ? (
                       <div className="flex gap-1.5 shrink-0">
-                        <button onClick={() => handleAssignmentAction(task.id, "accepted")}
-                                disabled={actionLoading === task.id}
-                                className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50">
+                        <button
+                          onClick={() =>
+                            handleAssignmentAction(task.id, "accepted")
+                          }
+                          disabled={actionLoading === task.id}
+                          className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
+                        >
                           {actionLoading === task.id ? "..." : "Accept"}
                         </button>
-                        <button onClick={() => handleAssignmentAction(task.id, "declined")}
-                                disabled={actionLoading === task.id}
-                                className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50">
+                        <button
+                          onClick={() =>
+                            handleAssignmentAction(task.id, "declined")
+                          }
+                          disabled={actionLoading === task.id}
+                          className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
+                        >
                           {actionLoading === task.id ? "..." : "Decline"}
                         </button>
                       </div>
                     ) : (
-                      <button onClick={() => handleAssignmentAction(task.id, "completed_assignment")}
-                              disabled={actionLoading === task.id}
-                              className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0 disabled:opacity-50">
+                      <button
+                        onClick={() =>
+                          handleAssignmentAction(
+                            task.id,
+                            "completed_assignment",
+                          )
+                        }
+                        disabled={actionLoading === task.id}
+                        className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0 disabled:opacity-50"
+                      >
                         {actionLoading === task.id ? "..." : "Complete"}
                       </button>
                     )}
@@ -627,8 +793,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                 );
               })}
               {assignments.length > 5 && (
-                <button onClick={() => router.push("/admin/tasks")}
-                        className="w-full text-center py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all">
+                <button
+                  onClick={() => router.push("/admin/tasks")}
+                  className="w-full text-center py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
+                >
                   View All ({assignments.length})
                 </button>
               )}
@@ -641,7 +809,9 @@ export default function UnifiedDashboard({ role: propRole }) {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-400" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-rose-400">Attention Required</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-rose-400">
+                Attention Required
+              </span>
             </div>
 
             {/* Overdue Tasks */}
@@ -655,18 +825,30 @@ export default function UnifiedDashboard({ role: propRole }) {
                 </div>
                 <div className="space-y-1">
                   {attention.overdueTasks.slice(0, 5).map((t) => (
-                    <div key={t.id}
-                         onClick={() => setSelectedTask(t)}
-                         className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 cursor-pointer hover:brightness-110 transition-all">
-                      <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">{t.title}</span>
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTask(t)}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 cursor-pointer hover:brightness-110 transition-all"
+                    >
+                      <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                        {t.title}
+                      </span>
                       {t.priority && (
-                        <span className={cn("text-[7px] font-black uppercase px-1.5 py-0.5 rounded",
-                          t.priority === "high" || t.priority === "critical"
-                            ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"
-                        )}>{t.priority}</span>
+                        <span
+                          className={cn(
+                            "text-[7px] font-black uppercase px-1.5 py-0.5 rounded",
+                            t.priority === "high" || t.priority === "critical"
+                              ? "bg-rose-500/10 text-rose-500"
+                              : "bg-slate-500/10 text-slate-500",
+                          )}
+                        >
+                          {t.priority}
+                        </span>
                       )}
                       <span className="text-[8px] text-slate-500 shrink-0">
-                        {t.due_date ? new Date(t.due_date).toLocaleDateString() : ""}
+                        {t.due_date
+                          ? new Date(t.due_date).toLocaleDateString()
+                          : ""}
                       </span>
                     </div>
                   ))}
@@ -685,22 +867,30 @@ export default function UnifiedDashboard({ role: propRole }) {
                 </div>
                 <div className="space-y-1">
                   {attention.criticalBlockers.slice(0, 5).map((b) => (
-                    <div key={b.id}
-                         className="flex items-center gap-3 p-2 rounded-xl bg-rose-500/[0.03] border border-rose-500/10">
+                    <div
+                      key={b.id}
+                      className="flex items-center gap-3 p-2 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
+                    >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-[var(--text-primary)]">{b.title}</span>
+                          <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                            {b.title}
+                          </span>
                           <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500">
                             {b.severity}
                           </span>
                         </div>
                         {b.project_id && (
-                          <p className="text-[8px] text-slate-500 mt-0.5">Project: #{b.project_id}</p>
+                          <p className="text-[8px] text-slate-500 mt-0.5">
+                            Project: #{b.project_id}
+                          </p>
                         )}
                       </div>
-                      <button onClick={() => handleResolveBlocker(b.id)}
-                              disabled={resolvingBlocker === b.id}
-                              className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0">
+                      <button
+                        onClick={() => handleResolveBlocker(b.id)}
+                        disabled={resolvingBlocker === b.id}
+                        className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                      >
                         {resolvingBlocker === b.id ? "..." : "Resolve"}
                       </button>
                     </div>
@@ -720,11 +910,17 @@ export default function UnifiedDashboard({ role: propRole }) {
                 </div>
                 <div className="space-y-1">
                   {attention.dueToday.map((t) => (
-                    <div key={t.id}
-                         onClick={() => setSelectedTask(t)}
-                         className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 cursor-pointer hover:brightness-110 transition-all">
-                      <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">{t.title}</span>
-                      <span className="text-[7px] font-black text-slate-500 uppercase">{t.type}</span>
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTask(t)}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 cursor-pointer hover:brightness-110 transition-all"
+                    >
+                      <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                        {t.title}
+                      </span>
+                      <span className="text-[7px] font-black text-slate-500 uppercase">
+                        {t.type}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -739,19 +935,26 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-[var(--brand-orange)]" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">Recent Activity</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  Recent Activity
+                </span>
               </div>
-              <button onClick={() => router.push("/admin/op-reports")}
-                      className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline">
+              <button
+                onClick={() => router.push("/admin/op-reports")}
+                className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+              >
                 View All
               </button>
             </div>
             <div className="space-y-2">
               {activity.slice(0, 10).map((act, i) => (
-                <div key={i}
-                     className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)]">
+                <div
+                  key={i}
+                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)]"
+                >
                   <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center">
-                    {act.action?.includes("completed") || act.action?.includes("resolved") ? (
+                    {act.action?.includes("completed") ||
+                    act.action?.includes("resolved") ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                     ) : act.action?.includes("blocker") ? (
                       <Shield className="w-4 h-4 text-rose-400" />
@@ -763,10 +966,14 @@ export default function UnifiedDashboard({ role: propRole }) {
                     <p className="text-[10px] font-bold text-[var(--text-primary)] capitalize truncate">
                       {act.action?.replace(/_/g, " ")}
                     </p>
-                    <p className="text-[8px] text-slate-500 truncate">{act.description}</p>
+                    <p className="text-[8px] text-slate-500 truncate">
+                      {act.description}
+                    </p>
                   </div>
                   <span className="text-[8px] text-slate-600 shrink-0">
-                    {act.timestamp ? new Date(act.timestamp).toLocaleDateString() : ""}
+                    {act.timestamp
+                      ? new Date(act.timestamp).toLocaleDateString()
+                      : ""}
                   </span>
                 </div>
               ))}
@@ -786,23 +993,35 @@ export default function UnifiedDashboard({ role: propRole }) {
               viewAllHref="/admin/programs"
               loading={fetching}
               emptyMessage="No programs"
-              onToggle={() => setExpandedPanels(p => ({ ...p, programs: !p.programs }))}
+              onToggle={() =>
+                setExpandedPanels((p) => ({ ...p, programs: !p.programs }))
+              }
               isExpanded={expandedPanels.programs}
             >
               {quickAccess.programs?.slice(0, 5).map((p) => (
-                <div key={p.id}
-                     onClick={() => router.push(`/admin/programs/${p.id}`)}
-                     className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]">
+                <div
+                  key={p.id}
+                  onClick={() => router.push(`/admin/programs/${p.id}`)}
+                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                >
                   <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center">
                     <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{p.name}</p>
+                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                      {p.name}
+                    </p>
                     {p.status && (
-                      <span className={cn("text-[7px] font-black uppercase px-1 py-0.5 rounded",
-                        p.status === "active" || p.status === "Active"
-                          ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-500/10 text-slate-500"
-                      )}>{p.status}</span>
+                      <span
+                        className={cn(
+                          "text-[7px] font-black uppercase px-1 py-0.5 rounded",
+                          p.status === "active" || p.status === "Active"
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : "bg-slate-500/10 text-slate-500",
+                        )}
+                      >
+                        {p.status}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -810,35 +1029,161 @@ export default function UnifiedDashboard({ role: propRole }) {
             </QuickAccessPanel>
           )}
 
-          {/* My Projects */}
+          {/* My Projects — Rich Table */}
           {visibility.showQuickProjects && (
-            <QuickAccessPanel
-              title="My Projects"
-              icon={Rocket}
-              color="text-purple-400"
-              count={quickAccess.projects?.length || 0}
-              viewAllHref="/admin/projects"
-              loading={fetching}
-              emptyMessage="No assigned projects"
-              onToggle={() => setExpandedPanels(p => ({ ...p, projects: !p.projects }))}
-              isExpanded={expandedPanels.projects}
-            >
-              {quickAccess.projects?.slice(0, 5).map((p) => (
-                <div key={p.id}
-                     onClick={() => router.push(`/admin/projects/${p.id}`)}
-                     className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]">
-                  <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center">
-                    <Rocket className="w-3.5 h-3.5 text-purple-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{p.name}</p>
-                    {p.status && (
-                      <span className="text-[7px] font-black text-slate-500 uppercase">{p.status}</span>
-                    )}
-                  </div>
+            <div className="md:col-span-2 card !p-0 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  My Projects
+                </span>
+                <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                  {quickAccess.projects?.length || 0} total
+                </span>
+              </div>
+              {fetching ? (
+                <div className="py-8 text-center">
+                  <div
+                    className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin mx-auto"
+                    style={{
+                      borderColor: "rgba(255,102,0,0.1)",
+                      borderTopColor: "var(--brand-orange)",
+                    }}
+                  />
                 </div>
-              ))}
-            </QuickAccessPanel>
+              ) : quickAccess.projects?.length === 0 ? (
+                <p className="text-[10px] text-slate-500 italic py-6 text-center">
+                  No assigned projects
+                </p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-[var(--border-primary)]">
+                          <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            Project
+                          </th>
+                          <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            Status
+                          </th>
+                          <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            Tasks
+                          </th>
+                          <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            Blockers
+                          </th>
+                          <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            Progress
+                          </th>
+                          {hasMinRole(effectiveRole, "program_manager") && (
+                            <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                              Update
+                            </th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {quickAccess.projects?.slice(0, 5).map((p) => {
+                          const isOwner =
+                            p.owner_id &&
+                            String(p.owner_id) ===
+                              String(user?.cid || user?.id);
+                          return (
+                            <tr
+                              key={p.id}
+                              onClick={() =>
+                                router.push(`/admin/projects/${p.id}`)
+                              }
+                              className="border-b border-[var(--border-primary)]/50 hover:bg-tertiary transition-colors cursor-pointer"
+                            >
+                              <td className="p-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                                    <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                                  </div>
+                                  <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                                    {p.name}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="p-3 text-center">
+                                <span
+                                  className={cn(
+                                    "text-[8px] font-black uppercase px-1.5 py-0.5 rounded",
+                                    p.status === "Active" ||
+                                      p.status === "active"
+                                      ? "bg-emerald-500/10 text-emerald-500"
+                                      : p.status === "Paused" ||
+                                          p.status === "paused"
+                                        ? "bg-amber-500/10 text-amber-500"
+                                        : "bg-slate-500/10 text-slate-500",
+                                  )}
+                                >
+                                  {p.status || "Active"}
+                                </span>
+                              </td>
+                              <td className="p-3 text-center">
+                                <span className="text-[11px] font-bold">
+                                  {p.taskStats?.total || 0}
+                                </span>
+                              </td>
+                              <td className="p-3 text-center">
+                                {(p.blockerStats?.active || 0) > 0 ? (
+                                  <span className="text-[11px] font-bold text-rose-500">
+                                    {p.blockerStats.active}
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] text-slate-600">
+                                    0
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3 text-center">
+                                <div className="flex items-center gap-2 justify-center">
+                                  <div className="w-16 h-1.5 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-emerald-500 rounded-full"
+                                      style={{
+                                        width: `${p.completionRate || 0}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="text-[8px] font-bold text-emerald-500">
+                                    {p.completionRate || 0}%
+                                  </span>
+                                </div>
+                              </td>
+                              {hasMinRole(effectiveRole, "program_manager") && (
+                                <td className="p-3 text-right">
+                                  {isOwner ? (
+                                    <span className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all">
+                                      Post Update
+                                    </span>
+                                  ) : (
+                                    <span className="text-[7px] text-slate-600">
+                                      —
+                                    </span>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {quickAccess.projects.length > 5 && (
+                    <button
+                      onClick={() => router.push("/admin/projects")}
+                      className="w-full text-center py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all border-t border-[var(--border-primary)]"
+                    >
+                      View All ({quickAccess.projects.length})
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           )}
 
           {/* My Tasks */}
@@ -851,29 +1196,46 @@ export default function UnifiedDashboard({ role: propRole }) {
               viewAllHref="/admin/tasks"
               loading={fetching}
               emptyMessage="No active tasks"
-              onToggle={() => setExpandedPanels(p => ({ ...p, tasks: !p.tasks }))}
+              onToggle={() =>
+                setExpandedPanels((p) => ({ ...p, tasks: !p.tasks }))
+              }
               isExpanded={expandedPanels.tasks}
             >
               {quickAccess.tasks?.slice(0, 5).map((t) => (
-                <div key={t.id}
-                     onClick={() => setSelectedTask(t)}
-                     className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]">
-                  <div className={cn("w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center",
-                    STATUS_CONFIG[t.status]?.color || "text-slate-400"
-                  )}>
+                <div
+                  key={t.id}
+                  onClick={() => setSelectedTask(t)}
+                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                >
+                  <div
+                    className={cn(
+                      "w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center",
+                      STATUS_CONFIG[t.status]?.color || "text-slate-400",
+                    )}
+                  >
                     <ListTodo className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{t.title}</p>
+                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                      {t.title}
+                    </p>
                     <div className="flex items-center gap-2 mt-0.5">
                       {t.end_date && (
-                        <span className="text-[7px] text-slate-500">{new Date(t.end_date).toLocaleDateString()}</span>
+                        <span className="text-[7px] text-slate-500">
+                          {new Date(t.end_date).toLocaleDateString()}
+                        </span>
                       )}
                       {t.priority && (
-                        <span className={cn("text-[6px] font-black uppercase px-1 py-0.5 rounded",
-                          t.priority === "high" || t.priority === "critical"
-                            ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"
-                        )}>{t.priority}</span>
+                        <span
+                          className={cn(
+                            "text-[6px] font-black uppercase px-1 py-0.5 rounded",
+                            t.priority === "high" || t.priority === "critical"
+                              ? "bg-rose-500/10 text-rose-500"
+                              : "bg-slate-500/10 text-slate-500",
+                          )}
+                        >
+                          {t.priority}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -892,27 +1254,41 @@ export default function UnifiedDashboard({ role: propRole }) {
               viewAllHref="/admin/blockers"
               loading={fetching}
               emptyMessage="No active blockers"
-              onToggle={() => setExpandedPanels(p => ({ ...p, blockers: !p.blockers }))}
+              onToggle={() =>
+                setExpandedPanels((p) => ({ ...p, blockers: !p.blockers }))
+              }
               isExpanded={expandedPanels.blockers}
             >
               {quickAccess.blockers?.slice(0, 5).map((b) => (
-                <div key={b.id}
-                     className="flex items-center gap-3 p-2.5 rounded-lg bg-rose-500/[0.02] border border-rose-500/5">
+                <div
+                  key={b.id}
+                  className="flex items-center gap-3 p-2.5 rounded-lg bg-rose-500/[0.02] border border-rose-500/5"
+                >
                   <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center">
                     <Shield className="w-3.5 h-3.5 text-rose-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{b.title}</p>
+                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                      {b.title}
+                    </p>
                     {b.severity && (
-                      <span className={cn("text-[6px] font-black uppercase px-1 py-0.5 rounded",
-                        b.severity === "critical" || b.severity === "high"
-                          ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"
-                      )}>{b.severity}</span>
+                      <span
+                        className={cn(
+                          "text-[6px] font-black uppercase px-1 py-0.5 rounded",
+                          b.severity === "critical" || b.severity === "high"
+                            ? "bg-rose-500/10 text-rose-500"
+                            : "bg-slate-500/10 text-slate-500",
+                        )}
+                      >
+                        {b.severity}
+                      </span>
                     )}
                   </div>
-                  <button onClick={() => handleResolveBlocker(b.id)}
-                          disabled={resolvingBlocker === b.id}
-                          className="px-2.5 py-1 bg-emerald-500 text-black rounded-lg text-[7px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0">
+                  <button
+                    onClick={() => handleResolveBlocker(b.id)}
+                    disabled={resolvingBlocker === b.id}
+                    className="px-2.5 py-1 bg-emerald-500 text-black rounded-lg text-[7px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                  >
                     {resolvingBlocker === b.id ? "..." : "Resolve"}
                   </button>
                 </div>
@@ -922,64 +1298,106 @@ export default function UnifiedDashboard({ role: propRole }) {
         </div>
 
         {/* ═══════ EMPTY STATE (when nothing is visible) ═══════ */}
-        {!visibility.showProgramsCard && !visibility.showProjectsCard && !visibility.showTasksCard &&
-         !visibility.showBlockersCard && !visibility.showAttention && !visibility.showActivity &&
-         !visibility.showQuickPrograms && !visibility.showQuickProjects && !visibility.showQuickTasks &&
-         !visibility.showQuickBlockers && !visibility.showAssignments && !fetching && (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <Activity className="w-16 h-16 text-slate-700" />
-            <p className="text-base font-black text-slate-600 uppercase tracking-widest">Welcome to your dashboard</p>
-            <p className="text-[10px] text-slate-700">Start by creating tasks or joining projects.</p>
-            <div className="flex gap-3 mt-4">
-              <button onClick={() => router.push("/admin/tasks")}
-                      className="px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
-                <Plus className="w-4 h-4 inline mr-1" /> Create Task
-              </button>
-              <button onClick={() => router.push("/admin/projects")}
-                      className="px-6 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">
-                View Projects
-              </button>
+        {!visibility.showProgramsCard &&
+          !visibility.showProjectsCard &&
+          !visibility.showTasksCard &&
+          !visibility.showBlockersCard &&
+          !visibility.showAttention &&
+          !visibility.showActivity &&
+          !visibility.showQuickPrograms &&
+          !visibility.showQuickProjects &&
+          !visibility.showQuickTasks &&
+          !visibility.showQuickBlockers &&
+          !visibility.showAssignments &&
+          !fetching && (
+            <div className="flex flex-col items-center justify-center py-20 space-y-4">
+              <Activity className="w-16 h-16 text-slate-700" />
+              <p className="text-base font-black text-slate-600 uppercase tracking-widest">
+                Welcome to your dashboard
+              </p>
+              <p className="text-[10px] text-slate-700">
+                Start by creating tasks or joining projects.
+              </p>
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => router.push("/admin/tasks")}
+                  className="px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                >
+                  <Plus className="w-4 h-4 inline mr-1" /> Create Task
+                </button>
+                <button
+                  onClick={() => router.push("/admin/projects")}
+                  className="px-6 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                >
+                  View Projects
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
 
       {/* ═══════ EVENT DETAIL DRAWER ═══════ */}
       {selectedEvent && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-             onClick={() => setSelectedEvent(null)}>
-          <div className="card w-full max-w-sm space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setSelectedEvent(null)}
+        >
+          <div
+            className="card w-full max-w-sm space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">Event</h3>
+                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                  Event
+                </h3>
               </div>
-              <button onClick={() => setSelectedEvent(null)}><X className="w-5 h-5" /></button>
+              <button onClick={() => setSelectedEvent(null)}>
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <p className="text-sm font-bold text-[var(--text-primary)]">{selectedEvent.title}</p>
+            <p className="text-sm font-bold text-[var(--text-primary)]">
+              {selectedEvent.title}
+            </p>
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Date</p>
+                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                  Date
+                </p>
                 <p className="font-bold">{selectedEvent.date}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Source</p>
+                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                  Source
+                </p>
                 <p className="font-bold capitalize">{selectedEvent.source}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Type</p>
-                <p className="font-bold capitalize">{selectedEvent.type?.replace(/_/g, " ")}</p>
+                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                  Type
+                </p>
+                <p className="font-bold capitalize">
+                  {selectedEvent.type?.replace(/_/g, " ")}
+                </p>
               </div>
               {selectedEvent.status && (
                 <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Status</p>
+                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                    Status
+                  </p>
                   <p className="font-bold capitalize">{selectedEvent.status}</p>
                 </div>
               )}
             </div>
             {selectedEvent.project_id && (
-              <button onClick={() => { setSelectedEvent(null); router.push(`/admin/projects/${selectedEvent.project_id}`); }}
-                      className="w-full py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
+              <button
+                onClick={() => {
+                  setSelectedEvent(null);
+                  router.push(`/admin/projects/${selectedEvent.project_id}`);
+                }}
+                className="w-full py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+              >
                 View Related Project
               </button>
             )}
@@ -989,28 +1407,53 @@ export default function UnifiedDashboard({ role: propRole }) {
 
       {/* ═══════ TASK DETAIL DRAWER ═══════ */}
       {selectedTask && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-             onClick={() => setSelectedTask(null)}>
-          <div className="card w-full max-w-lg space-y-5 border-[var(--brand-orange)]/30 max-h-[90vh] overflow-y-auto"
-               onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setSelectedTask(null)}
+        >
+          <div
+            className="card w-full max-w-lg space-y-5 border-[var(--brand-orange)]/30 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-start">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   {selectedTask.status && (
-                    <span className={cn("text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded",
-                      (STATUS_CONFIG[selectedTask.status] || STATUS_CONFIG.pending).bg,
-                      (STATUS_CONFIG[selectedTask.status] || STATUS_CONFIG.pending).color
-                    )}>
-                      {(STATUS_CONFIG[selectedTask.status] || STATUS_CONFIG.pending).label}
+                    <span
+                      className={cn(
+                        "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded",
+                        (
+                          STATUS_CONFIG[selectedTask.status] ||
+                          STATUS_CONFIG.pending
+                        ).bg,
+                        (
+                          STATUS_CONFIG[selectedTask.status] ||
+                          STATUS_CONFIG.pending
+                        ).color,
+                      )}
+                    >
+                      {
+                        (
+                          STATUS_CONFIG[selectedTask.status] ||
+                          STATUS_CONFIG.pending
+                        ).label
+                      }
                     </span>
                   )}
                   {selectedTask.due_date && (
-                    <span className="text-[8px] font-black text-rose-400 uppercase bg-rose-500/10 px-1.5 py-0.5 rounded">Overdue</span>
+                    <span className="text-[8px] font-black text-rose-400 uppercase bg-rose-500/10 px-1.5 py-0.5 rounded">
+                      Overdue
+                    </span>
                   )}
                 </div>
-                <h3 className="text-lg font-black text-[var(--text-primary)]">{selectedTask.title}</h3>
+                <h3 className="text-lg font-black text-[var(--text-primary)]">
+                  {selectedTask.title}
+                </h3>
               </div>
-              <button onClick={() => setSelectedTask(null)} className="p-1 hover:bg-white/5 rounded-lg">
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="p-1 hover:bg-white/5 rounded-lg"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1018,27 +1461,42 @@ export default function UnifiedDashboard({ role: propRole }) {
               <div className="grid grid-cols-2 gap-3">
                 {selectedTask.start_date && (
                   <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Start</p>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                      Start
+                    </p>
                     <p className="text-xs font-bold text-[var(--text-primary)]">
                       {new Date(selectedTask.start_date).toLocaleDateString()}
                     </p>
                   </div>
                 )}
                 <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Due</p>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Due
+                  </p>
                   <p className="text-xs font-bold text-[var(--text-primary)]">
-                    {selectedTask.due_date ? new Date(selectedTask.due_date).toLocaleDateString() : "—"}
+                    {selectedTask.due_date
+                      ? new Date(selectedTask.due_date).toLocaleDateString()
+                      : "—"}
                   </p>
                 </div>
               </div>
             )}
             {selectedTask.priority && (
               <div className="flex items-center gap-2">
-                <span className="text-[8px] font-black text-slate-500 uppercase">Priority:</span>
-                <span className={cn("text-[8px] font-black uppercase px-2 py-0.5 rounded",
-                  selectedTask.priority === "critical" || selectedTask.priority === "high"
-                    ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"
-                )}>{selectedTask.priority}</span>
+                <span className="text-[8px] font-black text-slate-500 uppercase">
+                  Priority:
+                </span>
+                <span
+                  className={cn(
+                    "text-[8px] font-black uppercase px-2 py-0.5 rounded",
+                    selectedTask.priority === "critical" ||
+                      selectedTask.priority === "high"
+                      ? "bg-rose-500/10 text-rose-500"
+                      : "bg-slate-500/10 text-slate-500",
+                  )}
+                >
+                  {selectedTask.priority}
+                </span>
               </div>
             )}
           </div>
@@ -1052,37 +1510,65 @@ export default function UnifiedDashboard({ role: propRole }) {
 
 function SummaryCard({ icon: Icon, label, value, color, onClick }) {
   return (
-    <button onClick={onClick}
-            className="card !p-4 hover:bg-tertiary transition-all text-left group">
+    <button
+      onClick={onClick}
+      className="card !p-4 hover:bg-tertiary transition-all text-left group"
+    >
       <Icon className={cn("w-5 h-5 mb-2", color)} />
-      <p className="text-2xl font-black text-[var(--text-primary)]">{value ?? "—"}</p>
-      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{label}</p>
+      <p className="text-2xl font-black text-[var(--text-primary)]">
+        {value ?? "—"}
+      </p>
+      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
+        {label}
+      </p>
     </button>
   );
 }
 
-function QuickAccessPanel({ title, icon: Icon, color, count, viewAllHref, loading, emptyMessage, children }) {
+function QuickAccessPanel({
+  title,
+  icon: Icon,
+  color,
+  count,
+  viewAllHref,
+  loading,
+  emptyMessage,
+  children,
+}) {
   const router = useRouter();
   return (
     <div className="card">
       <div className="flex items-center gap-2 mb-3">
         <Icon className={cn("w-4 h-4", color)} />
-        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">{title}</span>
-        <span className="text-[9px] font-bold text-slate-500 ml-auto">{count}</span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+          {title}
+        </span>
+        <span className="text-[9px] font-bold text-slate-500 ml-auto">
+          {count}
+        </span>
       </div>
       {loading ? (
         <div className="py-8 text-center">
-          <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin mx-auto"
-               style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
+          <div
+            className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin mx-auto"
+            style={{
+              borderColor: "rgba(255,102,0,0.1)",
+              borderTopColor: "var(--brand-orange)",
+            }}
+          />
         </div>
       ) : count === 0 ? (
-        <p className="text-[10px] text-slate-500 italic py-6 text-center">{emptyMessage}</p>
+        <p className="text-[10px] text-slate-500 italic py-6 text-center">
+          {emptyMessage}
+        </p>
       ) : (
         <div className="space-y-1">
           {children}
           {viewAllHref && count > 0 && (
-            <button onClick={() => router.push(viewAllHref)}
-                    className="w-full text-center py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mt-1">
+            <button
+              onClick={() => router.push(viewAllHref)}
+              className="w-full text-center py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mt-1"
+            >
               View All
             </button>
           )}
