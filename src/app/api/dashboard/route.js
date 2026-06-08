@@ -327,7 +327,8 @@ export async function GET(req) {
     let projectCount = 0;
     let userProjects = [];
     try {
-      const projRes = await db.execute({
+      // Owned: owner_id matches user, OR assigned_pm_id in meta matches (legacy)
+      const ownedProjRes = await db.execute({
         sql: `SELECT
                 p.id, p.name, p.status, p.owner_id, p.meta,
                 COALESCE(t_stats.total, 0) AS task_total,
@@ -351,12 +352,54 @@ export async function GET(req) {
               ) b_stats ON p.id = b_stats.project_id
               WHERE p.owner_id = ?
                  OR ? IN ('super_admin', 'admin')
-              ORDER BY p.created_at DESC
-              LIMIT 10`,
+              ORDER BY p.created_at DESC`,
         args: [userId, role],
       });
-      projectCount = projRes.rows.length;
-      userProjects = projRes.rows.map((p) => {
+
+      // Collaborator: user is in project_members but not owner
+      let collabProjectIds = [];
+      try {
+        const collabRes = await db.execute({
+          sql: `SELECT DISTINCT project_id FROM project_members WHERE user_cid = ?`,
+          args: [userId],
+        });
+        collabProjectIds = collabRes.rows.map((r) => r.project_id);
+      } catch (_) {}
+
+      let collabProjects = [];
+      if (collabProjectIds.length > 0) {
+        const placeholders = collabProjectIds.map(() => "?").join(",");
+        const collabProjRes = await db.execute({
+          sql: `SELECT
+                  p.id, p.name, p.status, p.owner_id, p.meta,
+                  COALESCE(t_stats.total, 0) AS task_total,
+                  COALESCE(t_stats.completed, 0) AS task_completed,
+                  COALESCE(b_stats.active, 0) AS blocker_active
+                FROM v2_projects p
+                LEFT JOIN (
+                  SELECT project_id,
+                         COUNT(*) AS total,
+                         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+                  FROM tasks
+                  GROUP BY project_id
+                ) t_stats ON p.id = t_stats.project_id
+                LEFT JOIN (
+                  SELECT t.project_id,
+                         COUNT(*) AS active
+                  FROM blockers b
+                  JOIN tasks t ON b.task_id = t.id
+                  WHERE b.status = 'active'
+                  GROUP BY t.project_id
+                ) b_stats ON p.id = b_stats.project_id
+                WHERE p.id IN (${placeholders})
+                ORDER BY p.created_at DESC`,
+          args: collabProjectIds,
+        });
+        collabProjects = collabProjRes.rows;
+      }
+
+      // Map owned projects with role="owner"
+      const ownedMapped = (ownedProjRes.rows || []).map((p) => {
         const total = parseInt(p.task_total) || 0;
         const completed = parseInt(p.task_completed) || 0;
         return {
@@ -365,11 +408,36 @@ export async function GET(req) {
           status: p.status,
           owner_id: p.owner_id,
           meta: p.meta,
+          role: "owner",
           taskStats: { total, completed },
           blockerStats: { active: parseInt(p.blocker_active) || 0 },
           completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
         };
       });
+
+      // Map collaborator projects with role="collaborator" (excluding owned)
+      const ownedIds = new Set(ownedMapped.map((p) => String(p.id)));
+      const collabMapped = (collabProjects || [])
+        .filter((p) => !ownedIds.has(String(p.id)))
+        .map((p) => {
+          const total = parseInt(p.task_total) || 0;
+          const completed = parseInt(p.task_completed) || 0;
+          return {
+            id: p.id,
+            name: p.name,
+            status: p.status,
+            owner_id: p.owner_id,
+            meta: p.meta,
+            role: "collaborator",
+            taskStats: { total, completed },
+            blockerStats: { active: parseInt(p.blocker_active) || 0 },
+            completionRate:
+              total > 0 ? Math.round((completed / total) * 100) : 0,
+          };
+        });
+
+      userProjects = [...ownedMapped, ...collabMapped];
+      projectCount = userProjects.length;
     } catch (_) {}
 
     // ── 4. RECENT ACTIVITY ──

@@ -1064,6 +1064,9 @@ export default function UnifiedDashboard({ role: propRole }) {
                           <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                             Project
                           </th>
+                          <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            Role
+                          </th>
                           <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                             Status
                           </th>
@@ -1076,19 +1079,18 @@ export default function UnifiedDashboard({ role: propRole }) {
                           <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                             Progress
                           </th>
-                          {hasMinRole(effectiveRole, "program_manager") && (
-                            <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              Update
-                            </th>
-                          )}
+                          <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            Update
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {quickAccess.projects?.slice(0, 5).map((p) => {
+                        {quickAccess.projects?.slice(0, 10).map((p) => {
                           const isOwner =
-                            p.owner_id &&
-                            String(p.owner_id) ===
-                              String(user?.cid || user?.id);
+                            p.role === "owner" ||
+                            (p.owner_id &&
+                              String(p.owner_id) ===
+                                String(user?.cid || user?.id));
                           return (
                             <tr
                               key={p.id}
@@ -1100,12 +1102,28 @@ export default function UnifiedDashboard({ role: propRole }) {
                               <td className="p-3">
                                 <div className="flex items-center gap-3">
                                   <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                                    <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                                    {isOwner ? (
+                                      <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                                    ) : (
+                                      <Users className="w-3.5 h-3.5 text-blue-500" />
+                                    )}
                                   </div>
                                   <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                                     {p.name}
                                   </span>
                                 </div>
+                              </td>
+                              <td className="p-3">
+                                <span
+                                  className={cn(
+                                    "text-[8px] font-black uppercase tracking-wider",
+                                    isOwner
+                                      ? "text-[var(--brand-orange)]"
+                                      : "text-blue-500",
+                                  )}
+                                >
+                                  {isOwner ? "Owner" : "Collaborator"}
+                                </span>
                               </td>
                               <td className="p-3 text-center">
                                 <span
@@ -1154,26 +1172,24 @@ export default function UnifiedDashboard({ role: propRole }) {
                                   </span>
                                 </div>
                               </td>
-                              {hasMinRole(effectiveRole, "program_manager") && (
-                                <td className="p-3 text-right">
-                                  {isOwner ? (
-                                    <span className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all">
-                                      Post Update
-                                    </span>
-                                  ) : (
-                                    <span className="text-[7px] text-slate-600">
-                                      —
-                                    </span>
-                                  )}
-                                </td>
-                              )}
+                              <td className="p-3 text-right">
+                                {isOwner ? (
+                                  <span className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all">
+                                    Post Update
+                                  </span>
+                                ) : (
+                                  <span className="text-[7px] text-slate-600">
+                                    —
+                                  </span>
+                                )}
+                              </td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
-                  {quickAccess.projects.length > 5 && (
+                  {quickAccess.projects.length > 10 && (
                     <button
                       onClick={() => router.push("/admin/projects")}
                       className="w-full text-center py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all border-t border-[var(--border-primary)]"
