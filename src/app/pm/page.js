@@ -1,11 +1,12 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Rocket,
   Layers,
   Target,
   Activity,
   Calendar,
+  ChevronLeft,
   ChevronRight,
   ArrowRight,
   Shield,
@@ -21,6 +22,8 @@ import {
   Mail,
   Briefcase,
   Clock,
+  ListTodo,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -44,6 +47,138 @@ export default function PMDashboard() {
   const [pmProjects, setPmProjects] = useState([]);
   const [pmProjectsLoading, setPmProjectsLoading] = useState(true);
   const { t } = useI18n();
+
+  // Calendar state
+  const now = new Date();
+  const [calYear, setCalYear] = useState(now.getFullYear());
+  const [calMonth, setCalMonth] = useState(now.getMonth());
+  const [pmTasks, setPmTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState(null);
+
+  const handlePrevMonth = () => {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear(calYear - 1);
+    } else setCalMonth(calMonth - 1);
+  };
+  const handleNextMonth = () => {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear(calYear + 1);
+    } else setCalMonth(calMonth + 1);
+  };
+
+  function formatDate(year, month, day) {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+  function getCalendarDays(year, month) {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startPad = firstDay.getDay();
+    const days = [];
+    for (let i = 0; i < startPad; i++) days.push(null);
+    for (let d = 1; d <= lastDay.getDate(); d++) days.push(d);
+    return days;
+  }
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  const pmCalendarDays = getCalendarDays(calYear, calMonth);
+
+  const pmCalendarTasks = React.useMemo(() => {
+    const cal = {};
+    (pmTasks || []).forEach((task) => {
+      if (task.start_date || task.end_date) {
+        const start = task.start_date ? new Date(task.start_date) : null;
+        const end = task.end_date ? new Date(task.end_date) : null;
+        if (start && end) {
+          const current = new Date(start);
+          while (current <= end) {
+            const key = formatDate(
+              current.getFullYear(),
+              current.getMonth(),
+              current.getDate(),
+            );
+            if (!cal[key]) cal[key] = [];
+            cal[key].push(task);
+            current.setDate(current.getDate() + 1);
+          }
+        } else if (start) {
+          const key = formatDate(
+            start.getFullYear(),
+            start.getMonth(),
+            start.getDate(),
+          );
+          if (!cal[key]) cal[key] = [];
+          cal[key].push(task);
+        } else if (end) {
+          const key = formatDate(
+            end.getFullYear(),
+            end.getMonth(),
+            end.getDate(),
+          );
+          if (!cal[key]) cal[key] = [];
+          cal[key].push(task);
+        }
+      }
+    });
+    return cal;
+  }, [pmTasks]);
+
+  function isToday(d) {
+    const today = new Date();
+    return (
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+  }
+
+  const STATUS_CONFIG = {
+    pending: {
+      label: "Pending",
+      color: "text-slate-400",
+      bg: "bg-slate-500/10",
+      dot: "bg-slate-400",
+    },
+    in_progress: {
+      label: "Active",
+      color: "text-blue-400",
+      bg: "bg-blue-500/10",
+      dot: "bg-blue-400",
+    },
+    blocked: {
+      label: "Blocked",
+      color: "text-rose-400",
+      bg: "bg-rose-500/10",
+      dot: "bg-rose-400",
+    },
+    completed: {
+      label: "Done",
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10",
+      dot: "bg-emerald-400",
+    },
+    carried_over: {
+      label: "Carryover",
+      color: "text-indigo-400",
+      bg: "bg-indigo-500/10",
+      dot: "bg-indigo-400",
+    },
+  };
 
   // Fetch projects where user is owner
   const fetchPmProjects = async (userId) => {
@@ -104,6 +239,18 @@ export default function PMDashboard() {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const userId = user.cid || user.id;
     if (userId) fetchPmProjects(userId);
+  }, []);
+
+  // Fetch tasks for calendar
+  useEffect(() => {
+    async function fetchTasks() {
+      try {
+        const res = await fetch("/api/tasks?brief=true");
+        const data = await res.json();
+        if (data.success) setPmTasks(data.tasks || []);
+      } catch (e) {}
+    }
+    fetchTasks();
   }, []);
 
   const fetchGlobalSchedule = async () => {
@@ -201,6 +348,127 @@ export default function PMDashboard() {
             </div>
           </div>
         </header>
+
+        {/* ═══════ CALENDAR ═══════ */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-5 h-5 text-[#FF6600]" />
+              <span
+                className="text-sm font-black uppercase tracking-wider"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {MONTHS[calMonth]} {calYear}
+              </span>
+            </div>
+            <div className="flex gap-1">
+              <button
+                onClick={handlePrevMonth}
+                className="p-1.5 rounded-lg hover:bg-white/5 transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => {
+                  setCalMonth(now.getMonth());
+                  setCalYear(now.getFullYear());
+                }}
+                className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-white/5 transition-all"
+              >
+                Today
+              </button>
+              <button
+                onClick={handleNextMonth}
+                className="p-1.5 rounded-lg hover:bg-white/5 transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-7 gap-px bg-white/5 rounded-lg overflow-hidden">
+            {DAYS.map((d) => (
+              <div
+                key={d}
+                className="p-2 text-center"
+                style={{ background: "var(--bg-primary)" }}
+              >
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                  {d}
+                </span>
+              </div>
+            ))}
+            {pmCalendarDays.map((day, idx) => {
+              if (day === null)
+                return (
+                  <div
+                    key={`empty-${idx}`}
+                    className="p-2 min-h-[90px]"
+                    style={{ background: "var(--bg-primary)" }}
+                  />
+                );
+              const dateStr = formatDate(calYear, calMonth, day);
+              const dayTasks = pmCalendarTasks[dateStr] || [];
+              const isCurrent = isToday(new Date(calYear, calMonth, day));
+              const isPast =
+                new Date(calYear, calMonth, day) <
+                new Date(new Date().toDateString());
+              return (
+                <div
+                  key={dateStr}
+                  className={`p-1.5 min-h-[90px] transition-all ${isCurrent ? "ring-1 ring-[#FF6600]/40" : ""} ${isPast ? "opacity-60" : ""}`}
+                  style={{ background: "var(--bg-primary)" }}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span
+                      className={`text-[9px] font-bold ${isCurrent ? "text-[#FF6600]" : "text-slate-500"}`}
+                    >
+                      {day}
+                    </span>
+                    {dayTasks.length > 0 && (
+                      <span className="text-[8px] font-bold text-slate-600">
+                        {dayTasks.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    {dayTasks.slice(0, 2).map((task) => (
+                      <button
+                        key={task.id}
+                        onClick={() => setSelectedTask(task)}
+                        className="w-full text-left px-1 py-0.5 rounded text-[8px] font-bold truncate leading-tight hover:brightness-110 transition-all"
+                        style={{
+                          backgroundColor:
+                            task.status === "in_progress"
+                              ? "rgba(59,130,246,0.1)"
+                              : task.status === "blocked"
+                                ? "rgba(244,63,94,0.1)"
+                                : task.status === "completed"
+                                  ? "rgba(16,185,129,0.1)"
+                                  : "rgba(100,116,139,0.1)",
+                          color:
+                            task.status === "in_progress"
+                              ? "#60a5fa"
+                              : task.status === "blocked"
+                                ? "#fb7185"
+                                : task.status === "completed"
+                                  ? "#34d399"
+                                  : "#94a3b8",
+                        }}
+                      >
+                        {task.title}
+                      </button>
+                    ))}
+                    {dayTasks.length > 2 && (
+                      <span className="text-[7px] text-slate-600 pl-1">
+                        +{dayTasks.length - 2} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* METRICS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -565,6 +833,98 @@ export default function PMDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ═══════ TASK DETAIL DRAWER ═══════ */}
+      {selectedTask && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setSelectedTask(null)}
+        >
+          <div
+            className="card w-full max-w-lg space-y-5 border-[#FF6600]/30 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <h3
+                  className="text-lg font-black"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {selectedTask.title}
+                </h3>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Status: {selectedTask.status?.replace(/_/g, " ")}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="p-1 hover:bg-white/5 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {selectedTask.start_date && (
+                <div
+                  className="p-3 rounded-xl border"
+                  style={{
+                    background: "var(--bg-tertiary)",
+                    borderColor: "var(--border-primary)",
+                  }}
+                >
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Start
+                  </p>
+                  <p
+                    className="text-xs font-bold"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {new Date(selectedTask.start_date).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+              {selectedTask.end_date && (
+                <div
+                  className="p-3 rounded-xl border"
+                  style={{
+                    background: "var(--bg-tertiary)",
+                    borderColor: "var(--border-primary)",
+                  }}
+                >
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    Due
+                  </p>
+                  <p
+                    className="text-xs font-bold"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {new Date(selectedTask.end_date).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+            </div>
+            {selectedTask.description && (
+              <div
+                className="p-3 rounded-xl border"
+                style={{
+                  background: "var(--bg-tertiary)",
+                  borderColor: "var(--border-primary)",
+                }}
+              >
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  Description
+                </p>
+                <p
+                  className="text-xs font-bold"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {selectedTask.description}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
