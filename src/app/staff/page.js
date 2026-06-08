@@ -723,10 +723,16 @@ export default function StaffDashboard() {
                         Role
                       </th>
                       <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Status
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                         Tasks
                       </th>
                       <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                         Blockers
+                      </th>
+                      <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Progress
                       </th>
                       <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                         Update
@@ -758,6 +764,13 @@ export default function StaffDashboard() {
                           </span>
                         </td>
                         <td className="p-3 text-center">
+                          <span
+                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${project.status === "Active" ? "bg-emerald-500/10 text-emerald-500" : project.status === "Paused" ? "bg-amber-500/10 text-amber-500" : "bg-slate-500/10 text-slate-500"}`}
+                          >
+                            {project.status || "Active"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
                           <span className="text-[11px] font-bold">
                             {project.taskStats?.total || 0}
                           </span>
@@ -772,6 +785,21 @@ export default function StaffDashboard() {
                               0
                             </span>
                           )}
+                        </td>
+                        <td className="p-3 text-center">
+                          <div className="flex items-center gap-2 justify-center">
+                            <div className="w-16 h-1.5 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full"
+                                style={{
+                                  width: `${project.completionRate || 0}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-[8px] font-bold text-emerald-500">
+                              {project.completionRate || 0}%
+                            </span>
+                          </div>
                         </td>
                         <td className="p-3 text-right">
                           <button
@@ -817,6 +845,13 @@ export default function StaffDashboard() {
                           </span>
                         </td>
                         <td className="p-3 text-center">
+                          <span
+                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${project.status === "Active" ? "bg-emerald-500/10 text-emerald-500" : project.status === "Paused" ? "bg-amber-500/10 text-amber-500" : "bg-slate-500/10 text-slate-500"}`}
+                          >
+                            {project.status || "Active"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
                           <span className="text-[11px] font-bold">
                             {project.taskStats?.total || 0}
                           </span>
@@ -831,6 +866,21 @@ export default function StaffDashboard() {
                               0
                             </span>
                           )}
+                        </td>
+                        <td className="p-3 text-center">
+                          <div className="flex items-center gap-2 justify-center">
+                            <div className="w-16 h-1.5 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full"
+                                style={{
+                                  width: `${project.completionRate || 0}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-[8px] font-bold text-emerald-500">
+                              {project.completionRate || 0}%
+                            </span>
+                          </div>
                         </td>
                         <td className="p-3 text-right">
                           <span className="text-[7px] text-slate-600">—</span>
