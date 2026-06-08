@@ -1465,86 +1465,79 @@ export default function AdminDashboard() {
             color="bg-rose-500/10 text-rose-500"
           />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Top blockers by type */}
+            {/* Latest active blockers */}
             <div className="card">
               <h4 className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-4">
-                {t("admin.topBlockers")}
+                Latest Blockers
               </h4>
-              {blockerTypes.length > 0 ? (
-                <div className="space-y-3">
-                  {blockerTypes.map(([type, count], i) => {
-                    const maxCount = blockerTypes[0]?.[1] || 1;
-                    return (
-                      <div key={type}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-bold uppercase tracking-tight">
-                            {type}
+              {activeBlockers.length > 0 ? (
+                <div className="space-y-2">
+                  {activeBlockers.slice(0, 5).map((b) => (
+                    <div
+                      key={b.id}
+                      className="flex items-center gap-3 p-2.5 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                            {b.title}
                           </span>
-                          <span className="text-xs font-black text-rose-500">
-                            {count} report{count > 1 ? "s" : ""}
-                          </span>
+                          {b.severity && (
+                            <span
+                              className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${b.severity === "critical" || b.severity === "high" ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"}`}
+                            >
+                              {b.severity}
+                            </span>
+                          )}
                         </div>
-                        <div className="w-full h-2 bg-primary rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-rose-500 rounded-full transition-all"
-                            style={{ width: `${(count / maxCount) * 100}%` }}
-                          />
-                        </div>
+                        {b.task_title && (
+                          <p className="text-[8px] text-slate-500 mt-0.5">
+                            Task: {b.task_title}
+                          </p>
+                        )}
                       </div>
-                    );
-                  })}
+                      <button
+                        onClick={() => handleResolveBlocker(b.id)}
+                        disabled={resolvingBlocker === b.id}
+                        className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                      >
+                        {resolvingBlocker === b.id ? "..." : "Resolve"}
+                      </button>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="py-12 text-center">
                   <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3 opacity-40" />
                   <p className="text-[10px] text-slate-500 italic">
-                    {t("reports.noBlockersFound")}
+                    No active blockers
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Quick actions + support */}
+            {/* Quick actions */}
             <div className="space-y-4">
-              <div className="card">
-                <h4 className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-4">
-                  {t("admin.openSupportRequests")}
-                </h4>
-                {opStats.support > 0 ? (
-                  <p className="text-3xl font-black text-amber-500">
-                    {opStats.support}
-                  </p>
-                ) : (
-                  <div className="py-8 text-center">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-40" />
-                    <p className="text-[10px] text-slate-500 italic">
-                      {t("common.noResults")}
-                    </p>
-                  </div>
-                )}
-              </div>
               <div className="card">
                 <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
                   {t("admin.quickActions")}
                 </h4>
                 <div className="space-y-2">
                   <button
-                    onClick={() => router.push("/admin/op-reports")}
+                    onClick={() => router.push("/admin/blockers")}
                     className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-rose-500/30 transition-all"
                   >
                     <span className="text-[10px] font-bold uppercase tracking-tight">
-                      {t("admin.viewAllBlockers")}
+                      View All Blockers
                     </span>
                     <Eye className="w-3.5 h-3.5 text-rose-500" />
                   </button>
                   <button
-                    onClick={() =>
-                      router.push("/admin/op-reports?tab=blockers")
-                    }
+                    onClick={() => router.push("/admin/op-reports")}
                     className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-amber-500/30 transition-all"
                   >
                     <span className="text-[10px] font-bold uppercase tracking-tight">
-                      {t("admin.blockerReports")}
+                      Blocker Reports
                     </span>
                     <BarChart3 className="w-3.5 h-3.5 text-amber-500" />
                   </button>
