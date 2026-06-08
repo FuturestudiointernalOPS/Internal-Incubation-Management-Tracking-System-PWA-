@@ -609,18 +609,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
               ]
             : [{ id: "all_programs", name: "OVERVIEW", href: "/pm/programs" }];
 
+        // Only static menu items — no dynamic program listing
         items[progIndex] = {
           ...items[progIndex],
-          subItems: [
-            ...baseSubItems,
-            ...(activeRole === "super_admin"
-              ? []
-              : (Array.isArray(pmPrograms) ? pmPrograms : []).map((p) => ({
-                  id: `prog_${p.id}`,
-                  name: p.name,
-                  href: `/pm/programs/${p.id}`,
-                }))),
-          ],
+          subItems: [...baseSubItems],
         };
       }
     }
