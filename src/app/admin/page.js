@@ -1495,14 +1495,12 @@ export default function AdminDashboard() {
                             Task: {b.task_title}
                           </p>
                         )}
+                        {b.task_owner && (
+                          <p className="text-[7px] text-slate-600 mt-0.5">
+                            Owner: {b.task_owner}
+                          </p>
+                        )}
                       </div>
-                      <button
-                        onClick={() => handleResolveBlocker(b.id)}
-                        disabled={resolvingBlocker === b.id}
-                        className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
-                      >
-                        {resolvingBlocker === b.id ? "..." : "Resolve"}
-                      </button>
                     </div>
                   ))}
                 </div>
