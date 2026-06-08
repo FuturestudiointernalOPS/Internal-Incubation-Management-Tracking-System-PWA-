@@ -501,6 +501,100 @@ export default function StaffDashboard() {
           </div>
         </header>
 
+        {/* ═══════ COMPACT CALENDAR ═══════ */}
+        <div className="card !p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+                {MONTHS[calMonth]} {calYear}
+              </span>
+            </div>
+            <div className="flex gap-0.5">
+              <button
+                onClick={handlePrevMonth}
+                className="p-1 rounded hover:bg-tertiary transition-all"
+              >
+                <ChevronLeft className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => {
+                  setCalMonth(now.getMonth());
+                  setCalYear(now.getFullYear());
+                }}
+                className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+              >
+                Today
+              </button>
+              <button
+                onClick={handleNextMonth}
+                className="p-1 rounded hover:bg-tertiary transition-all"
+              >
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
+            {DAYS.map((d) => (
+              <div key={d} className="bg-primary p-1 text-center">
+                <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  {d}
+                </span>
+              </div>
+            ))}
+            {calendarDays.map((day, idx) => {
+              if (day === null)
+                return (
+                  <div
+                    key={`empty-${idx}`}
+                    className="bg-primary p-1 min-h-[55px]"
+                  />
+                );
+              const dateStr = formatDate(calYear, calMonth, day);
+              const dayTasks = calendarTasks[dateStr] || [];
+              const isCurrent = isToday(new Date(calYear, calMonth, day));
+              const isPast =
+                new Date(calYear, calMonth, day) <
+                new Date(new Date().toDateString());
+              return (
+                <div
+                  key={dateStr}
+                  className={`bg-primary p-1 min-h-[55px] transition-all ${isCurrent ? "ring-1 ring-[var(--brand-orange)]/40" : ""} ${isPast ? "opacity-50" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-[8px] font-bold ${isCurrent ? "text-[var(--brand-orange)]" : "text-slate-500"}`}
+                    >
+                      {day}
+                    </span>
+                    {dayTasks.length > 0 && (
+                      <span className="text-[7px] font-bold text-slate-500">
+                        {dayTasks.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-0.5 mt-0.5">
+                    {dayTasks.slice(0, 1).map((task) => (
+                      <button
+                        key={task.id}
+                        onClick={() => setSelectedTask(task)}
+                        className={`w-full text-left px-1 py-0.5 rounded text-[7px] font-bold truncate leading-tight hover:brightness-110 transition-all ${STATUS_CONFIG[task.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[task.status]?.color || "text-slate-400"}`}
+                      >
+                        {task.title}
+                      </button>
+                    ))}
+                    {dayTasks.length > 1 && (
+                      <span className="text-[6px] text-slate-500 pl-0.5">
+                        +{dayTasks.length - 1}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* ═══════ QUICK ACTIONS ═══════ */}
         <div className="flex flex-wrap gap-3">
           <button
