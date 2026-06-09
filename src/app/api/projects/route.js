@@ -52,7 +52,7 @@ export async function POST(req) {
     if (assigned_pm_id) {
       await db.execute({
         sql: "INSERT INTO project_members (project_id, user_cid, role) VALUES (?, ?, 'lead') ON CONFLICT (project_id, user_cid) DO UPDATE SET role = 'lead'",
-        args: [projectId, assigned_pm_id],
+        args: [String(projectId), assigned_pm_id],
       });
     }
 
@@ -91,7 +91,7 @@ export async function GET(req) {
     // Filter by user membership
     if (user_cid) {
       query += `
-        INNER JOIN project_members pm ON p.id = pm.project_id AND pm.user_cid = ?
+        INNER JOIN project_members pm ON p.id::text = pm.project_id::text AND pm.user_cid = ?
       `;
       args.push(user_cid);
     }
@@ -109,24 +109,35 @@ export async function GET(req) {
 
     const result = await db.execute({ sql: query, args });
 
-    // Parse meta JSON for each project and attach member info
-    const projects = await Promise.all(
-      result.rows.map(async (row) => {
-        const meta = row.meta ? JSON.parse(row.meta) : {};
+    // Get all members in a single query instead of N+1
+    const projectIds = result.rows.map((r) => r.id);
+    let allMembers = [];
+    if (projectIds.length > 0) {
+      const placeholders = projectIds.map(() => "?").join(",");
+      const memberRes = await db.execute({
+        sql: `SELECT project_id, user_cid, role FROM project_members WHERE project_id::text IN (${placeholders})`,
+        args: projectIds,
+      });
+      allMembers = memberRes.rows || [];
+    }
 
-        // Get member count and lead info
-        const memberRes = await db.execute({
-          sql: "SELECT user_cid, role FROM project_members WHERE project_id = ?",
-          args: [row.id],
-        });
+    // Group members by project_id
+    const memberMap = {};
+    for (const m of allMembers) {
+      const pid = String(m.project_id);
+      if (!memberMap[pid]) memberMap[pid] = [];
+      memberMap[pid].push({ user_cid: m.user_cid, role: m.role });
+    }
 
-        return {
-          ...row,
-          meta,
-          members: memberRes.rows || [],
-        };
-      }),
-    );
+    // Parse meta JSON for each project
+    const projects = result.rows.map((row) => {
+      const meta = row.meta ? JSON.parse(row.meta) : {};
+      return {
+        ...row,
+        meta,
+        members: memberMap[String(row.id)] || [],
+      };
+    });
 
     return NextResponse.json({ success: true, projects });
   } catch (error) {
@@ -214,15 +225,15 @@ export async function PUT(req) {
     if (assigned_pm_id !== undefined) {
       // Remove existing lead(s)
       await db.execute({
-        sql: "DELETE FROM project_members WHERE project_id = ? AND role = 'lead'",
-        args: [parseInt(id)],
+        sql: "DELETE FROM project_members WHERE project_id::text = ? AND role = 'lead'",
+        args: [String(id)],
       });
 
       // Assign new lead if provided
       if (assigned_pm_id) {
         await db.execute({
           sql: "INSERT INTO project_members (project_id, user_cid, role) VALUES (?, ?, 'lead') ON CONFLICT (project_id, user_cid) DO UPDATE SET role = 'lead'",
-          args: [parseInt(id), assigned_pm_id],
+          args: [String(id), assigned_pm_id],
         });
       }
     }
