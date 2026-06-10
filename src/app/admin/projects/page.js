@@ -64,8 +64,12 @@ export default function AdminProjects() {
   const [newProject, setNewProject] = useState({
     name: "",
     type: "",
+    description: "",
     lead: "",
+    conceptNoteUrl: "",
   });
+  const [conceptNoteFile, setConceptNoteFile] = useState(null);
+  const [uploadingConcept, setUploadingConcept] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [creating, setCreating] = useState(false);
   const [userRole, setUserRole] = useState("");
@@ -83,9 +87,13 @@ export default function AdminProjects() {
     id: null,
     name: "",
     type: "",
+    description: "",
     status: "Active",
     lead: "",
+    conceptNoteUrl: "",
   });
+  const [editConceptFile, setEditConceptFile] = useState(null);
+  const [uploadingEditConcept, setUploadingEditConcept] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -174,6 +182,8 @@ export default function AdminProjects() {
           id: editProject.id,
           name: editProject.name.trim(),
           type: editProject.type || null,
+          description: editProject.description || null,
+          concept_note_url: editProject.conceptNoteUrl || null,
           status: editProject.status,
           assigned_pm_id: editProject.lead || null,
         }),
@@ -196,6 +206,8 @@ export default function AdminProjects() {
         body: JSON.stringify({
           name: newProject.name.trim(),
           type: newProject.type || null,
+          description: newProject.description || null,
+          concept_note_url: newProject.conceptNoteUrl || null,
           assigned_pm_id: newProject.lead || null,
           status: "Active",
         }),
@@ -220,7 +232,14 @@ export default function AdminProjects() {
           }
         }
         setShowCreateModal(false);
-        setNewProject({ name: "", type: "", lead: "" });
+        setNewProject({
+          name: "",
+          type: "",
+          description: "",
+          lead: "",
+          conceptNoteUrl: "",
+        });
+        setConceptNoteFile(null);
         setSelectedMembers([]);
         fetchData();
         setToast({
@@ -501,8 +520,10 @@ export default function AdminProjects() {
                           id: project.id,
                           name: project.name || "",
                           type: project.type || "",
+                          description: project.meta?.description || "",
                           status: project.status || "Active",
                           lead: project.assigned_pm_id || "",
+                          conceptNoteUrl: project.meta?.concept_note_url || "",
                         });
                         fetchMembers(project.id);
                         fetchStaff();
@@ -627,6 +648,23 @@ export default function AdminProjects() {
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
+              <div className="col-span-2">
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={editProject.description}
+                  onChange={(e) =>
+                    setEditProject((p) => ({
+                      ...p,
+                      description: e.target.value,
+                    }))
+                  }
+                  placeholder="Project description..."
+                  rows={2}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+                />
+              </div>
               <div>
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Status
@@ -661,6 +699,74 @@ export default function AdminProjects() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Concept Note */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-tertiary/50 border border-[var(--border-primary)]">
+              <div className="flex-1 min-w-0">
+                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Concept Note
+                </p>
+                {editProject.conceptNoteUrl ? (
+                  <a
+                    href={editProject.conceptNoteUrl}
+                    target="_blank"
+                    className="text-[10px] text-[var(--brand-orange)] font-bold underline truncate block"
+                  >
+                    View current concept note
+                  </a>
+                ) : (
+                  <p className="text-[10px] text-[var(--text-secondary)] italic">
+                    No concept note uploaded
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  id="edit-concept-file"
+                  className="hidden"
+                  onChange={(e) => setEditConceptFile(e.target.files[0])}
+                />
+                <button
+                  onClick={() =>
+                    document.getElementById("edit-concept-file")?.click()
+                  }
+                  className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider"
+                >
+                  {editProject.conceptNoteUrl ? "Replace" : "Upload"}
+                </button>
+                {editConceptFile && (
+                  <button
+                    onClick={async () => {
+                      setUploadingEditConcept(true);
+                      try {
+                        const { uploadFile } = await import("@/lib/storage");
+                        const r = await uploadFile(
+                          "project-files",
+                          `concepts/${Date.now()}-${editConceptFile.name}`,
+                          editConceptFile,
+                        );
+                        if (r.success)
+                          setEditProject((p) => ({
+                            ...p,
+                            conceptNoteUrl: r.url,
+                          }));
+                      } catch (e) {
+                        console.error(e);
+                      } finally {
+                        setUploadingEditConcept(false);
+                        setEditConceptFile(null);
+                      }
+                    }}
+                    disabled={uploadingEditConcept}
+                    className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-30"
+                  >
+                    {uploadingEditConcept ? "..." : "Save"}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -793,6 +899,83 @@ export default function AdminProjects() {
                   placeholder="e.g. Internal, Client, R&D"
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={newProject.description}
+                  onChange={(e) =>
+                    setNewProject((p) => ({
+                      ...p,
+                      description: e.target.value,
+                    }))
+                  }
+                  placeholder="Project description, goals, scope..."
+                  rows={3}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Concept Note (PDF)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => setConceptNoteFile(e.target.files[0])}
+                    className="flex-1 text-[10px] text-[var(--text-secondary)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-wider file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer hover:file:brightness-110"
+                  />
+                  {conceptNoteFile && (
+                    <button
+                      onClick={async () => {
+                        if (!conceptNoteFile) return;
+                        setUploadingConcept(true);
+                        try {
+                          const formData = new FormData();
+                          formData.append("file", conceptNoteFile);
+                          const res = await fetch(
+                            `/api/upload?filename=${encodeURIComponent("concept-" + Date.now() + "-" + conceptNoteFile.name)}`,
+                            { method: "POST", body: formData },
+                          );
+                          // Fallback: use Supabase storage
+                          const { uploadFile } = await import("@/lib/storage");
+                          const uploadResult = await uploadFile(
+                            "project-files",
+                            `concepts/${Date.now()}-${conceptNoteFile.name}`,
+                            conceptNoteFile,
+                          );
+                          if (uploadResult.success) {
+                            setNewProject((p) => ({
+                              ...p,
+                              conceptNoteUrl: uploadResult.url,
+                            }));
+                          }
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          setUploadingConcept(false);
+                          setConceptNoteFile(null);
+                        }
+                      }}
+                      disabled={uploadingConcept}
+                      className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-30"
+                    >
+                      {uploadingConcept ? "..." : "Upload"}
+                    </button>
+                  )}
+                </div>
+                {newProject.conceptNoteUrl && (
+                  <a
+                    href={newProject.conceptNoteUrl}
+                    target="_blank"
+                    className="text-[9px] text-[var(--brand-orange)] font-bold underline mt-1 inline-block"
+                  >
+                    View uploaded concept note
+                  </a>
+                )}
               </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">

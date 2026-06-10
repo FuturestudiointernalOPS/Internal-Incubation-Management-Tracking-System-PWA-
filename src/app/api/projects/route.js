@@ -21,8 +21,16 @@ export async function POST(req) {
     const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
-    const { program_id, name, status, type, concept_note, assigned_pm_id } =
-      body;
+    const {
+      program_id,
+      name,
+      status,
+      type,
+      description,
+      concept_note,
+      concept_note_url,
+      assigned_pm_id,
+    } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -34,7 +42,9 @@ export async function POST(req) {
     // Build meta with all extra fields
     const meta = JSON.stringify({
       type: type || null,
+      description: description || null,
       concept_note: concept_note || null,
+      concept_note_url: concept_note_url || null,
       assigned_pm_id: assigned_pm_id || null,
     });
 
@@ -160,7 +170,16 @@ export async function PUT(req) {
     const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
-    const { id, name, status, type, concept_note, assigned_pm_id } = body;
+    const {
+      id,
+      name,
+      status,
+      type,
+      description,
+      concept_note,
+      concept_note_url,
+      assigned_pm_id,
+    } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -184,7 +203,9 @@ export async function PUT(req) {
     // If meta fields changed, update the meta JSON
     if (
       type !== undefined ||
+      description !== undefined ||
       concept_note !== undefined ||
+      concept_note_url !== undefined ||
       assigned_pm_id !== undefined
     ) {
       // Fetch current meta
@@ -200,7 +221,9 @@ export async function PUT(req) {
       const newMeta = JSON.stringify({
         ...currentMeta,
         ...(type !== undefined ? { type } : {}),
+        ...(description !== undefined ? { description } : {}),
         ...(concept_note !== undefined ? { concept_note } : {}),
+        ...(concept_note_url !== undefined ? { concept_note_url } : {}),
         ...(assigned_pm_id !== undefined ? { assigned_pm_id } : {}),
       });
 
