@@ -46,6 +46,7 @@ const NAV_KEY_MAP = {
   programs: "navigation.programs",
   all_programs: "navigation.allPrograms",
   create_program: "navigation.createProgram",
+  create_project: "navigation.createProject",
   progress_hub: "navigation.progress",
   internal_ops: "navigation.internalOps",
   internal_ops_board: "navigation.internalOpsBoard",
@@ -256,12 +257,17 @@ const NAVIGATION_MATRIX = {
       icon: Rocket,
       subItems: [
         { id: "all_projects", name: "ALL PROJECTS", href: "/admin/projects" },
+        {
+          id: "create_project",
+          name: "CREATE PROJECT",
+          href: "/admin/projects?action=create",
+        },
       ],
     },
 
     {
       id: "internal_ops",
-      name: "INTERNAL OPS",
+      name: "Internal Ops",
       icon: ListTodo,
       subItems: [
         { id: "internal_ops_board", name: "BOARD", href: "/admin/work" },
