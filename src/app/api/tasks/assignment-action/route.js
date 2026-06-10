@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * ASSIGNMENT ACTION API
@@ -24,6 +25,8 @@ import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { task_id, user_id, user_name, action } = await req.json();
 
     if (!task_id || !user_id || !action) {

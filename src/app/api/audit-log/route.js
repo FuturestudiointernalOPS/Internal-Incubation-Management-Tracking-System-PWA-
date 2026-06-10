@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * AUDIT LOG API
@@ -14,6 +15,8 @@ import { NextResponse } from "next/server";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const entity_type = searchParams.get("entity_type");
     const entity_id = searchParams.get("entity_id");

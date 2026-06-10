@@ -1,4 +1,5 @@
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 /**
@@ -10,6 +11,8 @@ import { NextResponse } from "next/server";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const project_id = searchParams.get("project_id");
@@ -46,12 +49,15 @@ export async function GET(req) {
           args: [task.id],
         });
         return { ...task, blockers: blockerRes.rows || [] };
-      })
+      }),
     );
 
     return NextResponse.json({ success: true, tasks });
   } catch (error) {
     console.error("GET admin/tasks error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

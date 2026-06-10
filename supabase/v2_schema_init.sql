@@ -158,3 +158,300 @@ CREATE TABLE IF NOT EXISTS v2_feedback (
 
 CREATE INDEX IF NOT EXISTS idx_v2_progress_program_id ON v2_progress(program_id);
 CREATE INDEX IF NOT EXISTS idx_v2_feedback_program_id ON v2_feedback(program_id);
+
+--------------------------------------------------------------------------------
+-- 7. USERS & AUTHENTICATION
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS contacts (
+    cid TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    phone TEXT,
+    address TEXT,
+    dob TEXT,
+    gender TEXT,
+    mother_name TEXT,
+    group_name TEXT NOT NULL DEFAULT '',
+    role TEXT NOT NULL DEFAULT 'participant',
+    password TEXT NOT NULL,
+    program_id TEXT,
+    program_name TEXT,
+    image TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    deleted INTEGER NOT NULL DEFAULT 0,
+    language TEXT DEFAULT 'en',
+    v2_team_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+    token TEXT PRIMARY KEY,
+    user_cid TEXT NOT NULL REFERENCES contacts(cid) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_cid);
+
+--------------------------------------------------------------------------------
+-- 8. TASKS & BLOCKERS
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tasks (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    project_id INTEGER,
+    category TEXT,
+    created_week INTEGER NOT NULL,
+    created_year INTEGER NOT NULL,
+    carried_over_from_task_id INTEGER,
+    parent_task_id INTEGER,
+    start_date DATE,
+    end_date DATE,
+    assigned_to TEXT,
+    first_scheduled_start_date DATE,
+    first_scheduled_end_date DATE,
+    reschedule_count INTEGER DEFAULT 0,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+
+CREATE TABLE IF NOT EXISTS blockers (
+    id SERIAL PRIMARY KEY,
+    task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL,
+    description TEXT,
+    severity TEXT NOT NULL DEFAULT 'medium',
+    status TEXT NOT NULL DEFAULT 'active',
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    resolved_by TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_blockers_task_id ON blockers(task_id);
+CREATE INDEX IF NOT EXISTS idx_blockers_status ON blockers(status);
+
+--------------------------------------------------------------------------------
+-- 9. OPERATIONAL REPORTS (STANDUPS & RETROS)
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS v2_op_reports (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL DEFAULT '',
+    user_role TEXT NOT NULL DEFAULT 'staff',
+    report_type TEXT NOT NULL,
+    week_number INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    -- Legacy standup fields
+    weekly_priorities TEXT,
+    key_deliverables TEXT,
+    risks_blockers TEXT,
+    additional_notes TEXT,
+    -- Structured standup fields
+    top_priorities TEXT,
+    expected_deliverables TEXT,
+    projects_tasks TEXT,
+    has_dependencies INTEGER,
+    dependency_note TEXT,
+    has_blockers INTEGER,
+    blocker_description TEXT,
+    needs_support INTEGER,
+    support_note TEXT,
+    -- Retro fields
+    completed_work TEXT,
+    unfinished_tasks TEXT,
+    challenges TEXT,
+    wins TEXT,
+    carryover_items TEXT,
+    week_status TEXT,
+    retro_notes TEXT,
+    had_blockers INTEGER,
+    blocker_type TEXT,
+    blocker_desc TEXT,
+    major_achievement TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_op_reports_user_week ON v2_op_reports(user_id, week_number, year, report_type);
+
+--------------------------------------------------------------------------------
+-- 10. KNOWLEDGE BANK
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS v2_knowledge_bank (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL DEFAULT '[]',
+    is_archived INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS v2_knowledge_attachments (
+    id SERIAL PRIMARY KEY,
+    note_id INTEGER NOT NULL REFERENCES v2_knowledge_bank(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_attachments_note_id ON v2_knowledge_attachments(note_id);
+
+--------------------------------------------------------------------------------
+-- 11. TEAMS
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS v2_teams (
+    id TEXT PRIMARY KEY,
+    program_id UUID NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    handler_id TEXT,
+    handler_name TEXT,
+    password TEXT NOT NULL,
+    team_username TEXT NOT NULL UNIQUE,
+    group_name TEXT,
+    leader_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_teams_program_id ON v2_teams(program_id);
+
+--------------------------------------------------------------------------------
+-- 12. KPIs, EVENTS, DOCUMENTS, FOLLOWUPS
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS v2_kpis (
+    id SERIAL PRIMARY KEY,
+    program_id UUID NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    target_value TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_kpis_program_id ON v2_kpis(program_id);
+
+CREATE TABLE IF NOT EXISTS v2_events (
+    id SERIAL PRIMARY KEY,
+    program_id UUID NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,
+    team_id TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    event_type TEXT NOT NULL,
+    start_time TIMESTAMP WITH TIME ZONE,
+    location TEXT,
+    created_by TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_events_program_id ON v2_events(program_id);
+
+CREATE TABLE IF NOT EXISTS v2_document_requirements (
+    id SERIAL PRIMARY KEY,
+    program_id UUID NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    is_completed INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_documents_program_id ON v2_document_requirements(program_id);
+
+CREATE TABLE IF NOT EXISTS v2_followups (
+    id SERIAL PRIMARY KEY,
+    program_id UUID NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,
+    week_number INTEGER,
+    session_id INTEGER,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_followups_program_id ON v2_followups(program_id);
+
+--------------------------------------------------------------------------------
+-- 13. AUDIT & ACTIVITY LOGS
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS audit_log (
+    id SERIAL PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL DEFAULT '',
+    action TEXT NOT NULL,
+    details TEXT,
+    metadata TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
+
+CREATE TABLE IF NOT EXISTS task_assignment_log (
+    id SERIAL PRIMARY KEY,
+    task_id INTEGER NOT NULL,
+    project_id INTEGER,
+    actor_id TEXT NOT NULL,
+    target_user_id TEXT,
+    action_type TEXT NOT NULL,
+    previous_state TEXT,
+    new_state TEXT,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_log_task_id ON task_assignment_log(task_id);
+
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id SERIAL PRIMARY KEY,
+    user_identity TEXT NOT NULL,
+    action TEXT NOT NULL,
+    module TEXT,
+    status TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at);
+
+--------------------------------------------------------------------------------
+-- 14. PROGRAM STAFF ASSIGNMENTS
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS v2_program_staff (
+    id SERIAL PRIMARY KEY,
+    program_id UUID NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,
+    staff_id TEXT NOT NULL,
+    role TEXT DEFAULT 'staff',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(program_id, staff_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_program_staff_program ON v2_program_staff(program_id);
+
+--------------------------------------------------------------------------------
+-- 15. WEEKLY REPORTS (TEACHER/PM)
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS v2_weekly_reports (
+    id SERIAL PRIMARY KEY,
+    program_id UUID NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,
+    week_number INTEGER NOT NULL,
+    teacher_id TEXT,
+    teacher_name TEXT,
+    reception_score TEXT,
+    progress_notes TEXT,
+    student_reception TEXT,
+    action_taken TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(program_id, week_number, teacher_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_weekly_reports_program ON v2_weekly_reports(program_id);

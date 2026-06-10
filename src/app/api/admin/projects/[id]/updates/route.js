@@ -1,4 +1,5 @@
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 /**
@@ -17,7 +18,9 @@ import { NextResponse } from "next/server";
  */
 
 function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
@@ -27,6 +30,8 @@ function getWeekNumber(date) {
 export async function GET(req, { params }) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { id } = await params;
 
     const result = await db.execute({
@@ -47,6 +52,8 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { id } = await params;
     const body = await req.json();
 

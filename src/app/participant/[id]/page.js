@@ -118,7 +118,7 @@ export default function ParticipantProjectDetail({ params }) {
           program_id: program?.id,
           deliverable_id: delId,
           participant_id: user?.email || user?.cid,
-          submission_link: link,
+          file_url: link,
         }),
       });
       if ((await res.json()).success) {

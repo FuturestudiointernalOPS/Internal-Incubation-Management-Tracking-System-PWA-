@@ -1,4 +1,5 @@
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 /**
@@ -11,6 +12,8 @@ import { NextResponse } from "next/server";
 export async function GET() {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
 
     const result = await db.execute({
       sql: `SELECT cid, name, email, phone, group_name, role, created_at,
@@ -43,7 +46,7 @@ export async function GET() {
     console.error("Pending users fetch error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

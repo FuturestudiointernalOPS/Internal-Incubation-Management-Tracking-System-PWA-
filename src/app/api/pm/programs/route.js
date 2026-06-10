@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { requireAuth } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 /**
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const url = new URL(req.url);
     const assignedPmId = url.searchParams.get("assigned_pm_id");
     const showArchived = url.searchParams.get("show_archived") === "true";
@@ -149,6 +152,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const {
       name,
       description,
@@ -229,6 +234,8 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const {
       id,
       name,
@@ -374,6 +381,8 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const { id } = await req.json();
 
     if (!id)

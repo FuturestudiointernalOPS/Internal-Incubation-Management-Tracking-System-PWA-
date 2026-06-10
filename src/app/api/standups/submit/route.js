@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * POST /api/standups/submit
@@ -16,20 +17,35 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const body = await req.json();
     const {
-      user_id, user_name, user_role, week_number, year,
-      top_priorities, expected_deliverables,
-      projects_tasks, has_dependencies, dependency_note,
-      has_blockers, blocker_description,
-      needs_support, support_note, additional_notes,
+      user_id,
+      user_name,
+      user_role,
+      week_number,
+      year,
+      top_priorities,
+      expected_deliverables,
+      projects_tasks,
+      has_dependencies,
+      dependency_note,
+      has_blockers,
+      blocker_description,
+      needs_support,
+      support_note,
+      additional_notes,
       tasks: newTasks,
     } = body;
 
     if (!user_id || !week_number || !year) {
       return NextResponse.json(
-        { success: false, error: "user_id, week_number, and year are required" },
-        { status: 400 }
+        {
+          success: false,
+          error: "user_id, week_number, and year are required",
+        },
+        { status: 400 },
       );
     }
 
@@ -76,8 +92,11 @@ export async function POST(req) {
            ?, ?, ?, ?,
            ?, ?, ?)`,
         args: [
-          user_id, user_name || "", user_role || "staff",
-          week_number, year,
+          user_id,
+          user_name || "",
+          user_role || "staff",
+          week_number,
+          year,
           JSON.stringify(top_priorities || []),
           JSON.stringify(expected_deliverables || []),
           projects_tasks || null,
@@ -104,13 +123,21 @@ export async function POST(req) {
                created_week, created_year, start_date, end_date)
               VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
             args: [
-              user_id, user_name || "", task.title, task.description || null,
+              user_id,
+              user_name || "",
+              task.title,
+              task.description || null,
               task.project_id || null,
-              week_number, year,
-              task.start_date || null, task.end_date || null,
+              week_number,
+              year,
+              task.start_date || null,
+              task.end_date || null,
             ],
           });
-          createdTasks.push({ id: Number(taskResult.lastInsertRowid), title: task.title });
+          createdTasks.push({
+            id: Number(taskResult.lastInsertRowid),
+            title: task.title,
+          });
         }
       }
     }
@@ -123,6 +150,9 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error("POST standups/submit error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

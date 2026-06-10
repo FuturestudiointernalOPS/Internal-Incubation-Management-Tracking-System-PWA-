@@ -2,6 +2,8 @@ import db, { initDb } from "@/lib/db";
 import { cookies } from "next/headers";
 import { v4 as uuidv4 } from "uuid";
 
+import { NextResponse } from "next/server";
+
 export const SESSION_COOKIE_NAME = "impactos_session";
 const SESSION_DURATION_HOURS = 24;
 const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
@@ -136,4 +138,37 @@ export async function requireSession(allowedRoles = null) {
   }
 
   return session;
+}
+
+/**
+ * API-friendly auth guard that returns a NextResponse error
+ * instead of throwing. Use in route handlers:
+ *
+ *   const authError = await requireAuth(['super_admin']);
+ *   if (authError) return authError;
+ *
+ * On success, returns null and the caller can proceed.
+ */
+export async function requireAuth(allowedRoles = null) {
+  try {
+    const session = await requireSession(allowedRoles);
+    return null; // authorized
+  } catch (err) {
+    if (err.message === "Unauthorized") {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+    if (err.message === "Forbidden") {
+      return NextResponse.json(
+        { success: false, error: "Insufficient permissions." },
+        { status: 403 },
+      );
+    }
+    return NextResponse.json(
+      { success: false, error: "Authentication system failure." },
+      { status: 500 },
+    );
+  }
 }

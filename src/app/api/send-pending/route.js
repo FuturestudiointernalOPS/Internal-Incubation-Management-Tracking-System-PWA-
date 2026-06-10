@@ -1,11 +1,14 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/mailer";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET() {
   try {
     await initDb();
-    
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
+
     // Find pending contacts and their current step requirements
     const result = await db.execute(`
       SELECT cc.id as cc_id, cc.cid, cc.campaign_id, cc.sequence_step,
@@ -15,23 +18,31 @@ export async function GET() {
       JOIN contacts c ON cc.cid = c.cid
       JOIN campaigns cam ON cc.campaign_id = cam.id
       JOIN campaign_steps cs ON cc.campaign_id = cs.campaign_id AND cc.sequence_step = cs.step_order
-      WHERE cc.status = 'pending' 
+      WHERE cc.status = 'pending'
       AND (cc.next_send_at IS NULL OR datetime(cc.next_send_at) <= datetime('now'))
       AND cam.status != 'paused'
       LIMIT 10
     `);
 
-    console.log(`[AUTOMATION] Found ${result.rows.length} pending contacts for dispatch.`);
+    console.log(
+      `[AUTOMATION] Found ${result.rows.length} pending contacts for dispatch.`,
+    );
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ success: true, sent: 0, message: "No pending emails" });
+      return NextResponse.json({
+        success: true,
+        sent: 0,
+        message: "No pending emails",
+      });
     }
 
     let sentCount = 0;
-    
+
     for (const row of result.rows) {
-      const formUrl = row.form_id ? `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/form/${row.form_id}?cid=${row.cid}` : '';
-      
+      const formUrl = row.form_id
+        ? `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/form/${row.form_id}?cid=${row.cid}`
+        : "";
+
       // Personalize Content
       let subject = row.step_subject || `Message from ImpactOS`;
       let body = row.step_body || `Hello, please check your portal.`;
@@ -45,13 +56,17 @@ export async function GET() {
           <div style="font-family: sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 16px;">
             <p style="font-size: 11px; letter-spacing: 0.2em; color: #6366f1; font-weight: 900; text-transform: uppercase; margin-bottom: 24px;">Secure Communication Channel</p>
             <div style="font-size: 16px; color: #334155; line-height: 1.8; white-space: pre-wrap;">${personalizedBody}</div>
-            
-            ${formUrl ? `
+
+            ${
+              formUrl
+                ? `
               <div style="margin: 40px 0; text-align: center;">
                 <a href="${formUrl}" style="display: inline-block; padding: 18px 36px; background: #6366f1; color: #ffffff; text-decoration: none; border-radius: 14px; font-weight: 900; letter-spacing: 0.05em; font-size: 13px; text-transform: uppercase; box-shadow: 0 10px 20px rgba(99,102,241,0.2);">Proceed to Secure Portal</a>
               </div>
-            ` : ''}
-            
+            `
+                : ""
+            }
+
             <p style="margin-top: 50px; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 25px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: bold;">Electronic Dispatch ID: ${row.cid} · ImpactOS Executive Core</p>
           </div>
         `;
@@ -61,42 +76,47 @@ export async function GET() {
           to: row.email,
           subject,
           body: htmlContent,
-          isHtml: true
+          isHtml: true,
         });
-        
+
         // 1. Identify the NEXT step in the sequence
         const nextStepResult = await db.execute({
-           sql: "SELECT * FROM campaign_steps WHERE campaign_id = ? AND step_order = ?",
-           args: [row.campaign_id, row.sequence_step + 1]
+          sql: "SELECT * FROM campaign_steps WHERE campaign_id = ? AND step_order = ?",
+          args: [row.campaign_id, row.sequence_step + 1],
         });
 
         if (nextStepResult.rows.length > 0) {
-           const ns = nextStepResult.rows[0];
-           
-           // 2. Calculate the next dispatch window correctly
-           if (ns.wait_type === 'date' && ns.scheduled_date) {
-              // Fixed Date/Time logic
-              await db.execute({
-                sql: `UPDATE campaign_contacts SET sequence_step = sequence_step + 1, next_send_at = ?, status = 'pending' WHERE id = ?`,
-                args: [ns.scheduled_date, row.cc_id]
-              });
-           } else {
-              // Dynamic Delay logic (Minutes/Hours/Days)
-              const unit = ns.wait_type || 'days';
-              const val = unit === 'minutes' ? (ns.delay_minutes || 0) : (unit === 'hours' ? (ns.delay_hours || 0) : (ns.delay_days || 0));
-              const window = `+${val} ${unit}`;
-              
-              await db.execute({
-                sql: `UPDATE campaign_contacts SET sequence_step = sequence_step + 1, next_send_at = datetime('now', ?), status = 'pending' WHERE id = ?`,
-                args: [window, row.cc_id]
-              });
-           }
+          const ns = nextStepResult.rows[0];
+
+          // 2. Calculate the next dispatch window correctly
+          if (ns.wait_type === "date" && ns.scheduled_date) {
+            // Fixed Date/Time logic
+            await db.execute({
+              sql: `UPDATE campaign_contacts SET sequence_step = sequence_step + 1, next_send_at = ?, status = 'pending' WHERE id = ?`,
+              args: [ns.scheduled_date, row.cc_id],
+            });
+          } else {
+            // Dynamic Delay logic (Minutes/Hours/Days)
+            const unit = ns.wait_type || "days";
+            const val =
+              unit === "minutes"
+                ? ns.delay_minutes || 0
+                : unit === "hours"
+                  ? ns.delay_hours || 0
+                  : ns.delay_days || 0;
+            const window = `+${val} ${unit}`;
+
+            await db.execute({
+              sql: `UPDATE campaign_contacts SET sequence_step = sequence_step + 1, next_send_at = datetime('now', ?), status = 'pending' WHERE id = ?`,
+              args: [window, row.cc_id],
+            });
+          }
         } else {
-           // Sequence complete
-           await db.execute({
-             sql: `UPDATE campaign_contacts SET status = 'completed', next_send_at = NULL WHERE id = ?`,
-             args: [row.cc_id]
-           });
+          // Sequence complete
+          await db.execute({
+            sql: `UPDATE campaign_contacts SET status = 'completed', next_send_at = NULL WHERE id = ?`,
+            args: [row.cc_id],
+          });
         }
         sentCount++;
       } catch (err) {
@@ -107,6 +127,9 @@ export async function GET() {
     return NextResponse.json({ success: true, sent: sentCount });
   } catch (err) {
     console.error("Automation Error:", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 },
+    );
   }
 }

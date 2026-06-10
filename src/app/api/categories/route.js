@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * WORK CATEGORIES API
@@ -13,6 +14,8 @@ import db, { initDb } from "@/lib/db";
 export async function GET() {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
 
     const result = await db.execute({
       sql: "SELECT * FROM work_categories WHERE is_active = true ORDER BY sort_order ASC",

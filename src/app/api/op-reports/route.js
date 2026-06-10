@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * OPERATIONAL REPORTS API
@@ -15,6 +16,8 @@ import { NextResponse } from "next/server";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
     const report_type = searchParams.get("type");
@@ -62,6 +65,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const body = await req.json();
     const {
       user_id,

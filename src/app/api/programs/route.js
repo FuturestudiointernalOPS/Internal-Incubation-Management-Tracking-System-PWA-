@@ -2,10 +2,13 @@ import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { requireAuth } from "@/lib/auth";
 
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const body = await req.json();
     const {
       name,
@@ -65,6 +68,8 @@ export async function POST(req) {
 export async function GET() {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const { rows } = await db.execute(
       "SELECT * FROM v2_programs ORDER BY created_at DESC",
     );
@@ -91,6 +96,8 @@ export async function GET() {
 export async function PUT(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const data = await req.json();
 
     if (!data.id) {

@@ -1,4 +1,5 @@
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 /**
@@ -12,12 +13,14 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { user_cid, admin_name } = await req.json();
 
     if (!user_cid) {
       return NextResponse.json(
         { success: false, error: "User CID is required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,7 +32,7 @@ export async function POST(req) {
     if (userResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "User not found." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -77,7 +80,7 @@ export async function POST(req) {
     console.error("User rejection error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to reject user." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

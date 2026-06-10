@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent, isTaskLocked } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * TASKS API
@@ -32,6 +33,8 @@ function getWeekNumber(date) {
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
     const status = searchParams.get("status");
@@ -169,6 +172,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const body = await req.json();
     const {
       user_id,
@@ -354,6 +359,8 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const body = await req.json();
     const {
       id,
@@ -728,6 +735,8 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const user_id = searchParams.get("user_id");

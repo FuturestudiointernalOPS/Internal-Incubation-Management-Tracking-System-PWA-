@@ -1,4 +1,5 @@
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 /**
@@ -15,6 +16,8 @@ import { NextResponse } from "next/server";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const task_id = searchParams.get("task_id");
@@ -52,6 +55,8 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { id, resolved_by } = await req.json();
 
     if (!id) {

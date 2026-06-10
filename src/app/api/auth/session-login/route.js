@@ -16,107 +16,188 @@ export async function POST(req) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
 
-    // Find user
-    const result = await db.execute({
+    // --- 1. SEARCH CONTACTS ---
+    let user = null;
+    let isTeamLogin = false;
+    let isFamilyLogin = false;
+    let permission = "edit";
+
+    const contactResult = await db.execute({
       sql: "SELECT * FROM contacts WHERE (email = ? OR cid = ?) AND deleted = 0 LIMIT 1",
       args: [cleanEmail, cleanEmail],
     });
 
-    if (result.rows.length === 0) {
+    if (contactResult.rows.length > 0) {
+      user = contactResult.rows[0];
+    }
+
+    // --- 2. TEAM LOGIN (if not found in contacts) ---
+    if (!user) {
+      const teamResult = await db.execute({
+        sql: "SELECT * FROM v2_teams WHERE team_username = ? LIMIT 1",
+        args: [cleanEmail],
+      });
+      if (teamResult.rows.length > 0) {
+        user = teamResult.rows[0];
+        isTeamLogin = true;
+      }
+    }
+
+    // --- 3. FAMILY LOGIN (if not found in contacts or teams) ---
+    if (!user) {
+      const familyResult = await db.execute({
+        sql: "SELECT * FROM families WHERE shared_email = ? LIMIT 1",
+        args: [cleanEmail],
+      });
+      if (familyResult.rows.length > 0) {
+        const family = familyResult.rows[0];
+        if (cleanPassword === family.shared_password_edit) {
+          user = family;
+          isFamilyLogin = true;
+          permission = "edit";
+        } else if (cleanPassword === family.shared_password_read) {
+          user = family;
+          isFamilyLogin = true;
+          permission = "read";
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { success: false, error: "Invalid credentials." },
         { status: 401 },
       );
     }
 
-    const user = result.rows[0];
+    // --- 4. PASSWORD VERIFICATION ---
+    if (!isFamilyLogin) {
+      const isHashed = user.password && user.password.startsWith("$2");
+      let isMatch = false;
 
-    // Verify password
-    const isHashed = user.password && user.password.startsWith("$2");
-    let isMatch = false;
+      if (isHashed) {
+        isMatch = await bcrypt.compare(cleanPassword, user.password);
+      } else {
+        isMatch = cleanPassword === user.password;
+      }
 
-    if (isHashed) {
-      isMatch = await bcrypt.compare(password, user.password);
-    } else {
-      isMatch = password === user.password;
+      if (!isMatch) {
+        return NextResponse.json(
+          { success: false, error: "Invalid credentials." },
+          { status: 401 },
+        );
+      }
     }
 
-    if (!isMatch) {
-      return NextResponse.json(
-        { success: false, error: "Invalid credentials." },
-        { status: 401 },
-      );
+    // --- 5. STATUS CHECK (not for teams/families) ---
+    if (!isTeamLogin && !isFamilyLogin) {
+      if (user.status === "pending") {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Your account is pending approval. Please wait for an administrator to approve your account.",
+          },
+          { status: 403 },
+        );
+      }
+      if (user.status === "inactive" || user.status === "suspended") {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Your account has been suspended. Contact your administrator.",
+          },
+          { status: 403 },
+        );
+      }
     }
 
-    // Check status - only ACTIVE users can log in
-    if (user.status === "pending") {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Your account is pending approval. Please wait for an administrator to approve your account.",
-        },
-        { status: 403 },
-      );
-    }
-
-    if (user.status === "inactive" || user.status === "suspended") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Your account has been suspended. Contact your administrator.",
-        },
-        { status: 403 },
-      );
-    }
-
-    // Resolve role (same logic as existing login)
+    // --- 6. ROLE RESOLUTION ---
     let finalRole = "participant";
+    const userCid = user.cid || user.id;
 
-    const pmLeadAssignment = await db.execute({
-      sql: "SELECT id FROM v2_programs WHERE assigned_pm_id = ? LIMIT 1",
-      args: [user.cid],
-    });
+    if (isTeamLogin) {
+      finalRole = "team";
+    } else if (isFamilyLogin) {
+      finalRole = "participant";
+    } else {
+      const pmLeadAssignment = await db.execute({
+        sql: "SELECT id FROM v2_programs WHERE assigned_pm_id = ? LIMIT 1",
+        args: [userCid],
+      });
 
-    const activeTeammateAssignment = await db.execute({
-      sql: `SELECT id FROM v2_programs WHERE assigned_assistant_id LIKE ?
-            UNION
-            SELECT id FROM v2_teams WHERE handler_id = ?
-            LIMIT 1`,
-      args: [`%${user.cid}%`, user.cid],
-    });
+      const activeTeammateAssignment = await db.execute({
+        sql: `SELECT id FROM v2_programs WHERE assigned_assistant_id LIKE ?
+              UNION
+              SELECT id FROM v2_teams WHERE handler_id = ?
+              LIMIT 1`,
+        args: [`%${userCid}%`, userCid],
+      });
 
-    if (user.role === "super_admin" || user.id === "sa") {
-      finalRole = "super_admin";
-    } else if (pmLeadAssignment.rows.length > 0) {
-      finalRole = "program_manager";
-    } else if (activeTeammateAssignment.rows.length > 0) {
-      finalRole = "teacher";
-    } else if (
-      user.role === "staff" ||
-      user.role === "project_manager" ||
-      user.role === "admin" ||
-      (user.group_name || "").toUpperCase().includes("FUTURE STUDIO") ||
-      (user.group_name || "").toUpperCase().includes("STAFF")
-    ) {
-      finalRole = "staff";
+      if (user.role === "super_admin" || user.id === "sa") {
+        finalRole = "super_admin";
+      } else if (pmLeadAssignment.rows.length > 0) {
+        finalRole = "program_manager";
+      } else if (activeTeammateAssignment.rows.length > 0) {
+        finalRole = "teacher";
+      } else if (
+        user.role === "staff" ||
+        user.role === "project_manager" ||
+        user.role === "admin" ||
+        (user.group_name || "").toUpperCase().includes("FUTURE STUDIO") ||
+        (user.group_name || "").toUpperCase().includes("STAFF")
+      ) {
+        finalRole = "staff";
+      }
     }
 
-    // Create session (DB insert) and get token
-    const { token, maxAge } = await createSession(user.cid, finalRole);
-
-    // Build response and set cookie directly on it
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        cid: user.cid,
+    // --- 7. BUILD RESPONSE USER ---
+    let responseUser;
+    if (isFamilyLogin) {
+      responseUser = {
+        cid: user.registration_id,
+        name: user.name,
+        email: user.shared_email,
+        role: "participant",
+        group_name: user.name,
+        is_entity: true,
+        permission: permission,
+        language: "en",
+      };
+    } else if (isTeamLogin) {
+      responseUser = {
+        cid: userCid,
+        name: user.name || user.team_name || user.team_username,
+        email: user.team_username,
+        role: "team",
+        group_name: user.group_name || "",
+        team_id: user.id,
+        language: "en",
+      };
+    } else {
+      responseUser = {
+        cid: userCid,
         name: user.name,
         email: user.email,
         role: finalRole,
         group_name: user.group_name,
         language: user.language || "en",
-      },
+        permission: "edit",
+      };
+    }
+
+    // --- 8. CREATE SESSION & RETURN ---
+    const { token, maxAge } = await createSession(
+      responseUser.cid || responseUser.id,
+      isTeamLogin ? "team" : isFamilyLogin ? "participant" : finalRole,
+    );
+
+    const response = NextResponse.json({
+      success: true,
+      user: responseUser,
     });
 
     return setSessionCookieOnResponse(response, token, maxAge);

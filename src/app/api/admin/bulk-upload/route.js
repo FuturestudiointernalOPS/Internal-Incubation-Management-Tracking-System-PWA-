@@ -1,4 +1,5 @@
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import Papa from "papaparse";
@@ -17,6 +18,8 @@ import Papa from "papaparse";
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
 
     const formData = await req.formData();
     const file = formData.get("file");
@@ -24,7 +27,7 @@ export async function POST(req) {
     if (!file) {
       return NextResponse.json(
         { success: false, error: "CSV file is required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -39,18 +42,24 @@ export async function POST(req) {
     });
 
     if (parseErrors.length > 0) {
-      return NextResponse.json({
-        success: false,
-        error: "CSV parsing error",
-        parseErrors: parseErrors.slice(0, 5),
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CSV parsing error",
+          parseErrors: parseErrors.slice(0, 5),
+        },
+        { status: 400 },
+      );
     }
 
     if (data.length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: "CSV file is empty.",
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CSV file is empty.",
+        },
+        { status: 400 },
+      );
     }
 
     const results = {
@@ -64,25 +73,35 @@ export async function POST(req) {
       try {
         const name = (row.name || "").trim();
         const email = (row.email || "").trim().toLowerCase();
-        const groupName = (row.group_name || row.group || "").trim().toUpperCase() || "UNASSIGNED";
+        const groupName =
+          (row.group_name || row.group || "").trim().toUpperCase() ||
+          "UNASSIGNED";
         const role = (row.role || "participant").trim().toLowerCase();
 
         if (!name || !email) {
           results.skipped++;
-          results.errors.push({ row: index + 1, error: "Name and email are required." });
+          results.errors.push({
+            row: index + 1,
+            error: "Name and email are required.",
+          });
           continue;
         }
 
         if (!email.includes("@")) {
           results.skipped++;
-          results.errors.push({ row: index + 1, email, error: "Invalid email format." });
+          results.errors.push({
+            row: index + 1,
+            email,
+            error: "Invalid email format.",
+          });
           continue;
         }
 
         // Generate a random initial password (user will set via setup link)
         const randomPass = Math.random().toString(36).substring(2, 10) + "A1!";
         const hashedPassword = await bcrypt.hash(randomPass, 10);
-        const cid = "USR-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+        const cid =
+          "USR-" + Math.random().toString(36).substring(2, 10).toUpperCase();
 
         // Upsert: create or update
         const existing = await db.execute({
@@ -110,7 +129,11 @@ export async function POST(req) {
         }
       } catch (rowErr) {
         results.skipped++;
-        results.errors.push({ row: index + 1, email: row.email, error: rowErr.message });
+        results.errors.push({
+          row: index + 1,
+          email: row.email,
+          error: rowErr.message,
+        });
       }
     }
 
@@ -122,7 +145,7 @@ export async function POST(req) {
                 VALUES ('sa', ?, ?, 'verification')`,
           args: [
             "BULK USER IMPORT",
-            `${results.created} new users created, ${results.updated} updated via CSV upload. ${results.errors.length} errors.`
+            `${results.created} new users created, ${results.updated} updated via CSV upload. ${results.errors.length} errors.`,
           ],
         });
       } catch (e) {
@@ -139,7 +162,7 @@ export async function POST(req) {
     console.error("Bulk upload error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

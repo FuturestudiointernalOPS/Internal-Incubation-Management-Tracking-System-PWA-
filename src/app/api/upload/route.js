@@ -1,7 +1,10 @@
-import { handleUpload } from '@vercel/blob/client';
-import { NextResponse } from 'next/server';
+import { handleUpload } from "@vercel/blob/client";
+import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 export async function POST(request) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const body = await request.json();
 
   try {
@@ -11,21 +14,18 @@ export async function POST(request) {
       onBeforeGenerateToken: async (pathname) => {
         // You can check authorization here if needed
         return {
-          allowedContentTypes: ['application/pdf'],
+          allowedContentTypes: ["application/pdf"],
           tokenPayload: JSON.stringify({}),
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
-         // Upload finished successfully
+        // Upload finished successfully
       },
-      token: process.env.BLOB_READ_WRITE_TOKEN
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     });
 
     return NextResponse.json(jsonResponse);
   } catch (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }

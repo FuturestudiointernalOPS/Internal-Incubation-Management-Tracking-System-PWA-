@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * ATTENDANCE API
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get("session_id");
     const programId = searchParams.get("program_id");
@@ -38,21 +41,40 @@ export async function GET(req) {
     return NextResponse.json({ success: true, attendance: res.rows });
   } catch (error) {
     console.error("Attendance GET Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(req) {
   try {
     await initDb();
-    const { session_id, program_id, participant_id, status, date } = await req.json();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
+    const { session_id, program_id, participant_id, status, date } =
+      await req.json();
 
     if (!session_id || !program_id || !participant_id || !status || !date) {
-      return NextResponse.json({ success: false, error: "session_id, program_id, participant_id, status, and date are required" }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "session_id, program_id, participant_id, status, and date are required",
+        },
+        { status: 400 },
+      );
     }
 
     if (!["present", "absent", "excused", "late"].includes(status)) {
-      return NextResponse.json({ success: false, error: "Invalid status. Allowed: present, absent, excused, late" }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid status. Allowed: present, absent, excused, late",
+        },
+        { status: 400 },
+      );
     }
 
     // Upsert: if a record exists for this session+participant+date, update it
@@ -76,6 +98,9 @@ export async function POST(req) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Attendance POST Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

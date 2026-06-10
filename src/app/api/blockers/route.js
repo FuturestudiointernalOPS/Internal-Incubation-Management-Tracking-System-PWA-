@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * BLOCKERS API
@@ -21,6 +22,8 @@ import { logAuditEvent } from "@/lib/audit";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const task_id = searchParams.get("task_id");
     const user_id = searchParams.get("user_id");
@@ -66,6 +69,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const body = await req.json();
     const { task_id, user_id, user_name, title, description, severity } = body;
 
@@ -142,6 +147,8 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const body = await req.json();
     const { id, user_id, title, description, severity, status, resolved_by } =
       body;
@@ -264,6 +271,8 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const user_id = searchParams.get("user_id");

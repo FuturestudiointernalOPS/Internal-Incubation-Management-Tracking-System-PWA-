@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * PROJECT ASSIGNMENTS API
@@ -14,6 +15,8 @@ import db, { initDb } from "@/lib/db";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const user_cid = searchParams.get("user_cid");
 

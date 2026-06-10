@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * POST /api/tasks/reconcile
@@ -15,12 +16,14 @@ import { logAuditEvent } from "@/lib/audit";
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { user_id, user_name, tasks } = await req.json();
 
     if (!user_id || !tasks || !Array.isArray(tasks) || tasks.length === 0) {
       return NextResponse.json(
         { success: false, error: "user_id and tasks array are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -34,8 +37,12 @@ export async function POST(req) {
         continue;
       }
 
-      if (!['completed', 'carried_over', 'in_progress'].includes(status)) {
-        results.push({ id, success: false, error: `Invalid status: ${status}` });
+      if (!["completed", "carried_over", "in_progress"].includes(status)) {
+        results.push({
+          id,
+          success: false,
+          error: `Invalid status: ${status}`,
+        });
         continue;
       }
 
@@ -70,7 +77,12 @@ export async function POST(req) {
           entity_id: parseInt(id),
           user_id,
           user_name: user_name || "",
-          action: status === "completed" ? "completed" : status === "carried_over" ? "carried_over" : "updated",
+          action:
+            status === "completed"
+              ? "completed"
+              : status === "carried_over"
+                ? "carried_over"
+                : "updated",
           details: `Task "${taskTitle}" reconciled as ${status}`,
           metadata: { status },
         });
@@ -84,6 +96,9 @@ export async function POST(req) {
     return NextResponse.json({ success: true, results });
   } catch (error) {
     console.error("POST reconcile error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

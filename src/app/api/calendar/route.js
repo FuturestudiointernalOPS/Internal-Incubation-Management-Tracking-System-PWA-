@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * UNIFIED CALENDAR API
@@ -20,10 +21,13 @@ import { NextResponse } from "next/server";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
     const year = parseInt(searchParams.get("year")) || new Date().getFullYear();
-    const month = parseInt(searchParams.get("month")) || new Date().getMonth() + 1;
+    const month =
+      parseInt(searchParams.get("month")) || new Date().getMonth() + 1;
 
     const events = [];
 
@@ -130,7 +134,9 @@ export async function GET(req) {
           type: "session",
           source: "session",
           status: "scheduled",
-          description: s.program_name ? `${s.type} — ${s.program_name}` : s.type,
+          description: s.program_name
+            ? `${s.type} — ${s.program_name}`
+            : s.type,
           related_id: s.id,
           project_id: s.program_id,
           user_id: s.teacher_id,

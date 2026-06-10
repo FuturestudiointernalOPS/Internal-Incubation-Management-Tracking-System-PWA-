@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const payload = await req.json();
     const { program_id, action } = payload;
 
@@ -255,6 +258,8 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const payload = await req.json();
     const { id, sessionId, field, value, handlerName, type } = payload;
 
@@ -347,6 +352,8 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
     const { id, type } = await req.json();
 
     if (type === "session") {

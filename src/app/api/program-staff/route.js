@@ -1,15 +1,18 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
-    const staffId = searchParams.get('staff_id');
-    const programId = searchParams.get('program_id');
+    const staffId = searchParams.get("staff_id");
+    const programId = searchParams.get("program_id");
 
     let query = `
-      SELECT ps.*, p.name as program_name, p.status as program_status 
+      SELECT ps.*, p.name as program_name, p.status as program_status
       FROM v2_program_staff ps
       JOIN v2_programs p ON ps.program_id = p.id
     `;
@@ -26,33 +29,49 @@ export async function GET(req) {
     const res = await db.execute({ sql: query, args });
     return NextResponse.json({ success: true, assignments: res.rows });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { program_id, staff_id, role } = await req.json();
-    
+
     await db.execute({
       sql: "INSERT INTO v2_program_staff (program_id, staff_id, role) VALUES (?, ?, ?)",
-      args: [program_id, staff_id, role || 'teacher']
+      args: [program_id, staff_id, role || "teacher"],
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
 
 export async function DELETE(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { id } = await req.json();
-    await db.execute({ sql: "DELETE FROM v2_program_staff WHERE id = ?", args: [id] });
+    await db.execute({
+      sql: "DELETE FROM v2_program_staff WHERE id = ?",
+      args: [id],
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

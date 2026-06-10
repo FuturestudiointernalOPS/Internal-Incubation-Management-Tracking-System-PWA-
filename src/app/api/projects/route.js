@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * PROJECTS API
@@ -17,6 +18,8 @@ import db, { initDb } from "@/lib/db";
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const body = await req.json();
     const { program_id, name, status, type, concept_note, assigned_pm_id } =
       body;
@@ -69,6 +72,8 @@ export async function POST(req) {
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
     const user_cid = searchParams.get("user_cid");
@@ -152,6 +157,8 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const body = await req.json();
     const { id, name, status, type, concept_note, assigned_pm_id } = body;
 

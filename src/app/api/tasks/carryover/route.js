@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * GET /api/tasks/carryover?user_id=X&week=12&year=2026
@@ -10,12 +11,15 @@ import { NextResponse } from "next/server";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
     const week_number = searchParams.get("week");
     const year = searchParams.get("year");
 
-    let sql = "SELECT * FROM tasks WHERE status IN ('carried_over', 'in_progress', 'blocked')";
+    let sql =
+      "SELECT * FROM tasks WHERE status IN ('carried_over', 'in_progress', 'blocked')";
     const args = [];
 
     if (user_id) {
@@ -43,12 +47,15 @@ export async function GET(req) {
           args: [task.id],
         });
         return { ...task, blockers: blockerRes.rows || [] };
-      })
+      }),
     );
 
     return NextResponse.json({ success: true, tasks: tasksWithBlockers });
   } catch (error) {
     console.error("GET carryover error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

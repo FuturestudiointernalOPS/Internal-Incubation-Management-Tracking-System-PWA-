@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * TASK APPROVAL API
@@ -17,12 +18,17 @@ import { logAuditEvent } from "@/lib/audit";
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const body = await req.json();
     const { task_id, reviewer_id, reviewer_name, action, reason } = body;
 
     if (!task_id || !reviewer_id || !action) {
       return NextResponse.json(
-        { success: false, error: "task_id, reviewer_id, and action are required." },
+        {
+          success: false,
+          error: "task_id, reviewer_id, and action are required.",
+        },
         { status: 400 },
       );
     }
@@ -41,7 +47,10 @@ export async function POST(req) {
     });
 
     if (taskRes.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Task not found." },
+        { status: 404 },
+      );
     }
 
     const task = taskRes.rows[0];
@@ -103,6 +112,9 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error("POST tasks/approve error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

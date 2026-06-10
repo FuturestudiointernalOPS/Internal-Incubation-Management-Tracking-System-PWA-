@@ -1,4 +1,5 @@
 import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmail } from "@/lib/mailer";
@@ -20,12 +21,14 @@ import { sendEmail } from "@/lib/mailer";
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
     const { user_cid, admin_name } = await req.json();
 
     if (!user_cid) {
       return NextResponse.json(
         { success: false, error: "User CID is required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -38,7 +41,7 @@ export async function POST(req) {
     if (userResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "User not found." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -47,8 +50,11 @@ export async function POST(req) {
     // Verify user is pending
     if (user.status !== "pending") {
       return NextResponse.json(
-        { success: false, error: `User status is '${user.status}', not 'pending'.` },
-        { status: 400 }
+        {
+          success: false,
+          error: `User status is '${user.status}', not 'pending'.`,
+        },
+        { status: 400 },
       );
     }
 
@@ -174,7 +180,7 @@ export async function POST(req) {
     console.error("User approval error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to approve user." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

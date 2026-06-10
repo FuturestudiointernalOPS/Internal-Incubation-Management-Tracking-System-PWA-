@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * PROJECT MEMBERS API
@@ -12,6 +13,8 @@ import { NextResponse } from "next/server";
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("project_id");
 
@@ -45,6 +48,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { project_id, user_cid, role } = await req.json();
 
     if (!project_id || !user_cid) {
@@ -75,6 +80,8 @@ export async function POST(req) {
 export async function DELETE(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("project_id");
     const userCid = searchParams.get("user_cid");

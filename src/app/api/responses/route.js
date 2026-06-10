@@ -1,12 +1,15 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET() {
   try {
     await initDb();
-    
+    const authError = await requireAuth(["staff", "super_admin"]);
+    if (authError) return authError;
+
     const campaignsResult = await db.execute(`
-      SELECT 
+      SELECT
         c.id, c.name,
         COUNT(cc.id) as total,
         SUM(CASE WHEN cc.status = 'yes' THEN 1 ELSE 0 END) as yes_count,
@@ -19,9 +22,9 @@ export async function GET() {
       GROUP BY c.id
       ORDER BY c.created_at DESC
     `);
-    
+
     const responsesResult = await db.execute(`
-      SELECT fr.*, c.email, c.name, f.name as form_name 
+      SELECT fr.*, c.email, c.name, f.name as form_name
       FROM form_responses fr
       LEFT JOIN contacts c ON fr.cid = c.cid
       LEFT JOIN forms f ON fr.form_id = f.form_id
@@ -35,7 +38,7 @@ export async function GET() {
     `);
 
     const flaggedResult = await db.execute(`
-      SELECT fr.id as response_id, fr.answers, fr.confidence_score, fr.created_at, fr.cid, c.email, c.name, f.name as form_name 
+      SELECT fr.id as response_id, fr.answers, fr.confidence_score, fr.created_at, fr.cid, c.email, c.name, f.name as form_name
       FROM form_responses fr
       LEFT JOIN contacts c ON fr.cid = c.cid
       LEFT JOIN forms f ON fr.form_id = f.form_id
@@ -43,17 +46,26 @@ export async function GET() {
       ORDER BY fr.created_at DESC
     `);
 
-    const responsesParsed = responsesResult.rows.map(r => ({ ...r, answers: JSON.parse(r.answers) }));
-    const flaggedParsed = flaggedResult.rows.map(r => ({ ...r, answers: JSON.parse(r.answers) }));
+    const responsesParsed = responsesResult.rows.map((r) => ({
+      ...r,
+      answers: JSON.parse(r.answers),
+    }));
+    const flaggedParsed = flaggedResult.rows.map((r) => ({
+      ...r,
+      answers: JSON.parse(r.answers),
+    }));
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       campaignStats: campaignsResult.rows,
       detailedResponses: responsesParsed,
       contactsDetailed: campaignContactsResult.rows,
-      flaggedResponses: flaggedParsed
+      flaggedResponses: flaggedParsed,
     });
   } catch (err) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 },
+    );
   }
 }

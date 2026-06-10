@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * NOTIFICATIONS API — SIGNAL AGGREGATION
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { recipient_id, title, message, type } = await req.json();
 
     if (!title || !message) {
@@ -38,6 +41,8 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const recipientId = searchParams.get("recipient_id") || "sa";
 
@@ -70,6 +75,8 @@ export async function GET(req) {
 
 export async function PATCH(req) {
   try {
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { id, action } = await req.json();
 
     if (action === "read") {
