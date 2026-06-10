@@ -137,7 +137,7 @@ export default function SuperAdminComms() {
           id: threadId,
           label,
           type: msg.target_type,
-          targetId: msg.target_id,
+          targetId: msg.target_type === "individual" ? otherId : msg.target_id,
           lastMessage: msg,
           icon,
         });

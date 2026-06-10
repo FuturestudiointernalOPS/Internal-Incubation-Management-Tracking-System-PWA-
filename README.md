@@ -1,3 +1,8 @@
+# ImpactOS — FutureStudio Operational Control
+
+> **AI Agents: Read `AI_AGENT_INSTRUCTIONS.md` before making any changes.**
+> This file contains critical rules for i18n, component usage, and build requirements.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

@@ -1,11 +1,29 @@
 /**
- * ImpactOS Translation Engine
+ * ════════════════════════════════════════════════════════════════
+ * IMPACTOS TRANSLATION ENGINE
+ * ════════════════════════════════════════════════════════════════
+ *
+ * 🔴 AI AGENTS & DEVELOPERS — READ THIS BEFORE ADDING TEXT
+ *
+ * EVERY user-visible string MUST use the t() function:
+ *
+ *   ✅ {t("common.save")}
+ *   ✅ {t("reports.table.task")}
+ *   ❌ "Save"
+ *   ❌ "Task"
+ *
+ * When adding a new t() call:
+ *   1. Add the key+value to the matching file in src/locales/en/
+ *   2. Add the French translation to src/locales/fr/
+ *   3. See AI_AGENT_INSTRUCTIONS.md for full namespace reference
+ *
+ * ════════════════════════════════════════════════════════════════
  *
  * Feature-area organized i18n with English fallback.
  * Supports future languages without redesign.
  *
  * Usage:
- *   import { t } from '@/lib/i18n'
+ *   import { t, useI18n } from '@/lib/i18n'
  *   t('common.save')
  *   t('auth.login.title')
  *   t('reports.noTasksFound')
