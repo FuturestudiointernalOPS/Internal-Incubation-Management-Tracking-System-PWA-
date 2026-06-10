@@ -20,6 +20,9 @@
     "userProtocol": "Protocole utilisateur",
     "intelFeed": "Flux de renseignements",
     "noNewIntel": "Aucun nouveau renseignement",
+    "internalOps": "Opérations Internes",
+    "internalOpsBoard": "Tableau de bord",
+    "createProject": "Créer un projet",
     "projects": "Projets",
     "sessions": "Sessions",
     "reviews": "Révisions"

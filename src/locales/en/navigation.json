@@ -20,6 +20,9 @@
     "userProtocol": "User Protocol",
     "intelFeed": "Intelligence Feed",
     "noNewIntel": "No new intelligence",
+    "internalOps": "Internal Ops",
+    "internalOpsBoard": "Board",
+    "createProject": "Create Project",
     "projects": "Projects",
     "sessions": "Sessions",
     "reviews": "Reviews"
