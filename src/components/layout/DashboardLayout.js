@@ -762,7 +762,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                                 else if (role === "teacher")
                                   router.push("/teacher/messages");
                                 else if (role === "program_manager")
-                                  router.push("/pm/communications/contacts");
+                                  router.push("/pm/messages");
                                 else if (role === "participant")
                                   router.push("/participant/messages");
                                 setShowNotifications(false);
