@@ -399,6 +399,19 @@ export async function PUT(req) {
     const task = currentTask.rows[0];
     const locked = await isTaskLocked(id);
 
+    // Ownership enforcement: only the task creator can change status
+    if (status !== undefined && status !== task.status) {
+      if (String(user_id) !== String(task.user_id)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Only the task creator can change its status.",
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     // Phase 6: Locking enforcement
     if (locked) {
       // Title and description cannot be modified when locked

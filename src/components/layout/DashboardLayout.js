@@ -271,8 +271,6 @@ const NAVIGATION_MATRIX = {
       icon: ListTodo,
       subItems: [
         { id: "internal_ops_board", name: "BOARD", href: "/admin/work" },
-        { id: "tasks", name: "TASKS", href: "/admin/tasks" },
-        { id: "blockers", name: "BLOCKERS", href: "/admin/blockers" },
         {
           id: "internal_reports",
           name: "REPORTS",
