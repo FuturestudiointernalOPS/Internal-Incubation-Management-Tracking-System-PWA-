@@ -9,6 +9,14 @@
     "submitted": "Soumis",
     "blocked": "Bloqué",
     "carriedOver": "Reporté",
-    "resolved": "Résolu"
+    "resolved": "Résolu",
+    "done": "Terminé",
+    "carryover": "Reporté",
+    "high": "Élevé",
+    "live": "EN DIRECT",
+    "action": "ACTION",
+    "overdue": "En retard",
+    "onTrack": "Sur la bonne voie",
+    "atRisk": "À risque"
   }
 }

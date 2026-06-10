@@ -154,10 +154,15 @@ export default function SuperAdminComms() {
     return threads;
   }, [messages, contacts, programs, uid]);
 
-  // Filter messages for active conversation
+  // Filter messages for active conversation (deduplicated by id)
   const activeMessages = useMemo(() => {
     if (!activeConversation) return [];
+    const seen = new Set();
     return messages.filter((msg) => {
+      // Deduplicate by message id
+      if (seen.has(msg.id)) return false;
+      seen.add(msg.id);
+      // Match by conversation type
       if (activeConversation.type === "individual") {
         const otherId =
           msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
@@ -183,7 +188,14 @@ export default function SuperAdminComms() {
   }, [messages, activeConversation, uid]);
 
   const handleSend = async () => {
-    if (!composeSubject || !composeBody) return;
+    if (!composeBody) return;
+    if (
+      (sendMode === "group" ||
+        sendMode === "program" ||
+        sendMode === "broadcast") &&
+      !composeSubject
+    )
+      return;
     let payload;
     if (sendMode === "individual") {
       if (!composeRecipient) return;
@@ -191,7 +203,7 @@ export default function SuperAdminComms() {
         sender_id: uid,
         recipient_id: composeRecipient,
         target_type: "individual",
-        subject: composeSubject,
+        subject: composeSubject || "(No subject)",
         body: composeBody,
         priority: "normal",
       };
@@ -200,7 +212,7 @@ export default function SuperAdminComms() {
         sender_id: uid,
         target_type: "role",
         target_id: composeGroup,
-        subject: composeSubject,
+        subject: composeSubject || "Message to group",
         body: composeBody,
         priority: "normal",
       };
@@ -481,21 +493,22 @@ export default function SuperAdminComms() {
                     <input
                       type="text"
                       placeholder="Type a quick reply..."
-                      value={composeSubject}
-                      onChange={(e) => setComposeSubject(e.target.value)}
+                      value={composeBody}
+                      onChange={(e) => setComposeBody(e.target.value)}
                       className="flex-1 px-4 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
                     />
                     <button
                       onClick={async () => {
-                        if (!composeSubject) return;
+                        if (!composeBody) return;
                         let payload;
                         if (activeConversation.type === "individual") {
                           payload = {
                             sender_id: uid,
                             recipient_id: activeConversation.targetId,
                             target_type: "individual",
-                            subject: composeSubject,
-                            body: composeBody || composeSubject,
+                            subject:
+                              "Re: " + (activeConversation.label || "Message"),
+                            body: composeBody,
                             priority: "normal",
                           };
                         } else if (activeConversation.type === "role") {
@@ -503,8 +516,10 @@ export default function SuperAdminComms() {
                             sender_id: uid,
                             target_type: "role",
                             target_id: activeConversation.targetId,
-                            subject: composeSubject,
-                            body: composeBody || composeSubject,
+                            subject:
+                              composeSubject ||
+                              "Reply to " + activeConversation.label,
+                            body: composeBody,
                             priority: "normal",
                           };
                         } else if (activeConversation.type === "program") {
@@ -512,16 +527,18 @@ export default function SuperAdminComms() {
                             sender_id: uid,
                             target_type: "program",
                             target_id: activeConversation.targetId,
-                            subject: composeSubject,
-                            body: composeBody || composeSubject,
+                            subject:
+                              composeSubject ||
+                              "Reply to " + activeConversation.label,
+                            body: composeBody,
                             priority: "normal",
                           };
                         } else if (activeConversation.type === "all") {
                           payload = {
                             sender_id: uid,
                             target_type: "all",
-                            subject: composeSubject,
-                            body: composeBody || composeSubject,
+                            subject: composeSubject || "Reply",
+                            body: composeBody,
                             priority: "normal",
                           };
                         }
@@ -531,7 +548,6 @@ export default function SuperAdminComms() {
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify(payload),
                         });
-                        setComposeSubject("");
                         setComposeBody("");
                         await fetchMessages();
                       }}
@@ -731,7 +747,9 @@ export default function SuperAdminComms() {
 
               <input
                 type="text"
-                placeholder="Subject"
+                placeholder={
+                  sendMode === "individual" ? "Subject (optional)" : "Subject"
+                }
                 value={composeSubject}
                 onChange={(e) => setComposeSubject(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
@@ -745,7 +763,7 @@ export default function SuperAdminComms() {
               />
               <button
                 onClick={handleSend}
-                disabled={sending || !composeSubject || !composeBody}
+                disabled={sending || !composeBody}
                 className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 hover:brightness-110 transition-all"
               >
                 {sending ? "Sending..." : "Send Message"}

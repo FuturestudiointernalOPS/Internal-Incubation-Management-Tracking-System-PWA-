@@ -27,6 +27,23 @@
     "showMore": "Afficher plus",
     "showLess": "Afficher moins",
     "required": "Requis",
-    "optional": "Facultatif"
+    "optional": "Facultatif",
+    "more": "plus",
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "complete": "Terminer",
+    "collapse": "Réduire",
+    "expand": "Développer",
+    "allUsers": "Tous les utilisateurs",
+    "clearFilter": "Effacer le filtre",
+    "unknown": "Inconnu",
+    "noData": "Aucune donnée",
+    "total": "Total",
+    "add": "Ajouter",
+    "remove": "Supprimer",
+    "view": "Voir",
+    "select": "Sélectionner...",
+    "none": "Aucun",
+    "untitled": "Sans titre"
   }
 }

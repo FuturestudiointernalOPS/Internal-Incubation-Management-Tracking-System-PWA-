@@ -6,6 +6,36 @@
     "today": "Aujourd'hui",
     "thisWeek": "Cette semaine",
     "thisMonth": "Ce mois-ci",
-    "completedAt": "Terminé le"
+    "completedAt": "Terminé le",
+    "tomorrow": "Demain",
+    "upcoming": "À venir",
+    "noUpcoming": "Aucun élément à venir",
+    "due": "Échéance",
+    "start": "Début",
+    "submitted": "Soumis",
+    "on": "le",
+    "months": {
+      "january": "Janvier",
+      "february": "Février",
+      "march": "Mars",
+      "april": "Avril",
+      "may": "Mai",
+      "june": "Juin",
+      "july": "Juillet",
+      "august": "Août",
+      "september": "Septembre",
+      "october": "Octobre",
+      "november": "Novembre",
+      "december": "Décembre"
+    },
+    "days": {
+      "sun": "Dim",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Jeu",
+      "fri": "Ven",
+      "sat": "Sam"
+    }
   }
 }

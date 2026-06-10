@@ -33,6 +33,17 @@
     "decline": "Decline",
     "complete": "Complete",
     "collapse": "Collapse",
-    "expand": "Expand"
+    "expand": "Expand",
+    "allUsers": "All Users",
+    "clearFilter": "Clear filter",
+    "unknown": "Unknown",
+    "noData": "No data",
+    "total": "Total",
+    "add": "Add",
+    "remove": "Remove",
+    "view": "View",
+    "select": "Select...",
+    "none": "None",
+    "untitled": "Untitled"
   }
 }

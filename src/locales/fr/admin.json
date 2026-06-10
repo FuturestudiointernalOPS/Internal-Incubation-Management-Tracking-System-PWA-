@@ -26,6 +26,37 @@
     "reportResponses": "Réponses aux rapports",
     "newProgram": "Nouveau programme",
     "viewAllPrograms": "Voir tous les programmes",
-    "viewAllReports": "Voir tous les rapports"
+    "viewAllReports": "Voir tous les rapports",
+    "projects": "Projets",
+    "workManagement": "Gestion du travail",
+    "assignedToMe": "Assigné à moi",
+    "awaitingAction": "en attente d'action",
+    "assignedBy": "Assigné par :",
+    "approveAccess": "Approuver l'accès",
+    "ofAllReports": "de tous les rapports",
+    "activeReporters": "rapporteurs actifs",
+    "latestBlockers": "Blocages récents",
+    "noActiveBlockers": "Aucun blocage actif",
+    "fullArchive": "Archives complètes",
+    "ownerLabel": "Propriétaire :",
+    "taskLabel": "Tâche :",
+    "sectionSubtitles": {
+      "educationalPerformance": "Éducatif / Performance des programmes",
+      "teachersAndStaff": "Enseignants, administrateurs et personnel",
+      "activeInternalProjects": "Projets internes actifs",
+      "staffReporting": "Rapports du personnel et activité opérationnelle",
+      "reportingReliability": "Fiabilité des rapports et responsabilité d'équipe",
+      "recurringProblems": "Problèmes opérationnels récurrents",
+      "longTermVisibility": "Visibilité opérationnelle à long terme"
+    },
+    "descriptions": {
+      "workHub": "Centre centralisé pour les tâches, blocages et suivi d'exécution",
+      "trackTasks": "Suivre l'exécution de toutes les tâches dans l'organisation",
+      "monitorBlockers": "Surveiller les blocages actifs et la progression des résolutions",
+      "viewProjects": "Consulter le portefeuille de projets et les jalons",
+      "browseArchive": "Parcourir tous les rapports soumis et données historiques",
+      "historicalReports": "Rapports historiques des programmes et soumissions de formulaires",
+      "pmReportResponses": "Toutes les réponses aux rapports des gestionnaires de programme"
+    }
   }
 }

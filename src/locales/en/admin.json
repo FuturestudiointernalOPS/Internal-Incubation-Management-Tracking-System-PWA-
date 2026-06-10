@@ -31,32 +31,32 @@
     "workManagement": "Work Management",
     "assignedToMe": "Assigned To Me",
     "awaitingAction": "awaiting action",
-    "assignedBy": "Assigned by",
+    "assignedBy": "Assigned by:",
     "approveAccess": "Approve Access",
     "ofAllReports": "of all reports",
     "activeReporters": "active reporters",
     "latestBlockers": "Latest Blockers",
     "noActiveBlockers": "No active blockers",
     "fullArchive": "Full Archive",
-    "ownerLabel": "Owner",
-    "taskLabel": "Task",
+    "ownerLabel": "Owner:",
+    "taskLabel": "Task:",
     "sectionSubtitles": {
       "educationalPerformance": "Educational / Program Performance",
-      "staffReporting": "Staff Reporting & Operational Activity",
-      "reportingReliability": "Reporting Reliability & Staff Consistency",
-      "recurringProblems": "Recurring Operational Problems",
-      "longTermVisibility": "Long-Term Operational Visibility",
       "teachersAndStaff": "Teachers, admins & staff",
-      "activeInternalProjects": "Active internal projects"
+      "activeInternalProjects": "Active internal projects",
+      "staffReporting": "Staff Reporting & Operational Activity",
+      "reportingReliability": "Reporting Reliability & Team Accountability",
+      "recurringProblems": "Recurring Operational Problems",
+      "longTermVisibility": "Long-Term Operational Visibility"
     },
     "descriptions": {
-      "workHub": "Centralized hub for all tasks, projects, categories, and blockers.",
-      "trackTasks": "Track execution status across all teams.",
-      "monitorBlockers": "Monitor active blockers, resolution progress, and aging issues.",
-      "viewProjects": "View project progress, task completion rates, and blocker impact.",
-      "browseArchive": "Browse all submitted stand-ups and retros. Filter by user, month, or type.",
-      "historicalReports": "Historical program PM reports and intelligence feed.",
-      "pmReportResponses": "All submitted PM weekly report responses."
+      "workHub": "Centralized hub for tasks, blockers, and execution tracking",
+      "trackTasks": "Track execution of all tasks across the organization",
+      "monitorBlockers": "Monitor active blockers and resolution progress",
+      "viewProjects": "View project portfolio and milestone progress",
+      "browseArchive": "Browse all submitted reports and historical data",
+      "historicalReports": "Historical program reports and form submissions",
+      "pmReportResponses": "All submitted program manager report responses"
     }
   }
 }

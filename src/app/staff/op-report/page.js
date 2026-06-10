@@ -1038,7 +1038,9 @@ export default function StaffOpReport() {
                                                                     task.project_id,
                                                                   ),
                                                               )?.name ||
-                                                              "Project"
+                                                              t(
+                                                                "staff.table.projectFallback",
+                                                              )
                                                             : task.category ||
                                                               "—"}
                                                         </td>
@@ -1066,7 +1068,11 @@ export default function StaffOpReport() {
                                                           <span
                                                             className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}
                                                           >
-                                                            {config.label}
+                                                            {t(
+                                                              statusLabelKey(
+                                                                task.status,
+                                                              ),
+                                                            )}
                                                           </span>
                                                         </td>
                                                       </tr>
@@ -1329,7 +1335,10 @@ export default function StaffOpReport() {
                                                               String(
                                                                 task.project_id,
                                                               ),
-                                                          )?.name || "Project"
+                                                          )?.name ||
+                                                          t(
+                                                            "staff.table.projectFallback",
+                                                          )
                                                         : task.category || "—"}
                                                     </td>
                                                     <td className="px-3 py-2.5 text-[10px] text-slate-500">
@@ -1368,7 +1377,11 @@ export default function StaffOpReport() {
                                                       <span
                                                         className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}
                                                       >
-                                                        {cfg.label}
+                                                        {t(
+                                                          statusLabelKey(
+                                                            task.status,
+                                                          ),
+                                                        )}
                                                       </span>
                                                     </td>
                                                   </tr>
@@ -1594,7 +1607,7 @@ export default function StaffOpReport() {
                                         <span
                                           className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}
                                         >
-                                          {cfg.label}
+                                          {t(statusLabelKey(task.status))}
                                         </span>
                                       </td>
                                       <td className="px-3 py-2.5 text-[10px] text-slate-500">
@@ -1624,7 +1637,11 @@ export default function StaffOpReport() {
                                                   <span
                                                     className={`text-[8px] px-1.5 py-0.5 rounded-full ${subCfg.bg} ${subCfg.color}`}
                                                   >
-                                                    {subCfg.label}
+                                                    {t(
+                                                      statusLabelKey(
+                                                        sub.status,
+                                                      ),
+                                                    )}
                                                   </span>
                                                 </div>
                                               );
@@ -1674,7 +1691,7 @@ export default function StaffOpReport() {
                           const projectName = isProject
                             ? summaryProjects.find(
                                 (p) => String(p.id) === String(projectId),
-                              )?.name || "Project"
+                              )?.name || t("staff.table.projectFallback")
                             : key.replace("category_", "");
                           const completedCount = projectTasks.filter(
                             (t) => t.status === "completed",
@@ -1738,7 +1755,7 @@ export default function StaffOpReport() {
                                         <span
                                           className={`text-[8px] px-1.5 py-0.5 rounded-full ${tCfg.bg} ${tCfg.color}`}
                                         >
-                                          {tCfg.label}
+                                          {t(statusLabelKey(t.status))}
                                         </span>
                                       </div>
                                     );
@@ -1792,7 +1809,7 @@ export default function StaffOpReport() {
                                   <span
                                     className={`text-[8px] font-bold px-2 py-1 rounded-full ${cfg.bg} ${cfg.color}`}
                                   >
-                                    {cfg.label}
+                                    {t(statusLabelKey(task.status))}
                                   </span>
                                 </div>
                               );
@@ -1856,7 +1873,10 @@ export default function StaffOpReport() {
                                           <td className="px-3 py-2 text-[10px] text-slate-500">
                                             {summaryTasks.find(
                                               (t) => t.id === b.task_id,
-                                            )?.title || "Task #" + b.task_id}
+                                            )?.title ||
+                                              t("staff.table.taskLabel") +
+                                                " #" +
+                                                b.task_id}
                                           </td>
                                           <td className="px-3 py-2 text-[10px] text-slate-500">
                                             {formatDate(b.created_at)}
@@ -1916,7 +1936,10 @@ export default function StaffOpReport() {
                                             <td className="px-3 py-2 text-[10px] text-slate-500">
                                               {summaryTasks.find(
                                                 (t) => t.id === b.task_id,
-                                              )?.title || "Task #" + b.task_id}
+                                              )?.title ||
+                                                t("staff.table.taskLabel") +
+                                                  " #" +
+                                                  b.task_id}
                                             </td>
                                             <td className="px-3 py-2 text-[10px] text-slate-500">
                                               {formatDate(b.created_at)}
@@ -2456,7 +2479,7 @@ export default function StaffOpReport() {
                           {row.project_id
                             ? assignedProjects.find(
                                 (p) => String(p.id) === String(row.project_id),
-                              )?.name || "Project"
+                              )?.name || t("staff.table.projectFallback")
                             : row.category || ""}
                         </span>
                         {row.due_date && (
@@ -2505,7 +2528,7 @@ export default function StaffOpReport() {
                                 (p) =>
                                   String(p.id) ===
                                   String(newTaskForm.project_id),
-                              )?.name || "Selected"}
+                              )?.name || t("staff.table.projectFallback")}
                             </span>
                             <button
                               onClick={() =>
@@ -2706,7 +2729,7 @@ export default function StaffOpReport() {
                       {!newTaskForm.project_id ? (
                         <div>
                           <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                            Category
+                            {t("staff.table.category")}
                           </label>
                           <select
                             value={newTaskForm.category}
@@ -2718,21 +2741,37 @@ export default function StaffOpReport() {
                             }
                             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-purple-400 outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
                           >
-                            <option value="">Select...</option>
-                            <option value="Operations">Operations</option>
-                            <option value="Administration">Admin</option>
-                            <option value="Marketing">Marketing</option>
-                            <option value="Finance">Finance</option>
-                            <option value="Logistics">Logistics</option>
-                            <option value="HR">HR</option>
-                            <option value="Technology">Technology</option>
-                            <option value="Other">Other</option>
+                            <option value="">{t("common.select")}</option>
+                            <option value="Operations">
+                              {t("staff.categories.operations")}
+                            </option>
+                            <option value="Administration">
+                              {t("staff.categories.administration")}
+                            </option>
+                            <option value="Marketing">
+                              {t("staff.categories.marketing")}
+                            </option>
+                            <option value="Finance">
+                              {t("staff.categories.finance")}
+                            </option>
+                            <option value="Logistics">
+                              {t("staff.categories.logistics")}
+                            </option>
+                            <option value="HR">
+                              {t("staff.categories.hr")}
+                            </option>
+                            <option value="Technology">
+                              {t("staff.categories.technology")}
+                            </option>
+                            <option value="Other">
+                              {t("staff.categories.other")}
+                            </option>
                           </select>
                         </div>
                       ) : (
                         <div className="space-y-1.5">
                           <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                            Start
+                            {t("staff.table.start")}
                           </label>
                           <div className="grid grid-cols-2 gap-1.5">
                             <input
@@ -2762,7 +2801,7 @@ export default function StaffOpReport() {
                       )}
                       <div>
                         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                          Collaborator
+                          {t("staff.table.collaborator")}
                         </label>
                         <select
                           value={newTaskForm.collaborator}
@@ -2774,7 +2813,7 @@ export default function StaffOpReport() {
                           }
                           className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
                         >
-                          <option value="">None</option>
+                          <option value="">{t("common.none")}</option>
                           {allStaff.map((s) => (
                             <option key={s.id} value={s.id}>
                               {s.name}
@@ -2791,7 +2830,9 @@ export default function StaffOpReport() {
                                 collaborator_note: e.target.value,
                               }))
                             }
-                            placeholder="What do you need from them?"
+                            placeholder={t(
+                              "staff.opReport.collaboratorNotePlaceholder",
+                            )}
                             className="w-full mt-1.5 bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                           />
                         )}
@@ -2802,7 +2843,7 @@ export default function StaffOpReport() {
                     {newTaskForm.project_id && (
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                          Due
+                          {t("staff.table.due")}
                         </label>
                         <div className="grid grid-cols-2 gap-1.5">
                           <input
@@ -2837,7 +2878,7 @@ export default function StaffOpReport() {
                         disabled={!newTaskForm.name.trim()}
                         className="flex-1 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
                       >
-                        Add Task
+                        {t("reports.addTask")}
                       </button>
                       <button
                         onClick={() => {
@@ -2858,7 +2899,7 @@ export default function StaffOpReport() {
                         }}
                         className="px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"
                       >
-                        Cancel
+                        {t("common.cancel")}
                       </button>
                     </div>
                   </div>
@@ -2867,7 +2908,8 @@ export default function StaffOpReport() {
                     onClick={() => setShowTaskForm(true)}
                     className="w-full py-3 border-2 border-dashed border-[var(--border-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-2"
                   >
-                    <Plus className="w-4 h-4" /> Add Weekly Focus
+                    <Plus className="w-4 h-4" />{" "}
+                    {t("staff.opReport.addWeeklyFocus")}
                   </button>
                 )}
               </div>
@@ -2875,7 +2917,7 @@ export default function StaffOpReport() {
               {/* Additional Notes */}
               <div>
                 <h3 className="text-[11px] font-semibold text-slate-500 mb-2">
-                  Additional Notes
+                  {t("staff.opReport.additionalNotes")}
                 </h3>
                 <textarea
                   value={form.additional_notes}
@@ -2886,7 +2928,7 @@ export default function StaffOpReport() {
                     }))
                   }
                   rows={2}
-                  placeholder="Anything else to note?"
+                  placeholder={t("staff.opReport.anythingElseNote")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
                 />
               </div>
@@ -2903,7 +2945,7 @@ export default function StaffOpReport() {
                 className="flex-1 btn btn-secondary gap-2 py-4"
               >
                 <Save className="w-4 h-4" />
-                {saving ? "Saving..." : "Save Draft"}
+                {saving ? t("common.saving") : t("reports.saveDraft")}
               </button>
               <button
                 onClick={() => {
@@ -2914,7 +2956,7 @@ export default function StaffOpReport() {
                 className="flex-1 btn btn-primary gap-2 py-4"
               >
                 <Send className="w-4 h-4" />
-                {saving ? "Saving..." : "Submit Standup"}
+                {saving ? t("common.saving") : t("reports.submitReport")}
               </button>
             </div>
           </div>
@@ -2934,7 +2976,7 @@ export default function StaffOpReport() {
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-rose-400" />
                 <span className="text-xs font-black uppercase tracking-wider text-rose-400">
-                  Blockers
+                  {t("staff.table.blockers")}
                 </span>
               </div>
               <button onClick={() => setBlockerModal(null)}>
@@ -2943,12 +2985,12 @@ export default function StaffOpReport() {
             </div>
 
             <p className="text-[10px] text-[var(--text-secondary)]">
-              Task:{" "}
+              {t("staff.table.task")}:{" "}
               <span className="font-bold text-[var(--text-primary)]">
                 {blockerModal.type === "api"
                   ? tasks.find((t) => t.id === blockerModal.taskId)?.title ||
-                    "Task"
-                  : taskRows[blockerModal]?.name || "Untitled"}
+                    t("staff.table.task")
+                  : taskRows[blockerModal]?.name || t("common.untitled")}
               </span>
             </p>
 
@@ -2962,7 +3004,7 @@ export default function StaffOpReport() {
                     : taskRows[blockerModal]?.blockers || [];
                 return bs.length === 0 ? (
                   <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-4">
-                    No blockers declared yet.
+                    {t("staff.opReport.noBlockersDeclared")}
                   </p>
                 ) : (
                   bs.map((b) => (
@@ -3007,11 +3049,11 @@ export default function StaffOpReport() {
                           }}
                           className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all shrink-0"
                         >
-                          Resolve
+                          {t("staff.opReport.resolve")}
                         </button>
                       ) : (
                         <span className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg">
-                          Resolved
+                          {t("staff.opReport.resolved")}
                         </span>
                       )}
                     </div>
@@ -3048,7 +3090,7 @@ export default function StaffOpReport() {
                     setNewBlockerDesc("");
                   }
                 }}
-                placeholder="Describe blocker..."
+                placeholder={t("staff.opReport.describeBlocker")}
                 className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all"
               />
               <button
@@ -3077,7 +3119,7 @@ export default function StaffOpReport() {
                 }}
                 className="px-3 py-2 bg-rose-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
               >
-                Add
+                {t("common.add")}
               </button>
             </div>
           </div>
