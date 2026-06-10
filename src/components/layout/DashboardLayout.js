@@ -50,6 +50,7 @@ const NAV_KEY_MAP = {
   progress_hub: "navigation.progress",
   internal_ops: "navigation.internalOps",
   internal_ops_board: "navigation.internalOpsBoard",
+  messages: "navigation.messages",
   communication: "navigation.communication",
   campaigns: "navigation.campaigns",
   forms: "navigation.forms",
@@ -270,7 +271,7 @@ const NAVIGATION_MATRIX = {
       name: "Internal Ops",
       icon: ListTodo,
       subItems: [
-        { id: "internal_ops_board", name: "BOARD", href: "/admin/work" },
+        { id: "internal_ops_board", name: "WORKSPACE", href: "/admin/work" },
         {
           id: "internal_reports",
           name: "REPORTS",
@@ -284,6 +285,7 @@ const NAVIGATION_MATRIX = {
       name: "COMMUNICATIONS",
       icon: Send,
       subItems: [
+        { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
         {
           id: "campaigns",
           name: "CAMPAIGNS",
@@ -382,6 +384,12 @@ const NAVIGATION_MATRIX = {
       href: "/staff",
     },
     {
+      id: "communication",
+      name: "COMMUNICATION",
+      icon: MessageSquare,
+      href: "/staff/messages",
+    },
+    {
       id: "reports",
       name: "REPORTS",
       icon: BarChart3,
@@ -405,6 +413,12 @@ const NAVIGATION_MATRIX = {
       name: "DASHBOARD",
       icon: LayoutDashboard,
       href: "/teacher",
+    },
+    {
+      id: "communication",
+      name: "COMMUNICATION",
+      icon: MessageSquare,
+      href: "/teacher/messages",
     },
     { id: "programs", name: "PROGRAMS", icon: Briefcase, href: "/pm/programs" },
     {
@@ -443,6 +457,12 @@ const NAVIGATION_MATRIX = {
       name: "PROJECTS",
       icon: Briefcase,
       href: "/participant",
+    },
+    {
+      id: "communication",
+      name: "COMMUNICATION",
+      icon: MessageSquare,
+      href: "/participant/messages",
     },
   ],
 };
