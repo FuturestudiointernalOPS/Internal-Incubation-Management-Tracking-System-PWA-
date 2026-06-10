@@ -346,7 +346,7 @@ const NAVIGATION_MATRIX = {
       id: "communication",
       name: "COMMUNICATION",
       icon: MessageSquare,
-      href: "/pm/communications/contacts",
+      href: "/pm/messages",
     },
     {
       id: "progress_hub",
@@ -740,6 +740,20 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                                 n.title.includes("ACCESS")
                               ) {
                                 router.push("/admin/communications/contacts");
+                                setShowNotifications(false);
+                              }
+                              if (n.type === "message") {
+                                const role = user?.role || "";
+                                if (role === "super_admin")
+                                  router.push("/admin/internal-comms");
+                                else if (role === "staff")
+                                  router.push("/staff/messages");
+                                else if (role === "teacher")
+                                  router.push("/teacher/messages");
+                                else if (role === "program_manager")
+                                  router.push("/pm/messages");
+                                else if (role === "participant")
+                                  router.push("/participant/messages");
                                 setShowNotifications(false);
                               }
                             }}

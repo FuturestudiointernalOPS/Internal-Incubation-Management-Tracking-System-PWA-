@@ -1,30 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Send,
-  MessageSquare,
-  Search,
-  Users,
-  Briefcase,
-  User,
-  X,
-} from "lucide-react";
+import { Send, MessageSquare, Search, User, X } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function ParticipantMessages() {
   const [user, setUser] = useState(null);
   const [contacts, setContacts] = useState([]);
-  const [programs, setPrograms] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCompose, setShowCompose] = useState(false);
   const [search, setSearch] = useState("");
-  const [sendMode, setSendMode] = useState("individual");
   const [composeRecipient, setComposeRecipient] = useState("");
-  const [composeGroup, setComposeGroup] = useState("participant");
-  const [composeProgram, setComposeProgram] = useState("");
-  const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
 
   useEffect(() => {
@@ -46,88 +33,70 @@ export default function ParticipantMessages() {
   }, [user]);
 
   const fetchContacts = useCallback(async () => {
+    if (!user?.cid && !user?.id) return;
     try {
-      const res = await fetch("/api/contacts");
-      const data = await res.json();
-      if (data.success) {
-        const allowed = data.contacts.filter(
+      // Get staff/PM/teachers from contacts
+      const contactRes = await fetch("/api/contacts");
+      const contactData = await contactRes.json();
+      const allowed = [];
+
+      if (contactData.success) {
+        // Add SA, PMs, teachers, staff
+        const staff = contactData.contacts.filter(
           (c) =>
             c.status === "active" &&
             ["super_admin", "program_manager", "teacher", "staff"].includes(
               c.role,
             ),
         );
-        setContacts(allowed);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
+        allowed.push(...staff);
 
-  const fetchPrograms = useCallback(async () => {
-    try {
-      const res = await fetch("/api/programs");
-      const data = await res.json();
-      if (data.success) setPrograms(data.programs || []);
+        // Add participants from the same group
+        const myGroup = user.group_name;
+        if (myGroup) {
+          const sameGroup = contactData.contacts.filter(
+            (c) =>
+              c.status === "active" &&
+              c.role === "participant" &&
+              c.cid !== (user.cid || user.id) &&
+              c.group_name === myGroup,
+          );
+          allowed.push(...sameGroup);
+        }
+      }
+
+      setContacts(allowed);
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (user?.cid || user?.id) {
       fetchMessages();
       fetchContacts();
-      fetchPrograms();
     }
-  }, [user, fetchMessages, fetchContacts, fetchPrograms]);
+  }, [user, fetchMessages, fetchContacts]);
 
   const handleSend = async () => {
-    if (!composeSubject || !composeBody) return;
-    let payload;
-    if (sendMode === "individual") {
-      if (!composeRecipient) return;
-      payload = {
-        sender_id: user.cid || user.id,
-        recipient_id: composeRecipient,
-        target_type: "individual",
-        subject: composeSubject,
-        body: composeBody,
-        priority: "normal",
-      };
-    } else if (sendMode === "group") {
-      payload = {
-        sender_id: user.cid || user.id,
-        target_type: "role",
-        target_id: composeGroup,
-        subject: composeSubject,
-        body: composeBody,
-        priority: "normal",
-      };
-    } else if (sendMode === "program") {
-      if (!composeProgram) return;
-      payload = {
-        sender_id: user.cid || user.id,
-        target_type: "program",
-        target_id: composeProgram,
-        subject: composeSubject,
-        body: composeBody,
-        priority: "normal",
-      };
-    }
+    if (!composeBody || !composeRecipient) return;
     try {
       await fetch("/api/internal-comms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          sender_id: user.cid || user.id,
+          recipient_id: composeRecipient,
+          target_type: "individual",
+          subject: composeBody.substring(0, 50),
+          body: composeBody,
+          priority: "normal",
+        }),
       });
       setShowCompose(false);
       setComposeRecipient("");
-      setComposeGroup("participant");
-      setComposeProgram("");
-      setComposeSubject("");
       setComposeBody("");
-      await fetchMessages();
+      fetchMessages();
     } catch (e) {
       console.error(e);
     }
@@ -169,7 +138,6 @@ export default function ParticipantMessages() {
               onClick={() => {
                 setShowCompose(true);
                 fetchContacts();
-                fetchPrograms();
               }}
               className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
             >
@@ -204,17 +172,6 @@ export default function ParticipantMessages() {
                           ? "Sent"
                           : "Received"}
                       </span>
-                      {msg.target_type && msg.target_type !== "individual" && (
-                        <span className="text-[8px] font-bold text-blue-400 uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10">
-                          {msg.target_type === "all"
-                            ? "Broadcast"
-                            : msg.target_type === "program"
-                              ? "Program"
-                              : msg.target_type === "role"
-                                ? `To ${msg.target_id || "Group"}`
-                                : msg.target_type}
-                        </span>
-                      )}
                     </div>
                     <h3 className="text-[13px] font-bold text-[var(--text-primary)]">
                       {msg.subject}
@@ -252,83 +209,29 @@ export default function ParticipantMessages() {
                 </button>
               </div>
 
-              <div className="flex gap-2 p-1 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                {[
-                  { id: "individual", label: "Individual", icon: User },
-                  { id: "group", label: "Group", icon: Users },
-                  { id: "program", label: "Program", icon: Briefcase },
-                ].map((mode) => (
-                  <button
-                    key={mode.id}
-                    onClick={() => setSendMode(mode.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[9px] font-black uppercase tracking-wider transition-all ${sendMode === mode.id ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-                  >
-                    <mode.icon className="w-3.5 h-3.5" />
-                    {mode.label}
-                  </button>
+              <select
+                value={composeRecipient}
+                onChange={(e) => setComposeRecipient(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none"
+              >
+                <option value="">Select recipient...</option>
+                {contacts.map((c) => (
+                  <option key={c.cid || c.id} value={c.cid || c.id}>
+                    {c.name} ({c.role?.replace(/_/g, " ") || "participant"})
+                  </option>
                 ))}
-              </div>
+              </select>
 
-              {sendMode === "individual" && (
-                <select
-                  value={composeRecipient}
-                  onChange={(e) => setComposeRecipient(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none"
-                >
-                  <option value="">Select a person...</option>
-                  {contacts.map((c) => (
-                    <option key={c.cid || c.id} value={c.cid || c.id}>
-                      {c.name} ({c.role.replace(/_/g, " ")})
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {sendMode === "group" && (
-                <select
-                  value={composeGroup}
-                  onChange={(e) => setComposeGroup(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none"
-                >
-                  <option value="staff">All Staff</option>
-                  <option value="program_manager">All Program Managers</option>
-                  <option value="teacher">All Teachers</option>
-                  <option value="participant">All Participants</option>
-                </select>
-              )}
-
-              {sendMode === "program" && (
-                <select
-                  value={composeProgram}
-                  onChange={(e) => setComposeProgram(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none"
-                >
-                  <option value="">Select a program...</option>
-                  {programs.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              <input
-                type="text"
-                placeholder="Subject"
-                value={composeSubject}
-                onChange={(e) => setComposeSubject(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold outline-none placeholder:text-[var(--text-secondary)]"
-              />
               <textarea
                 placeholder="Message"
                 value={composeBody}
                 onChange={(e) => setComposeBody(e.target.value)}
-                rows={5}
+                rows={4}
                 className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold outline-none placeholder:text-[var(--text-secondary)] resize-none"
               />
               <button
                 onClick={handleSend}
-                disabled={!composeSubject || !composeBody}
+                disabled={!composeBody || !composeRecipient}
                 className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 hover:brightness-110 transition-all"
               >
                 Send Message
