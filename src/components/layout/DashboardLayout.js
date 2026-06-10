@@ -348,9 +348,14 @@ const NAVIGATION_MATRIX = {
       icon: MessageSquare,
       subItems: [
         {
+          id: "groups",
+          name: "GROUPS",
+          href: "/pm/communications/contacts",
+        },
+        {
           id: "messages",
           name: "MESSAGES",
-          href: "/pm/communications/contacts",
+          href: "/pm/messages",
         },
       ],
     },
