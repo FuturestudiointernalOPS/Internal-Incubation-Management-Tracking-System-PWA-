@@ -346,7 +346,13 @@ const NAVIGATION_MATRIX = {
       id: "communication",
       name: "COMMUNICATION",
       icon: MessageSquare,
-      href: "/pm/communications/contacts",
+      subItems: [
+        {
+          id: "messages",
+          name: "MESSAGES",
+          href: "/pm/communications/contacts",
+        },
+      ],
     },
     {
       id: "progress_hub",
