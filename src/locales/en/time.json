@@ -6,6 +6,34 @@
     "today": "Today",
     "thisWeek": "This Week",
     "thisMonth": "This Month",
-    "completedAt": "Completed at"
+    "completedAt": "Completed at",
+    "tomorrow": "Tomorrow",
+    "upcoming": "Upcoming",
+    "noUpcoming": "No upcoming items",
+    "due": "Due",
+    "start": "Start",
+    "months": {
+      "january": "January",
+      "february": "February",
+      "march": "March",
+      "april": "April",
+      "may": "May",
+      "june": "June",
+      "july": "July",
+      "august": "August",
+      "september": "September",
+      "october": "October",
+      "november": "November",
+      "december": "December"
+    },
+    "days": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    }
   }
 }

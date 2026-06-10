@@ -9,6 +9,12 @@
     "submitted": "Submitted",
     "blocked": "Blocked",
     "carriedOver": "Carried Over",
-    "resolved": "Resolved"
+    "resolved": "Resolved",
+    "done": "Done",
+    "carryover": "Carryover",
+    "high": "High",
+    "live": "LIVE",
+    "action": "ACTION",
+    "overdue": "Overdue"
   }
 }

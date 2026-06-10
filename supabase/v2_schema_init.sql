@@ -455,3 +455,35 @@ CREATE TABLE IF NOT EXISTS v2_weekly_reports (
 );
 
 CREATE INDEX IF NOT EXISTS idx_v2_weekly_reports_program ON v2_weekly_reports(program_id);
+
+--------------------------------------------------------------------------------
+-- 16. MESSAGING & NOTIFICATIONS
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS v2_messages (
+    id SERIAL PRIMARY KEY,
+    sender_id TEXT NOT NULL,
+    recipient_id TEXT,
+    target_type TEXT DEFAULT 'individual',
+    target_id TEXT,
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    priority TEXT DEFAULT 'normal',
+    is_read INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_messages_sender ON v2_messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_v2_messages_recipient ON v2_messages(recipient_id);
+
+CREATE TABLE IF NOT EXISTS v2_notifications (
+    id SERIAL PRIMARY KEY,
+    recipient_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    type TEXT DEFAULT 'message',
+    is_read INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_v2_notifications_recipient ON v2_notifications(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_v2_notifications_unread ON v2_notifications(recipient_id, is_read);

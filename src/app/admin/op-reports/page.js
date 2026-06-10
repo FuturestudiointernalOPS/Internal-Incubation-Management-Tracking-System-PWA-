@@ -367,7 +367,7 @@ export default function AdminOpReports() {
                 onChange={(e) => setFilterUser(e.target.value)}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
-                <option>All Users</option>
+                <option value="All Users">{t("common.allUsers")}</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
@@ -382,7 +382,7 @@ export default function AdminOpReports() {
                 onChange={(e) => setFilterType(e.target.value)}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
-                <option value="all">All Types</option>
+                <option value="all">{t("reports.filter.allTypes")}</option>
                 <option value="standup">{t("reports.mondayStandup")}</option>
                 <option value="retro">{t("reports.fridayRetro")}</option>
               </select>
@@ -394,7 +394,7 @@ export default function AdminOpReports() {
                 onChange={(e) => setFilterMonth(e.target.value)}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
-                <option value="all">All Months</option>
+                <option value="all">{t("reports.filter.allMonths")}</option>
                 {MONTHS.map((m) => (
                   <option key={m}>{m}</option>
                 ))}
@@ -407,7 +407,7 @@ export default function AdminOpReports() {
                 onChange={(e) => setFilterProject(e.target.value)}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
-                <option value="all">All Projects</option>
+                <option value="all">{t("reports.filter.allProjects")}</option>
                 {allProjects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -422,31 +422,39 @@ export default function AdminOpReports() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
-              <option value="all">All Statuses</option>
-              <option value="completed">Completed</option>
-              <option value="in_progress">Active</option>
-              <option value="blocked">Blocked</option>
-              <option value="carried_over">Carried Over</option>
-              <option value="pending">Pending</option>
+              <option value="all">{t("reports.filter.allStatuses")}</option>
+              <option value="completed">{t("status.completed")}</option>
+              <option value="in_progress">{t("status.inProgress")}</option>
+              <option value="blocked">{t("status.blocked")}</option>
+              <option value="carried_over">{t("reports.carriedOver")}</option>
+              <option value="pending">{t("status.pending")}</option>
             </select>
             <select
               value={filterBlocker}
               onChange={(e) => setFilterBlocker(e.target.value)}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
-              <option value="all">All Blockers</option>
-              <option value="has_blockers">Has Blockers</option>
-              <option value="no_blockers">No Blockers</option>
+              <option value="all">{t("reports.filter.allBlockers")}</option>
+              <option value="has_blockers">
+                {t("reports.filter.hasBlockers")}
+              </option>
+              <option value="no_blockers">
+                {t("reports.filter.noBlockers")}
+              </option>
             </select>
             <select
               value={filterCarryOver}
               onChange={(e) => setFilterCarryOver(e.target.value)}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
-              <option value="all">All Carry-Overs</option>
-              <option value="carried">Carried Over</option>
-              <option value="multi_week">Multi-Week (3+)</option>
-              <option value="first_time">First Time</option>
+              <option value="all">{t("reports.filter.allCarryOvers")}</option>
+              <option value="carried">{t("reports.carriedOver")}</option>
+              <option value="multi_week">
+                {t("reports.filter.multiWeek")}
+              </option>
+              <option value="first_time">
+                {t("reports.filter.firstTime")}
+              </option>
             </select>
           </div>
         </div>
@@ -489,7 +497,7 @@ export default function AdminOpReports() {
                     <p className="text-[8px] text-slate-600 mt-1">
                       {stat.latest
                         ? new Date(stat.latest).toLocaleDateString()
-                        : "No activity"}
+                        : t("reports.noActivity")}
                     </p>
                   </button>
                 ))}
@@ -500,7 +508,7 @@ export default function AdminOpReports() {
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
                   {viewingUser
-                    ? `${viewingUser.name}'s Reports`
+                    ? t("reports.userReports", { name: viewingUser.name })
                     : t("reports.recentReports")}
                 </h3>
                 {viewingUser && (
@@ -508,7 +516,7 @@ export default function AdminOpReports() {
                     onClick={() => setViewingUser(null)}
                     className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline"
                   >
-                    Clear filter
+                    {t("common.clearFilter")}
                   </button>
                 )}
               </div>
@@ -543,9 +551,9 @@ export default function AdminOpReports() {
                     onClick={() => setReportsPage((p) => p + 1)}
                     className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-[var(--brand-orange)]/30 transition-all"
                   >
-                    Load More (
-                    {filteredReports.length - reportsPage * PAGE_SIZE}{" "}
-                    remaining)
+                    {t("reports.loadMore", {
+                      count: filteredReports.length - reportsPage * PAGE_SIZE,
+                    })}
                   </button>
                 </div>
               )}
@@ -644,19 +652,19 @@ export default function AdminOpReports() {
                     <thead>
                       <tr className="border-b border-[var(--border-primary)]">
                         <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                          Task
+                          {t("reports.table.task")}
                         </th>
                         <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                          Owner
+                          {t("reports.table.owner")}
                         </th>
                         <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                          Week
+                          {t("time.week")}
                         </th>
                         <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                          Status
+                          {t("reports.table.status")}
                         </th>
                         <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                          Blockers
+                          {t("reports.table.blockers")}
                         </th>
                       </tr>
                     </thead>
@@ -677,7 +685,7 @@ export default function AdminOpReports() {
                                 {task.user_name?.charAt(0) || "?"}
                               </div>
                               <span className="text-[10px] font-bold uppercase tracking-tight">
-                                {task.user_name || "Unknown"}
+                                {task.user_name || t("common.unknown")}
                               </span>
                             </div>
                           </td>
@@ -743,14 +751,14 @@ export default function AdminOpReports() {
               {/* Week selector */}
               <div className="flex items-center gap-2">
                 <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                  Week
+                  {t("time.week")}
                 </span>
                 <select
                   value={blockerFilterWeek}
                   onChange={(e) => setBlockerFilterWeek(e.target.value)}
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                 >
-                  <option value="all">All Weeks</option>
+                  <option value="all">{t("reports.filter.allWeeks")}</option>
                   {(() => {
                     const weeks = new Set();
                     blockersList.forEach((b) => {
@@ -777,9 +785,9 @@ export default function AdminOpReports() {
                   onChange={(e) => setBlockerFilterStatus(e.target.value)}
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                 >
-                  <option value="all">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="resolved">Resolved</option>
+                  <option value="all">{t("reports.filter.allStatuses")}</option>
+                  <option value="active">{t("status.active")}</option>
+                  <option value="resolved">{t("status.resolved")}</option>
                 </select>
               </div>
             </div>
@@ -842,7 +850,7 @@ export default function AdminOpReports() {
                   <div className="card py-20 text-center opacity-40 border-dashed">
                     <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
                     <p className="text-[10px] font-bold uppercase tracking-widest">
-                      No blockers found for selected filters.
+                      {t("reports.noBlockersFound")}
                     </p>
                   </div>
                 );
@@ -890,7 +898,7 @@ export default function AdminOpReports() {
                   {userAvgData.length > 1 && (
                     <div className="card p-4">
                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                        Effort Analysis — Avg Resolution Time
+                        {t("reports.effortAnalysis")}
                       </p>
                       <div className="space-y-2">
                         {userAvgData.map((u) => (
@@ -911,13 +919,15 @@ export default function AdminOpReports() {
                             </div>
                             <span className="w-24 text-right font-bold">
                               {u.avgHours === "—"
-                                ? "No data"
-                                : `${u.avgHours}h avg`}
+                                ? t("common.noData")
+                                : t("reports.hoursAvg", { hours: u.avgHours })}
                             </span>
                             <span className="w-16 text-right text-slate-500">
                               {u.activeCount > 0
-                                ? `${u.activeCount} active`
-                                : `${u.totalBlockers} total`}
+                                ? t("reports.nActive", { count: u.activeCount })
+                                : t("reports.nTotal", {
+                                    count: u.totalBlockers,
+                                  })}
                             </span>
                           </div>
                         ))}
@@ -932,28 +942,28 @@ export default function AdminOpReports() {
                         <thead>
                           <tr className="bg-tertiary border-b border-[var(--border-primary)]">
                             <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              Blocker
+                              {t("reports.table.blocker")}
                             </th>
                             <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              Staff
+                              {t("reports.table.staff")}
                             </th>
                             <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              Task
+                              {t("reports.table.task")}
                             </th>
                             <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              Project
+                              {t("reports.table.project")}
                             </th>
                             <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              Created
+                              {t("time.created")}
                             </th>
                             <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              Resolved
+                              {t("reports.table.resolved")}
                             </th>
                             <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              Duration
+                              {t("reports.table.duration")}
                             </th>
                             <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              Status
+                              {t("reports.table.status")}
                             </th>
                           </tr>
                         </thead>
@@ -1030,8 +1040,9 @@ export default function AdminOpReports() {
                         onClick={() => setBlockersPage((p) => p + 1)}
                         className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-[var(--brand-orange)]/30 transition-all"
                       >
-                        Load More ({filtered.length - blockersPage * PAGE_SIZE}{" "}
-                        remaining)
+                        {t("reports.loadMore", {
+                          count: filtered.length - blockersPage * PAGE_SIZE,
+                        })}
                       </button>
                     </div>
                   )}
@@ -1043,7 +1054,7 @@ export default function AdminOpReports() {
                         {filtered.filter((b) => b.status === "active").length}
                       </p>
                       <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                        Active
+                        {t("status.active")}
                       </p>
                     </div>
                     <div className="card p-3">
@@ -1051,13 +1062,13 @@ export default function AdminOpReports() {
                         {filtered.filter((b) => b.status === "resolved").length}
                       </p>
                       <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                        Resolved
+                        {t("status.resolved")}
                       </p>
                     </div>
                     <div className="card p-3">
                       <p className="text-2xl font-bold">{filtered.length}</p>
                       <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                        Total
+                        {t("common.total")}
                       </p>
                     </div>
                     <div className="card p-3">
@@ -1080,7 +1091,7 @@ export default function AdminOpReports() {
                         })()}
                       </p>
                       <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                        Avg Resolution
+                        {t("reports.avgResolution")}
                       </p>
                     </div>
                   </div>
@@ -1112,7 +1123,7 @@ export default function AdminOpReports() {
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                  Staff Timeline
+                  {t("reports.staffTimeline")}
                 </span>
                 <h3 className="text-2xl font-black text-white uppercase tracking-tight mt-1">
                   {viewingUser.name}
@@ -1138,18 +1149,19 @@ export default function AdminOpReports() {
 
             <div className="flex flex-wrap gap-4 text-[10px] font-bold">
               <span className="text-slate-500">
-                Total: {userReports.length} reports
+                {t("reports.totalReports")}: {userReports.length}
               </span>
               <span className="text-[var(--brand-orange)]">
                 {userReports.filter((r) => r.report_type === "standup").length}{" "}
-                stand-ups
+                {t("reports.standups")}
               </span>
               <span className="text-emerald-500">
                 {userReports.filter((r) => r.report_type === "retro").length}{" "}
-                retros
+                {t("reports.retros")}
               </span>
               <span className="text-rose-500">
-                {userReports.filter((r) => r.has_blockers).length} blockers
+                {userReports.filter((r) => r.has_blockers).length}{" "}
+                {t("reports.blockers")}
               </span>
             </div>
 
@@ -1198,7 +1210,7 @@ export default function AdminOpReports() {
                       {reliability}%
                     </p>
                     <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                      Reliability
+                      {t("reports.reliability")}
                     </p>
                   </div>
                   <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] text-center">
@@ -1206,7 +1218,7 @@ export default function AdminOpReports() {
                       {uniqueWeeks}
                     </p>
                     <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                      Active Weeks
+                      {t("reports.activeWeeks")}
                     </p>
                   </div>
                   <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] text-center">
@@ -1216,7 +1228,7 @@ export default function AdminOpReports() {
                         : 0}
                     </p>
                     <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                      Missed Reports
+                      {t("reports.missedReports")}
                     </p>
                   </div>
                 </div>
@@ -1338,7 +1350,9 @@ function ReportCard({ report, onClick }) {
               </span>
               <span className="w-1 h-1 rounded-full bg-slate-700" />
               <span>
-                {report.report_type === "standup" ? "Stand-Up" : "Retro"}
+                {report.report_type === "standup"
+                  ? t("reports.standup")
+                  : t("reports.retro")}
               </span>
               <span className="w-1 h-1 rounded-full bg-slate-700" />
               {report.has_blockers && (
@@ -1400,7 +1414,7 @@ function MonthlyBreakdown({ reports }) {
   return (
     <div className="space-y-6">
       <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
-        Monthly Activity
+        {t("reports.monthlyActivity")}
       </h3>
       <div className="grid grid-cols-1 gap-4">
         {sorted.map((group) => (
@@ -1413,9 +1427,15 @@ function MonthlyBreakdown({ reports }) {
                 </h4>
               </div>
               <div className="flex gap-3 text-[10px] font-bold text-slate-500">
-                <span>{group.standups} Stand-ups</span>
-                <span>{group.retros} Retros</span>
-                <span>{group.users.size} Members</span>
+                <span>
+                  {group.standups} {t("reports.standups")}
+                </span>
+                <span>
+                  {group.retros} {t("reports.retros")}
+                </span>
+                <span>
+                  {group.users.size} {t("reports.members")}
+                </span>
               </div>
             </div>
             <div className="w-full h-2 bg-primary rounded-full overflow-hidden flex">
@@ -1434,9 +1454,9 @@ function MonthlyBreakdown({ reports }) {
             </div>
             <div className="flex items-center gap-1 mt-2 text-[8px] font-bold text-slate-600">
               <span className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />{" "}
-              Stand-ups
+              {t("reports.standups")}
               <span className="w-2 h-2 rounded-full bg-emerald-500 ml-3" />{" "}
-              Retros
+              {t("reports.retros")}
             </div>
           </div>
         ))}
@@ -1501,7 +1521,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
       {/* Monthly Report Volume Chart */}
       <div className="card">
         <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-6">
-          Monthly Report Volume
+          {t("reports.monthlyReportVolume")}
         </h3>
         <div className="space-y-3">
           {monthlyData.slice(-6).map((m) => {
@@ -1512,7 +1532,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
                 <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-1">
                   <span>{m.label}</span>
                   <span className="font-black text-[var(--text-primary)]">
-                    {total} reports
+                    {t("reports.nReports", { count: total })}
                   </span>
                 </div>
                 <div className="w-full h-5 bg-primary rounded-lg overflow-hidden flex">
@@ -1528,16 +1548,16 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
                 <div className="flex items-center gap-3 mt-1 text-[7px] font-bold text-slate-600">
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />{" "}
-                    {m.standups} stand-ups
+                    {t("reports.nStandups", { count: m.standups })}
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{" "}
-                    {m.retros} retros
+                    {t("reports.nRetros", { count: m.retros })}
                   </span>
                   {m.blockers > 0 && (
                     <span className="flex items-center gap-1 text-rose-500">
-                      <AlertTriangle className="w-2.5 h-2.5" /> {m.blockers}{" "}
-                      blockers
+                      <AlertTriangle className="w-2.5 h-2.5" />{" "}
+                      {t("reports.nBlockers", { count: m.blockers })}
                     </span>
                   )}
                 </div>
@@ -1551,7 +1571,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
         {/* Blocker Trend */}
         <div className="card">
           <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4">
-            Blockers Over Time
+            {t("reports.blockersOverTime")}
           </h3>
           {blockerTrend.length > 0 ? (
             <div className="space-y-2.5">
@@ -1560,7 +1580,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
                   <div className="flex items-center justify-between text-[9px] font-bold mb-1">
                     <span className="text-slate-500">{m.label}</span>
                     <span className="text-rose-500 font-black">
-                      {m.blockers} blocker{m.blockers > 1 ? "s" : ""}
+                      {t("reports.nBlockers", { count: m.blockers })}
                     </span>
                   </div>
                   <div className="w-full h-2 bg-primary rounded-full overflow-hidden">
@@ -1576,7 +1596,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
             <div className="py-8 text-center">
               <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-40" />
               <p className="text-[10px] text-slate-500 italic">
-                No blockers reported.
+                {t("reports.noBlockersReported")}
               </p>
             </div>
           )}
@@ -1585,7 +1605,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
         {/* Recently Active Staff */}
         <div className="card">
           <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4">
-            Recently Active
+            {t("reports.recentlyActive")}
           </h3>
           <div className="space-y-2">
             {recentStaff.map((s) => (
@@ -1602,7 +1622,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
                       {s.name}
                     </p>
                     <p className="text-[8px] text-slate-500">
-                      {s.total} reports ·{" "}
+                      {t("reports.nReports", { count: s.total })} ·{" "}
                       {new Date(s.latest).toLocaleDateString()}
                     </p>
                   </div>
@@ -1654,27 +1674,27 @@ function ReportDetailModal({ report, onClose }) {
   const renderStatusBadge = (status) => {
     const cfg = {
       pending: {
-        label: "Pending",
+        label: t("status.pending"),
         color: "text-slate-400",
         bg: "bg-slate-500/10",
       },
       in_progress: {
-        label: "Active",
+        label: t("reports.inProgress"),
         color: "text-blue-400",
         bg: "bg-blue-500/10",
       },
       blocked: {
-        label: "Blocked",
+        label: t("status.blocked"),
         color: "text-rose-400",
         bg: "bg-rose-500/10",
       },
       completed: {
-        label: "Done",
+        label: t("status.completed"),
         color: "text-emerald-400",
         bg: "bg-emerald-500/10",
       },
       carried_over: {
-        label: "Carryover",
+        label: t("reports.carriedOver"),
         color: "text-indigo-400",
         bg: "bg-indigo-500/10",
       },
@@ -1725,8 +1745,10 @@ function ReportDetailModal({ report, onClose }) {
         <div className="flex justify-between items-start print:hidden">
           <div>
             <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-              {report.report_type === "standup" ? "Stand-Up" : "Retro"} Report ·
-              W{report.week_number}
+              {report.report_type === "standup"
+                ? t("reports.standup")
+                : t("reports.retro")}{" "}
+              · W{report.week_number}
             </span>
             <h3 className="text-2xl font-bold text-white uppercase tracking-tight mt-1">
               {report.user_name}
@@ -1785,7 +1807,7 @@ function ReportDetailModal({ report, onClose }) {
               }}
               className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
             >
-              <Download className="w-4 h-4" /> Export PDF
+              <Download className="w-4 h-4" /> {t("reports.exportPdf")}
             </button>
             <button
               onClick={onClose}
@@ -1822,8 +1844,10 @@ function ReportDetailModal({ report, onClose }) {
               {report.user_name}
             </h1>
             <p className="text-[10px] text-slate-500">
-              {report.report_type === "standup" ? "Stand-Up" : "Retro"} — Week{" "}
-              {report.week_number} · {report.year}
+              {report.report_type === "standup"
+                ? t("reports.standup")
+                : t("reports.retro")}{" "}
+              — {t("time.week")} {report.week_number} · {report.year}
             </p>
           </div>
         </div>
@@ -1832,7 +1856,7 @@ function ReportDetailModal({ report, onClose }) {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-tertiary rounded-2xl border border-[var(--border-primary)] print:bg-gray-50 print:border print:border-gray-200 print:rounded print:p-4">
           <div className="space-y-0.5">
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
-              Team Member
+              {t("reports.teamMember")}
             </p>
             <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
               {report.user_name}
@@ -1840,7 +1864,7 @@ function ReportDetailModal({ report, onClose }) {
           </div>
           <div className="space-y-0.5">
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
-              Role
+              {t("reports.role")}
             </p>
             <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
               {formatLabel(report.user_role)}
@@ -1848,7 +1872,7 @@ function ReportDetailModal({ report, onClose }) {
           </div>
           <div className="space-y-0.5">
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
-              Week
+              {t("time.week")}
             </p>
             <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
               W{report.week_number} · {report.year}
@@ -1856,7 +1880,7 @@ function ReportDetailModal({ report, onClose }) {
           </div>
           <div className="space-y-0.5">
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
-              Submitted
+              {t("time.submitted")}
             </p>
             <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
               {new Date(report.created_at).toLocaleDateString()}
@@ -1869,12 +1893,12 @@ function ReportDetailModal({ report, onClose }) {
           <div className="flex items-center justify-center py-12">
             <div className="w-5 h-5 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
             <span className="ml-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              Loading tasks...
+              {t("reports.loadingTasks")}
             </span>
           </div>
         ) : weekTasks.length === 0 ? (
           <p className="text-[10px] text-slate-600 italic text-center py-8">
-            No tasks found for this week.
+            {t("reports.noTasksWeek")}
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
@@ -1882,31 +1906,31 @@ function ReportDetailModal({ report, onClose }) {
               <thead>
                 <tr className="bg-tertiary border-b border-[var(--border-primary)]">
                   <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Task
+                    {t("reports.table.task")}
                   </th>
                   <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Project
+                    {t("reports.table.project")}
                   </th>
                   <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Category
+                    {t("reports.table.category")}
                   </th>
                   <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Status
+                    {t("reports.table.status")}
                   </th>
                   <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Start
+                    {t("reports.table.start")}
                   </th>
                   <th className="text-left px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                    End
+                    {t("reports.table.end")}
                   </th>
                   <th className="text-center px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Blockers
+                    {t("reports.table.blockers")}
                   </th>
                   <th className="text-center px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Subtasks
+                    {t("reports.table.subtasks")}
                   </th>
                   <th className="text-center px-3 py-2 text-[8px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Carry
+                    {t("reports.table.carry")}
                   </th>
                 </tr>
               </thead>
@@ -2010,7 +2034,7 @@ function ReportDetailModal({ report, onClose }) {
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[9px]">
                               <div>
                                 <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
-                                  Created
+                                  {t("time.created")}
                                 </p>
                                 <p className="font-medium text-[var(--text-primary)]">
                                   {formatDate(task.created_at)}
@@ -2018,7 +2042,7 @@ function ReportDetailModal({ report, onClose }) {
                               </div>
                               <div>
                                 <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
-                                  Owner
+                                  {t("reports.table.owner")}
                                 </p>
                                 <p className="font-medium text-[var(--text-primary)]">
                                   {task.user_name || "—"}
@@ -2026,7 +2050,7 @@ function ReportDetailModal({ report, onClose }) {
                               </div>
                               <div>
                                 <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
-                                  Project
+                                  {t("reports.table.project")}
                                 </p>
                                 <p className="font-medium text-[var(--text-primary)]">
                                   {projectMap[task.project_id]?.name ||
@@ -2036,13 +2060,12 @@ function ReportDetailModal({ report, onClose }) {
                               </div>
                               <div>
                                 <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
-                                  Carry Count
+                                  {t("reports.table.carryCount")}
                                 </p>
                                 <p className="font-medium text-[var(--text-primary)]">
-                                  {task.reschedule_count || 0} time
-                                  {(task.reschedule_count || 0) !== 1
-                                    ? "s"
-                                    : ""}
+                                  {t("reports.nTimes", {
+                                    count: task.reschedule_count || 0,
+                                  })}
                                 </p>
                               </div>
                             </div>
@@ -2050,7 +2073,7 @@ function ReportDetailModal({ report, onClose }) {
                               taskLogs[task.id].length > 0 && (
                                 <div className="mt-2 pt-2 border-t border-[var(--border-primary)]/20">
                                   <p className="text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                                    Activity Log
+                                    {t("reports.activityLog")}
                                   </p>
                                   <div className="space-y-0.5 max-h-24 overflow-y-auto">
                                     {taskLogs[task.id]
@@ -2109,7 +2132,7 @@ function ReportDetailModal({ report, onClose }) {
         {weekTasks.some((t) => (t.blockers || []).length > 0) && (
           <div className="space-y-2">
             <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest">
-              Blockers
+              {t("reports.blockers")}
             </p>
             {weekTasks
               .filter((t) => (t.blockers || []).length > 0)
@@ -2147,7 +2170,7 @@ function ReportDetailModal({ report, onClose }) {
         ).length > 0 && (
           <div className="space-y-2">
             <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
-              Carry-Over History
+              {t("reports.carryOverHistory")}
             </p>
             {weekTasks
               .filter(
@@ -2175,7 +2198,7 @@ function ReportDetailModal({ report, onClose }) {
                       <span
                         className={`text-[8px] font-bold px-2 py-0.5 rounded ${weeks >= 3 ? "bg-amber-500/10 text-amber-400" : "bg-indigo-500/10 text-indigo-400"}`}
                       >
-                        {weeks} week{weeks !== 1 ? "s" : ""}
+                        {t("reports.nWeeks", { count: weeks })}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 mt-1.5">
@@ -2204,7 +2227,7 @@ function ReportDetailModal({ report, onClose }) {
           taskLogs[expandedTaskMeta].length > 0 && (
             <div className="space-y-2">
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                Assignment History
+                {t("reports.assignmentHistory")}
               </p>
               <div className="space-y-1 max-h-32 overflow-y-auto">
                 {taskLogs[expandedTaskMeta].map((log, i) => (
@@ -2252,7 +2275,9 @@ function ReportDetailModal({ report, onClose }) {
 
         {/* Print footer */}
         <div className="hidden print:!block print:mt-8 print:pt-4 print:border-t print:border-gray-300 print:text-xs print:text-gray-400">
-          <p>Generated from ImpactOS — {new Date().toLocaleDateString()}</p>
+          <p>
+            {t("reports.generatedFrom")} — {new Date().toLocaleDateString()}
+          </p>
         </div>
 
         <button

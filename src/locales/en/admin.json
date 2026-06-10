@@ -26,6 +26,37 @@
     "reportResponses": "Report Responses",
     "newProgram": "New Program",
     "viewAllPrograms": "View All Programs",
-    "viewAllReports": "View All Reports"
+    "viewAllReports": "View All Reports",
+    "projects": "Projects",
+    "workManagement": "Work Management",
+    "assignedToMe": "Assigned To Me",
+    "awaitingAction": "awaiting action",
+    "assignedBy": "Assigned by",
+    "approveAccess": "Approve Access",
+    "ofAllReports": "of all reports",
+    "activeReporters": "active reporters",
+    "latestBlockers": "Latest Blockers",
+    "noActiveBlockers": "No active blockers",
+    "fullArchive": "Full Archive",
+    "ownerLabel": "Owner",
+    "taskLabel": "Task",
+    "sectionSubtitles": {
+      "educationalPerformance": "Educational / Program Performance",
+      "staffReporting": "Staff Reporting & Operational Activity",
+      "reportingReliability": "Reporting Reliability & Staff Consistency",
+      "recurringProblems": "Recurring Operational Problems",
+      "longTermVisibility": "Long-Term Operational Visibility",
+      "teachersAndStaff": "Teachers, admins & staff",
+      "activeInternalProjects": "Active internal projects"
+    },
+    "descriptions": {
+      "workHub": "Centralized hub for all tasks, projects, categories, and blockers.",
+      "trackTasks": "Track execution status across all teams.",
+      "monitorBlockers": "Monitor active blockers, resolution progress, and aging issues.",
+      "viewProjects": "View project progress, task completion rates, and blocker impact.",
+      "browseArchive": "Browse all submitted stand-ups and retros. Filter by user, month, or type.",
+      "historicalReports": "Historical program PM reports and intelligence feed.",
+      "pmReportResponses": "All submitted PM weekly report responses."
+    }
   }
 }

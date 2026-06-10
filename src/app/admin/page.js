@@ -244,6 +244,19 @@ export default function AdminDashboard() {
   const router = useRouter();
   const { t } = useI18n();
 
+  const statusLabel = (key) => {
+    const map = {
+      pending: "pending",
+      in_progress: "active",
+      blocked: "blocked",
+      completed: "done",
+      carried_over: "carryover",
+    };
+    return t(`status.${map[key] || "pending"}`);
+  };
+
+  const getMonthLabel = (idx) => t(`time.months.${MONTHS[idx].toLowerCase()}`);
+
   // Dashboard widgets state
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -554,7 +567,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-3">
                   <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
                   <span className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                    {MONTHS[calMonth]} {calYear}
+                    {getMonthLabel(calMonth)} {calYear}
                   </span>
                 </div>
                 <div className="flex gap-1">
@@ -571,7 +584,7 @@ export default function AdminDashboard() {
                     }}
                     className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
                   >
-                    Today
+                    {t("time.today")}
                   </button>
                   <button
                     onClick={handleNextMonth}
@@ -585,7 +598,7 @@ export default function AdminDashboard() {
                 {DAYS.map((d) => (
                   <div key={d} className="bg-primary p-2 text-center">
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      {d}
+                      {t(`time.days.${d.toLowerCase()}`)}
                     </span>
                   </div>
                 ))}
@@ -632,7 +645,7 @@ export default function AdminDashboard() {
                         ))}
                         {dayTasks.length > 3 && (
                           <span className="text-[7px] text-slate-600 pl-1">
-                            +{dayTasks.length - 3} more
+                            +{dayTasks.length - 3} {t("common.more")}
                           </span>
                         )}
                       </div>
@@ -645,7 +658,7 @@ export default function AdminDashboard() {
                   <div key={key} className="flex items-center gap-1.5">
                     <div className={`w-2 h-2 rounded-full ${cfg.dot}`} />
                     <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
-                      {cfg.label}
+                      {statusLabel(key)}
                     </span>
                   </div>
                 ))}
@@ -660,7 +673,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2 mb-2">
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
                 <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
-                  Upcoming
+                  {t("time.upcoming")}
                 </span>
               </div>
               {(() => {
@@ -682,7 +695,7 @@ export default function AdminDashboard() {
                 if (todayT.length === 0 && tomorrowT.length === 0)
                   return (
                     <p className="text-[9px] text-slate-500 italic">
-                      No upcoming items
+                      {t("time.noUpcoming")}
                     </p>
                   );
                 return (
@@ -690,7 +703,7 @@ export default function AdminDashboard() {
                     {todayT.length > 0 && (
                       <div className="mb-2">
                         <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          Today
+                          {t("time.today")}
                         </p>
                         {todayT.slice(0, 2).map((t) => (
                           <button
@@ -706,7 +719,7 @@ export default function AdminDashboard() {
                     {tomorrowT.length > 0 && (
                       <div>
                         <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          Tomorrow
+                          {t("time.tomorrow")}
                         </p>
                         {tomorrowT.slice(0, 2).map((t) => (
                           <button
@@ -732,7 +745,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2 mb-2">
                 <ListTodo className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
                 <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  Tasks
+                  {t("reports.tasks")}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -744,7 +757,7 @@ export default function AdminDashboard() {
                     }
                   </p>
                   <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                    Active
+                    {t("status.active")}
                   </p>
                 </div>
                 <div>
@@ -752,7 +765,7 @@ export default function AdminDashboard() {
                     {(tasks || []).filter((t) => t.status === "blocked").length}
                   </p>
                   <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                    Blocked
+                    {t("status.blocked")}
                   </p>
                 </div>
                 <div>
@@ -763,7 +776,7 @@ export default function AdminDashboard() {
                     }
                   </p>
                   <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                    Done
+                    {t("status.done")}
                   </p>
                 </div>
               </div>
@@ -777,7 +790,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2 mb-2">
                 <Shield className="w-3.5 h-3.5 text-rose-400" />
                 <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  Blockers
+                  {t("reports.blockers")}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-center">
@@ -786,7 +799,7 @@ export default function AdminDashboard() {
                     {activeBlockers.length}
                   </p>
                   <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                    Active
+                    {t("status.active")}
                   </p>
                 </div>
                 <div>
@@ -799,7 +812,7 @@ export default function AdminDashboard() {
                     }
                   </p>
                   <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                    High
+                    {t("status.high")}
                   </p>
                 </div>
               </div>
@@ -814,11 +827,11 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2 mb-3">
                 <Target className="w-4 h-4 text-amber-400" />
                 <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
-                  Assigned To Me
+                  {t("admin.assignedToMe")}
                 </span>
                 <span className="text-[9px] font-bold text-slate-500 ml-auto">
                   {assignments.filter((a) => a.status === "pending").length}{" "}
-                  awaiting action
+                  {t("admin.awaitingAction")}
                 </span>
               </div>
               <div className="space-y-1.5">
@@ -841,9 +854,10 @@ export default function AdminDashboard() {
                             {task.title}
                           </span>
                           <p className="text-[8px] text-slate-500 mt-0.5">
-                            Assigned by: {task.user_name || "System"}
+                            {t("admin.assignedBy")}:{" "}
+                            {task.user_name || "System"}
                             {task.end_date
-                              ? ` · Due: ${new Date(task.end_date).toLocaleDateString()}`
+                              ? ` · ${t("time.due")}: ${new Date(task.end_date).toLocaleDateString()}`
                               : ""}
                           </p>
                         </div>
@@ -869,7 +883,7 @@ export default function AdminDashboard() {
                               }}
                               className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
                             >
-                              Accept
+                              {t("common.accept")}
                             </button>
                             <button
                               onClick={async () => {
@@ -891,7 +905,7 @@ export default function AdminDashboard() {
                               }}
                               className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
                             >
-                              Decline
+                              {t("common.decline")}
                             </button>
                           </div>
                         ) : (
@@ -913,7 +927,7 @@ export default function AdminDashboard() {
                             }}
                             className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0"
                           >
-                            Complete
+                            {t("common.complete")}
                           </button>
                         )}
                       </div>
@@ -957,7 +971,7 @@ export default function AdminDashboard() {
                       <UserCheck className="w-4 h-4" />
                     )}
                     <span className="text-[10px] font-black uppercase">
-                      Approve Access
+                      {t("admin.approveAccess")}
                     </span>
                   </button>
                 </div>
@@ -972,7 +986,7 @@ export default function AdminDashboard() {
           <SectionHeader
             number="A"
             title={t("admin.programOperations")}
-            subtitle="Educational / Program Performance"
+            subtitle={t("admin.sectionSubtitles.educationalPerformance")}
             icon={Briefcase}
             color="bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
             action={
@@ -990,7 +1004,7 @@ export default function AdminDashboard() {
               value={stats.programs}
               icon={Layers}
               color="text-[var(--brand-orange)]"
-              badge="LIVE"
+              badge={t("status.live")}
               onClick={() => router.push("/admin/programs")}
               loading={loading}
             />
@@ -1007,16 +1021,16 @@ export default function AdminDashboard() {
               value={stats.totalStaff}
               icon={Rocket}
               color="text-emerald-500"
-              subtitle="Teachers, admins & staff"
+              subtitle={t("admin.sectionSubtitles.teachersAndStaff")}
               onClick={() => router.push("/admin/communications/contacts")}
               loading={loading}
             />
             <StatCard
-              title="Projects"
+              title={t("admin.projects")}
               value={stats.projects || stats.totalProjects || "—"}
               icon={Briefcase}
               color="text-purple-500"
-              subtitle="Active internal projects"
+              subtitle={t("admin.sectionSubtitles.activeInternalProjects")}
               onClick={() => router.push("/admin/projects")}
               loading={loading}
             />
@@ -1122,7 +1136,7 @@ export default function AdminDashboard() {
           <SectionHeader
             number="B"
             title={t("admin.internalOperations")}
-            subtitle="Staff Reporting & Operational Activity"
+            subtitle={t("admin.sectionSubtitles.staffReporting")}
             icon={BarChart3}
             color="bg-indigo-500/10 text-indigo-500"
             action={
@@ -1140,7 +1154,7 @@ export default function AdminDashboard() {
               value={opStats.standups}
               icon={Calendar}
               color="text-[var(--brand-orange)]"
-              subtitle={`${opStats.totalUsers} active reporters`}
+              subtitle={`${opStats.totalUsers} ${t("admin.activeReporters")}`}
               loading={loading}
               onClick={() => router.push("/admin/op-reports")}
             />
@@ -1157,7 +1171,7 @@ export default function AdminDashboard() {
               value={opStats.blockers}
               icon={AlertTriangle}
               color="text-rose-500"
-              badge={opStats.blockers > 0 ? "ACTION" : ""}
+              badge={opStats.blockers > 0 ? t("status.action") : ""}
               loading={loading}
               onClick={() => router.push("/admin/op-reports")}
             />
@@ -1187,7 +1201,7 @@ export default function AdminDashboard() {
                   %
                 </p>
                 <p className="text-[8px] font-bold text-slate-600">
-                  of all reports
+                  {t("admin.ofAllReports")}
                 </p>
               </div>
             </div>
@@ -1203,11 +1217,11 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-3 mb-3">
               <LayoutGrid className="w-5 h-5 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-widest">
-                Work Management
+                {t("admin.workManagement")}
               </span>
             </div>
             <p className="text-[10px] text-slate-500 leading-relaxed">
-              Centralized hub for all tasks, projects, categories, and blockers.
+              {t("admin.descriptions.workHub")}
             </p>
           </button>
           <button
@@ -1221,7 +1235,7 @@ export default function AdminDashboard() {
               </span>
             </div>
             <p className="text-[10px] text-slate-500 leading-relaxed">
-              Track execution status across all teams.
+              {t("admin.descriptions.trackTasks")}
             </p>
           </button>
           <button
@@ -1235,7 +1249,7 @@ export default function AdminDashboard() {
               </span>
             </div>
             <p className="text-[10px] text-slate-500 leading-relaxed">
-              Monitor active blockers, resolution progress, and aging issues.
+              {t("admin.descriptions.monitorBlockers")}
             </p>
           </button>
           <button
@@ -1249,7 +1263,7 @@ export default function AdminDashboard() {
               </span>
             </div>
             <p className="text-[10px] text-slate-500 leading-relaxed">
-              View project progress, task completion rates, and blocker impact.
+              {t("admin.descriptions.viewProjects")}
             </p>
           </button>
         </div>
@@ -1261,7 +1275,7 @@ export default function AdminDashboard() {
           <SectionHeader
             number="C"
             title={t("admin.teamAccountability")}
-            subtitle="Reporting Reliability & Staff Consistency"
+            subtitle={t("admin.sectionSubtitles.reportingReliability")}
             icon={Users}
             color="bg-emerald-500/10 text-emerald-500"
             action={
@@ -1274,7 +1288,9 @@ export default function AdminDashboard() {
                 }
                 className="text-[9px] font-black text-slate-500 uppercase hover:text-white transition-all flex items-center gap-1"
               >
-                {expandedSections.teamTable ? "Collapse" : "Expand"}{" "}
+                {expandedSections.teamTable
+                  ? t("common.collapse")
+                  : t("common.expand")}{" "}
                 <ChevronDown
                   className={`w-3 h-3 transition-transform ${expandedSections.teamTable ? "rotate-180" : ""}`}
                 />
@@ -1448,7 +1464,7 @@ export default function AdminDashboard() {
               onClick={() => toggleSection("teamTable")}
               className="w-full text-center py-2 text-[9px] font-black text-slate-500 uppercase hover:text-white transition-all"
             >
-              <ChevronUp className="w-3 h-3 mx-auto" /> Show Less
+              <ChevronUp className="w-3 h-3 mx-auto" /> {t("common.showLess")}
             </button>
           )}
         </div>
@@ -1460,7 +1476,7 @@ export default function AdminDashboard() {
           <SectionHeader
             number="D"
             title={t("admin.risksAndBlockers")}
-            subtitle="Recurring Operational Problems"
+            subtitle={t("admin.sectionSubtitles.recurringProblems")}
             icon={AlertTriangle}
             color="bg-rose-500/10 text-rose-500"
           />
@@ -1468,7 +1484,7 @@ export default function AdminDashboard() {
             {/* Latest active blockers */}
             <div className="card">
               <h4 className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-4">
-                Latest Blockers
+                {t("admin.latestBlockers")}
               </h4>
               {activeBlockers.length > 0 ? (
                 <div className="space-y-2">
@@ -1492,12 +1508,12 @@ export default function AdminDashboard() {
                         </div>
                         {b.task_title && (
                           <p className="text-[8px] text-slate-500 mt-0.5">
-                            Task: {b.task_title}
+                            {t("admin.taskLabel")}: {b.task_title}
                           </p>
                         )}
                         {b.task_owner && (
                           <p className="text-[7px] text-slate-600 mt-0.5">
-                            Owner: {b.task_owner}
+                            {t("admin.ownerLabel")}: {b.task_owner}
                           </p>
                         )}
                       </div>
@@ -1508,7 +1524,7 @@ export default function AdminDashboard() {
                 <div className="py-12 text-center">
                   <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3 opacity-40" />
                   <p className="text-[10px] text-slate-500 italic">
-                    No active blockers
+                    {t("admin.noActiveBlockers")}
                   </p>
                 </div>
               )}
@@ -1526,7 +1542,7 @@ export default function AdminDashboard() {
                     className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-rose-500/30 transition-all"
                   >
                     <span className="text-[10px] font-bold uppercase tracking-tight">
-                      View All Blockers
+                      {t("admin.viewAllBlockers")}
                     </span>
                     <Eye className="w-3.5 h-3.5 text-rose-500" />
                   </button>
@@ -1535,7 +1551,7 @@ export default function AdminDashboard() {
                     className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-amber-500/30 transition-all"
                   >
                     <span className="text-[10px] font-bold uppercase tracking-tight">
-                      Blocker Reports
+                      {t("admin.blockerReports")}
                     </span>
                     <BarChart3 className="w-3.5 h-3.5 text-amber-500" />
                   </button>
@@ -1552,7 +1568,7 @@ export default function AdminDashboard() {
           <SectionHeader
             number="E"
             title={t("admin.historicalIntelligence")}
-            subtitle="Long-Term Operational Visibility"
+            subtitle={t("admin.sectionSubtitles.longTermVisibility")}
             icon={Clock}
             color="bg-blue-500/10 text-blue-500"
             action={
@@ -1560,7 +1576,7 @@ export default function AdminDashboard() {
                 onClick={() => router.push("/admin/op-reports")}
                 className="text-[9px] font-black text-blue-400 uppercase hover:underline"
               >
-                Full Archive
+                {t("admin.fullArchive")}
               </button>
             }
           />
@@ -1577,8 +1593,7 @@ export default function AdminDashboard() {
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 leading-relaxed">
-                Browse all submitted stand-ups and retros. Filter by user,
-                month, or type.
+                {t("admin.descriptions.browseArchive")}
               </p>
             </button>
             <button
@@ -1592,7 +1607,7 @@ export default function AdminDashboard() {
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 leading-relaxed">
-                Historical program PM reports and intelligence feed.
+                {t("admin.descriptions.historicalReports")}
               </p>
             </button>
             <button
@@ -1606,7 +1621,7 @@ export default function AdminDashboard() {
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 leading-relaxed">
-                All submitted PM weekly report responses.
+                {t("admin.descriptions.pmReportResponses")}
               </p>
             </button>
           </div>
@@ -1633,19 +1648,14 @@ export default function AdminDashboard() {
                   <span
                     className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${(STATUS_CONFIG[selectedTask.status] || STATUS_CONFIG.pending).bg} ${(STATUS_CONFIG[selectedTask.status] || STATUS_CONFIG.pending).color}`}
                   >
-                    {
-                      (
-                        STATUS_CONFIG[selectedTask.status] ||
-                        STATUS_CONFIG.pending
-                      ).label
-                    }
+                    {statusLabel(selectedTask.status || "pending")}
                   </span>
                   {selectedTask.end_date &&
                     !["completed", "pending"].includes(selectedTask.status) &&
                     new Date(selectedTask.end_date) <
                       new Date(new Date().toDateString()) && (
                       <span className="text-[8px] font-black text-rose-400 uppercase bg-rose-500/10 px-1.5 py-0.5 rounded">
-                        Overdue
+                        {t("status.overdue")}
                       </span>
                     )}
                 </div>
@@ -1664,7 +1674,7 @@ export default function AdminDashboard() {
               {selectedTask.start_date && (
                 <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                    Start
+                    {t("time.start")}
                   </p>
                   <p className="text-xs font-bold text-[var(--text-primary)]">
                     {new Date(selectedTask.start_date).toLocaleDateString()}
@@ -1674,7 +1684,7 @@ export default function AdminDashboard() {
               {selectedTask.end_date && (
                 <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                    Due
+                    {t("time.due")}
                   </p>
                   <p className="text-xs font-bold text-[var(--text-primary)]">
                     {new Date(selectedTask.end_date).toLocaleDateString()}
@@ -1683,7 +1693,7 @@ export default function AdminDashboard() {
               )}
               <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                  Created
+                  {t("time.created")}
                 </p>
                 <p className="text-xs font-bold text-[var(--text-primary)]">
                   {selectedTask.created_at

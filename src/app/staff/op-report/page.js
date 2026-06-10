@@ -96,6 +96,17 @@ const STATUS_CONFIG = {
   },
 };
 
+const statusLabelKey = (status) => {
+  const map = {
+    pending: "status.pending",
+    in_progress: "status.inProgress",
+    blocked: "status.blocked",
+    completed: "status.completed",
+    carried_over: "status.carriedOver",
+  };
+  return map[status] || "status.pending";
+};
+
 export default function StaffOpReport() {
   const router = useRouter();
   const { t } = useI18n();
@@ -741,14 +752,14 @@ export default function StaffOpReport() {
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Operational Reporting
+                {t("reports.companyReports")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
               {t("reports.weeklyReport")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              Track your weekly priorities, deliverables, and progress
+              {t("staff.opReport.subtitle")}
             </p>
           </div>
 
@@ -808,7 +819,8 @@ export default function StaffOpReport() {
                 : "text-slate-500 hover:text-white"
             }`}
           >
-            <BarChart3 className="w-4 h-4" /> Weekly Summary
+            <BarChart3 className="w-4 h-4" />{" "}
+            {t("staff.opReport.weeklySummary")}
           </button>
         </div>
 
@@ -816,8 +828,7 @@ export default function StaffOpReport() {
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
             <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-              Report already submitted for this week. You can still update it
-              below.
+              {t("staff.opReport.alreadySubmitted")}
             </p>
           </div>
         )}
@@ -831,10 +842,10 @@ export default function StaffOpReport() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                      Monday Stand-Up
+                      {t("reports.mondayStandup")}
                     </h2>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Track and manage your weekly plans
+                      {t("staff.opReport.manageWeeklyPlans")}
                     </p>
                   </div>
                   <button
@@ -846,12 +857,13 @@ export default function StaffOpReport() {
                   >
                     {existingReport ? (
                       <>
-                        <ChevronRight className="w-4 h-4" /> Continue Current
-                        Stand-Up
+                        <ChevronRight className="w-4 h-4" />{" "}
+                        {t("staff.opReport.continueStandup")}
                       </>
                     ) : (
                       <>
-                        <Plus className="w-4 h-4" /> Create New Stand-Up
+                        <Plus className="w-4 h-4" />{" "}
+                        {t("staff.opReport.createNewStandup")}
                       </>
                     )}
                   </button>
@@ -863,16 +875,16 @@ export default function StaffOpReport() {
                     <thead>
                       <tr className="bg-tertiary border-b border-[var(--border-primary)]">
                         <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Week
+                          {t("staff.table.week")}
                         </th>
                         <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Total Tasks
+                          {t("staff.table.totalTasks")}
                         </th>
                         <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Status
+                          {t("staff.table.status")}
                         </th>
                         <th className="text-right px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Actions
+                          {t("staff.table.actions")}
                         </th>
                       </tr>
                     </thead>
@@ -893,7 +905,7 @@ export default function StaffOpReport() {
                               >
                                 <td className="px-4 py-3">
                                   <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                                    Week {report.week_number}
+                                    {t("staff.table.week")} {report.week_number}
                                   </span>
                                   <span className="text-[10px] text-slate-500 ml-2">
                                     {report.year}
@@ -901,7 +913,7 @@ export default function StaffOpReport() {
                                 </td>
                                 <td className="px-4 py-3">
                                   <span className="text-[12px] font-medium text-slate-500">
-                                    {taskCount} tasks
+                                    {taskCount} {t("staff.table.tasks")}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
@@ -913,8 +925,8 @@ export default function StaffOpReport() {
                                     }`}
                                   >
                                     {report.status === "submitted"
-                                      ? "Submitted"
-                                      : "Draft"}
+                                      ? t("status.submitted")
+                                      : t("status.draft")}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-right">
@@ -929,8 +941,8 @@ export default function StaffOpReport() {
                                   >
                                     {expandedWeek ===
                                     `${report.week_number}-${report.year}`
-                                      ? "Collapse"
-                                      : "View"}
+                                      ? t("common.collapse")
+                                      : t("common.view")}
                                     <ChevronDown
                                       className={`w-3 h-3 transition-transform ${
                                         expandedWeek ===
@@ -955,7 +967,7 @@ export default function StaffOpReport() {
                                             t.created_year === report.year,
                                         ).length === 0 ? (
                                           <p className="text-[11px] text-slate-500 text-center py-4">
-                                            No tasks for this week
+                                            {t("reports.noTasksFound")}
                                           </p>
                                         ) : (
                                           <div className="overflow-hidden rounded-lg border border-[var(--border-primary)]">
@@ -963,19 +975,19 @@ export default function StaffOpReport() {
                                               <thead>
                                                 <tr className="bg-primary border-b border-[var(--border-primary)]">
                                                   <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                    Task
+                                                    {t("staff.table.task")}
                                                   </th>
                                                   <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                    Project
+                                                    {t("staff.table.project")}
                                                   </th>
                                                   <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                    Due
+                                                    {t("staff.table.due")}
                                                   </th>
                                                   <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                    Blockers
+                                                    {t("staff.table.blockers")}
                                                   </th>
                                                   <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                    Status
+                                                    {t("staff.table.status")}
                                                   </th>
                                                 </tr>
                                               </thead>
@@ -1079,8 +1091,8 @@ export default function StaffOpReport() {
                                             }}
                                             className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
                                           >
-                                            <Plus className="w-3.5 h-3.5" /> Add
-                                            Task
+                                            <Plus className="w-3.5 h-3.5" />{" "}
+                                            {t("reports.addTask")}
                                           </button>
                                         </div>
                                       </div>
@@ -1097,12 +1109,14 @@ export default function StaffOpReport() {
                           <td colSpan={4} className="px-4 py-8 text-center">
                             <Target className="w-8 h-8 mx-auto mb-3 text-slate-500 opacity-30" />
                             <p className="text-[12px] font-medium text-slate-500 mb-1">
-                              No stand-up reports yet
+                              {t("staff.opReport.noStandupReports")}
                             </p>
                             <p className="text-[10px] text-slate-600 mb-4">
                               {tasks.length > 0
-                                ? `You have ${tasks.length} task${tasks.length > 1 ? "s" : ""} — create a stand-up to track them weekly`
-                                : "Create your first stand-up to plan your week"}
+                                ? t("staff.opReport.hasTasksPrompt", {
+                                    count: tasks.length,
+                                  })
+                                : t("staff.opReport.createFirstStandup")}
                             </p>
                             <button
                               onClick={() => {
@@ -1113,12 +1127,13 @@ export default function StaffOpReport() {
                             >
                               {existingReport ? (
                                 <>
-                                  <ChevronRight className="w-4 h-4" /> Continue
-                                  Stand-Up
+                                  <ChevronRight className="w-4 h-4" />{" "}
+                                  {t("staff.opReport.continueStandup")}
                                 </>
                               ) : (
                                 <>
-                                  <Plus className="w-4 h-4" /> Create Stand-Up
+                                  <Plus className="w-4 h-4" />{" "}
+                                  {t("staff.opReport.createStandup")}
                                 </>
                               )}
                             </button>
@@ -1133,10 +1148,10 @@ export default function StaffOpReport() {
               <div className="space-y-6">
                 <div>
                   <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                    Friday Retro
+                    {t("reports.fridayRetro")}
                   </h2>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Review completed work by week
+                    {t("staff.opReport.reviewCompletedWork")}
                   </p>
                 </div>
                 <div className="overflow-hidden rounded-xl border border-[var(--border-primary)]">
@@ -1144,19 +1159,19 @@ export default function StaffOpReport() {
                     <thead>
                       <tr className="bg-tertiary border-b border-[var(--border-primary)]">
                         <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Week
+                          {t("staff.table.week")}
                         </th>
                         <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Total Tasks
+                          {t("staff.table.totalTasks")}
                         </th>
                         <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Completed
+                          {t("staff.table.completed")}
                         </th>
                         <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Status
+                          {t("staff.table.status")}
                         </th>
                         <th className="text-right px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Actions
+                          {t("staff.table.actions")}
                         </th>
                       </tr>
                     </thead>
@@ -1199,14 +1214,14 @@ export default function StaffOpReport() {
                               >
                                 <td className="px-4 py-3">
                                   <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                                    Week {report.week_number}
+                                    {t("staff.table.week")} {report.week_number}
                                   </span>
                                   <span className="text-[10px] text-slate-500 ml-2">
                                     {report.year}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-[12px] font-medium text-slate-500">
-                                  {weekTasks.length} tasks
+                                  {weekTasks.length} {t("staff.table.tasks")}
                                 </td>
                                 <td className="px-4 py-3">
                                   <span className="text-[12px] font-medium text-emerald-400">
@@ -1219,8 +1234,8 @@ export default function StaffOpReport() {
                                   >
                                     {completed === weekTasks.length &&
                                     weekTasks.length > 0
-                                      ? "Complete"
-                                      : "Review"}
+                                      ? t("staff.opReport.complete")
+                                      : t("staff.opReport.review")}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-right">
@@ -1232,7 +1247,9 @@ export default function StaffOpReport() {
                                     }
                                     className="text-[11px] font-medium text-[var(--brand-orange)] hover:underline flex items-center gap-1 ml-auto"
                                   >
-                                    {isExpanded ? "Collapse" : "View"}
+                                    {isExpanded
+                                      ? t("common.collapse")
+                                      : t("common.view")}
                                     <ChevronDown
                                       className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-180" : ""}`}
                                     />
@@ -1245,7 +1262,7 @@ export default function StaffOpReport() {
                                     <div className="bg-tertiary/50 border-t border-[var(--border-primary)] p-4">
                                       {weekTasks.length === 0 ? (
                                         <p className="text-[11px] text-slate-500 text-center py-4">
-                                          No tasks for this week
+                                          {t("reports.noTasksFound")}
                                         </p>
                                       ) : (
                                         <div className="overflow-hidden rounded-lg border border-[var(--border-primary)]">
@@ -1253,22 +1270,22 @@ export default function StaffOpReport() {
                                             <thead>
                                               <tr className="bg-primary border-b border-[var(--border-primary)]">
                                                 <th className="w-10 px-3 py-2 text-center text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                  Done
+                                                  {t("staff.opReport.done")}
                                                 </th>
                                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                  Task
+                                                  {t("staff.table.task")}
                                                 </th>
                                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                  Project
+                                                  {t("staff.table.project")}
                                                 </th>
                                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                  Due
+                                                  {t("staff.table.due")}
                                                 </th>
                                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                  Blockers
+                                                  {t("staff.table.blockers")}
                                                 </th>
                                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                  Status
+                                                  {t("staff.table.status")}
                                                 </th>
                                               </tr>
                                             </thead>
@@ -1324,7 +1341,8 @@ export default function StaffOpReport() {
                                                       <div className="flex items-center gap-1.5">
                                                         {ab.length > 0 ? (
                                                           <span className="text-[9px] text-rose-400 font-medium">
-                                                            {ab.length} active
+                                                            {ab.length}{" "}
+                                                            {t("status.active")}
                                                           </span>
                                                         ) : (
                                                           <span className="text-[9px] text-slate-600">
@@ -1340,7 +1358,9 @@ export default function StaffOpReport() {
                                                           }
                                                           className="text-[9px] text-[var(--brand-orange)] hover:underline ml-1"
                                                         >
-                                                          Manage
+                                                          {t(
+                                                            "staff.opReport.manage",
+                                                          )}
                                                         </button>
                                                       </div>
                                                     </td>
@@ -1374,10 +1394,10 @@ export default function StaffOpReport() {
                           <td colSpan={5} className="px-4 py-8 text-center">
                             <CheckCircle2 className="w-8 h-8 mx-auto mb-3 text-slate-500 opacity-30" />
                             <p className="text-[12px] font-medium text-slate-500">
-                              No weekly reports yet
+                              {t("staff.opReport.noWeeklyReports")}
                             </p>
                             <p className="text-[10px] text-slate-600 mt-1">
-                              Complete a stand-up to see retro here
+                              {t("staff.opReport.retroRequiresStandup")}
                             </p>
                           </td>
                         </tr>
@@ -1392,7 +1412,7 @@ export default function StaffOpReport() {
                   <div className="flex items-center justify-center py-20">
                     <div className="w-5 h-5 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
                     <span className="ml-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                      Loading summary...
+                      {t("common.loading")}
                     </span>
                   </div>
                 ) : (
@@ -1437,7 +1457,7 @@ export default function StaffOpReport() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-lg font-black text-[var(--text-primary)]">
-                                Week {weekInfo.week}
+                                {t("staff.table.week")} {weekInfo.week}
                               </p>
                               <p className="text-[10px] text-slate-500">
                                 {dateRange}
@@ -1451,7 +1471,7 @@ export default function StaffOpReport() {
                                 {planned}
                               </p>
                               <p className="text-[8px] text-slate-500 uppercase tracking-wider">
-                                Tasks Planned
+                                {t("staff.opReport.tasksPlanned")}
                               </p>
                             </div>
                             <div>
@@ -1459,7 +1479,7 @@ export default function StaffOpReport() {
                                 {completed}
                               </p>
                               <p className="text-[8px] text-slate-500 uppercase tracking-wider">
-                                Completed
+                                {t("staff.table.completed")}
                               </p>
                             </div>
                             <div>
@@ -1467,7 +1487,7 @@ export default function StaffOpReport() {
                                 {carriedOver}
                               </p>
                               <p className="text-[8px] text-slate-500 uppercase tracking-wider">
-                                Carried Over
+                                {t("staff.opReport.carriedOver")}
                               </p>
                             </div>
                             <div>
@@ -1475,25 +1495,25 @@ export default function StaffOpReport() {
                                 {activeBlockers}
                               </p>
                               <p className="text-[8px] text-slate-500 uppercase tracking-wider">
-                                Active Blockers
+                                {t("staff.opReport.activeBlockers")}
                               </p>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-4 pt-2 border-t border-[var(--border-primary)]/30">
                             <span className="text-[9px] text-slate-500">
-                              Blockers Created:{" "}
+                              {t("staff.opReport.blockersCreated")}:{" "}
                               <span className="font-bold text-[var(--text-primary)]">
                                 {blockersCreated}
                               </span>
                             </span>
                             <span className="text-[9px] text-slate-500">
-                              Blockers Resolved:{" "}
+                              {t("staff.opReport.blockersResolved")}:{" "}
                               <span className="font-bold text-emerald-400">
                                 {blockersResolved}
                               </span>
                             </span>
                             <span className="text-[9px] text-slate-500">
-                              Projects Contributed To:{" "}
+                              {t("staff.opReport.projectsContributed")}:{" "}
                               <span className="font-bold text-[var(--text-primary)]">
                                 {projectsCount}
                               </span>
@@ -1509,11 +1529,11 @@ export default function StaffOpReport() {
                     <div className="space-y-3">
                       <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
                         <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
-                        Tasks Worked On This Week
+                        {t("staff.section.tasksWorkedOn")}
                       </h3>
                       {summaryTasks.length === 0 ? (
                         <p className="text-[10px] text-slate-600 italic text-center py-8">
-                          No tasks for this week.
+                          {t("reports.noTasksFound")}
                         </p>
                       ) : (
                         <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
@@ -1521,25 +1541,25 @@ export default function StaffOpReport() {
                             <thead>
                               <tr className="bg-tertiary border-b border-[var(--border-primary)]">
                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                  Task Name
+                                  {t("staff.table.task")}
                                 </th>
                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                  Project
+                                  {t("staff.table.project")}
                                 </th>
                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                  Category
+                                  {t("staff.table.category")}
                                 </th>
                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                  Created
+                                  {t("time.created")}
                                 </th>
                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                  Due
+                                  {t("staff.table.due")}
                                 </th>
                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                  Status
+                                  {t("staff.table.status")}
                                 </th>
                                 <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                  Collaborators
+                                  {t("staff.table.collaborators")}
                                 </th>
                               </tr>
                             </thead>
@@ -1628,7 +1648,7 @@ export default function StaffOpReport() {
                     <div className="space-y-3">
                       <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
                         <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
-                        Project Contributions
+                        {t("staff.section.projectContributions")}
                       </h3>
                       {(() => {
                         const grouped = {};
@@ -1643,7 +1663,7 @@ export default function StaffOpReport() {
                         if (entries.length === 0)
                           return (
                             <p className="text-[10px] text-slate-600 italic text-center py-8">
-                              No project data for this week.
+                              {t("staff.opReport.noProjectData")}
                             </p>
                           );
                         return entries.map(([key, projectTasks]) => {
@@ -1687,10 +1707,14 @@ export default function StaffOpReport() {
                                     {projectName}
                                   </p>
                                   <p className="text-[9px] text-slate-500">
-                                    Tasks Worked On: {projectTasks.length} |
-                                    Completed: {completedCount} | Carry Over:{" "}
-                                    {carriedCount} | Blockers:{" "}
-                                    {activeBlockersCount}
+                                    {t("staff.opReport.tasksWorkedOnCount", {
+                                      count: projectTasks.length,
+                                    })}{" "}
+                                    |{t("staff.table.completed")}:{" "}
+                                    {completedCount} |{" "}
+                                    {t("staff.opReport.carryOver")}:{" "}
+                                    {carriedCount} | {t("staff.table.blockers")}
+                                    : {activeBlockersCount}
                                   </p>
                                 </div>
                                 <ChevronDown
@@ -1742,7 +1766,7 @@ export default function StaffOpReport() {
                         <div className="space-y-3">
                           <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
                             <Users className="w-4 h-4 text-[var(--brand-orange)]" />
-                            Task Assignments Received
+                            {t("staff.section.taskAssignments")}
                           </h3>
                           <div className="space-y-2">
                             {assignedTasks.map((task) => {
@@ -1759,8 +1783,10 @@ export default function StaffOpReport() {
                                       {task.title}
                                     </p>
                                     <p className="text-[9px] text-slate-500 mt-0.5">
-                                      Assigned by {task.user_name || "Unknown"}{" "}
-                                      on {formatDate(task.created_at)}
+                                      {t("staff.opReport.assignedBy")}{" "}
+                                      {task.user_name || t("common.unknown")}{" "}
+                                      {t("time.on")}{" "}
+                                      {formatDate(task.created_at)}
                                     </p>
                                   </div>
                                   <span
@@ -1782,11 +1808,11 @@ export default function StaffOpReport() {
                     <div className="space-y-3">
                       <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
                         <Shield className="w-4 h-4 text-rose-400" />
-                        Blockers Summary
+                        {t("staff.section.blockersSummary")}
                       </h3>
                       {summaryBlockers.length === 0 ? (
                         <p className="text-[10px] text-slate-600 italic text-center py-8">
-                          No blockers reported this week.
+                          {t("reports.noBlockersFound")}
                         </p>
                       ) : (
                         <>
@@ -1796,23 +1822,23 @@ export default function StaffOpReport() {
                           ).length > 0 && (
                             <div className="space-y-2">
                               <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                                Resolved Blockers
+                                {t("staff.opReport.resolvedBlockers")}
                               </p>
                               <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
                                 <table className="w-full">
                                   <thead>
                                     <tr className="bg-tertiary">
                                       <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        Blocker
+                                        {t("staff.table.blocker")}
                                       </th>
                                       <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        Task
+                                        {t("staff.table.task")}
                                       </th>
                                       <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        Created
+                                        {t("time.created")}
                                       </th>
                                       <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        Resolved
+                                        {t("staff.table.resolved")}
                                       </th>
                                     </tr>
                                   </thead>
@@ -1850,23 +1876,23 @@ export default function StaffOpReport() {
                             .length > 0 && (
                             <div className="space-y-2">
                               <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">
-                                Active Blockers
+                                {t("staff.opReport.activeBlockers")}
                               </p>
                               <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
                                 <table className="w-full">
                                   <thead>
                                     <tr className="bg-tertiary">
                                       <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        Blocker
+                                        {t("staff.table.blocker")}
                                       </th>
                                       <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        Task
+                                        {t("staff.table.task")}
                                       </th>
                                       <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        Created
+                                        {t("time.created")}
                                       </th>
                                       <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        Weeks Open
+                                        {t("staff.table.weeksOpen")}
                                       </th>
                                     </tr>
                                   </thead>
@@ -1932,7 +1958,7 @@ export default function StaffOpReport() {
                         <div className="space-y-3">
                           <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
                             <Users className="w-4 h-4 text-[var(--brand-orange)]" />
-                            Collaboration Overview
+                            {t("staff.section.collaborationOverview")}
                           </h3>
                           {entries.map(([name, sharedTasks]) => (
                             <div key={name} className="card p-3">
@@ -1947,8 +1973,9 @@ export default function StaffOpReport() {
                                   </span>
                                 </div>
                                 <span className="text-[9px] text-slate-500">
-                                  {sharedTasks.length} shared task
-                                  {sharedTasks.length !== 1 ? "s" : ""}
+                                  {t("staff.opReport.sharedTasks", {
+                                    count: sharedTasks.length,
+                                  })}
                                 </span>
                               </div>
                               {summaryCollapsed[name] && (
@@ -1986,7 +2013,7 @@ export default function StaffOpReport() {
                     <div className="space-y-3">
                       <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
                         <Clock className="w-4 h-4 text-indigo-400" />
-                        Carry-Over Items
+                        {t("staff.section.carryOverItems")}
                       </h3>
                       {(() => {
                         const carryOverTasks = summaryTasks.filter(
@@ -1995,7 +2022,7 @@ export default function StaffOpReport() {
                         if (carryOverTasks.length === 0)
                           return (
                             <p className="text-[10px] text-emerald-400 italic text-center py-8">
-                              All tasks completed this week. 🎉
+                              {t("staff.opReport.allCompleted")}
                             </p>
                           );
                         return (
@@ -2013,13 +2040,14 @@ export default function StaffOpReport() {
                                         {task.title}
                                       </p>
                                       <p className="text-[9px] text-slate-500 mt-0.5">
-                                        Project:{" "}
+                                        {t("staff.opReport.project")}:{" "}
                                         {summaryProjects.find(
                                           (p) =>
                                             String(p.id) ===
                                             String(task.project_id),
                                         )?.name || "—"}{" "}
-                                        | Due: {formatDate(task.end_date)}
+                                        | {t("staff.table.due")}:{" "}
+                                        {formatDate(task.end_date)}
                                       </p>
                                     </div>
                                     <div className="text-right shrink-0 ml-4">
@@ -2029,7 +2057,7 @@ export default function StaffOpReport() {
                                         {weeks}
                                       </p>
                                       <p className="text-[7px] text-slate-500 uppercase tracking-wider">
-                                        Weeks
+                                        {t("staff.table.weeksOpen")}
                                       </p>
                                     </div>
                                   </div>
@@ -2038,8 +2066,8 @@ export default function StaffOpReport() {
                                       className={`mt-2 text-[8px] font-black uppercase tracking-wider ${weeks >= 5 ? "text-rose-400" : "text-amber-400"}`}
                                     >
                                       {weeks >= 5
-                                        ? "⚠ Critical — Requires immediate attention"
-                                        : "⚠ Requires attention"}
+                                        ? t("staff.opReport.criticalAttention")
+                                        : t("staff.opReport.requiresAttention")}
                                     </div>
                                   )}
                                   {(task.blockers || []).filter(
@@ -2052,7 +2080,7 @@ export default function StaffOpReport() {
                                           (b) => b.status === "active",
                                         ).length
                                       }{" "}
-                                      active blocker(s)
+                                      {t("staff.opReport.activeBlockersCount")}
                                     </div>
                                   )}
                                 </div>
@@ -2075,7 +2103,7 @@ export default function StaffOpReport() {
                         <div className="space-y-3">
                           <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
                             <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
-                            Projects I Own
+                            {t("staff.section.projectsIOwn")}
                           </h3>
                           {ownedProjects.map((project) => {
                             const projectTasks = summaryTasks.filter(
@@ -2122,11 +2150,7 @@ export default function StaffOpReport() {
                               at_risk: "text-amber-400 bg-amber-500/10",
                               blocked: "text-rose-400 bg-rose-500/10",
                             };
-                            const healthLabels = {
-                              on_track: "On Track",
-                              at_risk: "At Risk",
-                              blocked: "Blocked",
-                            };
+                            // healthLabels used via t() inline
                             return (
                               <div key={project.id} className="card p-4">
                                 <div className="flex items-center justify-between mb-3">
@@ -2136,7 +2160,11 @@ export default function StaffOpReport() {
                                   <span
                                     className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${healthColors[health]}`}
                                   >
-                                    {healthLabels[health]}
+                                    {health === "on_track"
+                                      ? t("status.onTrack")
+                                      : health === "at_risk"
+                                        ? t("status.atRisk")
+                                        : t("status.blocked")}
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[10px]">
@@ -2145,7 +2173,7 @@ export default function StaffOpReport() {
                                       {completed}
                                     </span>{" "}
                                     <span className="text-slate-500">
-                                      completed
+                                      {t("status.completed")}
                                     </span>
                                   </div>
                                   <div>
@@ -2153,7 +2181,7 @@ export default function StaffOpReport() {
                                       {active}
                                     </span>{" "}
                                     <span className="text-slate-500">
-                                      active
+                                      {t("status.active")}
                                     </span>
                                   </div>
                                   <div>
@@ -2161,7 +2189,7 @@ export default function StaffOpReport() {
                                       {carried}
                                     </span>{" "}
                                     <span className="text-slate-500">
-                                      carried
+                                      {t("status.carriedOver")}
                                     </span>
                                   </div>
                                   <div>
@@ -2169,13 +2197,13 @@ export default function StaffOpReport() {
                                       {blockerCount}
                                     </span>{" "}
                                     <span className="text-slate-500">
-                                      blockers
+                                      {t("staff.table.blockers")}
                                     </span>
                                   </div>
                                 </div>
                                 {collaborators.size > 0 && (
                                   <p className="text-[9px] text-slate-500 mt-2">
-                                    Collaborators:{" "}
+                                    {t("staff.table.collaborators")}:{" "}
                                     {Array.from(collaborators).join(", ")}
                                   </p>
                                 )}
@@ -2238,7 +2266,7 @@ export default function StaffOpReport() {
                         <div className="space-y-3">
                           <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
                             <Activity className="w-4 h-4 text-[var(--brand-orange)]" />
-                            Weekly Activity Timeline
+                            {t("staff.section.weeklyActivityTimeline")}
                           </h3>
                           <div className="space-y-3">
                             {sortedDays.map((day) => {
@@ -2246,19 +2274,27 @@ export default function StaffOpReport() {
                               const events = [];
                               if (d.created > 0)
                                 events.push(
-                                  `Created ${d.created} task${d.created !== 1 ? "s" : ""}`,
+                                  t("staff.opReport.tasksCreated", {
+                                    count: d.created,
+                                  }),
                                 );
                               if (d.completed > 0)
                                 events.push(
-                                  `Completed ${d.completed} task${d.completed !== 1 ? "s" : ""}`,
+                                  t("staff.opReport.tasksCompleted", {
+                                    count: d.completed,
+                                  }),
                                 );
                               if (d.blockerAdded > 0)
                                 events.push(
-                                  `Added ${d.blockerAdded} blocker${d.blockerAdded !== 1 ? "s" : ""}`,
+                                  t("staff.opReport.blockersAdded", {
+                                    count: d.blockerAdded,
+                                  }),
                                 );
                               if (d.blockerResolved > 0)
                                 events.push(
-                                  `Resolved ${d.blockerResolved} blocker${d.blockerResolved !== 1 ? "s" : ""}`,
+                                  t("staff.opReport.blockersResolved", {
+                                    count: d.blockerResolved,
+                                  }),
                                 );
                               const dayLabel = new Date(
                                 day + "T00:00:00",
@@ -2311,7 +2347,7 @@ export default function StaffOpReport() {
               <div className="flex items-center justify-between px-6 py-4">
                 <div>
                   <h2 className="text-base font-bold text-[var(--text-primary)]">
-                    Standup — Week {weekInfo.week}
+                    {t("staff.opReport.standupWeek")} {weekInfo.week}
                   </h2>
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     {weekInfo.year}
@@ -2330,12 +2366,13 @@ export default function StaffOpReport() {
               {/* Section 1 — Carry Over Tasks */}
               <div>
                 <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
-                  <ChevronRight className="w-3.5 h-3.5" /> Carry Over Tasks
+                  <ChevronRight className="w-3.5 h-3.5" />{" "}
+                  {t("staff.opReport.carryOverTasks")}
                 </h3>
                 {tasks.filter((t) => t.status === "carried_over").length ===
                 0 ? (
                   <p className="text-[10px] text-slate-600 italic py-2">
-                    No carry-over tasks.
+                    {t("staff.opReport.noCarryOverTasks")}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -2352,7 +2389,8 @@ export default function StaffOpReport() {
                             </p>
                             <div className="flex flex-wrap gap-2 mt-1">
                               <span className="text-[8px] text-slate-500">
-                                Due: {formatDate(task.end_date)}
+                                {t("staff.table.due")}:{" "}
+                                {formatDate(task.end_date)}
                               </span>
                               {(task.blockers || []).filter(
                                 (b) => b.status === "active",
@@ -2364,7 +2402,7 @@ export default function StaffOpReport() {
                                       (b) => b.status === "active",
                                     ).length
                                   }{" "}
-                                  active
+                                  {t("status.active")}
                                 </span>
                               )}
                             </div>
@@ -2387,7 +2425,7 @@ export default function StaffOpReport() {
                               }}
                               className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
                             >
-                              Continue
+                              {t("staff.opReport.continue")}
                             </button>
                           </div>
                         </div>
@@ -2399,7 +2437,8 @@ export default function StaffOpReport() {
               {/* Section 2 — Weekly Focus */}
               <div>
                 <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
-                  <Target className="w-3.5 h-3.5" /> Weekly Focus
+                  <Target className="w-3.5 h-3.5" />{" "}
+                  {t("staff.opReport.weeklyFocus")}
                 </h3>
                 {/* Added tasks summary */}
                 {taskRows.length > 0 && (
@@ -2449,13 +2488,13 @@ export default function StaffOpReport() {
                 {showTaskForm ? (
                   <div className="p-4 rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/[0.02] space-y-3">
                     <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider">
-                      ✦ New Task
+                      {t("staff.opReport.newTask")}
                     </p>
 
                     {/* ─── PROJECT AUTOCOMPLETE ─── */}
                     <div className="relative">
                       <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                        Project
+                        {t("staff.table.project")}
                       </label>
                       <div className="relative">
                         <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
@@ -2509,7 +2548,7 @@ export default function StaffOpReport() {
                                   200,
                                 )
                               }
-                              placeholder="Search or select project..."
+                              placeholder={t("staff.opReport.searchProject")}
                               className="w-full bg-primary border border-[var(--border-primary)] rounded-lg pl-10 pr-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                             />
                             {newTaskForm.show_dropdown && (
@@ -2550,7 +2589,7 @@ export default function StaffOpReport() {
                                   if (!hasResults) {
                                     return (
                                       <div className="p-3 text-[10px] text-slate-500 italic text-center">
-                                        No projects found
+                                        {t("staff.opReport.noProjectsFound")}
                                       </div>
                                     );
                                   }
@@ -2560,7 +2599,7 @@ export default function StaffOpReport() {
                                       {myProjects.length > 0 && (
                                         <div>
                                           <div className="px-3 py-1.5 text-[7px] font-black text-[var(--brand-orange)] uppercase tracking-widest bg-tertiary/50">
-                                            My Projects
+                                            {t("staff.opReport.myProjects")}
                                           </div>
                                           {myProjects.map((p) => (
                                             <button
@@ -2585,7 +2624,7 @@ export default function StaffOpReport() {
                                       {collabProjs.length > 0 && (
                                         <div>
                                           <div className="px-3 py-1.5 text-[7px] font-black text-blue-500 uppercase tracking-widest bg-tertiary/50">
-                                            Collaborating
+                                            {t("staff.opReport.collaborating")}
                                           </div>
                                           {collabProjs.map((p) => (
                                             <button
@@ -2610,7 +2649,7 @@ export default function StaffOpReport() {
                                       {otherProjs.length > 0 && (
                                         <div>
                                           <div className="px-3 py-1.5 text-[7px] font-black text-slate-500 uppercase tracking-widest bg-tertiary/50">
-                                            Other Projects
+                                            {t("staff.opReport.otherProjects")}
                                           </div>
                                           {otherProjs.map((p) => (
                                             <button
@@ -2645,7 +2684,7 @@ export default function StaffOpReport() {
                     {/* ─── TASK NAME ─── */}
                     <div>
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                        Task Name
+                        {t("staff.table.taskName")}
                       </label>
                       <input
                         type="text"
@@ -2656,7 +2695,7 @@ export default function StaffOpReport() {
                             name: e.target.value,
                           }))
                         }
-                        placeholder="e.g. Email Migration"
+                        placeholder={t("staff.opReport.taskNamePlaceholder")}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                         autoFocus
                       />

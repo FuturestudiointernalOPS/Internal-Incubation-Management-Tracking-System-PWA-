@@ -27,6 +27,12 @@
     "showMore": "Show More",
     "showLess": "Show Less",
     "required": "Required",
-    "optional": "Optional"
+    "optional": "Optional",
+    "more": "more",
+    "accept": "Accept",
+    "decline": "Decline",
+    "complete": "Complete",
+    "collapse": "Collapse",
+    "expand": "Expand"
   }
 }
