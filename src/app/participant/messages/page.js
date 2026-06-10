@@ -127,7 +127,7 @@ export default function ParticipantMessages() {
       setComposeProgram("");
       setComposeSubject("");
       setComposeBody("");
-      fetchMessages();
+      await fetchMessages();
     } catch (e) {
       console.error(e);
     }

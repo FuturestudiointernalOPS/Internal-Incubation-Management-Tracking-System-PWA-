@@ -127,7 +127,7 @@ export default function TeacherMessages() {
       setComposeProgram("");
       setComposeSubject("");
       setComposeBody("");
-      fetchMessages();
+      await fetchMessages();
     } catch (e) {
       console.error(e);
     }

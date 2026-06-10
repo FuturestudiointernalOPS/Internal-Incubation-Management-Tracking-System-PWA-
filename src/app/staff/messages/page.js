@@ -132,7 +132,7 @@ export default function StaffMessages() {
       setComposeProgram("");
       setComposeSubject("");
       setComposeBody("");
-      fetchMessages();
+      await fetchMessages();
     } catch (e) {
       console.error(e);
     }

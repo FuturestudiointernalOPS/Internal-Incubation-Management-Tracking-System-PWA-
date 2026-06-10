@@ -229,27 +229,39 @@ export default function SuperAdminComms() {
       setComposeProgram("");
       setComposeSubject("");
       setComposeBody("");
-      fetchMessages();
+      await fetchMessages();
       // Auto-select the conversation we just sent to
-      if (payload.target_type === "individual") {
-        const thread = conversations.find(
-          (c) => c.type === "individual" && c.targetId === payload.recipient_id,
-        );
-        if (thread) setActiveConversation(thread);
-      } else if (payload.target_type === "role") {
-        const thread = conversations.find(
-          (c) => c.type === "role" && c.targetId === payload.target_id,
-        );
-        if (thread) setActiveConversation(thread);
-      } else if (payload.target_type === "program") {
-        const thread = conversations.find(
-          (c) => c.type === "program" && c.targetId === payload.target_id,
-        );
-        if (thread) setActiveConversation(thread);
-      } else if (payload.target_type === "all") {
-        const thread = conversations.find((c) => c.type === "all");
-        if (thread) setActiveConversation(thread);
-      }
+      const contact =
+        payload.target_type === "individual"
+          ? contacts.find((c) => (c.cid || c.id) === payload.recipient_id)
+          : null;
+      const prog =
+        payload.target_type === "program"
+          ? programs.find((p) => p.id === payload.target_id)
+          : null;
+      setActiveConversation({
+        id:
+          payload.target_type === "individual"
+            ? `individual_${payload.recipient_id}`
+            : payload.target_type === "role"
+              ? `role_${payload.target_id}`
+              : payload.target_type === "program"
+                ? `program_${payload.target_id}`
+                : "broadcast_all",
+        label:
+          payload.target_type === "individual"
+            ? contact?.name || payload.recipient_id
+            : payload.target_type === "role"
+              ? `To ${(payload.target_id || "").replace(/_/g, " ")}`
+              : payload.target_type === "program"
+                ? `Program: ${prog?.name || payload.target_id}`
+                : "Broadcast (All Users)",
+        type: payload.target_type,
+        targetId:
+          payload.target_type === "individual"
+            ? payload.recipient_id
+            : payload.target_id,
+      });
     } catch (e) {
       console.error(e);
     }
