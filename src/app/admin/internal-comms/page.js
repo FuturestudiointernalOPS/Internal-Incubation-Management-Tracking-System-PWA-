@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Send,
   MessageSquare,
@@ -9,6 +9,7 @@ import {
   Briefcase,
   User,
   X,
+  ChevronRight,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -22,26 +23,30 @@ export default function SuperAdminComms() {
   const [search, setSearch] = useState("");
 
   // Compose state
-  const [sendMode, setSendMode] = useState("individual"); // individual | group | program | broadcast
+  const [sendMode, setSendMode] = useState("individual");
   const [composeRecipient, setComposeRecipient] = useState("");
   const [composeGroup, setComposeGroup] = useState("staff");
   const [composeProgram, setComposeProgram] = useState("");
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
 
-  // Search state for dropdown filtering
+  // Search state for dropdowns
   const [contactSearch, setContactSearch] = useState("");
   const [programSearch, setProgramSearch] = useState("");
   const [showContactDropdown, setShowContactDropdown] = useState(false);
   const [showProgramDropdown, setShowProgramDropdown] = useState(false);
+
+  // Active conversation
+  const [activeConversation, setActiveConversation] = useState(null);
 
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     setUser(u);
   }, []);
 
+  const uid = user?.cid || user?.id;
+
   const fetchMessages = useCallback(async () => {
-    const uid = user?.cid || user?.id;
     if (!uid) return;
     try {
       const res = await fetch(`/api/internal-comms?cid=${uid}`);
@@ -52,7 +57,7 @@ export default function SuperAdminComms() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [uid]);
 
   const fetchContacts = useCallback(async () => {
     try {
@@ -77,22 +82,107 @@ export default function SuperAdminComms() {
   }, []);
 
   useEffect(() => {
-    if (user?.cid || user?.id) {
+    if (uid) {
       fetchMessages();
       fetchContacts();
       fetchPrograms();
     }
-  }, [user, fetchMessages, fetchContacts, fetchPrograms]);
+  }, [uid, fetchMessages, fetchContacts, fetchPrograms]);
+
+  // Build conversation threads from messages
+  const conversations = useMemo(() => {
+    const threads = [];
+    const seen = new Set();
+
+    messages.forEach((msg) => {
+      let threadId;
+      let label;
+      let icon = "user";
+
+      if (msg.target_type === "individual") {
+        // Determine the other participant
+        const otherId =
+          msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
+        if (!otherId) return;
+        threadId = `individual_${otherId}`;
+        const contact = contacts.find((c) => (c.cid || c.id) === otherId);
+        label = contact?.name || otherId;
+        icon = "user";
+      } else if (msg.target_type === "all") {
+        threadId = "broadcast_all";
+        label = "Broadcast (All Users)";
+        icon = "broadcast";
+      } else if (msg.target_type === "role") {
+        threadId = `role_${msg.target_id}`;
+        label = `To ${(msg.target_id || "").replace(/_/g, " ")}`;
+        icon = "group";
+      } else if (msg.target_type === "program") {
+        threadId = `program_${msg.target_id}`;
+        const prog = programs.find((p) => p.id === msg.target_id);
+        label = `Program: ${prog?.name || msg.target_id}`;
+        icon = "program";
+      } else {
+        return;
+      }
+
+      if (!seen.has(threadId)) {
+        seen.add(threadId);
+        threads.push({
+          id: threadId,
+          label,
+          type: msg.target_type,
+          targetId: msg.target_id,
+          lastMessage: msg,
+          icon,
+        });
+      }
+    });
+
+    // Sort by most recent message
+    threads.sort(
+      (a, b) =>
+        new Date(b.lastMessage?.created_at || 0) -
+        new Date(a.lastMessage?.created_at || 0),
+    );
+
+    return threads;
+  }, [messages, contacts, programs, uid]);
+
+  // Filter messages for active conversation
+  const activeMessages = useMemo(() => {
+    if (!activeConversation) return [];
+    return messages.filter((msg) => {
+      if (activeConversation.type === "individual") {
+        const otherId =
+          msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
+        return otherId === activeConversation.targetId;
+      }
+      if (activeConversation.type === "all") {
+        return msg.target_type === "all";
+      }
+      if (activeConversation.type === "role") {
+        return (
+          msg.target_type === "role" &&
+          msg.target_id === activeConversation.targetId
+        );
+      }
+      if (activeConversation.type === "program") {
+        return (
+          msg.target_type === "program" &&
+          msg.target_id === activeConversation.targetId
+        );
+      }
+      return false;
+    });
+  }, [messages, activeConversation, uid]);
 
   const handleSend = async () => {
     if (!composeSubject || !composeBody) return;
-
     let payload;
-
     if (sendMode === "individual") {
       if (!composeRecipient) return;
       payload = {
-        sender_id: user.cid || user.id,
+        sender_id: uid,
         recipient_id: composeRecipient,
         target_type: "individual",
         subject: composeSubject,
@@ -101,7 +191,7 @@ export default function SuperAdminComms() {
       };
     } else if (sendMode === "group") {
       payload = {
-        sender_id: user.cid || user.id,
+        sender_id: uid,
         target_type: "role",
         target_id: composeGroup,
         subject: composeSubject,
@@ -111,7 +201,7 @@ export default function SuperAdminComms() {
     } else if (sendMode === "program") {
       if (!composeProgram) return;
       payload = {
-        sender_id: user.cid || user.id,
+        sender_id: uid,
         target_type: "program",
         target_id: composeProgram,
         subject: composeSubject,
@@ -120,14 +210,13 @@ export default function SuperAdminComms() {
       };
     } else if (sendMode === "broadcast") {
       payload = {
-        sender_id: user.cid || user.id,
+        sender_id: uid,
         target_type: "all",
         subject: composeSubject,
         body: composeBody,
         priority: "normal",
       };
     }
-
     try {
       await fetch("/api/internal-comms", {
         method: "POST",
@@ -141,6 +230,26 @@ export default function SuperAdminComms() {
       setComposeSubject("");
       setComposeBody("");
       fetchMessages();
+      // Auto-select the conversation we just sent to
+      if (payload.target_type === "individual") {
+        const thread = conversations.find(
+          (c) => c.type === "individual" && c.targetId === payload.recipient_id,
+        );
+        if (thread) setActiveConversation(thread);
+      } else if (payload.target_type === "role") {
+        const thread = conversations.find(
+          (c) => c.type === "role" && c.targetId === payload.target_id,
+        );
+        if (thread) setActiveConversation(thread);
+      } else if (payload.target_type === "program") {
+        const thread = conversations.find(
+          (c) => c.type === "program" && c.targetId === payload.target_id,
+        );
+        if (thread) setActiveConversation(thread);
+      } else if (payload.target_type === "all") {
+        const thread = conversations.find((c) => c.type === "all");
+        if (thread) setActiveConversation(thread);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -161,112 +270,255 @@ export default function SuperAdminComms() {
     return (p.name || "").toLowerCase().includes(programSearch.toLowerCase());
   });
 
-  const filteredMessages = messages.filter((m) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      (m.subject || "").toLowerCase().includes(q) ||
-      (m.body || "").toLowerCase().includes(q)
-    );
-  });
-
   const selectedContact = contacts.find(
     (c) => (c.cid || c.id) === composeRecipient,
   );
   const selectedProgram = programs.find((p) => p.id === composeProgram);
 
+  const threadIcon = (type) => {
+    if (type === "user" || type === "individual") return User;
+    if (type === "group" || type === "role") return Users;
+    if (type === "program") return Briefcase;
+    return MessageSquare;
+  };
+
   return (
     <DashboardLayout role="super_admin">
-      <div className="p-6">
+      <div className="p-6 h-[calc(100vh-80px)] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">
               Messages
             </h1>
             <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-              {messages.length} messages
+              {conversations.length} conversations
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
-              <input
-                type="text"
-                placeholder="Search messages..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-52 pl-9 pr-4 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-medium text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-              />
-            </div>
-            <button
-              onClick={() => {
-                setShowCompose(true);
-                fetchContacts();
-                fetchPrograms();
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-            >
-              <Send className="w-3.5 h-3.5" /> New Message
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setShowCompose(true);
+              fetchContacts();
+              fetchPrograms();
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+          >
+            <Send className="w-3.5 h-3.5" /> New Message
+          </button>
         </div>
 
-        {/* Inbox */}
-        <div className="space-y-2">
-          {loading ? (
-            <div className="text-center py-20">
-              <div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin mx-auto" />
+        {/* Body: conversation sidebar + message panel */}
+        <div className="flex-1 flex gap-4 min-h-0">
+          {/* Conversation sidebar */}
+          <div className="w-64 flex-shrink-0 rounded-xl border border-[var(--border-primary)] bg-tertiary/30 flex flex-col">
+            <div className="p-3 border-b border-[var(--border-primary)]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                <input
+                  type="text"
+                  placeholder="Search conversations..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+              </div>
             </div>
-          ) : filteredMessages.length === 0 ? (
-            <div className="text-center py-20">
-              <MessageSquare className="w-10 h-10 text-[var(--text-secondary)] mx-auto mb-3 opacity-30" />
-              <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                {search ? "No matching messages" : "No messages yet"}
-              </p>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="w-6 h-6 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin mx-auto" />
+                </div>
+              ) : conversations.length === 0 ? (
+                <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-8">
+                  No conversations yet
+                </p>
+              ) : (
+                conversations.map((thread) => {
+                  const Icon = threadIcon(thread.icon);
+                  const isActive = activeConversation?.id === thread.id;
+                  return (
+                    <button
+                      key={thread.id}
+                      onClick={() => setActiveConversation(thread)}
+                      className={`w-full text-left p-2.5 rounded-lg transition-all flex items-center gap-2.5 ${
+                        isActive
+                          ? "bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30"
+                          : "hover:bg-tertiary border border-transparent"
+                      }`}
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          isActive
+                            ? "bg-[var(--brand-orange)]/20"
+                            : "bg-tertiary"
+                        }`}
+                      >
+                        <Icon
+                          className={`w-3.5 h-3.5 ${isActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                          {thread.label}
+                        </p>
+                        <p className="text-[8px] text-[var(--text-secondary)] truncate mt-0.5">
+                          {thread.lastMessage?.subject || ""}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
-          ) : (
-            filteredMessages.map((msg) => (
-              <div
-                key={msg.id}
-                className="p-4 rounded-xl border border-[var(--border-primary)] bg-tertiary hover:border-[var(--brand-orange)]/20 transition-all"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-wider">
-                        {msg.sender_id === (user?.cid || user?.id)
-                          ? "Sent"
-                          : "Received"}
-                      </span>
-                      {msg.target_type && msg.target_type !== "individual" && (
-                        <span className="text-[8px] font-bold text-blue-400 uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10">
-                          {msg.target_type === "all"
-                            ? "Broadcast"
-                            : msg.target_type === "program"
-                              ? "Program"
-                              : msg.target_type === "role"
-                                ? `To ${msg.target_id || "Group"}`
-                                : msg.target_type}
-                        </span>
-                      )}
-                      <span className="text-[8px] text-[var(--text-secondary)]">
-                        {msg.created_at
-                          ? new Date(msg.created_at).toLocaleDateString()
-                          : ""}
-                      </span>
-                    </div>
-                    <h3 className="text-[13px] font-bold text-[var(--text-primary)]">
-                      {msg.subject}
-                    </h3>
-                    <p className="text-[11px] text-[var(--text-secondary)] mt-1 line-clamp-2">
-                      {msg.body}
-                    </p>
-                  </div>
+          </div>
+
+          {/* Message panel */}
+          <div className="flex-1 rounded-xl border border-[var(--border-primary)] bg-tertiary/30 flex flex-col">
+            {!activeConversation ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <MessageSquare className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4 opacity-30" />
+                  <p className="text-[12px] font-bold text-[var(--text-secondary)]">
+                    Select a conversation
+                  </p>
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-1 opacity-50">
+                    Or click "New Message" to start one
+                  </p>
                 </div>
               </div>
-            ))
-          )}
+            ) : (
+              <>
+                {/* Conversation header */}
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border-primary)] flex-shrink-0">
+                  {(() => {
+                    const Icon = threadIcon(activeConversation.type);
+                    return (
+                      <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
+                    );
+                  })()}
+                  <span className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                    {activeConversation.label}
+                  </span>
+                  <span className="text-[9px] text-[var(--text-secondary)] ml-auto">
+                    {activeMessages.length} message
+                    {activeMessages.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {activeMessages.length === 0 ? (
+                    <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-8">
+                      No messages in this conversation
+                    </p>
+                  ) : (
+                    [...activeMessages].reverse().map((msg) => {
+                      const isSent = msg.sender_id === uid;
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex ${isSent ? "justify-end" : "justify-start"}`}
+                        >
+                          <div
+                            className={`max-w-[70%] p-3 rounded-xl ${
+                              isSent
+                                ? "bg-[var(--brand-orange)] text-black rounded-br-md"
+                                : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-primary)] rounded-bl-md"
+                            }`}
+                          >
+                            <p
+                              className={`text-[9px] font-black uppercase tracking-wider mb-1 ${isSent ? "text-black/60" : "text-[var(--text-secondary)]"}`}
+                            >
+                              {msg.subject}
+                            </p>
+                            <p
+                              className={`text-[11px] ${isSent ? "font-bold text-black" : "font-bold"}`}
+                            >
+                              {msg.body}
+                            </p>
+                            <p
+                              className={`text-[8px] mt-1 ${isSent ? "text-black/50" : "text-[var(--text-secondary)]"}`}
+                            >
+                              {msg.created_at
+                                ? new Date(msg.created_at).toLocaleString()
+                                : ""}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Quick reply */}
+                <div className="p-3 border-t border-[var(--border-primary)] flex-shrink-0">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Type a quick reply..."
+                      value={composeSubject}
+                      onChange={(e) => setComposeSubject(e.target.value)}
+                      className="flex-1 px-4 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!composeSubject) return;
+                        let payload;
+                        if (activeConversation.type === "individual") {
+                          payload = {
+                            sender_id: uid,
+                            recipient_id: activeConversation.targetId,
+                            target_type: "individual",
+                            subject: composeSubject,
+                            body: composeBody || composeSubject,
+                            priority: "normal",
+                          };
+                        } else if (activeConversation.type === "role") {
+                          payload = {
+                            sender_id: uid,
+                            target_type: "role",
+                            target_id: activeConversation.targetId,
+                            subject: composeSubject,
+                            body: composeBody || composeSubject,
+                            priority: "normal",
+                          };
+                        } else if (activeConversation.type === "program") {
+                          payload = {
+                            sender_id: uid,
+                            target_type: "program",
+                            target_id: activeConversation.targetId,
+                            subject: composeSubject,
+                            body: composeBody || composeSubject,
+                            priority: "normal",
+                          };
+                        } else if (activeConversation.type === "all") {
+                          payload = {
+                            sender_id: uid,
+                            target_type: "all",
+                            subject: composeSubject,
+                            body: composeBody || composeSubject,
+                            priority: "normal",
+                          };
+                        }
+                        if (!payload) return;
+                        await fetch("/api/internal-comms", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify(payload),
+                        });
+                        setComposeSubject("");
+                        setComposeBody("");
+                        fetchMessages();
+                      }}
+                      className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Compose Modal */}
@@ -288,7 +540,6 @@ export default function SuperAdminComms() {
                 </button>
               </div>
 
-              {/* Mode selector */}
               <div className="flex gap-2 p-1 rounded-lg bg-tertiary border border-[var(--border-primary)]">
                 {[
                   { id: "individual", label: "Individual", icon: User },
@@ -299,11 +550,7 @@ export default function SuperAdminComms() {
                   <button
                     key={mode.id}
                     onClick={() => setSendMode(mode.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[9px] font-black uppercase tracking-wider transition-all ${
-                      sendMode === mode.id
-                        ? "bg-[var(--brand-orange)] text-black"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[9px] font-black uppercase tracking-wider transition-all ${sendMode === mode.id ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
                   >
                     <mode.icon className="w-3.5 h-3.5" />
                     {mode.label}
@@ -311,7 +558,6 @@ export default function SuperAdminComms() {
                 ))}
               </div>
 
-              {/* Individual: searchable person selector */}
               {sendMode === "individual" && (
                 <div className="relative">
                   {selectedContact ? (
@@ -325,7 +571,7 @@ export default function SuperAdminComms() {
                           setComposeRecipient("");
                           setContactSearch("");
                         }}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        className="text-[var(--text-secondary)]"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -334,7 +580,7 @@ export default function SuperAdminComms() {
                     <div>
                       <input
                         type="text"
-                        placeholder="Search for a person by name, email, or role..."
+                        placeholder="Search for a person..."
                         value={contactSearch}
                         onChange={(e) => {
                           setContactSearch(e.target.value);
@@ -376,7 +622,6 @@ export default function SuperAdminComms() {
                 </div>
               )}
 
-              {/* Group: role selector dropdown */}
               {sendMode === "group" && (
                 <select
                   value={composeGroup}
@@ -391,7 +636,6 @@ export default function SuperAdminComms() {
                 </select>
               )}
 
-              {/* Program: searchable program selector */}
               {sendMode === "program" && (
                 <div className="relative">
                   {selectedProgram ? (
@@ -404,7 +648,7 @@ export default function SuperAdminComms() {
                           setComposeProgram("");
                           setProgramSearch("");
                         }}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        className="text-[var(--text-secondary)]"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -452,7 +696,6 @@ export default function SuperAdminComms() {
                 </div>
               )}
 
-              {/* Broadcast: no target needed */}
               {sendMode === "broadcast" && (
                 <div className="px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                   <p className="text-[10px] font-bold text-amber-400 text-center">
@@ -468,15 +711,13 @@ export default function SuperAdminComms() {
                 onChange={(e) => setComposeSubject(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
               />
-
               <textarea
                 placeholder="Message"
                 value={composeBody}
                 onChange={(e) => setComposeBody(e.target.value)}
-                rows={5}
+                rows={4}
                 className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] resize-none"
               />
-
               <button
                 onClick={handleSend}
                 disabled={!composeSubject || !composeBody}
