@@ -253,25 +253,21 @@ const NAVIGATION_MATRIX = {
     },
 
     {
-      id: "projects",
-      name: "PROJECTS",
-      icon: Rocket,
-      subItems: [
-        { id: "all_projects", name: "ALL PROJECTS", href: "/admin/projects" },
-        {
-          id: "create_project",
-          name: "CREATE PROJECT",
-          href: "/admin/projects?action=create",
-        },
-      ],
-    },
-
-    {
       id: "internal_ops",
       name: "Internal Ops",
       icon: ListTodo,
       subItems: [
         { id: "internal_ops_board", name: "WORKSPACE", href: "/admin/work" },
+        {
+          id: "all_projects",
+          name: "PROJECTS",
+          href: "/admin/projects",
+        },
+        {
+          id: "create_project",
+          name: "CREATE PROJECT",
+          href: "/admin/projects?action=create",
+        },
         {
           id: "internal_reports",
           name: "REPORTS",
