@@ -142,10 +142,25 @@ export default function ProjectKanbanBoard() {
     fetchData();
   }, [fetchData]);
 
-  // Group projects by kanban status
+  // Map task statuses to kanban column IDs
+  function taskStatusToColumn(taskStatus) {
+    const map = {
+      pending: "pending_approval",
+      pending_project_approval: "pending_approval",
+      in_progress: "in_progress",
+      blocked: "blocked",
+      carried_over: "carried_over",
+      completed: "completed",
+    };
+    return map[taskStatus] || "planning";
+  }
+
+  // Group projects + uncategorized tasks by kanban status
   const columns = useMemo(() => {
     const grouped = {};
-    KANBAN_COLUMNS.forEach((col) => (grouped[col.id] = []));
+    KANBAN_COLUMNS.forEach(
+      (col) => (grouped[col.id] = { projects: [], uncategorized: [] }),
+    );
 
     const filtered = projects.filter((p) => {
       if (!search) return true;
@@ -158,14 +173,21 @@ export default function ProjectKanbanBoard() {
 
     filtered.forEach((p) => {
       const status = deriveKanbanStatus(p);
-      if (grouped[status]) grouped[status].push(p);
+      if (grouped[status]) grouped[status].projects.push(p);
+    });
+
+    // Distribute uncategorized tasks into their matching columns by task status
+    uncategorizedTasks.forEach((task) => {
+      const colId = taskStatusToColumn(task.status);
+      if (grouped[colId]) grouped[colId].uncategorized.push(task);
     });
 
     return KANBAN_COLUMNS.map((col) => ({
       ...col,
-      projects: grouped[col.id] || [],
+      projects: grouped[col.id]?.projects || [],
+      uncategorized: grouped[col.id]?.uncategorized || [],
     }));
-  }, [projects, search]);
+  }, [projects, uncategorizedTasks, search]);
 
   const fetchProjectTasks = useCallback(
     async (projectId) => {
@@ -224,7 +246,7 @@ export default function ProjectKanbanBoard() {
             </h1>
             <p className="text-[10px] text-[var(--text-secondary)] mt-1">
               Project-level operations board — {projects.length} projects,{" "}
-              {uncategorizedTasks.length} unlisted tasks
+              {uncategorizedTasks.length} internal tasks
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -267,171 +289,156 @@ export default function ProjectKanbanBoard() {
                   </span>
                 </div>
                 <span className={`text-[10px] font-black ${col.color}`}>
-                  {col.projects.length}
+                  {col.projects.length + col.uncategorized.length}
                 </span>
               </div>
 
               {/* Column Body */}
               <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                {col.projects.map((project) => (
-                  <div key={project.id}>
-                    <button
-                      onClick={() => handleProjectClick(project.id)}
-                      className={`w-full text-left p-3 rounded-lg border transition-all hover:border-[var(--brand-orange)]/50 ${
-                        expandedProject === project.id
-                          ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5"
-                          : "border-[var(--border-primary)] bg-tertiary"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                            {project.name}
-                          </p>
-                          <p className="text-[9px] text-[var(--text-secondary)] mt-0.5 truncate">
-                            {project.type || "Project"}
-                          </p>
+                {col.projects.length === 0 && col.uncategorized.length === 0 ? (
+                  <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-8">
+                    No items
+                  </p>
+                ) : (
+                  <>
+                    {/* Project cards */}
+                    {col.projects.map((project) => (
+                      <div key={project.id}>
+                        <button
+                          onClick={() => handleProjectClick(project.id)}
+                          className={`w-full text-left p-3 rounded-lg border transition-all hover:border-[var(--brand-orange)]/50 ${
+                            expandedProject === project.id
+                              ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5"
+                              : "border-[var(--border-primary)] bg-tertiary"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                                {project.name}
+                              </p>
+                              <p className="text-[9px] text-[var(--text-secondary)] mt-0.5 truncate">
+                                {project.type || "Project"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Mini task stats */}
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-[8px] font-bold text-blue-400">
+                              {(project.taskStats?.in_progress || 0) +
+                                (project.taskStats?.pending || 0)}{" "}
+                              open
+                            </span>
+                            {project.blockerStats?.active > 0 && (
+                              <span className="text-[8px] font-bold text-rose-400">
+                                {project.blockerStats.active} blocked
+                              </span>
+                            )}
+                            <span className="text-[8px] font-bold text-emerald-400">
+                              {project.completionRate || 0}% done
+                            </span>
+                          </div>
+
+                          {/* Progress bar */}
+                          <div className="mt-2 h-1 rounded-full bg-tertiary overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                project.completionRate === 100
+                                  ? "bg-emerald-500"
+                                  : project.blockerStats?.active > 0
+                                    ? "bg-rose-500"
+                                    : "bg-[var(--brand-orange)]"
+                              }`}
+                              style={{
+                                width: `${project.completionRate || 0}%`,
+                              }}
+                            />
+                          </div>
+                        </button>
+
+                        {/* Expanded project tasks */}
+                        {expandedProject === project.id && (
+                          <div className="mt-2 ml-2 space-y-1.5 border-l-2 border-[var(--brand-orange)]/30 pl-3">
+                            {(projectTasks[project.id] || []).length === 0 ? (
+                              <p className="text-[9px] text-[var(--text-secondary)] italic py-2">
+                                Loading tasks...
+                              </p>
+                            ) : (
+                              (projectTasks[project.id] || []).map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="p-2 rounded-md bg-tertiary/50 border border-[var(--border-primary)] flex items-center justify-between"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] font-semibold text-[var(--text-primary)] truncate">
+                                      {task.title}
+                                    </p>
+                                    <p className="text-[8px] text-[var(--text-secondary)]">
+                                      {task.user_name || "Unassigned"}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                                      task.status === "completed"
+                                        ? "text-emerald-400 bg-emerald-500/10"
+                                        : task.status === "blocked"
+                                          ? "text-rose-400 bg-rose-500/10"
+                                          : task.status === "carried_over"
+                                            ? "text-purple-400 bg-purple-500/10"
+                                            : task.status === "in_progress"
+                                              ? "text-blue-400 bg-blue-500/10"
+                                              : "text-slate-400 bg-slate-500/10"
+                                    }`}
+                                  >
+                                    {task.status?.replace(/_/g, " ")}
+                                  </span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Separator between projects and uncategorized tasks */}
+                    {col.projects.length > 0 &&
+                      col.uncategorized.length > 0 && (
+                        <div className="flex items-center gap-2 py-1">
+                          <div className="flex-1 h-px bg-[var(--border-primary)]" />
+                          <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                            Internal Tasks
+                          </span>
+                          <div className="flex-1 h-px bg-[var(--border-primary)]" />
+                        </div>
+                      )}
+
+                    {/* Uncategorized task cards (internal office tasks) */}
+                    {col.uncategorized.map((task) => (
+                      <div
+                        key={task.id}
+                        className="p-2.5 rounded-lg border border-dashed border-[var(--border-primary)] bg-tertiary/50"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                              {task.title}
+                            </p>
+                            <p className="text-[8px] text-[var(--text-secondary)] mt-0.5">
+                              {task.user_name || "Unassigned"}
+                            </p>
+                          </div>
+                          <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-500/10 ml-2 whitespace-nowrap">
+                            Internal
+                          </span>
                         </div>
                       </div>
-
-                      {/* Mini task stats */}
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="text-[8px] font-bold text-blue-400">
-                          {(project.taskStats?.in_progress || 0) +
-                            (project.taskStats?.pending || 0)}{" "}
-                          open
-                        </span>
-                        {project.blockerStats?.active > 0 && (
-                          <span className="text-[8px] font-bold text-rose-400">
-                            {project.blockerStats.active} blocked
-                          </span>
-                        )}
-                        <span className="text-[8px] font-bold text-emerald-400">
-                          {project.completionRate || 0}% done
-                        </span>
-                      </div>
-
-                      {/* Progress bar */}
-                      <div className="mt-2 h-1 rounded-full bg-tertiary overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            project.completionRate === 100
-                              ? "bg-emerald-500"
-                              : project.blockerStats?.active > 0
-                                ? "bg-rose-500"
-                                : "bg-[var(--brand-orange)]"
-                          }`}
-                          style={{ width: `${project.completionRate || 0}%` }}
-                        />
-                      </div>
-                    </button>
-
-                    {/* Expanded project tasks */}
-                    {expandedProject === project.id && (
-                      <div className="mt-2 ml-2 space-y-1.5 border-l-2 border-[var(--brand-orange)]/30 pl-3">
-                        {(projectTasks[project.id] || []).length === 0 ? (
-                          <p className="text-[9px] text-[var(--text-secondary)] italic py-2">
-                            Loading tasks...
-                          </p>
-                        ) : (
-                          (projectTasks[project.id] || []).map((task) => (
-                            <div
-                              key={task.id}
-                              className="p-2 rounded-md bg-tertiary/50 border border-[var(--border-primary)] flex items-center justify-between"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-semibold text-[var(--text-primary)] truncate">
-                                  {task.title}
-                                </p>
-                                <p className="text-[8px] text-[var(--text-secondary)]">
-                                  {task.user_name || "Unassigned"}
-                                </p>
-                              </div>
-                              <span
-                                className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
-                                  task.status === "completed"
-                                    ? "text-emerald-400 bg-emerald-500/10"
-                                    : task.status === "blocked"
-                                      ? "text-rose-400 bg-rose-500/10"
-                                      : task.status === "carried_over"
-                                        ? "text-purple-400 bg-purple-500/10"
-                                        : task.status === "in_progress"
-                                          ? "text-blue-400 bg-blue-500/10"
-                                          : "text-slate-400 bg-slate-500/10"
-                                }`}
-                              >
-                                {task.status?.replace(/_/g, " ")}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {col.projects.length === 0 && (
-                  <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-8">
-                    No projects
-                  </p>
+                    ))}
+                  </>
                 )}
               </div>
             </div>
           ))}
-
-          {/* Uncategorized Column — non-project internal tasks */}
-          <div className="flex-shrink-0 w-72 rounded-xl bg-tertiary/30 border border-dashed border-[var(--border-primary)] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-primary)] bg-slate-500/5 rounded-t-xl">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-slate-400" />
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Uncategorized
-                </span>
-              </div>
-              <span className="text-[10px] font-black text-slate-400">
-                {uncategorizedTasks.length}
-              </span>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {uncategorizedTasks.length === 0 ? (
-                <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-8">
-                  No unlisted tasks
-                </p>
-              ) : (
-                uncategorizedTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-tertiary"
-                  >
-                    <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                      {task.title}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span
-                        className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
-                          task.status === "completed"
-                            ? "text-emerald-400 bg-emerald-500/10"
-                            : task.status === "blocked"
-                              ? "text-rose-400 bg-rose-500/10"
-                              : task.status === "in_progress"
-                                ? "text-blue-400 bg-blue-500/10"
-                                : "text-slate-400 bg-slate-500/10"
-                        }`}
-                      >
-                        {task.status?.replace(/_/g, " ")}
-                      </span>
-                      {task.user_name && (
-                        <span className="text-[8px] text-[var(--text-secondary)]">
-                          {task.user_name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Legend */}
