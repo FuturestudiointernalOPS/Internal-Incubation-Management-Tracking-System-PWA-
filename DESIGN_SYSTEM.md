@@ -104,13 +104,26 @@ These are status indicators and should remain the same color in both themes:
 All located in `src/components/ui/`. Import them directly:
 
 ```jsx
+// Layout
 import AppCard from "@/components/ui/AppCard";
+import AppButton from "@/components/ui/AppButton";
+import AppModal from "@/components/ui/AppModal";
+import AppTabs from "@/components/ui/AppTabs";
+
+// Forms
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
-import AppButton from "@/components/ui/AppButton";
-import AppBadge from "@/components/ui/AppBadge";
-import AppModal from "@/components/ui/AppModal";
+
+// Data Display
 import AppTable from "@/components/ui/AppTable";
+import AppBadge from "@/components/ui/AppBadge";
+import AppStatusBadge from "@/components/ui/AppStatusBadge";
+import AppEmptyState from "@/components/ui/AppEmptyState";
+import AppPagination from "@/components/ui/AppPagination";
+
+// Feedback
+import GlobalToast from "@/components/ui/GlobalToast";
+import { Skeleton, TableSkeleton, CardSkeleton } from "@/components/ui/Skeleton";
 ```
 
 ### Usage Examples
@@ -138,7 +151,7 @@ import AppTable from "@/components/ui/AppTable";
 <AppTable
   columns={[
     { key: "name", label: "Name" },
-    { key: "status", label: "Status", render: (val) => <AppBadge variant={val}>{val}</AppBadge> },
+    { key: "status", label: "Status", render: (val) => <AppStatusBadge status={val} /> },
   ]}
   data={items}
   onRowClick={(row) => router.push(`/item/${row.id}`)}
@@ -151,6 +164,37 @@ import AppTable from "@/components/ui/AppTable";
 
 // Badge
 <AppBadge variant="success" dot>Active</AppBadge>
+
+// Status Badge (uses shared STATUS_CONFIG — 3 variants)
+<AppStatusBadge status="in_progress" />              {/* pill */}
+<AppStatusBadge status="blocked" variant="dot" />    {/* dot indicator */}
+<AppStatusBadge status="completed" variant="minimal" /> {/* text-only */}
+
+// Tabs (underline and pill variants)
+<AppTabs
+  tabs={[
+    { id: "feed", label: "Feed", icon: Activity },
+    { id: "monthly", label: "Monthly", count: 3 },
+  ]}
+  activeTab={activeTab}
+  onTabChange={setActiveTab}
+/>
+
+// Pagination (compact and full variants)
+<AppPagination
+  currentPage={page}
+  totalPages={Math.ceil(items.length / PAGE_SIZE)}
+  onPageChange={setPage}
+  compact
+/>
+
+// Empty State
+<AppEmptyState
+  title="No tasks this week"
+  description="Create a new task to get started"
+  icon={ListTodo}
+  action={<AppButton variant="primary">Create</AppButton>}
+/>
 ```
 
 ---
@@ -215,15 +259,25 @@ src/
 │   ├── layout/
 │   │   └── DashboardLayout.js  ← Uses useTheme() for toggle
 │   └── ui/
-│       ├── AppCard.js
-│       ├── AppInput.js
-│       ├── AppSelect.js
-│       ├── AppButton.js
 │       ├── AppBadge.js
+│       ├── AppButton.js
+│       ├── AppCard.js
+│       ├── AppEmptyState.js     ← Empty/placeholder state (sm/md/lg)
+│       ├── AppInput.js
 │       ├── AppModal.js
-│       └── AppTable.js
+│       ├── AppPagination.js     ← Pagination with page numbers or compact
+│       ├── AppSelect.js
+│       ├── AppStatusBadge.js    ← Status badge using shared STATUS_CONFIG
+│       ├── AppTable.js
+│       ├── AppTabs.js           ← Tab navigation (underline/pills variants)
+│       ├── GlobalToast.js
+│       └── Skeleton.js
 ├── lib/
 │   ├── ThemeProvider.js     ← Central theme context
+│   ├── constants.js         ← Shared STATUS_CONFIG, MONTHS, formatLabel, getWeekNumber
+│   ├── hooks/
+│   │   ├── useApi.js        ← Generic data-fetching hook (single + parallel)
+│   │   └── ...              ← Future shared hooks
 │   └── ...
 └── tailwind.config.js       ← Maps bg-surface-1/2/3 utilities
 ```

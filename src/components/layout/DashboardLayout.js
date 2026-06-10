@@ -36,6 +36,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import GlobalToast from "@/components/ui/GlobalToast";
+import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 
@@ -46,8 +47,8 @@ const NAV_KEY_MAP = {
   all_programs: "navigation.allPrograms",
   create_program: "navigation.createProgram",
   progress_hub: "navigation.progress",
-  work: "navigation.work",
-  work_hub: "navigation.workHub",
+  internal_ops: "navigation.internalOps",
+  internal_ops_board: "navigation.internalOpsBoard",
   communication: "navigation.communication",
   campaigns: "navigation.campaigns",
   forms: "navigation.forms",
@@ -259,24 +260,16 @@ const NAVIGATION_MATRIX = {
     },
 
     {
-      id: "work",
-      name: "WORK",
+      id: "internal_ops",
+      name: "INTERNAL OPS",
       icon: ListTodo,
       subItems: [
-        { id: "work_hub", name: "WORK HUB", href: "/admin/work" },
+        { id: "internal_ops_board", name: "BOARD", href: "/admin/work" },
         { id: "tasks", name: "TASKS", href: "/admin/tasks" },
         { id: "blockers", name: "BLOCKERS", href: "/admin/blockers" },
-      ],
-    },
-
-    {
-      id: "reports",
-      name: "REPORTS",
-      icon: BarChart3,
-      subItems: [
         {
           id: "internal_reports",
-          name: "INTERNAL REPORTS",
+          name: "REPORTS",
           href: "/admin/op-reports",
         },
       ],
@@ -638,146 +631,148 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)]">
-      <aside
-        style={{ width: collapsed ? 64 : 260 }}
-        className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden z-[100] transition-[width] duration-150"
-      >
-        <SidebarContent {...commonProps} />
-      </aside>
-
-      {/* MOBILE TRIGGER */}
-      <div className="md:hidden fixed top-3 left-3 z-[200]">
-        <button
-          onClick={() => setMobileMenuOpen(true)}
-          className="p-2 bg-[var(--brand-orange)] rounded-md"
+    <AppErrorBoundary>
+      <div className="flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)]">
+        <aside
+          style={{ width: collapsed ? 64 : 260 }}
+          className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden z-[100] transition-[width] duration-150"
         >
-          <Menu className="w-5 h-5 text-white" />
-        </button>
-      </div>
+          <SidebarContent {...commonProps} />
+        </aside>
 
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[150]">
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-secondary p-6 border-r border-[var(--border-primary)]">
-            <SidebarContent {...commonProps} />
-          </aside>
+        {/* MOBILE TRIGGER */}
+        <div className="md:hidden fixed top-3 left-3 z-[200]">
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="p-2 bg-[var(--brand-orange)] rounded-md"
+          >
+            <Menu className="w-5 h-5 text-white" />
+          </button>
         </div>
-      )}
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-20 flex items-center px-6 border-b border-[var(--border-primary)] relative bg-secondary/80 backdrop-blur-xl sticky top-0 z-[100]">
-          <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-orange)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase relative z-10">
-            <span>ImpactOS</span>
-            <ChevronRight className="w-3 h-3 opacity-30" />
-            <span className="text-[var(--text-primary)]">
-              {pathname
-                ? pathname.split("/").pop().replace(/-/g, " ")
-                : "Dashboard"}
-            </span>
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-[150]">
+            <div
+              onClick={() => setMobileMenuOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <aside className="absolute inset-y-0 left-0 w-64 bg-secondary p-6 border-r border-[var(--border-primary)]">
+              <SidebarContent {...commonProps} />
+            </aside>
           </div>
+        )}
 
-          <div className="flex items-center gap-4 ml-auto relative z-10">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-md"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {theme === "dark" ? (
-                <Sun className="w-4 h-4" />
-              ) : (
-                <Moon className="w-4 h-4" />
-              )}
-            </button>
-            <button
-              onClick={() => switchLang(lang === "en" ? "fr" : "en")}
-              className="px-2 py-1 text-[10px] font-bold border border-[var(--border-primary)] rounded uppercase"
-            >
-              {lang}
-            </button>
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <header className="h-20 flex items-center px-6 border-b border-[var(--border-primary)] relative bg-secondary/80 backdrop-blur-xl sticky top-0 z-[100]">
+            <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-orange)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase relative z-10">
+              <span>ImpactOS</span>
+              <ChevronRight className="w-3 h-3 opacity-30" />
+              <span className="text-[var(--text-primary)]">
+                {pathname
+                  ? pathname.split("/").pop().replace(/-/g, " ")
+                  : "Dashboard"}
+              </span>
+            </div>
 
-            <div className="relative">
+            <div className="flex items-center gap-4 ml-auto relative z-10">
               <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                onClick={toggleTheme}
+                className="p-2 rounded-md"
+                style={{ color: "var(--text-secondary)" }}
               >
-                <Bell className="w-4 h-4" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--brand-orange)] rounded-full" />
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
                 )}
               </button>
-              {showNotifications && (
-                <div className="absolute right-0 top-10 w-72 bg-secondary border border-[var(--border-primary)] rounded-lg p-4 z-[200]">
-                  <h4 className="text-[10px] font-bold uppercase mb-3 text-[var(--text-secondary)]">
-                    {t(tnav("intel_feed"))}
-                  </h4>
-                  <div className="max-h-48 overflow-y-auto space-y-2">
-                    {notifications.length > 0 ? (
-                      notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          onClick={() => {
-                            if (
-                              n.type === "verification" ||
-                              n.title.includes("ACCESS")
-                            ) {
-                              router.push("/admin/communications/contacts");
-                              setShowNotifications(false);
-                            }
-                          }}
-                          className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.read ? "bg-[var(--brand-orange)]/5" : ""}`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">
-                              {n.title}
+              <button
+                onClick={() => switchLang(lang === "en" ? "fr" : "en")}
+                className="px-2 py-1 text-[10px] font-bold border border-[var(--border-primary)] rounded uppercase"
+              >
+                {lang}
+              </button>
+
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--brand-orange)] rounded-full" />
+                  )}
+                </button>
+                {showNotifications && (
+                  <div className="absolute right-0 top-10 w-72 bg-secondary border border-[var(--border-primary)] rounded-lg p-4 z-[200]">
+                    <h4 className="text-[10px] font-bold uppercase mb-3 text-[var(--text-secondary)]">
+                      {t(tnav("intel_feed"))}
+                    </h4>
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {notifications.length > 0 ? (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => {
+                              if (
+                                n.type === "verification" ||
+                                n.title.includes("ACCESS")
+                              ) {
+                                router.push("/admin/communications/contacts");
+                                setShowNotifications(false);
+                              }
+                            }}
+                            className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.read ? "bg-[var(--brand-orange)]/5" : ""}`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">
+                                {n.title}
+                              </p>
+                              {!n.read && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
+                              )}
+                            </div>
+                            <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed group-hover:text-[var(--text-primary)] transition-colors">
+                              {n.message}
                             </p>
-                            {!n.read && (
-                              <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
-                            )}
                           </div>
-                          <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed group-hover:text-[var(--text-primary)] transition-colors">
-                            {n.message}
-                          </p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-[10px] opacity-40 italic py-4 text-center">
-                        {t(tnav("no_new_intel"))}
-                      </p>
-                    )}
+                        ))
+                      ) : (
+                        <p className="text-[10px] opacity-40 italic py-4 text-center">
+                          {t(tnav("no_new_intel"))}
+                        </p>
+                      )}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 pl-4 border-l border-[var(--border-primary)]">
+                <div className="text-right hidden sm:block">
+                  <p className="text-[11px] font-bold leading-none">
+                    {user?.name || "User"}
+                  </p>
+                  <p className="text-[9px] text-[var(--brand-blue)] uppercase font-bold mt-1">
+                    {(user.role || role || "admin")
+                      .replace(/_/g, " ")
+                      .replace(/\bteacher\b/gi, "Instructor")}
+                  </p>
                 </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3 pl-4 border-l border-[var(--border-primary)]">
-              <div className="text-right hidden sm:block">
-                <p className="text-[11px] font-bold leading-none">
-                  {user?.name || "User"}
-                </p>
-                <p className="text-[9px] text-[var(--brand-blue)] uppercase font-bold mt-1">
-                  {(user.role || role || "admin")
-                    .replace(/_/g, " ")
-                    .replace(/\bteacher\b/gi, "Instructor")}
-                </p>
-              </div>
-              <div className="w-8 h-8 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center font-bold text-xs">
-                {String(user?.name || "U").charAt(0)}
+                <div className="w-8 h-8 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center font-bold text-xs">
+                  {String(user?.name || "U").charAt(0)}
+                </div>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
-          <div className="max-w-[1400px] mx-auto animate-in">{children}</div>
-        </main>
-        {modals}
-        <GlobalToast />
+          <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
+            <div className="max-w-[1400px] mx-auto animate-in">{children}</div>
+          </main>
+          {modals}
+          <GlobalToast />
+        </div>
       </div>
-    </div>
+    </AppErrorBoundary>
   );
 }
