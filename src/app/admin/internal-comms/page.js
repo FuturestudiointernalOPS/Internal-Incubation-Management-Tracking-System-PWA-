@@ -23,6 +23,7 @@ export default function SuperAdminComms() {
   const [search, setSearch] = useState("");
 
   // Compose state
+  const [sending, setSending] = useState(false);
   const [sendMode, setSendMode] = useState("individual");
   const [composeRecipient, setComposeRecipient] = useState("");
   const [composeGroup, setComposeGroup] = useState("staff");
@@ -47,13 +48,18 @@ export default function SuperAdminComms() {
   const uid = user?.cid || user?.id;
 
   const fetchMessages = useCallback(async () => {
-    if (!uid) return;
+    if (!uid) return [];
     try {
       const res = await fetch(`/api/internal-comms?cid=${uid}`);
       const data = await res.json();
-      if (data.success) setMessages(data.messages || []);
+      if (data.success) {
+        setMessages(data.messages || []);
+        return data.messages || [];
+      }
+      return [];
     } catch (e) {
       console.error(e);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -218,6 +224,7 @@ export default function SuperAdminComms() {
       };
     }
     try {
+      setSending(true);
       await fetch("/api/internal-comms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -229,8 +236,8 @@ export default function SuperAdminComms() {
       setComposeProgram("");
       setComposeSubject("");
       setComposeBody("");
-      await fetchMessages();
-      // Auto-select the conversation we just sent to
+      const updatedMessages = await fetchMessages();
+      // Find the contact/program name from loaded data
       const contact =
         payload.target_type === "individual"
           ? contacts.find((c) => (c.cid || c.id) === payload.recipient_id)
@@ -239,31 +246,37 @@ export default function SuperAdminComms() {
         payload.target_type === "program"
           ? programs.find((p) => p.id === payload.target_id)
           : null;
+      const threadId =
+        payload.target_type === "individual"
+          ? `individual_${payload.recipient_id}`
+          : payload.target_type === "role"
+            ? `role_${payload.target_id}`
+            : payload.target_type === "program"
+              ? `program_${payload.target_id}`
+              : "broadcast_all";
+      const threadLabel =
+        payload.target_type === "individual"
+          ? contact?.name || payload.recipient_id
+          : payload.target_type === "role"
+            ? `To ${(payload.target_id || "").replace(/_/g, " ")}`
+            : payload.target_type === "program"
+              ? `Program: ${prog?.name || payload.target_id}`
+              : "Broadcast (All Users)";
+      const threadTargetId =
+        payload.target_type === "individual"
+          ? payload.recipient_id
+          : payload.target_id;
+      // Set the active conversation immediately
       setActiveConversation({
-        id:
-          payload.target_type === "individual"
-            ? `individual_${payload.recipient_id}`
-            : payload.target_type === "role"
-              ? `role_${payload.target_id}`
-              : payload.target_type === "program"
-                ? `program_${payload.target_id}`
-                : "broadcast_all",
-        label:
-          payload.target_type === "individual"
-            ? contact?.name || payload.recipient_id
-            : payload.target_type === "role"
-              ? `To ${(payload.target_id || "").replace(/_/g, " ")}`
-              : payload.target_type === "program"
-                ? `Program: ${prog?.name || payload.target_id}`
-                : "Broadcast (All Users)",
+        id: threadId,
+        label: threadLabel,
         type: payload.target_type,
-        targetId:
-          payload.target_type === "individual"
-            ? payload.recipient_id
-            : payload.target_id,
+        targetId: threadTargetId,
       });
     } catch (e) {
       console.error(e);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -520,7 +533,7 @@ export default function SuperAdminComms() {
                         });
                         setComposeSubject("");
                         setComposeBody("");
-                        fetchMessages();
+                        await fetchMessages();
                       }}
                       className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
                     >
@@ -732,10 +745,10 @@ export default function SuperAdminComms() {
               />
               <button
                 onClick={handleSend}
-                disabled={!composeSubject || !composeBody}
+                disabled={sending || !composeSubject || !composeBody}
                 className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 hover:brightness-110 transition-all"
               >
-                Send Message
+                {sending ? "Sending..." : "Send Message"}
               </button>
             </div>
           </div>
