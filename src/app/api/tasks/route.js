@@ -107,31 +107,54 @@ export async function GET(req) {
       return NextResponse.json({ success: true, tasks: result.rows });
     }
 
-    // For each task, fetch linked blockers and subtasks
-    const tasksWithBlockers = await Promise.all(
-      result.rows.map(async (task) => {
-        const blockerRes = await db.execute({
-          sql: "SELECT id, title, status, severity FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
-          args: [task.id],
+    // Batch fetch blockers for all tasks (2 queries total instead of N+1)
+    const taskIds = result.rows.map((t) => t.id);
+    let blockersByTask = {};
+    let subtasksByTask = {};
+
+    if (taskIds.length > 0) {
+      // Single batch query for all blockers
+      const blockerRes = await db.execute({
+        sql: `SELECT id, title, status, severity, task_id FROM blockers WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at DESC`,
+        args: taskIds,
+      });
+      for (const b of blockerRes.rows || []) {
+        const tid = b.task_id;
+        if (!blockersByTask[tid]) blockersByTask[tid] = [];
+        blockersByTask[tid].push({
+          id: b.id,
+          title: b.title,
+          status: b.status,
+          severity: b.severity,
         });
-        let subtasks = [];
-        try {
-          const subtaskRes = await db.execute({
-            sql: "SELECT id, title, status FROM tasks WHERE parent_task_id = ? ORDER BY created_at ASC",
-            args: [task.id],
+      }
+
+      // Single batch query for all subtasks
+      try {
+        const subtaskRes = await db.execute({
+          sql: `SELECT id, title, status, parent_task_id FROM tasks WHERE parent_task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
+          args: taskIds,
+        });
+        for (const s of subtaskRes.rows || []) {
+          const pid = s.parent_task_id;
+          if (!subtasksByTask[pid]) subtasksByTask[pid] = [];
+          subtasksByTask[pid].push({
+            id: s.id,
+            title: s.title,
+            status: s.status,
           });
-          subtasks = subtaskRes.rows || [];
-        } catch (e) {
-          // subtasks column may not exist yet
-          subtasks = [];
         }
-        return {
-          ...task,
-          blockers: blockerRes.rows || [],
-          subtasks,
-        };
-      }),
-    );
+      } catch (e) {
+        // parent_task_id column may not exist yet
+      }
+    }
+
+    // Map results
+    const tasksWithBlockers = result.rows.map((task) => ({
+      ...task,
+      blockers: blockersByTask[task.id] || [],
+      subtasks: subtasksByTask[task.id] || [],
+    }));
 
     return NextResponse.json({ success: true, tasks: tasksWithBlockers });
   } catch (error) {
