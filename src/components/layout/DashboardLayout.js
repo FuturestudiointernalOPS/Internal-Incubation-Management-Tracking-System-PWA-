@@ -346,7 +346,7 @@ const NAVIGATION_MATRIX = {
       id: "communication",
       name: "COMMUNICATION",
       icon: MessageSquare,
-      href: "/pm/messages",
+      href: "/pm/communications/contacts",
     },
     {
       id: "progress_hub",
@@ -800,7 +800,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
             </div>
           </header>
 
-          <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
+          <main
+            key={lang}
+            className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary"
+          >
             <div className="max-w-[1400px] mx-auto animate-in">{children}</div>
           </main>
           {modals}

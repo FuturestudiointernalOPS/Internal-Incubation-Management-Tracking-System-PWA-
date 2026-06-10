@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { IMPACT_CACHE } from "@/utils/impactCache";
+import { useRouter } from "next/navigation";
 
 /**
  * COHORT OUTREACH TERMINAL (PM RESTRICTED)
@@ -35,6 +36,27 @@ export default function PMCohortOutreach() {
   const [teams, setTeams] = useState([]);
   const [viewMode, setViewMode] = useState("participants"); // 'participants' or 'staff'
   const [deliveryMode, setDeliveryMode] = useState("individuals"); // 'individuals' or 'teams'
+  const [showInbox, setShowInbox] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeTo, setComposeTo] = useState("");
+  const [composeBody, setComposeBody] = useState("");
+  const [composeTarget, setComposeTarget] = useState("individual");
+  const router = useRouter();
+
+  // Fetch messages
+  const fetchMessages = async () => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const uid = user.cid || user.id;
+    if (!uid) return;
+    try {
+      const res = await fetch(`/api/internal-comms?cid=${uid}`);
+      const data = await res.json();
+      if (data.success) setMessages(data.messages || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     fetchAssignedRegistry();
@@ -266,6 +288,16 @@ export default function PMCohortOutreach() {
                     <span>Assigned Team Mates</span>
                     <Shield className="w-4 h-4 opacity-50" />
                   </button>
+                  <button
+                    onClick={() => {
+                      setShowInbox(!showInbox);
+                      if (!showInbox) fetchMessages();
+                    }}
+                    className={`w-full flex items-center justify-between px-5 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showInbox ? "bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20" : "bg-white/5 text-slate-400 border border-white/5"}`}
+                  >
+                    <span>Messages</span>
+                    <Mail className="w-4 h-4 opacity-50" />
+                  </button>
                 </div>
 
                 {viewMode === "participants" && (
@@ -327,7 +359,75 @@ export default function PMCohortOutreach() {
           </div>
 
           <div className="xl:col-span-3 space-y-6">
-            {loading ? (
+            {/* Message Inbox */}
+            {showInbox ? (
+              <div className="ios-card bg-white/[0.01] border-white/5 p-8 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                    Messages
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowCompose(true);
+                      fetchMessages();
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6600] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                  >
+                    <Send className="w-3.5 h-3.5" /> New Message
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                  {messages.length === 0 ? (
+                    <p className="text-slate-500 italic text-center py-16 text-[10px] uppercase tracking-widest">
+                      No messages yet
+                    </p>
+                  ) : (
+                    [...messages].reverse().map((msg) => {
+                      const isSent =
+                        msg.sender_id ===
+                        (JSON.parse(localStorage.getItem("user") || "{}").cid ||
+                          JSON.parse(localStorage.getItem("user") || "{}").id);
+                      return (
+                        <div
+                          key={msg.id}
+                          className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-[#FF6600]/20 transition-all"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span
+                                  className={`text-[9px] font-black uppercase tracking-wider ${isSent ? "text-[#FF6600]" : "text-emerald-400"}`}
+                                >
+                                  {isSent ? "Sent" : "Received"}
+                                </span>
+                                {msg.target_type !== "individual" && (
+                                  <span className="text-[8px] font-bold text-indigo-400 uppercase px-1.5 py-0.5 rounded bg-indigo-500/10">
+                                    {msg.target_type === "program"
+                                      ? "Program"
+                                      : msg.target_type}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm font-black text-white">
+                                {msg.subject}
+                              </p>
+                              <p className="text-xs text-slate-400 mt-1">
+                                {msg.body}
+                              </p>
+                            </div>
+                            <span className="text-[8px] text-slate-600 whitespace-nowrap ml-3">
+                              {msg.created_at
+                                ? new Date(msg.created_at).toLocaleDateString()
+                                : ""}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ) : loading ? (
               <div className="p-20 text-center">
                 <Loader2 className="w-12 h-12 text-[#FF6600] animate-spin mx-auto mb-6" />
                 <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">
@@ -449,6 +549,118 @@ export default function PMCohortOutreach() {
           </div>
         </div>
       </div>
+
+      {/* COMPOSE MODAL */}
+      {showCompose && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setShowCompose(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl bg-[#0d0d18] border border-white/10 p-8 space-y-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                New Message
+              </h3>
+              <button onClick={() => setShowCompose(false)}>
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="flex gap-2 p-1 rounded-lg bg-white/5 border border-white/10">
+              {[
+                { id: "individual", label: "Individual" },
+                { id: "program", label: "To Program" },
+              ].map((mode) => (
+                <button
+                  key={mode.id}
+                  onClick={() => setComposeTarget(mode.id)}
+                  className={`flex-1 py-2 rounded-md text-[9px] font-black uppercase tracking-wider transition-all ${composeTarget === mode.id ? "bg-[#FF6600] text-black" : "text-slate-400 hover:text-white"}`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+
+            {composeTarget === "individual" ? (
+              <select
+                value={composeTo}
+                onChange={(e) => setComposeTo(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-[11px] font-bold outline-none"
+              >
+                <option value="">Select a person...</option>
+                {contacts.map((c) => (
+                  <option key={c.cid || c.id} value={c.cid || c.id}>
+                    {c.name} ({c.role || "participant"})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={composeTo}
+                onChange={(e) => setComposeTo(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-[11px] font-bold outline-none"
+              >
+                <option value="">Select a program...</option>
+                {assignedPrograms.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <textarea
+              placeholder="Type your message..."
+              value={composeBody}
+              onChange={(e) => setComposeBody(e.target.value)}
+              rows={4}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-[11px] font-bold outline-none resize-none placeholder:text-slate-600"
+            />
+
+            <button
+              onClick={async () => {
+                if (!composeBody || !composeTo) return;
+                const user = JSON.parse(localStorage.getItem("user") || "{}");
+                const uid = user.cid || user.id;
+                const payload =
+                  composeTarget === "individual"
+                    ? {
+                        sender_id: uid,
+                        recipient_id: composeTo,
+                        target_type: "individual",
+                        subject: composeBody.substring(0, 50),
+                        body: composeBody,
+                        priority: "normal",
+                      }
+                    : {
+                        sender_id: uid,
+                        target_type: "program",
+                        target_id: composeTo,
+                        subject: composeBody.substring(0, 50),
+                        body: composeBody,
+                        priority: "normal",
+                      };
+                await fetch("/api/internal-comms", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                });
+                setShowCompose(false);
+                setComposeTo("");
+                setComposeBody("");
+                fetchMessages();
+              }}
+              disabled={!composeBody || !composeTo}
+              className="w-full py-3.5 bg-[#FF6600] text-black rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:brightness-110 transition-all"
+            >
+              Send Message
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* CREDENTIALS MODAL */}
       {showCredsModal && (
