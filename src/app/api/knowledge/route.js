@@ -3,13 +3,9 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "10mb",
-    },
-  },
-};
+// Body parser size limit for file uploads
+// Next.js App Router uses route segment config exports
+export const maxDuration = 30;
 
 /**
  * KNOWLEDGE BANK API — OPERATIONAL INTELLIGENCE

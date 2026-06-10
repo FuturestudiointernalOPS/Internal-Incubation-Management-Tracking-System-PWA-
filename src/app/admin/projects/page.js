@@ -119,21 +119,6 @@ export default function AdminProjects() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Auto-open create modal if navigated from sidebar "Create Project" link
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("action") === "create") {
-      setShowCreateModal(true);
-      fetchStaff();
-      // Clean the URL so refresh doesn't re-trigger
-      window.history.replaceState({}, "", "/admin/projects");
-    }
-  }, [fetchStaff]);
-
   const fetchStaff = useCallback(async () => {
     try {
       const res = await fetch("/api/contacts");
@@ -148,6 +133,21 @@ export default function AdminProjects() {
       console.error(e);
     }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Auto-open create modal if navigated from sidebar "Create Project" link
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("action") === "create") {
+      setShowCreateModal(true);
+      fetchStaff();
+      // Clean the URL so refresh doesn't re-trigger
+      window.history.replaceState({}, "", "/admin/projects");
+    }
+  }, [fetchStaff]);
 
   const fetchMembers = useCallback(async (projectId) => {
     try {

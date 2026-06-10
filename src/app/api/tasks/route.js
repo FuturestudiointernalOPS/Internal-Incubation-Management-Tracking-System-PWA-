@@ -215,7 +215,7 @@ export async function POST(req) {
     // Phase 5: Auto-generate start_date from created_at if not provided
     const finalStartDate = start_date || new Date().toISOString().split("T")[0];
     const finalEndDate = end_date || null;
-    const finalAssignedTo = assigned_to || null;
+    let finalAssignedTo = assigned_to || null;
 
     // If task has a project but no assignee, default to project owner
     if (!finalAssignedTo && project_id) {
