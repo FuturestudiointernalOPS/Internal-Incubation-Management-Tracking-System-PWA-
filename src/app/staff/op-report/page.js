@@ -833,9 +833,9 @@ export default function StaffOpReport() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="w-full">
           {/* REPORT FORM */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="space-y-8">
             {reportType === "standup" ? (
               <div className="space-y-6">
                 {/* Header */}
@@ -2359,7 +2359,7 @@ export default function StaffOpReport() {
           onClick={() => setShowStandupModal(false)}
         >
           <div
-            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
