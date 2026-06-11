@@ -64,15 +64,19 @@
         --chart-info: #818cf8;
     }
 
-    /* Browser Date Picker Consistency (Dark Mode) */
+    /* Browser Date/Time Picker Consistency (Dark Mode) */
     :root[data-theme="dark"]
-        input[type="date"]::-webkit-calendar-picker-indicator {
+        input[type="date"]::-webkit-calendar-picker-indicator,
+    :root[data-theme="dark"]
+        input[type="time"]::-webkit-calendar-picker-indicator {
         filter: invert(1);
         cursor: pointer;
         opacity: 0.8;
     }
     :root[data-theme="dark"]
-        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+        input[type="date"]::-webkit-calendar-picker-indicator:hover,
+    :root[data-theme="dark"]
+        input[type="time"]::-webkit-calendar-picker-indicator:hover {
         opacity: 1;
     }
 
