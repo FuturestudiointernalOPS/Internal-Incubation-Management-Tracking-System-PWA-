@@ -13,16 +13,13 @@ import {
   Briefcase,
   Search,
   Activity,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import {
-  ChevronLeft,
-  Plus,
-  Globe,
-  Mail,
+  ListTodo,
+  Clock,
+  AlertTriangle,
   CheckCircle2,
   RotateCcw,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -36,12 +33,13 @@ export default function PMProgramsRegistry() {
   const [activeTab, setTab] = useState("active");
   const router = useRouter();
 
-  const [schedule, setSchedule] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
   const { t } = useI18n();
 
   useEffect(() => {
     fetchMyPrograms();
-    fetchGlobalSchedule();
+    fetchMyTasks();
   }, [activeTab]);
 
   const fetchMyPrograms = async () => {
@@ -70,40 +68,23 @@ export default function PMProgramsRegistry() {
     }
   };
 
-  const fetchGlobalSchedule = async () => {
+  const fetchMyTasks = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const identifier = user.cid || user.id;
-      // Fetch sessions with dates across all PM programs
-      const res = await fetch("/api/pm/schedule?pm_id=" + identifier);
+      setTasksLoading(true);
+      const res = await fetch(
+        `/api/tasks?assigned_to=${encodeURIComponent(identifier)}&limit=10&brief=true`,
+      );
       const data = await res.json();
       if (data.success) {
-        setSchedule(data.schedule || []);
+        setTasks(data.tasks || []);
       }
-    } catch (e) {}
-  };
-
-  const getGoogleCalendarLink = (activity) => {
-    const title = encodeURIComponent(activity.title);
-    const details = encodeURIComponent(
-      activity.description || "Program Session",
-    );
-    const startDate = (activity.scheduled_date || new Date().toISOString())
-      .replace(/-/g, "")
-      .split("T")[0];
-    const endDate = (
-      activity.end_date ||
-      activity.scheduled_date ||
-      new Date().toISOString()
-    )
-      .replace(/-/g, "")
-      .split("T")[0];
-
-    // Formulating Time Blocks
-    const startTime = (activity.start_time || "00:00").replace(/:/g, "") + "00";
-    const endTime = (activity.end_time || "23:59").replace(/:/g, "") + "00";
-
-    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${startDate}T${startTime}/${endDate}T${endTime}`;
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTasksLoading(false);
+    }
   };
 
   const filtered = programs.filter(
@@ -167,105 +148,73 @@ export default function PMProgramsRegistry() {
           </button>
         </div>
 
-        {/* TACTICAL CALENDAR VIEW */}
-        <section className="ios-card bg-secondary border-[var(--border-primary)] !p-12 overflow-hidden shadow-2xl relative">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-[#FF6600]/5 rounded-full blur-[100px] -mr-40 -mt-40" />
-          <div className="flex flex-col lg:flex-row justify-between items-start gap-12 relative z-10">
-            <div className="space-y-6">
-              <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter italic leading-none">
-                {t("time.thisWeek")}
+        {/* MY TASKS - compact overview */}
+        {tasks.length > 0 && (
+          <section className="ios-card bg-secondary border-[var(--border-primary)] !p-6 overflow-hidden shadow-2xl relative">
+            <div className="flex items-center gap-2 mb-4">
+              <ListTodo className="w-4 h-4 text-blue-400" />
+              <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter italic">
+                My Tasks
               </h3>
-              <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] italic">
-                {t("time.thisMonth")}
-              </p>
-
-              <div className="space-y-4 pt-6">
-                {schedule.slice(0, 3).map((item) => (
-                  <div key={item.id} className="flex items-center gap-6 group">
-                    <div className="w-12 h-12 rounded-xl bg-primary border border-[var(--border-primary)] flex flex-col items-center justify-center text-[10px] font-black uppercase group-hover:border-[#FF6600]/40 transition-all">
-                      <span className="text-[#FF6600]">
-                        {new Date(item.scheduled_date).getDate()}
-                      </span>
-                      <span className="text-[var(--text-secondary)] text-[7px]">
-                        {new Date(item.scheduled_date).toLocaleString(
-                          "default",
-                          { month: "short" },
-                        )}
-                      </span>
+              <span className="text-[10px] font-bold text-slate-500 ml-auto">
+                {tasks.length} total
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {tasks.slice(0, 6).map((task) => {
+                const isOverdue =
+                  task.end_date &&
+                  new Date(task.end_date) < new Date() &&
+                  task.status !== "completed";
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-blue-500/20 transition-all cursor-default group"
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isOverdue ? "bg-rose-500/10 text-rose-400" : task.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-blue-500/10 text-blue-400"}`}
+                    >
+                      {isOverdue ? (
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                      ) : task.status === "completed" ? (
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      ) : (
+                        <ListTodo className="w-3.5 h-3.5" />
+                      )}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-black text-[var(--text-primary)] uppercase italic">
-                        {item.title}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                        {task.title}
                       </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                          {item.program_name}
-                        </p>
-                        <span className="text-slate-800">•</span>
-                        <p className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest italic">
-                          {item.start_time || "00:00"} -{" "}
-                          {item.end_time || "23:59"}
-                          {item.end_date &&
-                            item.end_date !== item.scheduled_date &&
-                            ` (to ${item.end_date})`}
-                        </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {task.end_date && (
+                          <span
+                            className={`text-[7px] font-black ${isOverdue ? "text-rose-500" : "text-slate-500"}`}
+                          >
+                            <Clock className="w-2.5 h-2.5 inline mr-0.5" />
+                            {new Date(task.end_date).toLocaleDateString()}
+                          </span>
+                        )}
+                        {task.priority && task.priority !== "normal" && (
+                          <span
+                            className={`text-[6px] font-black uppercase px-1 py-0.5 rounded ${task.priority === "high" || task.priority === "critical" ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"}`}
+                          >
+                            {task.priority}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <a
-                      href={getGoogleCalendarLink(item)}
-                      target="_blank"
-                      className="ml-auto p-2 rounded-lg bg-white/5 text-slate-700 hover:text-[#FF6600] transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      <Mail className="w-3.5 h-3.5" />
-                    </a>
                   </div>
-                ))}
-                {schedule.length === 0 && (
-                  <p className="text-[10px] font-black text-slate-700 uppercase italic">
-                    {t("common.noResults")}
-                  </p>
-                )}
-              </div>
+                );
+              })}
             </div>
-
-            <div className="flex-1 w-full lg:max-w-md bg-white/[0.02] border border-white/5 rounded-[2rem] p-8">
-              <div className="flex justify-between items-center mb-8">
-                <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest italic">
-                  {new Date().toLocaleString("default", {
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </p>
-                <div className="flex gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                </div>
-              </div>
-              <div className="grid grid-cols-7 gap-2 text-center text-[8px] font-black text-slate-500 uppercase tracking-widest mb-4">
-                {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
-                  <div key={d}>{d}</div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: 31 }, (_, i) => {
-                  const d = i + 1;
-                  const isToday = d === new Date().getDate();
-                  const hasEvent = schedule.some(
-                    (s) => new Date(s.scheduled_date).getDate() === d,
-                  );
-                  return (
-                    <div
-                      key={i}
-                      className={`aspect-square flex items-center justify-center rounded-lg text-[9px] font-black transition-all ${isToday ? "bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/30" : hasEvent ? "bg-[#FF6600]/20 text-[#FF6600] border border-[#FF6600]/20" : "text-slate-800"}`}
-                    >
-                      {d}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </section>
+            {tasks.length > 6 && (
+              <p className="text-[7px] text-slate-500 text-center pt-3">
+                +{tasks.length - 6} more tasks
+              </p>
+            )}
+          </section>
+        )}
 
         <div className="grid grid-cols-1 gap-6">
           {loading ? (
