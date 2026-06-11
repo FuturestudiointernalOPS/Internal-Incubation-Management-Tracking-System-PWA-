@@ -12,7 +12,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const url = new URL(req.url);
     const assignedPmId = url.searchParams.get("assigned_pm_id");
@@ -234,7 +239,12 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const {
       id,
@@ -381,7 +391,12 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { id } = await req.json();
 

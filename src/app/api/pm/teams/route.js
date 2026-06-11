@@ -6,7 +6,12 @@ import { requireAuth } from "@/lib/auth";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
@@ -32,7 +37,12 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const data = await req.json();
     const {
@@ -168,7 +178,12 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { team_id, member_ids } = await req.json();
 
@@ -267,7 +282,12 @@ export async function PATCH(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { id } = await req.json();
     await db.execute({

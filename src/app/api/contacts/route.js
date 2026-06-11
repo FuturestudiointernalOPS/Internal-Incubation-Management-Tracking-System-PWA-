@@ -166,7 +166,12 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const data = await req.json();
 
@@ -272,7 +277,12 @@ export async function PUT(req) {
 export async function GET() {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const result = await db.execute(
       "SELECT * FROM contacts ORDER BY created_at DESC",

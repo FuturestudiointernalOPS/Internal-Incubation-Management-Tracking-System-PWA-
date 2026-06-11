@@ -7,7 +7,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

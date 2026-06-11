@@ -5,7 +5,12 @@ import { requireAuth } from "@/lib/auth";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { program_id, sender_id, recipient_id, subject, body } =
       await req.json();
