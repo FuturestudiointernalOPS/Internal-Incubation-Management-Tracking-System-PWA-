@@ -56,8 +56,15 @@ export async function POST(req) {
       priority,
     } = await req.json();
 
+    // Ensure is_read column exists (safe migration)
+    try {
+      await db.execute(
+        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS is_read INTEGER DEFAULT 0",
+      );
+    } catch (_) {}
+
     await db.execute({
-      sql: "INSERT INTO v2_messages (sender_id, recipient_id, target_type, target_id, subject, body, priority) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      sql: "INSERT INTO v2_messages (sender_id, recipient_id, target_type, target_id, subject, body, priority, is_read) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       args: [
         sender_id,
         recipient_id || null,
@@ -66,6 +73,7 @@ export async function POST(req) {
         subject,
         body,
         priority || "normal",
+        0,
       ],
     });
 
@@ -97,6 +105,48 @@ export async function POST(req) {
           ],
         });
       }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
+    if (authError) return authError;
+    const { messageIds, conversationWith } = await req.json();
+
+    // Ensure is_read column exists
+    try {
+      await db.execute(
+        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS is_read INTEGER DEFAULT 0",
+      );
+    } catch (_) {}
+
+    if (Array.isArray(messageIds) && messageIds.length > 0) {
+      const placeholders = messageIds.map((_, i) => `$${i + 1}`).join(",");
+      await db.execute({
+        sql: `UPDATE v2_messages SET is_read = 1 WHERE id IN (${placeholders})`,
+        args: messageIds,
+      });
+    } else if (conversationWith) {
+      // Mark all messages from a specific sender as read
+      await db.execute({
+        sql: "UPDATE v2_messages SET is_read = 1 WHERE sender_id = ? AND recipient_id = ? AND (is_read IS NULL OR is_read = 0)",
+        args: [conversationWith.senderId, conversationWith.recipientId],
+      });
     }
 
     return NextResponse.json({ success: true });

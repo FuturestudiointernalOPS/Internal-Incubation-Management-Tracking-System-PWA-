@@ -99,7 +99,7 @@ export default function PMProgramsRegistry() {
   return (
     <DashboardLayout role="program_manager" activeTab="programs">
       <div className="space-y-12 pb-20">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/5 pb-10">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-10">
           <div>
             <div className="flex items-center gap-4 mb-4 text-left">
               <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">
@@ -234,8 +234,8 @@ export default function PMProgramsRegistry() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="ios-card py-40 flex flex-col items-center justify-center opacity-30 border-dashed border-white/10">
-              <Layers className="w-20 h-20 text-slate-800 mb-6" />
-              <h4 className="text-2xl font-black text-white uppercase mb-2">
+              <Layers className="w-20 h-20 text-[var(--text-tertiary)] mb-6" />
+              <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase mb-2">
                 {t("common.noResults")}
               </h4>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -286,7 +286,7 @@ export default function PMProgramsRegistry() {
                           {Number(program.completion_index || 0).toFixed(1)}%
                         </p>
                       </div>
-                      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                      <div className="h-1.5 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden border border-[var(--border-primary)]">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{
@@ -297,7 +297,7 @@ export default function PMProgramsRegistry() {
                       </div>
                     </div>
 
-                    <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-8 border-t border-white/5 pt-8">
+                    <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-8 border-t border-[var(--border-primary)] pt-8">
                       <div>
                         <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">
                           {t("pm.teamOverview")}

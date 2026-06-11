@@ -58,7 +58,7 @@ export default function PMProgressHub() {
                 <Activity className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
+                <h2 className="text-4xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter leading-none">
                   {t("pm.dashboard")}
                 </h2>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">
@@ -76,7 +76,7 @@ export default function PMProgressHub() {
                 placeholder={t("common.search")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm font-bold text-white outline-none focus:border-[#FF6600]/40 focus:bg-white/[0.08] transition-all"
+                className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-2xl py-4 pl-12 pr-6 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[#FF6600]/40 focus:bg-white/[0.08] transition-all"
               />
             </div>
           </div>
@@ -95,15 +95,15 @@ export default function PMProgressHub() {
                 onClick={() =>
                   router.push(`/pm/programs/${prog.id}?tab=progress`)
                 }
-                className="ios-card bg-white/[0.01] border-white/5 !p-10 group hover:border-[#FF6600]/30 hover:bg-white/[0.02] cursor-pointer transition-all flex flex-col lg:flex-row items-center gap-12"
+                className="ios-card bg-[var(--bg-secondary)] border-[var(--border-primary)] !p-10 group hover:border-[#FF6600]/30 hover:bg-white/[0.02] cursor-pointer transition-all flex flex-col lg:flex-row items-center gap-12"
               >
                 <div className="flex-1 space-y-6 w-full text-left">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-500 group-hover:text-[#FF6600] transition-colors">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--bg-tertiary)] flex items-center justify-center text-slate-500 group-hover:text-[#FF6600] transition-colors">
                       <Briefcase className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter leading-none">
+                      <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter leading-none">
                         {prog.name}
                       </h3>
                       <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-2">
@@ -123,7 +123,7 @@ export default function PMProgressHub() {
                         {progress.toFixed(1)}%
                       </p>
                     </div>
-                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                    <div className="h-2 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden border border-[var(--border-primary)]">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
@@ -135,18 +135,18 @@ export default function PMProgressHub() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-8 px-12 border-l border-white/5 hidden lg:flex">
+                <div className="flex items-center gap-8 px-12 border-l border-[var(--border-primary)] hidden lg:flex">
                   <div className="text-center">
-                    <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
+                    <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">
                       {t("status.completed")}
                     </p>
                     <p className="text-xl font-black text-emerald-400 italic">
                       {prog.sessions_completed || 0}/{prog.sessions_count || 0}
                     </p>
                   </div>
-                  <div className="w-px h-8 bg-white/5" />
+                  <div className="w-px h-8 bg-[var(--bg-tertiary)]" />
                   <div className="text-center">
-                    <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
+                    <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">
                       {t("common.submit")}
                     </p>
                     <p className="text-xl font-black text-[#FF6600] italic">
@@ -154,9 +154,9 @@ export default function PMProgressHub() {
                       {prog.submissions_total || 0}
                     </p>
                   </div>
-                  <div className="w-px h-8 bg-white/5" />
+                  <div className="w-px h-8 bg-[var(--bg-tertiary)]" />
                   <div className="text-center">
-                    <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
+                    <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">
                       {t("status.active")}
                     </p>
                     <p
@@ -170,7 +170,7 @@ export default function PMProgressHub() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-white/5 group-hover:bg-[#FF6600] group-hover:text-black transition-all">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-[var(--bg-tertiary)] group-hover:bg-[#FF6600] group-hover:text-black transition-all">
                   <ChevronRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
                 </div>
               </motion.div>
@@ -178,9 +178,9 @@ export default function PMProgressHub() {
           })}
 
           {isLoaded && filteredPrograms.length === 0 && (
-            <div className="ios-card bg-white/[0.01] border-dashed border-white/10 !p-24 flex flex-col items-center justify-center gap-6 opacity-40">
-              <Target className="w-16 h-16 text-slate-800" />
-              <p className="text-sm font-black text-slate-800 uppercase tracking-widest italic text-center leading-relaxed">
+            <div className="ios-card bg-[var(--bg-secondary)] border-dashed border-[var(--border-primary)] !p-24 flex flex-col items-center justify-center gap-6 opacity-40">
+              <Target className="w-16 h-16 text-[var(--text-tertiary)]" />
+              <p className="text-sm font-black text-[var(--text-tertiary)] uppercase tracking-widest italic text-center leading-relaxed">
                 {t("common.noResults")}
                 <br />
                 {t("common.loading")}

@@ -886,9 +886,10 @@ export default function ProgramWorkspace() {
                     Total Participants
                   </p>
                   <p className="text-[10px] text-emerald-500 font-bold mt-1">
-                    +12% from last cohort
+                    {sessions.length} Session{sessions.length !== 1 ? "s" : ""}{" "}
+                    · {program?.duration_weeks || "?"} Week Program
                   </p>
-                  <p className="text-[9px] text-slate-500/60 font-medium mt-2 leading-relaxed">
+                  <p className="text-[9px] text-[var(--text-secondary)] font-medium mt-2 leading-relaxed">
                     Active learners currently enrolled. This count drives the
                     institutional footprint and scaling metrics for this
                     specific program node.
@@ -920,7 +921,7 @@ export default function ProgramWorkspace() {
                       : 0}
                     %
                   </p>
-                  <p className="text-[9px] text-slate-500/60 font-medium mt-2 leading-relaxed">
+                  <p className="text-[9px] text-[var(--text-secondary)] font-medium mt-2 leading-relaxed">
                     Total evidence-based artifacts uploaded. Each submission is
                     a tactical requirement anchored to a curriculum week,
                     directly influencing graduation scores.
@@ -940,9 +941,10 @@ export default function ProgramWorkspace() {
                     Active Student Groups
                   </p>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                    Active Operations
+                    {assignedStaff.length} Staff · {reports.length} Report
+                    {reports.length !== 1 ? "s" : ""}
                   </p>
-                  <p className="text-[9px] text-slate-500/60 font-medium mt-2 leading-relaxed">
+                  <p className="text-[9px] text-[var(--text-secondary)] font-medium mt-2 leading-relaxed">
                     Total number of student groups currently executing the
                     curriculum. High group counts require increased personnel
                     oversight and tactical health monitoring.
