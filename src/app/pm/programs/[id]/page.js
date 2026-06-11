@@ -841,18 +841,6 @@ export default function ProgramWorkspace() {
               {program?.description}
             </p>
           </div>
-
-          {(user.role === "super_admin" || user.role === "program_manager") && (
-            <div className="flex gap-3">
-              <button
-                onClick={() => setActiveTab("config")}
-                className="btn btn-secondary gap-2"
-              >
-                <Shield className="w-4 h-4" />
-                Config
-              </button>
-            </div>
-          )}
         </header>
 
         {/* TAB NAVIGATION */}

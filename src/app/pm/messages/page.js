@@ -119,24 +119,25 @@ export default function PmMessages() {
 
   // ── Build conversation list ──
   const conversations = useMemo(() => {
+    if (!Array.isArray(messages) || !uid) return [];
     const threads = [];
     const seen = new Set();
-    messages.forEach((msg) => {
-      if (msg.target_type !== "individual") return;
-      const otherId = msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
-      if (!otherId) return;
-      const threadId = `individual_${otherId}`;
+    for (const msg of messages) {
+      if (!msg || msg.target_type !== "individual") continue;
+      const targetId = msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
+      if (!targetId) continue;
+      const threadId = `individual_${targetId}`;
       if (!seen.has(threadId)) {
         seen.add(threadId);
-        const contact = contacts.find((c) => (c.cid || c.id) === otherId);
+        const contact = contacts.find((c) => (c.cid || c.id) === targetId);
         threads.push({
           id: threadId,
-          otherId,
-          label: contact?.name || otherId,
+          otherId: targetId,
+          label: contact?.name || targetId,
           lastMessage: msg,
         });
       }
-    });
+    }
     // Sort by most recent first
     threads.sort(
       (a, b) =>
@@ -148,18 +149,20 @@ export default function PmMessages() {
 
   // ── Compute unread count per conversation ──
   const unreadCounts = useMemo(() => {
+    if (!Array.isArray(messages) || !uid) return {};
     const counts = {};
-    messages.forEach((msg) => {
-      if (msg.target_type !== "individual") return;
+    for (const msg of messages) {
+      if (!msg || msg.target_type !== "individual") continue;
       const isUnread =
         msg.recipient_id === uid &&
         (msg.is_read === 0 || msg.is_read === null || msg.is_read === false);
       if (isUnread) {
-        const otherId = msg.sender_id;
-        const threadId = `individual_${otherId}`;
+        const senderId = msg.sender_id;
+        if (!senderId) continue;
+        const threadId = `individual_${senderId}`;
         counts[threadId] = (counts[threadId] || 0) + 1;
       }
-    });
+    }
     return counts;
   }, [messages, uid]);
 
