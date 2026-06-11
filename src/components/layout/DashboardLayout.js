@@ -372,7 +372,7 @@ const NAVIGATION_MATRIX = {
         {
           id: "my_projects",
           name: "MY PROJECTS",
-          href: "/staff",
+          href: "/staff/projects",
         },
       ],
     },
@@ -403,7 +403,7 @@ const NAVIGATION_MATRIX = {
         {
           id: "my_projects",
           name: "MY PROJECTS",
-          href: "/staff",
+          href: "/staff/projects",
         },
       ],
     },
