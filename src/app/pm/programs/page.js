@@ -49,7 +49,7 @@ export default function PMProgramsRegistry() {
 
       let endpoint = `/api/pm/programs?assigned_pm_id=${identifier}`;
       if (activeTab === "all") {
-        endpoint += "&show_archived=true";
+        endpoint += "&show_archived=all";
       } else if (activeTab === "archived") {
         endpoint += "&show_archived=true";
       } else if (activeTab === "completed") {

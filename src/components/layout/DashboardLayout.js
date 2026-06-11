@@ -360,12 +360,6 @@ const NAVIGATION_MATRIX = {
       ],
     },
     {
-      id: "progress_hub",
-      name: "PROGRESS HUB",
-      icon: Activity,
-      href: "/pm/progress",
-    },
-    {
       id: "reports",
       name: "REPORTS",
       icon: BarChart3,

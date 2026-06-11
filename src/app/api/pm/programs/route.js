@@ -21,10 +21,11 @@ export async function GET(req) {
     if (authError) return authError;
     const url = new URL(req.url);
     const assignedPmId = url.searchParams.get("assigned_pm_id");
-    const showArchived = url.searchParams.get("show_archived") === "true";
+    const showArchivedRaw = url.searchParams.get("show_archived");
     const status = url.searchParams.get("status");
-    const archiveVal = showArchived ? 1 : 0;
-    const args = [archiveVal, archiveVal];
+    const showAll = showArchivedRaw === "all";
+    const showArchived = showArchivedRaw === "true";
+    const args = [];
 
     // 1. Fetch Basic Programs
     let baseQuery = `
@@ -36,8 +37,17 @@ export async function GET(req) {
       LEFT JOIN contacts c1 ON p.assigned_pm_id = c1.cid
       LEFT JOIN contacts c2 ON p.assigned_assistant_id = c2.cid
       LEFT JOIN v2_knowledge_bank k ON CAST(p.note_id AS TEXT) = CAST(k.id AS TEXT)
-      WHERE (p.is_archived = ? OR (p.is_archived IS NULL AND ? = 0))
     `;
+
+    if (showAll) {
+      // No archive filter — show everything
+      baseQuery += " WHERE 1=1";
+    } else {
+      const archiveVal = showArchived ? 1 : 0;
+      args.push(archiveVal, archiveVal);
+      baseQuery +=
+        " WHERE (p.is_archived = ? OR (p.is_archived IS NULL AND ? = 0))";
+    }
 
     if (status && status.toLowerCase() !== "all") {
       if (status.toLowerCase() === "active") {
