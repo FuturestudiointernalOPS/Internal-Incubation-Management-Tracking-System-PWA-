@@ -494,7 +494,7 @@ export default function StaffOpReport() {
             category: row.category || null,
             user_id: userId,
             user_name: user.name || "",
-            status: row.due_date ? "pending" : "in_progress",
+            status: "in_progress",
             created_week: weekData.week,
             created_year: weekData.year,
             start_date: row.start_date
@@ -558,7 +558,7 @@ export default function StaffOpReport() {
                   id: taskId,
                   user_id: userId,
                   status: isCompleted ? "completed" : "carried_over",
-                  force_complete: true,
+                  // force_complete intentionally omitted — user must resolve blockers first
                 };
                 try {
                   await fetch("/api/tasks", {
@@ -1347,7 +1347,15 @@ export default function StaffOpReport() {
                                                       )}
                                                     </td>
                                                     <td className="px-3 py-2.5">
-                                                      <div className="flex items-center gap-1.5">
+                                                      <button
+                                                        onClick={() =>
+                                                          setBlockerModal({
+                                                            type: "api",
+                                                            taskId: task.id,
+                                                          })
+                                                        }
+                                                        className="flex items-center gap-1.5 hover:opacity-80 transition-all"
+                                                      >
                                                         {ab.length > 0 ? (
                                                           <span className="text-[9px] text-rose-400 font-medium">
                                                             {ab.length}{" "}
@@ -1355,23 +1363,12 @@ export default function StaffOpReport() {
                                                           </span>
                                                         ) : (
                                                           <span className="text-[9px] text-slate-600">
-                                                            0
+                                                            {t(
+                                                              "staff.opReport.resolved",
+                                                            )}
                                                           </span>
                                                         )}
-                                                        <button
-                                                          onClick={() =>
-                                                            setBlockerModal({
-                                                              type: "api",
-                                                              taskId: task.id,
-                                                            })
-                                                          }
-                                                          className="text-[9px] text-[var(--brand-orange)] hover:underline ml-1"
-                                                        >
-                                                          {t(
-                                                            "staff.opReport.manage",
-                                                          )}
-                                                        </button>
-                                                      </div>
+                                                      </button>
                                                     </td>
                                                     <td className="px-3 py-2.5">
                                                       <span
