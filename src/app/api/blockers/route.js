@@ -84,9 +84,9 @@ export async function POST(req) {
       );
     }
 
-    // Verify the task exists
+    // Verify the task exists and is not closed
     const taskCheck = await db.execute({
-      sql: "SELECT id FROM tasks WHERE id = ?",
+      sql: "SELECT id, status FROM tasks WHERE id = ?",
       args: [parseInt(task_id)],
     });
 
@@ -94,6 +94,21 @@ export async function POST(req) {
       return NextResponse.json(
         { success: false, error: "Task not found" },
         { status: 404 },
+      );
+    }
+
+    const task = taskCheck.rows[0];
+    const closedStatuses = ["completed", "archived", "carried_over"];
+    if (closedStatuses.includes(task.status)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Cannot add a blocker to a closed task. The task is already " +
+            task.status +
+            ".",
+        },
+        { status: 400 },
       );
     }
 

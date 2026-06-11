@@ -3059,18 +3059,63 @@ export default function StaffOpReport() {
               })()}
             </div>
 
-            {/* Add new blocker */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newBlockerDesc}
-                onChange={(e) => setNewBlockerDesc(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newBlockerDesc.trim()) {
-                    e.preventDefault();
-                    blockerModal.type === "api"
-                      ? (async () => {
-                          await fetch("/api/blockers", {
+            {/* Add new blocker — blocked if task is closed */}
+            {(() => {
+              const taskStatus =
+                blockerModal.type === "api"
+                  ? tasks.find((t) => t.id === blockerModal.taskId)?.status
+                  : null;
+              const closedStatuses = ["completed", "archived", "carried_over"];
+              const isClosed =
+                taskStatus && closedStatuses.includes(taskStatus);
+
+              if (isClosed) {
+                return (
+                  <p className="text-[9px] text-rose-400 italic text-center py-2">
+                    Cannot add blockers — this task is {taskStatus}.
+                  </p>
+                );
+              }
+
+              return (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newBlockerDesc}
+                    onChange={(e) => setNewBlockerDesc(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newBlockerDesc.trim()) {
+                        e.preventDefault();
+                        blockerModal.type === "api"
+                          ? (async () => {
+                              await fetch("/api/blockers", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  task_id: blockerModal.taskId,
+                                  user_id: user?.cid || user?.id,
+                                  user_name: user?.name || "",
+                                  title: newBlockerDesc.trim(),
+                                }),
+                              });
+                              setNewBlockerDesc("");
+                              fetchTasks();
+                            })()
+                          : addBlockerToRow(
+                              blockerModal,
+                              newBlockerDesc.trim(),
+                            );
+                        setNewBlockerDesc("");
+                      }
+                    }}
+                    placeholder={t("staff.opReport.describeBlocker")}
+                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all"
+                  />
+                  <button
+                    onClick={() => {
+                      if (newBlockerDesc.trim()) {
+                        if (blockerModal.type === "api") {
+                          fetch("/api/blockers", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
@@ -3079,46 +3124,24 @@ export default function StaffOpReport() {
                               user_name: user?.name || "",
                               title: newBlockerDesc.trim(),
                             }),
+                          }).then(() => {
+                            setNewBlockerDesc("");
+                            setBlockerModal(null);
+                            fetchTasks();
                           });
+                        } else {
+                          addBlockerToRow(blockerModal, newBlockerDesc.trim());
                           setNewBlockerDesc("");
-                          fetchTasks();
-                        })()
-                      : addBlockerToRow(blockerModal, newBlockerDesc.trim());
-                    setNewBlockerDesc("");
-                  }
-                }}
-                placeholder={t("staff.opReport.describeBlocker")}
-                className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all"
-              />
-              <button
-                onClick={() => {
-                  if (newBlockerDesc.trim()) {
-                    if (blockerModal.type === "api") {
-                      fetch("/api/blockers", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          task_id: blockerModal.taskId,
-                          user_id: user?.cid || user?.id,
-                          user_name: user?.name || "",
-                          title: newBlockerDesc.trim(),
-                        }),
-                      }).then(() => {
-                        setNewBlockerDesc("");
-                        setBlockerModal(null);
-                        fetchTasks();
-                      });
-                    } else {
-                      addBlockerToRow(blockerModal, newBlockerDesc.trim());
-                      setNewBlockerDesc("");
-                    }
-                  }
-                }}
-                className="px-3 py-2 bg-rose-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-              >
-                {t("common.add")}
-              </button>
-            </div>
+                        }
+                      }
+                    }}
+                    className="px-3 py-2 bg-rose-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                  >
+                    {t("common.add")}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
