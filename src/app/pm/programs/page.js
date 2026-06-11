@@ -30,7 +30,7 @@ export default function PMProgramsRegistry() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeTab, setTab] = useState("active");
+  const [activeTab, setTab] = useState("all");
   const router = useRouter();
 
   const [tasks, setTasks] = useState([]);
@@ -48,7 +48,9 @@ export default function PMProgramsRegistry() {
       const identifier = user.cid || user.id;
 
       let endpoint = `/api/pm/programs?assigned_pm_id=${identifier}`;
-      if (activeTab === "archived") {
+      if (activeTab === "all") {
+        endpoint += "&show_archived=true";
+      } else if (activeTab === "archived") {
         endpoint += "&show_archived=true";
       } else if (activeTab === "completed") {
         endpoint += "&status=completed&show_archived=false";
@@ -128,6 +130,12 @@ export default function PMProgramsRegistry() {
         </header>
 
         <div className="flex gap-4 overflow-x-auto pb-2">
+          <button
+            onClick={() => setTab("all")}
+            className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "all" ? "bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20" : "bg-secondary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            All Programs
+          </button>
           <button
             onClick={() => setTab("active")}
             className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "active" ? "bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20" : "bg-secondary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
