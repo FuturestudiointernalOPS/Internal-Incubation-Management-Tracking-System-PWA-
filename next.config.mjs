@@ -2,7 +2,9 @@ import withPWAInit from "next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  // Disabled during active development to prevent aggressive SW chunk caching errors
+  // Change back to process.env.NODE_ENV === "development" when ready for production PWA features
+  disable: true,
   register: true,
   skipWaiting: true,
   reloadOnOnline: true,
