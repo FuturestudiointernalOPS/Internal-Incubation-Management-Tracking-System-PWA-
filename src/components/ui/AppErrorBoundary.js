@@ -25,6 +25,23 @@ export default class AppErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     console.error("[AppErrorBoundary] Caught error:", error, errorInfo);
+
+    // Auto-reload for known PWA chunking / minification mismatch errors
+    if (
+      error?.name === "ChunkLoadError" ||
+      (error?.message && error.message.includes("is not a function")) ||
+      (error?.message && error.message.includes("Unexpected token '<'"))
+    ) {
+      if (typeof window !== "undefined") {
+        const hasReloaded = sessionStorage.getItem("app_chunk_reloaded");
+        if (!hasReloaded) {
+          sessionStorage.setItem("app_chunk_reloaded", "true");
+          window.location.reload(true);
+          return;
+        }
+      }
+    }
+
     // Optionally log to your error reporting service
     if (typeof this.props.onError === "function") {
       this.props.onError(error, errorInfo);
