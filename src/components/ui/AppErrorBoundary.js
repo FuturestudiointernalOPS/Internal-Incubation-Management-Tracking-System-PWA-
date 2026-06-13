@@ -23,6 +23,35 @@ export default class AppErrorBoundary extends Component {
     return { hasError: true, error };
   }
 
+  componentDidMount() {
+    if (typeof window !== "undefined") {
+      this.handleGlobalError = (event) => {
+        const msg = event?.message || event?.reason?.message || "";
+        if (
+          msg.includes("ChunkLoadError") ||
+          msg.includes("is not a function") ||
+          msg.includes("Unexpected token '<'")
+        ) {
+          const hasReloaded = sessionStorage.getItem("app_chunk_reloaded");
+          if (!hasReloaded) {
+            sessionStorage.setItem("app_chunk_reloaded", "true");
+            window.location.reload(true);
+          }
+        }
+      };
+
+      window.addEventListener("error", this.handleGlobalError);
+      window.addEventListener("unhandledrejection", this.handleGlobalError);
+    }
+  }
+
+  componentWillUnmount() {
+    if (typeof window !== "undefined" && this.handleGlobalError) {
+      window.removeEventListener("error", this.handleGlobalError);
+      window.removeEventListener("unhandledrejection", this.handleGlobalError);
+    }
+  }
+
   componentDidCatch(error, errorInfo) {
     console.error("[AppErrorBoundary] Caught error:", error, errorInfo);
 
