@@ -103,12 +103,12 @@ export async function GET(req) {
       args.push(program_id);
     }
 
-    // Filter by user membership or ownership
+    // Filter by user membership (project_members is the authoritative source)
     if (user_cid) {
       conditions.push(
-        "(CAST(p.owner_id AS TEXT) = ? OR EXISTS (SELECT 1 FROM project_members WHERE project_id::text = p.id::text AND user_cid = ?))",
+        "EXISTS (SELECT 1 FROM project_members WHERE project_id::text = p.id::text AND user_cid = ?)",
       );
-      args.push(user_cid, user_cid);
+      args.push(user_cid);
     }
 
     // Exclude archived unless explicitly requested
