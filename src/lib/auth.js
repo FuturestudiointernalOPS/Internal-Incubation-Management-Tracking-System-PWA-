@@ -172,3 +172,66 @@ export async function requireAuth(allowedRoles = null) {
     );
   }
 }
+
+/**
+ * requireProjectAccess — Auth guard for project-scoped endpoints.
+ *
+ * Allows access if the user is:
+ *   1. Authenticated AND
+ *   2. A super_admin, OR the project owner, OR a project member
+ *
+ * Usage:
+ *   const authError = await requireProjectAccess(projectId);
+ *   if (authError) return authError;
+ */
+export async function requireProjectAccess(projectId) {
+  try {
+    const session = await requireSession(); // any authenticated user
+
+    // Super_admin bypass
+    if (session.role === "super_admin") return null;
+
+    await initDb();
+
+    // Check if user is the project owner
+    const ownerCheck = await db.execute({
+      sql: "SELECT owner_id FROM v2_projects WHERE id::text = ?",
+      args: [projectId],
+    });
+
+    if (ownerCheck.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Project not found" },
+        { status: 404 },
+      );
+    }
+
+    const ownerId = ownerCheck.rows[0].owner_id;
+    if (ownerId && String(ownerId) === String(session.cid)) return null;
+
+    // Check if user is a project member
+    const memberCheck = await db.execute({
+      sql: "SELECT 1 FROM project_members WHERE project_id::text = ? AND user_cid = ?",
+      args: [projectId, session.cid],
+    });
+
+    if (memberCheck.rows.length > 0) return null;
+
+    // Deny
+    return NextResponse.json(
+      { success: false, error: "Insufficient permissions." },
+      { status: 403 },
+    );
+  } catch (err) {
+    if (err.message === "Unauthorized") {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+    return NextResponse.json(
+      { success: false, error: "Authentication system failure." },
+      { status: 500 },
+    );
+  }
+}

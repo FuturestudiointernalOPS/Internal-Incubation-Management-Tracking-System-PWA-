@@ -1,5 +1,5 @@
 import db, { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireProjectAccess } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 /**
@@ -15,9 +15,9 @@ import { NextResponse } from "next/server";
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
     const { id } = await params;
+    const authError = await requireProjectAccess(id);
+    if (authError) return authError;
 
     // 1. Project details with owner and program name
     // NOTE: v2_projects.program_id is INTEGER, v2_programs.id is UUID
