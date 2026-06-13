@@ -106,7 +106,7 @@ export async function GET(req) {
     // Filter by user membership or ownership
     if (user_cid) {
       conditions.push(
-        "(p.owner_id = ? OR EXISTS (SELECT 1 FROM project_members WHERE project_id::text = p.id::text AND user_cid = ?))",
+        "(CAST(p.owner_id AS TEXT) = ? OR EXISTS (SELECT 1 FROM project_members WHERE project_id::text = p.id::text AND user_cid = ?))",
       );
       args.push(user_cid, user_cid);
     }

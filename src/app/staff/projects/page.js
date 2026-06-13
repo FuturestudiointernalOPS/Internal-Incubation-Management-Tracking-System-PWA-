@@ -31,18 +31,38 @@ export default function MyProjects() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(u);
-    if (u.cid || u.id) {
-      fetchProjects(u.cid || u.id);
-    } else {
-      setLoading(false);
+    async function init() {
+      try {
+        // First try session API (reliable — waits for auth to resolve)
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          const u = data.user;
+          setUser(u);
+          fetchProjects(u.cid || u.id);
+          return;
+        }
+      } catch (_) {
+        // Session API unavailable — fallback to localStorage
+      }
+
+      // Fallback: read from localStorage (DashboardLayout may have populated it)
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      if (u.cid || u.id) {
+        setUser(u);
+        fetchProjects(u.cid || u.id);
+      } else {
+        setLoading(false);
+      }
     }
+    init();
   }, []);
 
   const fetchProjects = async (cid) => {
     try {
-      const res = await fetch(`/api/projects?user_cid=${encodeURIComponent(cid)}`);
+      const res = await fetch(
+        `/api/projects?user_cid=${encodeURIComponent(cid)}`,
+      );
       const data = await res.json();
       if (data.success) {
         setProjects(data.projects || []);
@@ -122,7 +142,8 @@ export default function MyProjects() {
             {filtered.map((project) => {
               const tasksTotal = project.task_summary?.total || 0;
               const tasksDone = project.task_summary?.completed || 0;
-              const progress = tasksTotal > 0 ? Math.round((tasksDone / tasksTotal) * 100) : 0;
+              const progress =
+                tasksTotal > 0 ? Math.round((tasksDone / tasksTotal) * 100) : 0;
 
               return (
                 <div
@@ -204,7 +225,8 @@ export default function MyProjects() {
                       <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[var(--border-primary)]">
                         <span className="text-[9px] text-slate-500 flex items-center gap-1">
                           <Users className="w-3 h-3" />
-                          {project.members?.filter((m) => m.role === "lead").length > 0
+                          {project.members?.filter((m) => m.role === "lead")
+                            .length > 0
                             ? "You are lead"
                             : "Member"}
                         </span>
