@@ -92,7 +92,7 @@ export async function GET(req) {
     let query = `
       SELECT p.*, pr.name as program_name
       FROM v2_projects p
-      LEFT JOIN v2_programs pr ON p.program_id = pr.id
+      LEFT JOIN v2_programs pr ON p.program_id::text = pr.id::text
     `;
     const conditions = [];
     const args = [];
