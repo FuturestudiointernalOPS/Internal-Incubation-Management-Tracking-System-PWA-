@@ -69,13 +69,10 @@ function resolveKey(obj, key) {
   return typeof current === "string" ? current : null;
 }
 
-// ─── Context (with SSR-safe default) ───
+// ─── Context (SSR-safe: default returns key name as fallback) ───
 const I18nContext = createContext({
   lang: DEFAULT_LANGUAGE,
-  t: (key) => {
-    const fallback = resolveKey(LOCALE_REGISTRY[DEFAULT_LANGUAGE], key);
-    return fallback != null ? fallback : key;
-  },
+  t: (key) => key,
   switchLang: () => {},
 });
 
