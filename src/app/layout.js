@@ -14,48 +14,6 @@ export default function RootLayout({ children }) {
     setThemeReady(true);
   }, []);
 
-  // ─── PWA Service Worker lifecycle management ───
-  // Prevents "e is not a function" errors caused by stale SW caches
-  // serving old page chunks alongside updated framework bundles.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!("serviceWorker" in navigator)) return;
-
-    let refreshing = false;
-
-    // When a new SW takes over, reload the page so all chunks are consistent
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
-
-    // On mount, check for pending SW updates and trigger update if found
-    navigator.serviceWorker.ready.then((reg) => {
-      reg.addEventListener("updatefound", () => {
-        const newWorker = reg.installing;
-        if (newWorker) {
-          newWorker.addEventListener("statechange", () => {
-            if (
-              newWorker.state === "installed" &&
-              navigator.serviceWorker.controller
-            ) {
-              // New SW is waiting — tell it to take over immediately
-              newWorker.postMessage({ type: "SKIP_WAITING" });
-            }
-          });
-        }
-      });
-    });
-
-    // Cleanup old caches on activation (belt-and-suspenders)
-    navigator.serviceWorker.ready.then((reg) => {
-      if (reg.active) {
-        reg.active.postMessage({ type: "CLEANUP_CACHES" });
-      }
-    });
-  }, []);
-
   return (
     <html lang="en">
       <head>
