@@ -104,11 +104,11 @@ export default function SuperAdminComms() {
       let threadId;
       let label;
       let icon = "user";
+      let otherId;
 
       if (msg.target_type === "individual") {
         // Determine the other participant
-        const otherId =
-          msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
+        otherId = msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
         if (!otherId) return;
         threadId = `individual_${otherId}`;
         const contact = contacts.find((c) => (c.cid || c.id) === otherId);

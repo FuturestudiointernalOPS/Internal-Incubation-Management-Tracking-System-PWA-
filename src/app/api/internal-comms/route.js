@@ -88,22 +88,33 @@ export async function POST(req) {
           "message",
         ],
       });
-    } else if (target_type === "staff") {
-      // Notify all staff
-      const staff = await db.execute(
-        "SELECT cid FROM contacts WHERE role IN ('Program Manager', 'Teacher', 'Super Admin')",
-      );
-      for (const s of staff.rows) {
-        if (s.cid === sender_id) continue;
-        await db.execute({
-          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
-          args: [
-            s.cid,
-            subject,
-            body.substring(0, 50) + (body.length > 50 ? "..." : ""),
-            "message",
-          ],
-        });
+    } else if (target_type === "role" && target_id) {
+      // Notify all users with the given role
+      const roleMap = {
+        staff: "Staff",
+        program_manager: "Program Manager",
+        super_admin: "Super Admin",
+        teacher: "Teacher",
+        participant: "Participant",
+      };
+      const dbRole = roleMap[target_id];
+      if (dbRole) {
+        const members = await db.execute(
+          "SELECT cid FROM contacts WHERE role = ?",
+          [dbRole],
+        );
+        for (const m of members.rows) {
+          if (m.cid === sender_id) continue;
+          await db.execute({
+            sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
+            args: [
+              m.cid,
+              subject,
+              body.substring(0, 50) + (body.length > 50 ? "..." : ""),
+              "message",
+            ],
+          });
+        }
       }
     }
 
