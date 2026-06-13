@@ -677,13 +677,13 @@ export default function AdminDashboard() {
                 </span>
               </div>
               {(() => {
-                const t = new Date();
+                const now = new Date();
                 const ts = formatDate(
-                  t.getFullYear(),
-                  t.getMonth(),
-                  t.getDate(),
+                  now.getFullYear(),
+                  now.getMonth(),
+                  now.getDate(),
                 );
-                const tom = new Date(t);
+                const tom = new Date(now);
                 tom.setDate(tom.getDate() + 1);
                 const tms = formatDate(
                   tom.getFullYear(),
@@ -705,13 +705,13 @@ export default function AdminDashboard() {
                         <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                           {t("time.today")}
                         </p>
-                        {todayT.slice(0, 2).map((t) => (
+                        {todayT.slice(0, 2).map((task) => (
                           <button
-                            key={t.id}
-                            onClick={() => setSelectedTask(t)}
+                            key={task.id}
+                            onClick={() => setSelectedTask(task)}
                             className="block w-full text-left text-[10px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate py-0.5"
                           >
-                            • {t.title}
+                            • {task.title}
                           </button>
                         ))}
                       </div>
@@ -721,13 +721,13 @@ export default function AdminDashboard() {
                         <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                           {t("time.tomorrow")}
                         </p>
-                        {tomorrowT.slice(0, 2).map((t) => (
+                        {tomorrowT.slice(0, 2).map((task) => (
                           <button
-                            key={t.id}
-                            onClick={() => setSelectedTask(t)}
+                            key={task.id}
+                            onClick={() => setSelectedTask(task)}
                             className="block w-full text-left text-[10px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate py-0.5"
                           >
-                            • {t.title}
+                            • {task.title}
                           </button>
                         ))}
                       </div>
