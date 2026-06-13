@@ -103,12 +103,12 @@ export async function GET(req) {
       args.push(program_id);
     }
 
-    // Filter by user membership
+    // Filter by user membership or ownership
     if (user_cid) {
-      query += `
-        INNER JOIN project_members pm ON p.id::text = pm.project_id::text AND pm.user_cid = ?
-      `;
-      args.push(user_cid);
+      conditions.push(
+        "(p.owner_id = ? OR EXISTS (SELECT 1 FROM project_members WHERE project_id::text = p.id::text AND user_cid = ?))",
+      );
+      args.push(user_cid, user_cid);
     }
 
     // Exclude archived unless explicitly requested

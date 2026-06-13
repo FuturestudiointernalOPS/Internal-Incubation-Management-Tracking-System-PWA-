@@ -218,42 +218,27 @@ export default function StaffDashboard() {
     try {
       const userId = user.cid || user.id;
 
-      // Fetch all projects with stats (for owned projects)
-      const [allRes, collabRes] = await Promise.all([
-        fetch("/api/admin/projects"),
-        fetch(`/api/projects?user_cid=${userId}`),
-      ]);
-
-      const allData = await allRes.json();
+      // Single source: /api/projects now returns projects where user is
+      // owner (owner_id match) OR member (project_members table match)
+      const collabRes = await fetch(`/api/projects?user_cid=${userId}`);
       const collabData = await collabRes.json();
 
-      if (allData.success) {
-        const allProjects = allData.projects || [];
-        // Owned: owner_id matches user, OR assigned_pm_id in meta matches
-        const owned = allProjects.filter((p) => {
-          // Check owner_id column
-          if (p.owner_id && String(p.owner_id) === String(userId)) return true;
-          // Check meta.assigned_pm_id (legacy)
-          if (p.meta) {
-            const meta =
-              typeof p.meta === "string" ? JSON.parse(p.meta) : p.meta;
-            if (
-              meta.assigned_pm_id &&
-              String(meta.assigned_pm_id) === String(userId)
-            )
-              return true;
+      if (collabData.success) {
+        const projects = collabData.projects || [];
+        const owned = [];
+        const collab = [];
+        projects.forEach((p) => {
+          const isOwner =
+            (p.owner_id && String(p.owner_id) === String(userId)) ||
+            (p.meta?.assigned_pm_id &&
+              String(p.meta.assigned_pm_id) === String(userId));
+          if (isOwner) {
+            owned.push(p);
+          } else {
+            collab.push(p);
           }
-          return false;
         });
         setOwnedProjects(owned);
-      }
-
-      if (collabData.success) {
-        const joinedProjects = collabData.projects || [];
-        // Collaborating: user is in project_members but not owner
-        const collab = joinedProjects.filter((p) => {
-          return !(p.owner_id && String(p.owner_id) === String(userId));
-        });
         setCollabProjects(collab);
       }
     } catch (e) {
