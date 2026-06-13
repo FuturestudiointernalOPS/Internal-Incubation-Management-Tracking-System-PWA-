@@ -649,71 +649,6 @@ export default function UnifiedDashboard({ role: propRole }) {
           </div>
         </div>
 
-        {/* ═══════ SECTION 2: SUMMARY CARDS ═══════ */}
-        {(visibility.showProgramsCard ||
-          visibility.showProjectsCard ||
-          visibility.showTasksCard ||
-          visibility.showBlockersCard ||
-          visibility.showOverdueCard ||
-          visibility.showCriticalCard) && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {visibility.showProgramsCard && (
-              <SummaryCard
-                icon={Briefcase}
-                label="My Programs"
-                value={summary.programs}
-                color="text-emerald-400"
-                onClick={() => router.push("/admin/programs")}
-              />
-            )}
-            {visibility.showProjectsCard && (
-              <SummaryCard
-                icon={Rocket}
-                label="My Projects"
-                value={summary.projects}
-                color="text-purple-400"
-                onClick={() => router.push("/admin/projects")}
-              />
-            )}
-            {visibility.showTasksCard && (
-              <SummaryCard
-                icon={ListTodo}
-                label="Open Tasks"
-                value={summary.tasks?.open || 0}
-                color="text-blue-400"
-                onClick={() => router.push("/admin/tasks")}
-              />
-            )}
-            {visibility.showBlockersCard && (
-              <SummaryCard
-                icon={Shield}
-                label="Active Blockers"
-                value={summary.blockers?.active || 0}
-                color="text-rose-400"
-                onClick={() => router.push("/admin/blockers")}
-              />
-            )}
-            {visibility.showOverdueCard && (
-              <SummaryCard
-                icon={Clock}
-                label="Overdue"
-                value={summary.overdueTasks || 0}
-                color="text-amber-400"
-                onClick={() => router.push("/admin/tasks?filter=overdue")}
-              />
-            )}
-            {visibility.showCriticalCard && (
-              <SummaryCard
-                icon={AlertTriangle}
-                label="Critical"
-                value={summary.criticalBlockers || 0}
-                color="text-rose-500"
-                onClick={() => router.push("/admin/blockers?severity=critical")}
-              />
-            )}
-          </div>
-        )}
-
         {/* ═══════ ASSIGNED TO ME (always shown above sections if has assignments) ═══════ */}
         {visibility.showAssignments && (
           <div className="card border-l-4 border-l-amber-500">
@@ -750,7 +685,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       <p className="text-[8px] text-slate-500 mt-0.5">
                         Assigned by: {task.user_name || "System"}
                         {task.end_date
-                          ? ` · Due: ${new Date(task.end_date).toLocaleDateString()}`
+                          ? ` \u00B7 Due: ${new Date(task.end_date).toLocaleDateString()}`
                           : ""}
                       </p>
                     </div>
@@ -804,7 +739,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           </div>
         )}
 
-        {/* ═══════ SECTION 3: ATTENTION REQUIRED ═══════ */}
+        {/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550 ATTENTION REQUIRED \u2550\u2550\u2550\u2550\u2550\u2550\u2550 */}
         {visibility.showAttention && (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -814,7 +749,6 @@ export default function UnifiedDashboard({ role: propRole }) {
               </span>
             </div>
 
-            {/* Overdue Tasks */}
             {attention.overdueTasks?.length > 0 && (
               <div className="card border-l-4 border-l-rose-500">
                 <div className="flex items-center gap-2 mb-2">
@@ -856,7 +790,6 @@ export default function UnifiedDashboard({ role: propRole }) {
               </div>
             )}
 
-            {/* Critical Blockers */}
             {attention.criticalBlockers?.length > 0 && (
               <div className="card border-l-4 border-l-rose-500">
                 <div className="flex items-center gap-2 mb-2">
@@ -899,7 +832,6 @@ export default function UnifiedDashboard({ role: propRole }) {
               </div>
             )}
 
-            {/* Due Today */}
             {attention.dueToday?.length > 0 && (
               <div className="card border-l-4 border-l-amber-500">
                 <div className="flex items-center gap-2 mb-2">
@@ -929,402 +861,388 @@ export default function UnifiedDashboard({ role: propRole }) {
           </div>
         )}
 
-        {/* ═══════ SECTION 4: RECENT ACTIVITY ═══════ */}
-        {visibility.showActivity && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[var(--brand-orange)]" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  Recent Activity
-                </span>
-              </div>
-              <button
-                onClick={() => router.push("/admin/op-reports")}
-                className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
-              >
-                View All
-              </button>
-            </div>
-            <div className="space-y-2">
-              {activity.slice(0, 10).map((act, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)]"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center">
-                    {act.action?.includes("completed") ||
-                    act.action?.includes("resolved") ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    ) : act.action?.includes("blocker") ? (
-                      <Shield className="w-4 h-4 text-rose-400" />
-                    ) : (
-                      <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] capitalize truncate">
-                      {act.action?.replace(/_/g, " ")}
-                    </p>
-                    <p className="text-[8px] text-slate-500 truncate">
-                      {act.description}
-                    </p>
-                  </div>
-                  <span className="text-[8px] text-slate-600 shrink-0">
-                    {act.timestamp
-                      ? new Date(act.timestamp).toLocaleDateString()
-                      : ""}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ═══════ SECTION 5: QUICK ACCESS PANELS ═══════ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* My Programs (PM+) */}
-          {visibility.showQuickPrograms && (
-            <QuickAccessPanel
-              title="My Programs"
-              icon={Briefcase}
-              color="text-emerald-400"
-              count={quickAccess.programs?.length || 0}
-              viewAllHref="/admin/programs"
-              loading={fetching}
-              emptyMessage="No programs"
-              onToggle={() =>
-                setExpandedPanels((p) => ({ ...p, programs: !p.programs }))
-              }
-              isExpanded={expandedPanels.programs}
-            >
-              {quickAccess.programs?.slice(0, 5).map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => router.push(`/admin/programs/${p.id}`)}
-                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center">
-                    <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                      {p.name}
-                    </p>
-                    {p.status && (
-                      <span
-                        className={cn(
-                          "text-[7px] font-black uppercase px-1 py-0.5 rounded",
-                          p.status === "active" || p.status === "Active"
-                            ? "bg-emerald-500/10 text-emerald-500"
-                            : "bg-slate-500/10 text-slate-500",
-                        )}
-                      >
-                        {p.status}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </QuickAccessPanel>
-          )}
-
-          {/* My Projects — Rich Table */}
-          {visibility.showQuickProjects && (
-            <div className="md:col-span-2 card !p-0 overflow-hidden">
-              <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-                <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  My Projects
-                </span>
-                <span className="text-[9px] font-bold text-slate-500 ml-auto">
-                  {quickAccess.projects?.length || 0} total
-                </span>
-              </div>
-              {fetching ? (
-                <div className="py-8 text-center">
-                  <div
-                    className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin mx-auto"
-                    style={{
-                      borderColor: "rgba(255,102,0,0.1)",
-                      borderTopColor: "var(--brand-orange)",
-                    }}
-                  />
-                </div>
-              ) : quickAccess.projects?.length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic py-6 text-center">
-                  No assigned projects
-                </p>
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-[var(--border-primary)]">
-                          <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Project
-                          </th>
-                          <th className="text-left p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Role
-                          </th>
-                          <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Status
-                          </th>
-                          <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Tasks
-                          </th>
-                          <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Blockers
-                          </th>
-                          <th className="text-center p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Progress
-                          </th>
-                          <th className="text-right p-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Update
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {quickAccess.projects?.slice(0, 10).map((p) => {
-                          const isOwner =
-                            p.role === "owner" ||
-                            (p.owner_id &&
-                              String(p.owner_id) ===
-                                String(user?.cid || user?.id));
-                          return (
-                            <tr
-                              key={p.id}
-                              onClick={() =>
-                                router.push(`/admin/projects/${p.id}`)
-                              }
-                              className="border-b border-[var(--border-primary)]/50 hover:bg-tertiary transition-colors cursor-pointer"
-                            >
-                              <td className="p-3">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                                    {isOwner ? (
-                                      <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                                    ) : (
-                                      <Users className="w-3.5 h-3.5 text-blue-500" />
-                                    )}
-                                  </div>
-                                  <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                                    {p.name}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="p-3">
-                                <span
-                                  className={cn(
-                                    "text-[8px] font-black uppercase tracking-wider",
-                                    isOwner
-                                      ? "text-[var(--brand-orange)]"
-                                      : "text-blue-500",
-                                  )}
-                                >
-                                  {isOwner ? "Owner" : "Collaborator"}
-                                </span>
-                              </td>
-                              <td className="p-3 text-center">
-                                <span
-                                  className={cn(
-                                    "text-[8px] font-black uppercase px-1.5 py-0.5 rounded",
-                                    p.status === "Active" ||
-                                      p.status === "active"
-                                      ? "bg-emerald-500/10 text-emerald-500"
-                                      : p.status === "Paused" ||
-                                          p.status === "paused"
-                                        ? "bg-amber-500/10 text-amber-500"
-                                        : "bg-slate-500/10 text-slate-500",
-                                  )}
-                                >
-                                  {p.status || "Active"}
-                                </span>
-                              </td>
-                              <td className="p-3 text-center">
-                                <span className="text-[11px] font-bold">
-                                  {p.taskStats?.total || 0}
-                                </span>
-                              </td>
-                              <td className="p-3 text-center">
-                                {(p.blockerStats?.active || 0) > 0 ? (
-                                  <span className="text-[11px] font-bold text-rose-500">
-                                    {p.blockerStats.active}
-                                  </span>
-                                ) : (
-                                  <span className="text-[11px] text-slate-600">
-                                    0
-                                  </span>
-                                )}
-                              </td>
-                              <td className="p-3 text-center">
-                                <div className="flex items-center gap-2 justify-center">
-                                  <div className="w-16 h-1.5 bg-[var(--bg-primary)] rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-emerald-500 rounded-full"
-                                      style={{
-                                        width: `${p.completionRate || 0}%`,
-                                      }}
-                                    />
-                                  </div>
-                                  <span className="text-[8px] font-bold text-emerald-500">
-                                    {p.completionRate || 0}%
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="p-3 text-right">
-                                {isOwner ? (
-                                  <span className="text-[7px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:brightness-110 px-2 py-1 rounded-lg hover:bg-[var(--brand-orange)]/10 transition-all">
-                                    Post Update
-                                  </span>
-                                ) : (
-                                  <span className="text-[7px] text-slate-600">
-                                    —
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  {quickAccess.projects.length > 10 && (
-                    <button
-                      onClick={() => router.push("/admin/projects")}
-                      className="w-full text-center py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all border-t border-[var(--border-primary)]"
-                    >
-                      View All ({quickAccess.projects.length})
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* My Tasks */}
-          {visibility.showQuickTasks && (
-            <QuickAccessPanel
-              title="My Tasks"
-              icon={ListTodo}
-              color="text-blue-400"
-              count={quickAccess.tasks?.length || 0}
-              viewAllHref="/admin/tasks"
-              loading={fetching}
-              emptyMessage="No active tasks"
-              onToggle={() =>
-                setExpandedPanels((p) => ({ ...p, tasks: !p.tasks }))
-              }
-              isExpanded={expandedPanels.tasks}
-            >
-              {quickAccess.tasks?.slice(0, 5).map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => setSelectedTask(t)}
-                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
-                >
-                  <div
-                    className={cn(
-                      "w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center",
-                      STATUS_CONFIG[t.status]?.color || "text-slate-400",
-                    )}
-                  >
-                    <ListTodo className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                      {t.title}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {t.end_date && (
-                        <span className="text-[7px] text-slate-500">
-                          {new Date(t.end_date).toLocaleDateString()}
-                        </span>
-                      )}
-                      {t.priority && (
-                        <span
-                          className={cn(
-                            "text-[6px] font-black uppercase px-1 py-0.5 rounded",
-                            t.priority === "high" || t.priority === "critical"
-                              ? "bg-rose-500/10 text-rose-500"
-                              : "bg-slate-500/10 text-slate-500",
-                          )}
-                        >
-                          {t.priority}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </QuickAccessPanel>
-          )}
-
-          {/* My Blockers */}
-          {visibility.showQuickBlockers && (
-            <QuickAccessPanel
-              title="Blockers"
-              icon={Shield}
-              color="text-rose-400"
-              count={quickAccess.blockers?.length || 0}
-              viewAllHref="/admin/blockers"
-              loading={fetching}
-              emptyMessage="No active blockers"
-              onToggle={() =>
-                setExpandedPanels((p) => ({ ...p, blockers: !p.blockers }))
-              }
-              isExpanded={expandedPanels.blockers}
-            >
-              {quickAccess.blockers?.slice(0, 5).map((b) => (
-                <div
-                  key={b.id}
-                  className="flex items-center gap-3 p-2.5 rounded-lg bg-rose-500/[0.02] border border-rose-500/5"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center">
-                    <Shield className="w-3.5 h-3.5 text-rose-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                      {b.title}
-                    </p>
-                    {b.severity && (
-                      <span
-                        className={cn(
-                          "text-[6px] font-black uppercase px-1 py-0.5 rounded",
-                          b.severity === "critical" || b.severity === "high"
-                            ? "bg-rose-500/10 text-rose-500"
-                            : "bg-slate-500/10 text-slate-500",
-                        )}
-                      >
-                        {b.severity}
-                      </span>
-                    )}
+        {/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550 CONSOLIDATED WORKSPACE \u2550\u2550\u2550\u2550\u2550\u2550\u2550 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* ===== LEFT COLUMN (2/3) ===== */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* My Programs — Rich Cards */}
+            {visibility.showQuickPrograms && (
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-emerald-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                      My Programs
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-500">
+                      ({quickAccess.programs?.length || 0})
+                    </span>
                   </div>
                   <button
-                    onClick={() => handleResolveBlocker(b.id)}
-                    disabled={resolvingBlocker === b.id}
-                    className="px-2.5 py-1 bg-emerald-500 text-black rounded-lg text-[7px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                    onClick={() => router.push("/pm/programs")}
+                    className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
                   >
-                    {resolvingBlocker === b.id ? "..." : "Resolve"}
+                    View All
                   </button>
                 </div>
-              ))}
-            </QuickAccessPanel>
-          )}
-        </div>
+                {fetching ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div
+                      className="w-5 h-5 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+                      style={{
+                        borderColor: "rgba(255,102,0,0.1)",
+                        borderTopColor: "var(--brand-orange)",
+                      }}
+                    />
+                  </div>
+                ) : quickAccess.programs?.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 italic py-6 text-center">
+                    No programs
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {quickAccess.programs?.slice(0, 4).map((p) => {
+                      const progress = p.completion_index || 0;
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => router.push(`/pm/programs/${p.id}`)}
+                          className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-emerald-500/30 transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                              <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
+                            </div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">
+                              {p.status || "Active"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate group-hover:text-emerald-400 transition-colors">
+                            {p.name}
+                          </p>
+                          {p.description && (
+                            <p className="text-[8px] text-slate-500 mt-1 line-clamp-2">
+                              {p.description}
+                            </p>
+                          )}
+                          <div className="mt-3 space-y-1">
+                            <div className="flex justify-between items-end">
+                              <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">
+                                Progress
+                              </span>
+                              <span className="text-[9px] font-black text-emerald-400">
+                                {Number(progress).toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden border border-[var(--border-primary)]">
+                              <div
+                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
+            {/* My Tasks — Compact List */}
+            {visibility.showQuickTasks && (
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <ListTodo className="w-4 h-4 text-blue-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                      My Tasks
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-500">
+                      ({quickAccess.tasks?.length || 0})
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => router.push("/staff/op-report")}
+                    className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+                  >
+                    Open Report
+                  </button>
+                </div>
+                {fetching ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div
+                      className="w-5 h-5 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+                      style={{
+                        borderColor: "rgba(255,102,0,0.1)",
+                        borderTopColor: "var(--brand-orange)",
+                      }}
+                    />
+                  </div>
+                ) : quickAccess.tasks?.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 italic py-6 text-center">
+                    No active tasks
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {quickAccess.tasks?.slice(0, 6).map((t) => (
+                      <div
+                        key={t.id}
+                        onClick={() => setSelectedTask(t)}
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                      >
+                        <div
+                          className={cn(
+                            "w-2 h-2 rounded-full shrink-0",
+                            STATUS_CONFIG[t.status]?.dot || "bg-slate-400",
+                          )}
+                        />
+                        <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                          {t.title}
+                        </span>
+                        {t.end_date && (
+                          <span
+                            className={cn(
+                              "text-[8px] font-bold shrink-0",
+                              new Date(t.end_date) < new Date() &&
+                                t.status !== "completed"
+                                ? "text-rose-500"
+                                : "text-slate-500",
+                            )}
+                          >
+                            {new Date(t.end_date).toLocaleDateString("en", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        )}
+                        <span
+                          className={cn(
+                            "text-[7px] font-black uppercase px-1.5 py-0.5 rounded shrink-0",
+                            STATUS_CONFIG[t.status]?.bg || "bg-slate-500/10",
+                            STATUS_CONFIG[t.status]?.color || "text-slate-500",
+                          )}
+                        >
+                          {STATUS_CONFIG[t.status]?.label || t.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Recent Activity */}
+            {visibility.showActivity && (
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[var(--brand-orange)]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                      Recent Activity
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => router.push("/admin/op-reports")}
+                    className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+                  >
+                    View All
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {activity.slice(0, 5).map((act, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)]"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                        {act.action?.includes("completed") ||
+                        act.action?.includes("resolved") ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        ) : act.action?.includes("blocker") ? (
+                          <Shield className="w-3.5 h-3.5 text-rose-400" />
+                        ) : (
+                          <Zap className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-[var(--text-primary)] capitalize truncate">
+                          {act.action?.replace(/_/g, " ")}
+                        </p>
+                        <p className="text-[8px] text-slate-500 truncate">
+                          {act.description}
+                        </p>
+                      </div>
+                      <span className="text-[8px] text-slate-600 shrink-0">
+                        {act.timestamp
+                          ? new Date(act.timestamp).toLocaleDateString()
+                          : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ===== RIGHT COLUMN (1/3) — SIDEBAR ===== */}
+          <div className="space-y-6">
+            {/* Quick Stats — Compact Inline Badges */}
+            <div className="card">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  Quick Stats
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                  <p className="text-lg font-black text-emerald-400">
+                    {summary.programs || 0}
+                  </p>
+                  <p className="text-[7px] font-black text-emerald-600/60 uppercase tracking-widest mt-0.5">
+                    Programs
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                  <p className="text-lg font-black text-blue-400">
+                    {summary.tasks?.open || 0}
+                  </p>
+                  <p className="text-[7px] font-black text-blue-600/60 uppercase tracking-widest mt-0.5">
+                    Open Tasks
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10">
+                  <p className="text-lg font-black text-rose-400">
+                    {summary.blockers?.active || 0}
+                  </p>
+                  <p className="text-[7px] font-black text-rose-600/60 uppercase tracking-widest mt-0.5">
+                    Active Blockers
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                  <p className="text-lg font-black text-amber-400">
+                    {summary.overdueTasks || 0}
+                  </p>
+                  <p className="text-[7px] font-black text-amber-600/60 uppercase tracking-widest mt-0.5">
+                    Overdue
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Active Blockers — With Inline Resolve */}
+            {visibility.showQuickBlockers && (
+              <div className="card">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="w-4 h-4 text-rose-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    Active Blockers
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                    {quickAccess.blockers?.length || 0}
+                  </span>
+                </div>
+                {fetching ? (
+                  <div className="flex justify-center py-6">
+                    <div
+                      className="w-4 h-4 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+                      style={{
+                        borderColor: "rgba(255,102,0,0.1)",
+                        borderTopColor: "var(--brand-orange)",
+                      }}
+                    />
+                  </div>
+                ) : quickAccess.blockers?.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 italic py-4 text-center">
+                    No active blockers
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {quickAccess.blockers?.slice(0, 5).map((b) => (
+                      <div
+                        key={b.id}
+                        className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-500/[0.02] border border-rose-500/5"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                            {b.title}
+                          </p>
+                          {b.severity && (
+                            <span className="text-[6px] font-black uppercase tracking-wider text-rose-500/60">
+                              {b.severity}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleResolveBlocker(b.id)}
+                          disabled={resolvingBlocker === b.id}
+                          className="px-2 py-1 bg-emerald-500 text-black rounded-lg text-[7px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                        >
+                          {resolvingBlocker === b.id ? "..." : "Resolve"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Upcoming Events — From Calendar */}
+            {events.length > 0 && (
+              <div className="card">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="w-4 h-4 text-blue-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    Upcoming
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {events
+                    .filter(
+                      (e) =>
+                        new Date(e.date) >= new Date(new Date().toDateString()),
+                    )
+                    .slice(0, 5)
+                    .map((ev) => (
+                      <button
+                        key={ev.id}
+                        onClick={() => setSelectedEvent(ev)}
+                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)] text-left"
+                      >
+                        <div
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full shrink-0",
+                            EVENT_DOTS[ev.source] || "bg-slate-400",
+                          )}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                            {ev.title}
+                          </p>
+                          <p className="text-[7px] text-slate-500">
+                            {new Date(ev.date).toLocaleDateString("en", {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
         {/* ═══════ EMPTY STATE (when nothing is visible) ═══════ */}
-        {!visibility.showProgramsCard &&
-          !visibility.showProjectsCard &&
-          !visibility.showTasksCard &&
-          !visibility.showBlockersCard &&
+        {!visibility.showAssignments &&
           !visibility.showAttention &&
           !visibility.showActivity &&
           !visibility.showQuickPrograms &&
-          !visibility.showQuickProjects &&
           !visibility.showQuickTasks &&
           !visibility.showQuickBlockers &&
-          !visibility.showAssignments &&
           !fetching && (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
               <Activity className="w-16 h-16 text-slate-700" />
