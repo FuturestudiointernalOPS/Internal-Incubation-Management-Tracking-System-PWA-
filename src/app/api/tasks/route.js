@@ -285,23 +285,32 @@ export async function POST(req) {
       // Notify project owner (or Super Admin as fallback)
       try {
         const projectInfo = await db.execute({
-          sql: "SELECT name, owner_id FROM v2_projects WHERE id = ?",
+          sql: "SELECT name FROM v2_projects WHERE id = ?",
           args: [parseInt(project_id)],
         });
         const projectName =
           projectInfo.rows[0]?.name || `Project #${project_id}`;
-        const ownerId = projectInfo.rows[0]?.owner_id || "sa";
 
-        await fetch(new URL("/api/notifications", req.url).toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recipient_id: ownerId,
-            title: "Project Contribution Request",
-            message: `${user_name || user_id} wants to link task "${title}" to "${projectName}". Please review and approve.`,
-            type: "approval",
-          }),
+        // Get project leads/members to notify
+        const leads = await db.execute({
+          sql: "SELECT user_cid FROM project_members WHERE project_id = ? AND role = 'lead'",
+          args: [parseInt(project_id)],
         });
+        const notifyIds =
+          leads.rows.length > 0 ? leads.rows.map((r) => r.user_cid) : ["sa"];
+
+        for (const recipient_id of notifyIds) {
+          await fetch(`${req.nextUrl.origin}/api/notifications`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipient_id,
+              title: "Project Contribution Request",
+              message: `${user_name || user_id} wants to link task "${title}" to "${projectName}". Please review and approve.`,
+              type: "approval",
+            }),
+          });
+        }
       } catch (notifErr) {
         console.error(
           "Failed to send approval notification:",

@@ -193,23 +193,20 @@ export async function requireProjectAccess(projectId) {
 
     await initDb();
 
-    // Check if user is the project owner
-    const ownerCheck = await db.execute({
-      sql: "SELECT owner_id FROM v2_projects WHERE id::text = ?",
+    // Check if project exists
+    const projectCheck = await db.execute({
+      sql: "SELECT id FROM v2_projects WHERE id::text = ?",
       args: [projectId],
     });
 
-    if (ownerCheck.rows.length === 0) {
+    if (projectCheck.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Project not found" },
         { status: 404 },
       );
     }
 
-    const ownerId = ownerCheck.rows[0].owner_id;
-    if (ownerId && String(ownerId) === String(session.cid)) return null;
-
-    // Check if user is a project member
+    // Check if user is a project member or lead (covers both owners and collaborators)
     const memberCheck = await db.execute({
       sql: "SELECT 1 FROM project_members WHERE project_id::text = ? AND user_cid = ?",
       args: [projectId, session.cid],

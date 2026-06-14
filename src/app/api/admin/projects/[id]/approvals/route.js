@@ -1,5 +1,5 @@
 import db, { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireProjectAccess } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 /**
@@ -22,9 +22,9 @@ import { NextResponse } from "next/server";
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
     const { id } = await params;
+    const authError = await requireProjectAccess(id);
+    if (authError) return authError;
 
     const result = await db.execute({
       sql: `SELECT par.*, c.name AS requester_name_lookup, t.title AS task_title
@@ -49,7 +49,8 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const { id } = await params;
+    const authError = await requireProjectAccess(id);
     if (authError) return authError;
     const { request_id, reviewer_id, reviewer_name, action, rejection_reason } =
       await req.json();
