@@ -671,7 +671,7 @@ export default function SuperAdminComms() {
                 >
                   <option value="staff">All Staff</option>
                   <option value="program_manager">All Program Managers</option>
-                  <option value="teacher">All Teachers</option>
+                  <option value="teacher">All Instructors</option>
                   <option value="participant">All Participants</option>
                   <option value="super_admin">Super Admin</option>
                 </select>

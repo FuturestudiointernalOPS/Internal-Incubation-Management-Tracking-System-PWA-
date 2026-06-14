@@ -419,20 +419,32 @@ const NAVIGATION_MATRIX = {
       id: "communication",
       name: "COMMUNICATION",
       icon: MessageSquare,
-      href: "/teacher/messages",
+      subItems: [
+        {
+          id: "groups",
+          name: "GROUPS",
+          href: "/pm/communications/contacts",
+        },
+        {
+          id: "messages",
+          name: "MESSAGES",
+          href: "/teacher/messages",
+        },
+      ],
     },
-    { id: "programs", name: "PROGRAMS", icon: Briefcase, href: "/pm/programs" },
     {
-      id: "sessions",
-      name: "SESSIONS",
-      icon: Calendar,
-      href: "/teacher/sessions",
-    },
-    {
-      id: "reviews",
-      name: "SUBMISSIONS",
-      icon: FileText,
-      href: "/teacher/reviews",
+      id: "programs",
+      name: "PROGRAMS",
+      icon: Briefcase,
+      subItems: [
+        { id: "all_programs", name: "ALL PROGRAMS", href: "/pm/programs" },
+        { id: "sessions", name: "SESSIONS", href: "/teacher/sessions" },
+        {
+          id: "reviews",
+          name: "SUBMISSIONS",
+          href: "/teacher/reviews",
+        },
+      ],
     },
     {
       id: "reports",
@@ -440,14 +452,14 @@ const NAVIGATION_MATRIX = {
       icon: BarChart3,
       subItems: [
         {
-          id: "legacy_reports",
-          name: "PROGRAM REPORTS",
-          href: "/admin/reports",
+          id: "internal_reports",
+          name: "INTERNAL REPORTS",
+          href: "/staff/op-report",
         },
         {
-          id: "enhanced_reports",
-          name: "ENHANCED (WIP)",
-          href: "/v2/teacher/reports-v2",
+          id: "my_projects",
+          name: "MY PROJECTS",
+          href: "/staff/projects",
         },
       ],
     },
