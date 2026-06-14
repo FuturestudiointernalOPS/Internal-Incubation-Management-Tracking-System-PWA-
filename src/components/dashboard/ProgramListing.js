@@ -250,9 +250,7 @@ export default function ProgramListing() {
     try {
       setLoading(true);
       setError(null);
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      const cid = u.cid || u.id || "";
-      const res = await fetch(`/api/participant/programs?cid=${cid}`);
+      const res = await fetch("/api/participant/programs");
       const data = await res.json();
       if (data.success) {
         setPrograms(data.programs || []);

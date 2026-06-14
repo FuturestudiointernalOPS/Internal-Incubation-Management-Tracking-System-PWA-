@@ -1,36 +1,24 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
-async function resolveCid(req) {
-  const { searchParams } = new URL(req.url);
-  let cid = searchParams.get("cid");
-  if (!cid) {
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (session) cid = session.cid;
-  }
-  return cid;
-}
-
-// Safe query: returns empty rows if table doesn't exist
-async function safeQuery(sql, args) {
-  try {
-    return await db.execute({ sql, args });
-  } catch (e) {
-    // Table doesn't exist or query failed — return empty
-    return { rows: [] };
-  }
-}
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
   try {
     await initDb();
-    const cid = await resolveCid(req);
-    if (!cid)
+    const authError = await requireAuth();
+    if (authError) return authError;
+
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session)
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
+
+    const cid = session.cid;
 
     const contactRes = await db.execute({
       sql: "SELECT cid, name, email, program_id, group_name FROM contacts WHERE cid = ?",
@@ -44,7 +32,6 @@ export async function GET(req) {
     }
     const contact = contactRes.rows[0];
 
-    // Find program IDs
     const programIds = new Set();
     if (contact.program_id) {
       String(contact.program_id)
@@ -72,7 +59,6 @@ export async function GET(req) {
       });
     }
 
-    const programIdList = Array.from(programIds);
     const programsData = [];
     let overallSubmissions = 0,
       overallApproved = 0,
@@ -87,7 +73,7 @@ export async function GET(req) {
       totalRetros = 0,
       totalReflections = 0;
 
-    for (const pid of programIdList) {
+    for (const pid of Array.from(programIds)) {
       const [
         progRes,
         sesRes,
@@ -124,22 +110,22 @@ export async function GET(req) {
           sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
           args: [pid],
         }),
-        safeQuery(
-          "SELECT * FROM v2_standups WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          [cid, pid],
-        ),
-        safeQuery(
-          "SELECT * FROM v2_checkins WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          [cid, pid],
-        ),
-        safeQuery(
-          "SELECT * FROM v2_retros WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          [cid, pid],
-        ),
-        safeQuery(
-          "SELECT * FROM v2_reflections WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          [cid, pid],
-        ),
+        db.execute({
+          sql: "SELECT * FROM v2_standups WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          args: [cid, pid],
+        }),
+        db.execute({
+          sql: "SELECT * FROM v2_checkins WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          args: [cid, pid],
+        }),
+        db.execute({
+          sql: "SELECT * FROM v2_retros WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          args: [cid, pid],
+        }),
+        db.execute({
+          sql: "SELECT * FROM v2_reflections WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          args: [cid, pid],
+        }),
       ]);
 
       const program = progRes.rows[0];
@@ -179,10 +165,10 @@ export async function GET(req) {
         (completedDeliverables / totalDeliverables) * 100,
       );
 
-      const totalSessions = sessions.length || 1;
       const attendedSessions = attendance.filter(
         (a) => a.status === "present",
       ).length;
+      const totalSessions = sessions.length || 1;
       const attendanceRate = Math.round(
         (attendedSessions / totalSessions) * 100,
       );

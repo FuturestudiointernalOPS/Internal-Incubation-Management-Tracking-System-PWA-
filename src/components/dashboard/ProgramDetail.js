@@ -341,11 +341,7 @@ export default function ProgramDetail({ programId }) {
     try {
       setLoading(true);
       setError(null);
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      const cid = u.cid || u.id || "";
-      const res = await fetch(
-        `/api/participant/programs/${programId}?cid=${cid}`,
-      );
+      const res = await fetch(`/api/participant/programs/${programId}`);
       const result = await res.json();
       if (result.success) {
         setData(result);

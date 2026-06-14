@@ -1,21 +1,22 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
-async function resolveCid(req) {
-  const { searchParams } = new URL(req.url);
-  let cid = searchParams.get("cid");
-  if (!cid) {
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (session) cid = session.cid;
-  }
-  return cid;
+export const dynamic = "force-dynamic";
+
+async function getSessionCid() {
+  const { getSession } = await import("@/lib/auth");
+  const session = await getSession();
+  return session?.cid || null;
 }
 
 export async function GET(req) {
   try {
     await initDb();
-    const cid = await resolveCid(req);
+    const authError = await requireAuth();
+    if (authError) return authError;
+
+    const cid = await getSessionCid();
     if (!cid)
       return NextResponse.json(
         { success: false, error: "Authentication required." },
@@ -128,19 +129,17 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const body = await req.json();
-    let participantId = body.participant_id;
-    if (!participantId) {
-      const cid = await resolveCid(req);
-      participantId = cid;
-    }
-    if (!participantId)
+    const authError = await requireAuth();
+    if (authError) return authError;
+
+    const cid = await getSessionCid();
+    if (!cid)
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
 
-    const { program_id, deliverable_id, file_url } = body;
+    const { program_id, deliverable_id, file_url } = await req.json();
     if (!program_id || !deliverable_id) {
       return NextResponse.json(
         { success: false, error: "Program ID and deliverable ID required" },
@@ -150,7 +149,7 @@ export async function POST(req) {
 
     await db.execute({
       sql: "INSERT INTO v2_submissions (participant_id, program_id, document_id, file_url, status) VALUES (?, ?, ?, ?, 'pending')",
-      args: [participantId, program_id, deliverable_id, file_url || null],
+      args: [cid, program_id, deliverable_id, file_url || null],
     });
 
     return NextResponse.json({ success: true });

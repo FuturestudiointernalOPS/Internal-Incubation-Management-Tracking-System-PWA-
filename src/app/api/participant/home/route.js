@@ -1,38 +1,27 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
-async function resolveCid(req) {
-  const { searchParams } = new URL(req.url);
-  let cid = searchParams.get("cid");
-  if (!cid) {
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (session) cid = session.cid;
-  }
-  return cid;
-}
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
   try {
     await initDb();
-    const cid = await resolveCid(req);
-    if (!cid) {
+    const authError = await requireAuth();
+    if (authError) return authError;
+
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
     }
 
-    const { searchParams } = new URL(req.url);
-    let email = searchParams.get("email");
-    // Try to get email from session too
-    if (!email) {
-      const { getSession } = await import("@/lib/auth");
-      const session = await getSession();
-      if (session) email = session.email;
-    }
+    const cid = session.cid;
+    const email = session.email;
 
-    // ── 1. Participant contact record ──────────────────────────────
     const contactRes = await db.execute({
       sql: "SELECT cid, name, email, group_name, program_id, program_name, role FROM contacts WHERE cid = ?",
       args: [cid],
@@ -47,9 +36,7 @@ export async function GET(req) {
 
     const contact = contactRes.rows[0];
 
-    // ── 2. Discover program IDs ────────────────────────────────────
     const programIds = new Set();
-
     if (contact.program_id) {
       String(contact.program_id)
         .split(",")
@@ -57,7 +44,6 @@ export async function GET(req) {
         .filter(Boolean)
         .forEach((id) => programIds.add(id));
     }
-
     if (contact.group_name) {
       const familyRes = await db.execute({
         sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
@@ -66,7 +52,6 @@ export async function GET(req) {
       familyRes.rows.forEach((r) => {
         if (r.program_id != null) programIds.add(String(r.program_id).trim());
       });
-
       const groupRes = await db.execute({
         sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
         args: [contact.group_name],
@@ -79,7 +64,6 @@ export async function GET(req) {
     const programIdList = Array.from(programIds);
     const programsData = [];
 
-    // ── 3. Fetch programs with metrics ─────────────────────────────
     for (const pid of programIdList) {
       const [progRes, sesRes, delRes, subRes, attRes, kpiRes] =
         await Promise.all([
@@ -118,7 +102,6 @@ export async function GET(req) {
       const attendance = attRes.rows || [];
       const kpis = kpiRes.rows || [];
 
-      // Current week
       const unlockedSessions = sessions.filter((s) => s.status !== "locked");
       const maxCompletedWeek =
         unlockedSessions.length > 0
@@ -204,7 +187,6 @@ export async function GET(req) {
           (s) => s.document_id === d.id,
         );
         const isApproved = existingSub?.status === "approved";
-
         if (!isApproved && dueDate < today) {
           overdueItems.push({
             id: d.id,
@@ -217,7 +199,7 @@ export async function GET(req) {
           });
         } else if (!isApproved && dueDate >= today) {
           const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-          if (diffDays <= 7) {
+          if (diffDays <= 7)
             dueSoonItems.push({
               id: d.id,
               title: d.title,
@@ -227,7 +209,6 @@ export async function GET(req) {
               programId: primaryProgram.id,
               programName: primaryProgram.name,
             });
-          }
         }
       }
     }
@@ -236,15 +217,14 @@ export async function GET(req) {
       ? primaryProgram.sessions
           .filter((s) => {
             if (!s.start_at && !s.scheduled_date) return false;
-            const sessionDate = new Date(s.start_at || s.scheduled_date);
-            return sessionDate >= today;
+            return new Date(s.start_at || s.scheduled_date) >= today;
           })
           .slice(0, 5)
       : [];
 
     const notifRes = await db.execute({
       sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? OR recipient_id = 'all' OR recipient_id = ? ORDER BY created_at DESC LIMIT 10",
-      args: [cid, email || ""],
+      args: [cid, email],
     });
     const announcements = (notifRes.rows || []).map((n) => ({
       id: n.id,
@@ -261,14 +241,13 @@ export async function GET(req) {
     const todayStr = today.toISOString().split("T")[0];
 
     let calendarEvents = [];
-
     if (primaryProgram) {
       for (const s of primaryProgram.sessions) {
         const sessionDate = s.start_at || s.scheduled_date;
         if (!sessionDate) continue;
         const d = new Date(sessionDate);
         const dateStr = d.toISOString().split("T")[0];
-        if (dateStr >= todayStr && dateStr <= weekEndStr) {
+        if (dateStr >= todayStr && dateStr <= weekEndStr)
           calendarEvents.push({
             id: `session-${s.id}`,
             title: s.title,
@@ -280,14 +259,12 @@ export async function GET(req) {
             programId: primaryProgram.id,
             description: s.type || "Session",
           });
-        }
       }
-
       for (const d of primaryProgram.deliverables) {
         if (!d.created_at) continue;
         const dd = new Date(d.created_at);
         const dateStr = dd.toISOString().split("T")[0];
-        if (dateStr >= todayStr && dateStr <= weekEndStr) {
+        if (dateStr >= todayStr && dateStr <= weekEndStr)
           calendarEvents.push({
             id: `deliverable-${d.id}`,
             title: `${d.title} (due)`,
@@ -299,10 +276,8 @@ export async function GET(req) {
             programId: primaryProgram.id,
             description: primaryProgram.name,
           });
-        }
       }
     }
-
     calendarEvents.sort((a, b) => a.date.localeCompare(b.date));
 
     return NextResponse.json({

@@ -334,9 +334,7 @@ export default function ParticipantDashboardHome() {
     try {
       setLoading(true);
       setError(null);
-      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const cid = storedUser.cid || storedUser.id || "";
-      const res = await fetch(`/api/participant/home?cid=${cid}`);
+      const res = await fetch("/api/participant/home");
       const result = await res.json();
       if (result.success) {
         setData(result);

@@ -1,20 +1,11 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
-async function resolveCid(req) {
-  const { searchParams } = new URL(req.url);
-  let cid = searchParams.get("cid");
-  if (!cid) {
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (session) cid = session.cid;
-  }
-  return cid;
-}
+export const dynamic = "force-dynamic";
 
 /**
  * RETROSPECTIVE API — SUSPENDED
- *
  * This endpoint is intentionally disabled from the participant UI.
  * Do not re-enable without explicit approval from the product owner.
  */
@@ -22,13 +13,17 @@ async function resolveCid(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const cid = await resolveCid(req);
-    if (!cid)
+    const authError = await requireAuth();
+    if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session)
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
 
+    const cid = session.cid;
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
     const weekNum = searchParams.get("week_number");
@@ -58,12 +53,17 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const cid = await resolveCid(req);
-    if (!cid)
+    const authError = await requireAuth();
+    if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session)
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
+
+    const cid = session.cid;
     const { program_id, week_number, went_well, improve, action_items } =
       await req.json();
     if (!program_id)

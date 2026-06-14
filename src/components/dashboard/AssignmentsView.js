@@ -48,11 +48,10 @@ export default function AssignmentsView() {
     try {
       setLoading(true);
       setError(null);
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      const cid = u.cid || u.id || "";
-      const base = `/api/participant/assignments?cid=${cid}`;
       const url =
-        filterProgram !== "all" ? `${base}&program_id=${filterProgram}` : base;
+        filterProgram !== "all"
+          ? `/api/participant/assignments?program_id=${filterProgram}`
+          : "/api/participant/assignments";
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {

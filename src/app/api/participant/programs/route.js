@@ -1,105 +1,71 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
 
-    const { searchParams } = new URL(req.url);
-    let email = searchParams.get("email");
-    let cid = searchParams.get("cid");
-
-    // Fall back to session data
-    if (!email && !cid) {
-      const { getSession } = await import("@/lib/auth");
-      const session = await getSession();
-      if (session) {
-        cid = session.cid;
-        email = session.email;
-      }
-    }
-
-    if (!cid && !email) {
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
     }
 
+    const cid = session.cid;
+    const email = session.email;
     const headers = {
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
       Pragma: "no-cache",
       Expires: "0",
     };
 
-    // 1. Find the participant's contact record
-    let contactQuery;
-    let contactArgs;
-    if (cid) {
-      contactQuery =
-        "SELECT cid, name, email, program_id, program_name, group_name FROM contacts WHERE cid = ?";
-      contactArgs = [cid];
-    } else {
-      contactQuery =
-        "SELECT cid, name, email, program_id, program_name, group_name FROM contacts WHERE email = ?";
-      contactArgs = [email];
-    }
-
-    const userRes = await db.execute({ sql: contactQuery, args: contactArgs });
-
+    const userRes = await db.execute({
+      sql: "SELECT cid, name, email, program_id, program_name, group_name FROM contacts WHERE cid = ?",
+      args: [cid],
+    });
     if (userRes.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Participant not found" },
         { status: 404, headers },
       );
     }
-
     const contact = userRes.rows[0];
-    const participantCid = contact.cid;
-    const participantEmail = contact.email;
 
-    // 2. Find all program IDs this participant is linked to
     const programIds = new Set();
-
-    if (contact.program_id != null) {
+    if (contact.program_id) {
       String(contact.program_id)
         .split(",")
         .map((id) => id.trim())
         .filter(Boolean)
         .forEach((id) => programIds.add(id));
     }
-
     if (contact.group_name) {
       const familyRes = await db.execute({
         sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
         args: [contact.group_name],
       });
       familyRes.rows.forEach((r) => {
-        if (r.program_id != null) programIds.add(String(r.program_id).trim());
+        if (r.program_id) programIds.add(String(r.program_id).trim());
       });
-
       const groupRes = await db.execute({
         sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
         args: [contact.group_name],
       });
       groupRes.rows.forEach((r) => {
-        if (r.id != null) programIds.add(String(r.id).trim());
+        if (r.id) programIds.add(String(r.id).trim());
       });
     }
 
-    const legacyRes = await db.execute({
-      sql: "SELECT program_id FROM v2_participants WHERE email = ?",
-      args: [participantEmail],
-    });
-    legacyRes.rows.forEach((r) => {
-      if (r.program_id != null) programIds.add(String(r.program_id).trim());
-    });
-
-    // 3. Fetch all programs with their data
     const programs = [];
-    const programIdList = Array.from(programIds);
-
-    for (const pid of programIdList) {
+    for (const pid of Array.from(programIds)) {
       const [progRes, sesRes, delRes, subRes, attRes, kpiRes, staffRes] =
         await Promise.all([
           db.execute({
@@ -116,21 +82,18 @@ export async function GET(req) {
           }),
           db.execute({
             sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ?",
-            args: [participantCid, pid],
+            args: [cid, pid],
           }),
           db.execute({
             sql: "SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ?",
-            args: [participantCid, pid],
+            args: [cid, pid],
           }),
           db.execute({
             sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
             args: [pid],
           }),
           db.execute({
-            sql: `SELECT ps.*, c.name AS staff_name, c.role AS staff_role
-                  FROM v2_program_staff ps
-                  LEFT JOIN contacts c ON ps.staff_id = c.cid
-                  WHERE ps.program_id = ?`,
+            sql: "SELECT ps.*, c.name AS staff_name, c.role AS staff_role FROM v2_program_staff ps LEFT JOIN contacts c ON ps.staff_id = c.cid WHERE ps.program_id = ?",
             args: [pid],
           }),
         ]);
@@ -144,7 +107,6 @@ export async function GET(req) {
       const attendance = attRes.rows || [];
       const kpis = kpiRes.rows || [];
 
-      // Current week calculation
       const unlockedSessions = sessions.filter((s) => s.status !== "locked");
       const maxCompletedWeek =
         unlockedSessions.length > 0
@@ -154,17 +116,16 @@ export async function GET(req) {
         ? Math.min(Math.max(maxCompletedWeek, 1), program.duration_weeks)
         : 1;
 
-      // Program completion (by deliverables)
       const totalDeliverables = deliverables.length || 1;
-      const completedDeliverables = deliverables.filter((d) => {
-        const sub = submissions.find((s) => s.document_id === d.id);
-        return sub && sub.status === "approved";
-      }).length;
+      const completedDeliverables = deliverables.filter((d) =>
+        submissions.some(
+          (s) => s.document_id === d.id && s.status === "approved",
+        ),
+      ).length;
       const percentComplete = Math.round(
         (completedDeliverables / totalDeliverables) * 100,
       );
 
-      // Attendance rate
       const attendedSessions = attendance.filter(
         (a) => a.status === "present",
       ).length;
@@ -173,7 +134,6 @@ export async function GET(req) {
         (attendedSessions / totalSessionCount) * 100,
       );
 
-      // Submission completion
       const approvedSubmissions = submissions.filter(
         (s) => s.status === "approved",
       ).length;
@@ -182,32 +142,26 @@ export async function GET(req) {
         (approvedSubmissions / totalSubmissions) * 100,
       );
 
-      // KPI completion
       const targetMetKpis = kpis.filter((k) => {
-        const target = parseInt(k.target_value) || 0;
-        const current = parseInt(k.current_value) || 0;
-        return current >= target;
+        const t = parseInt(k.target_value) || 0;
+        const c = parseInt(k.current_value) || 0;
+        return c >= t;
       }).length;
       const totalKpis = kpis.length || 1;
       const kpiCompletion = Math.round((targetMetKpis / totalKpis) * 100);
 
-      // Facilitators
       const facilitators = (staffRes.rows || []).map((s) => ({
         id: s.staff_id,
         name: s.staff_name || s.staff_id,
         role: s.role,
       }));
-
-      // Resolve PM name
       let pmName = null;
       if (program.assigned_pm_id) {
         const pmRes = await db.execute({
           sql: "SELECT name FROM contacts WHERE cid = ?",
           args: [program.assigned_pm_id],
         });
-        if (pmRes.rows.length > 0) {
-          pmName = pmRes.rows[0].name;
-        }
+        if (pmRes.rows.length > 0) pmName = pmRes.rows[0].name;
       }
 
       programs.push({
@@ -258,7 +212,7 @@ export async function GET(req) {
     console.error("Participant Programs Error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500, headers },
+      { status: 500 },
     );
   }
 }

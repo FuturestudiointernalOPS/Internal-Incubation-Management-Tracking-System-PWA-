@@ -189,9 +189,7 @@ export default function ProgressView({ programId: filterProgramId }) {
     try {
       setLoading(true);
       setError(null);
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      const cid = u.cid || u.id || "";
-      const res = await fetch(`/api/participant/progress?cid=${cid}`);
+      const res = await fetch("/api/participant/progress");
       const result = await res.json();
       if (result.success) setData(result);
       else setError(result.error || "Failed to load");
