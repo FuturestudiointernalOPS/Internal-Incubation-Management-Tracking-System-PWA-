@@ -460,6 +460,12 @@ const NAVIGATION_MATRIX = {
   ],
   participant: [
     {
+      id: "dashboard",
+      name: "DASHBOARD",
+      icon: LayoutDashboard,
+      href: "/participant",
+    },
+    {
       id: "projects",
       name: "PROJECTS",
       icon: Briefcase,
