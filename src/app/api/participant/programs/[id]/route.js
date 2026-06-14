@@ -31,8 +31,10 @@ export async function GET(req, { params }) {
       );
     }
 
+    const { searchParams } = new URL(req.url);
+    let cid = searchParams.get("cid");
+    if (!cid) cid = session.cid;
     const programId = params.id;
-    const cid = session.cid;
 
     // 1. Fetch program
     const progRes = await db.execute({
@@ -156,7 +158,9 @@ export async function GET(req, { params }) {
         return !!del;
       });
       const completedDels = data.deliverables.filter((d) =>
-        submissions.some((s) => s.document_id === d.id && s.status === "approved"),
+        submissions.some(
+          (s) => s.document_id === d.id && s.status === "approved",
+        ),
       ).length;
 
       weeks.push({
@@ -183,7 +187,9 @@ export async function GET(req, { params }) {
           };
         }),
         locked: data.locked,
-        completed: data.deliverables.length > 0 && completedDels === data.deliverables.length,
+        completed:
+          data.deliverables.length > 0 &&
+          completedDels === data.deliverables.length,
         isCurrent: data.number === currentWeek,
       });
     }
@@ -231,12 +237,16 @@ export async function GET(req, { params }) {
     // 6. Metrics
     const totalDeliverables = deliverables.length || 1;
     const completedDeliverables = deliverables.filter((d) =>
-      submissions.some((s) => s.document_id === d.id && s.status === "approved"),
+      submissions.some(
+        (s) => s.document_id === d.id && s.status === "approved",
+      ),
     ).length;
     const percentComplete = Math.round(
       (completedDeliverables / totalDeliverables) * 100,
     );
-    const attendedSessions = attendance.filter((a) => a.status === "present").length;
+    const attendedSessions = attendance.filter(
+      (a) => a.status === "present",
+    ).length;
     const totalSessions = sessions.length || 1;
     const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
 

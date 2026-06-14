@@ -6,15 +6,11 @@ import { requireAuth } from "@/lib/auth";
  * PARTICIPANT HOME DASHBOARD API
  *
  * GET /api/participant/home
+ * GET /api/participant/home?cid=X
+ * GET /api/participant/home?email=X
  *
- * Returns everything the participant dashboard needs:
- *   - Participant identity + current program
- *   - Progress metrics (completion, attendance, assignments, KPIs, rituals)
- *   - Action center (overdue/due-soon assignments, pending items)
- *   - Upcoming calendar events
- *   - Announcements
- *
- * All data is scoped to the authenticated participant.
+ * Returns everything the participant dashboard needs.
+ * Falls back to session cookie if no cid/email provided.
  */
 export async function GET(req) {
   try {
@@ -22,18 +18,26 @@ export async function GET(req) {
     const authError = await requireAuth();
     if (authError) return authError;
 
-    // Get session from cookie
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (!session) {
+    const { searchParams } = new URL(req.url);
+    let cid = searchParams.get("cid");
+    let email = searchParams.get("email");
+
+    // Fall back to session
+    if (!cid && !email) {
+      const { getSession } = await import("@/lib/auth");
+      const session = await getSession();
+      if (session) {
+        cid = session.cid;
+        email = session.email;
+      }
+    }
+
+    if (!cid) {
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
     }
-
-    const cid = session.cid;
-    const email = session.email;
 
     // ── 1. Participant contact record ──────────────────────────────
     const contactRes = await db.execute({
@@ -131,7 +135,6 @@ export async function GET(req) {
         ? Math.min(Math.max(maxCompletedWeek, 1), program.duration_weeks)
         : 1;
 
-      // Program completion %
       const totalDeliverables = deliverables.length || 1;
       const completedDeliverables = deliverables.filter((d) => {
         const sub = submissions.find((s) => s.document_id === d.id);
@@ -141,7 +144,6 @@ export async function GET(req) {
         (completedDeliverables / totalDeliverables) * 100,
       );
 
-      // Attendance %
       const totalSessions = sessions.length || 1;
       const attendedSessions = attendance.filter(
         (a) => a.status === "present",
@@ -150,7 +152,6 @@ export async function GET(req) {
         (attendedSessions / totalSessions) * 100,
       );
 
-      // Assignment completion %
       const totalAssignments = submissions.length || 1;
       const approvedAssignments = submissions.filter(
         (s) => s.status === "approved",
@@ -159,7 +160,6 @@ export async function GET(req) {
         (approvedAssignments / totalAssignments) * 100,
       );
 
-      // KPI completion %
       const totalKpis = kpis.length || 1;
       const targetMetKpis = kpis.filter((k) => {
         const target = parseInt(k.target_value) || 0;
@@ -191,19 +191,12 @@ export async function GET(req) {
       });
     }
 
-    // Primary program
     const primaryProgram = programsData[0] || null;
-
-    // ── 4. Action Center ───────────────────────────────────────────
-    // Get primary program's submissions
     const primarySubmissions = primaryProgram ? primaryProgram.submissions : [];
-
-    // Pending submissions
     const pendingSubmissions = primarySubmissions.filter(
       (s) => s.status === "pending",
     );
 
-    // Overdue: deliverables past due without approved submission
     let overdueItems = [];
     let dueSoonItems = [];
     const today = new Date();
@@ -211,8 +204,8 @@ export async function GET(req) {
 
     if (primaryProgram) {
       for (const d of primaryProgram.deliverables) {
-        if (!d.due_date) continue;
-        const dueDate = new Date(d.due_date);
+        if (!d.created_at) continue;
+        const dueDate = new Date(d.created_at);
         dueDate.setHours(0, 0, 0, 0);
         const existingSub = primaryProgram.submissions.find(
           (s) => s.document_id === d.id,
@@ -224,7 +217,7 @@ export async function GET(req) {
             id: d.id,
             title: d.title,
             type: "deliverable",
-            dueDate: d.due_date,
+            dueDate: d.created_at,
             daysOverdue: Math.floor((today - dueDate) / (1000 * 60 * 60 * 24)),
             programId: primaryProgram.id,
             programName: primaryProgram.name,
@@ -236,7 +229,7 @@ export async function GET(req) {
               id: d.id,
               title: d.title,
               type: "deliverable",
-              dueDate: d.due_date,
+              dueDate: d.created_at,
               daysLeft: diffDays,
               programId: primaryProgram.id,
               programName: primaryProgram.name,
@@ -246,7 +239,6 @@ export async function GET(req) {
       }
     }
 
-    // Upcoming sessions
     const upcomingSessions = primaryProgram
       ? primaryProgram.sessions
           .filter((s) => {
@@ -257,10 +249,9 @@ export async function GET(req) {
           .slice(0, 5)
       : [];
 
-    // ── 5. Announcements ───────────────────────────────────────────
     const notifRes = await db.execute({
       sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? OR recipient_id = 'all' OR recipient_id = ? ORDER BY created_at DESC LIMIT 10",
-      args: [cid, email],
+      args: [cid, email || ""],
     });
     const announcements = (notifRes.rows || []).map((n) => ({
       id: n.id,
@@ -271,7 +262,6 @@ export async function GET(req) {
       createdAt: n.created_at,
     }));
 
-    // ── 6. Calendar events (next 7 days) ─────────────────────────────
     const weekEnd = new Date(today);
     weekEnd.setDate(weekEnd.getDate() + 7);
     const weekEndStr = weekEnd.toISOString().split("T")[0];
@@ -280,7 +270,6 @@ export async function GET(req) {
     let calendarEvents = [];
 
     if (primaryProgram) {
-      // Sessions this week
       for (const s of primaryProgram.sessions) {
         const sessionDate = s.start_at || s.scheduled_date;
         if (!sessionDate) continue;
@@ -301,10 +290,9 @@ export async function GET(req) {
         }
       }
 
-      // Deliverable deadlines this week
       for (const d of primaryProgram.deliverables) {
-        if (!d.due_date) continue;
-        const dd = new Date(d.due_date);
+        if (!d.created_at) continue;
+        const dd = new Date(d.created_at);
         const dateStr = dd.toISOString().split("T")[0];
         if (dateStr >= todayStr && dateStr <= weekEndStr) {
           calendarEvents.push({
@@ -322,10 +310,8 @@ export async function GET(req) {
       }
     }
 
-    // Sort by date
     calendarEvents.sort((a, b) => a.date.localeCompare(b.date));
 
-    // ── 7. Build response ──────────────────────────────────────────
     return NextResponse.json({
       success: true,
       participant: {

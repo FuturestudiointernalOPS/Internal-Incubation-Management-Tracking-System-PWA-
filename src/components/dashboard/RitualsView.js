@@ -220,7 +220,9 @@ export default function RitualsView() {
 
   const fetchPrograms = useCallback(async () => {
     try {
-      const res = await fetch("/api/participant/programs");
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      const cid = u.cid || u.id || "";
+      const res = await fetch(`/api/participant/programs?cid=${cid}`);
       const data = await res.json();
       if (data.success) setPrograms(data.programs || []);
     } catch (e) {
@@ -233,7 +235,11 @@ export default function RitualsView() {
     try {
       const results = await Promise.all(
         RITUAL_TYPES.map(async (rt) => {
-          const res = await fetch(`/api/participant/rituals/${rt.id}`);
+          const u = JSON.parse(localStorage.getItem("user") || "{}");
+          const cid = u.cid || u.id || "";
+          const res = await fetch(
+            `/api/participant/rituals/${rt.id}?cid=${cid}`,
+          );
           const data = await res.json();
           return {
             type: rt.id,

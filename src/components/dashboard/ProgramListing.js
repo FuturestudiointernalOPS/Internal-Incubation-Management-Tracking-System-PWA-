@@ -41,7 +41,9 @@ function StatusBadge({ status }) {
 function MiniMetric({ icon: Icon, label, value, color }) {
   return (
     <div className="flex items-center gap-2">
-      <div className={`w-6 h-6 rounded-md flex items-center justify-center ${color.bg}`}>
+      <div
+        className={`w-6 h-6 rounded-md flex items-center justify-center ${color.bg}`}
+      >
         <Icon className={`w-3 h-3 ${color.text}`} />
       </div>
       <div>
@@ -142,7 +144,8 @@ function ProgramCard({ program, onSelect }) {
           <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5">
             <Users className="w-3 h-3 text-[var(--text-tertiary)]" />
             <span className="text-[8px] font-bold text-[var(--text-tertiary)]">
-              {program.facilitators.length} facilitator{program.facilitators.length > 1 ? "s" : ""}
+              {program.facilitators.length} facilitator
+              {program.facilitators.length > 1 ? "s" : ""}
             </span>
           </div>
         )}
@@ -154,7 +157,10 @@ function ProgramCard({ program, onSelect }) {
           icon={Target}
           label="Progress"
           value={metrics.percentComplete}
-          color={{ bg: "bg-[var(--brand-orange)]/10", text: "text-[var(--brand-orange)]" }}
+          color={{
+            bg: "bg-[var(--brand-orange)]/10",
+            text: "text-[var(--brand-orange)]",
+          }}
         />
         <MiniMetric
           icon={Users}
@@ -206,7 +212,10 @@ function ListingSkeleton() {
       <div className="h-8 w-48 bg-white/10 rounded" />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {[...Array(2)].map((_, i) => (
-          <div key={i} className="bg-[var(--bg-tertiary)] rounded-xl p-6 border border-[var(--border-primary)]">
+          <div
+            key={i}
+            className="bg-[var(--bg-tertiary)] rounded-xl p-6 border border-[var(--border-primary)]"
+          >
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <div className="h-4 w-16 bg-white/10 rounded mb-2" />
@@ -241,7 +250,9 @@ export default function ProgramListing() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/participant/programs");
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      const cid = u.cid || u.id || "";
+      const res = await fetch(`/api/participant/programs?cid=${cid}`);
       const data = await res.json();
       if (data.success) {
         setPrograms(data.programs || []);
@@ -275,7 +286,9 @@ export default function ProgramListing() {
           <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
             Failed to Load Programs
           </h3>
-          <p className="text-[12px] text-[var(--text-secondary)] mt-2">{error}</p>
+          <p className="text-[12px] text-[var(--text-secondary)] mt-2">
+            {error}
+          </p>
         </div>
         <button
           onClick={fetchPrograms}

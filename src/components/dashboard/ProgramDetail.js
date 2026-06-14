@@ -37,9 +37,13 @@ function StatusBadge({ status }) {
     pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     rejected: "bg-rose-500/10 text-rose-400 border-rose-500/20",
   };
-  const c = config[status?.toLowerCase()] || "bg-white/5 text-[var(--text-tertiary)] border-white/10";
+  const c =
+    config[status?.toLowerCase()] ||
+    "bg-white/5 text-[var(--text-tertiary)] border-white/10";
   return (
-    <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${c}`}>
+    <span
+      className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${c}`}
+    >
       {status || "draft"}
     </span>
   );
@@ -47,7 +51,9 @@ function StatusBadge({ status }) {
 
 // ─── Week Card ──────────────────────────────────────────────────────
 function WeekCard({ week, isExpanded, onToggle }) {
-  const completedCount = week.deliverables.filter((d) => d.submission?.status === "approved").length;
+  const completedCount = week.deliverables.filter(
+    (d) => d.submission?.status === "approved",
+  ).length;
   const totalCount = week.deliverables.length;
 
   return (
@@ -70,7 +76,13 @@ function WeekCard({ week, isExpanded, onToggle }) {
                     : "bg-white/10 text-[var(--text-primary)]"
             }`}
           >
-            {week.locked ? <Lock className="w-4 h-4" /> : week.completed ? <CheckCircle2 className="w-5 h-5" /> : week.number}
+            {week.locked ? (
+              <Lock className="w-4 h-4" />
+            ) : week.completed ? (
+              <CheckCircle2 className="w-5 h-5" />
+            ) : (
+              week.number
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -153,11 +165,14 @@ function WeekCard({ week, isExpanded, onToggle }) {
                       <Calendar className="w-3 h-3 text-[var(--text-tertiary)]" />
                       <span className="text-[9px] text-[var(--text-tertiary)]">
                         {session.start_at
-                          ? new Date(session.start_at).toLocaleDateString("en", {
-                              weekday: "short",
-                              month: "short",
-                              day: "numeric",
-                            })
+                          ? new Date(session.start_at).toLocaleDateString(
+                              "en",
+                              {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )
                           : ""}
                         {session.start_time
                           ? ` at ${new Date(`2000-01-01T${session.start_time}`).toLocaleTimeString("en", { hour: "numeric", minute: "2-digit" })}`
@@ -217,7 +232,9 @@ function WeekCard({ week, isExpanded, onToggle }) {
                       <span className="text-[8px] text-[var(--text-tertiary)]">
                         Submitted{" "}
                         {del.submission.submittedAt
-                          ? new Date(del.submission.submittedAt).toLocaleDateString()
+                          ? new Date(
+                              del.submission.submittedAt,
+                            ).toLocaleDateString()
                           : ""}
                       </span>
                       {del.submission.score > 0 && (
@@ -303,7 +320,10 @@ function DetailSkeleton() {
         </div>
       </div>
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="h-20 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]" />
+        <div
+          key={i}
+          className="h-20 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
+        />
       ))}
     </div>
   );
@@ -321,7 +341,11 @@ export default function ProgramDetail({ programId }) {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/participant/programs/${programId}`);
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      const cid = u.cid || u.id || "";
+      const res = await fetch(
+        `/api/participant/programs/${programId}?cid=${cid}`,
+      );
       const result = await res.json();
       if (result.success) {
         setData(result);
@@ -356,8 +380,12 @@ export default function ProgramDetail({ programId }) {
       <div className="flex flex-col items-center justify-center py-24 gap-6">
         <AlertCircle className="w-12 h-12 text-rose-400" />
         <div className="text-center">
-          <h3 className="text-lg font-black text-[var(--text-primary)]">Failed to Load</h3>
-          <p className="text-[12px] text-[var(--text-secondary)] mt-2">{error}</p>
+          <h3 className="text-lg font-black text-[var(--text-primary)]">
+            Failed to Load
+          </h3>
+          <p className="text-[12px] text-[var(--text-secondary)] mt-2">
+            {error}
+          </p>
         </div>
         <button
           onClick={fetchDetail}
@@ -374,12 +402,22 @@ export default function ProgramDetail({ programId }) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
         <BookOpen className="w-12 h-12 text-[var(--text-tertiary)] mb-3" />
-        <p className="text-[12px] font-bold text-[var(--text-secondary)]">Program not found</p>
+        <p className="text-[12px] font-bold text-[var(--text-secondary)]">
+          Program not found
+        </p>
       </div>
     );
   }
 
-  const { program, curriculum, resources, submissions, attendance, kpis, followups } = data;
+  const {
+    program,
+    curriculum,
+    resources,
+    submissions,
+    attendance,
+    kpis,
+    followups,
+  } = data;
   const { metrics } = program;
 
   // Resources grouped by week for display
@@ -595,12 +633,17 @@ export default function ProgramDetail({ programId }) {
                   <Target className="w-4 h-4 text-[var(--brand-orange)]" />
                 </div>
               </div>
-              <p className="text-xl font-black text-[var(--text-primary)]">{metrics.percentComplete}%</p>
+              <p className="text-xl font-black text-[var(--text-primary)]">
+                {metrics.percentComplete}%
+              </p>
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
                 Program Completion
               </p>
               <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
-                <div className="h-full rounded-full bg-[var(--brand-orange)] transition-all" style={{ width: `${metrics.percentComplete}%` }} />
+                <div
+                  className="h-full rounded-full bg-[var(--brand-orange)] transition-all"
+                  style={{ width: `${metrics.percentComplete}%` }}
+                />
               </div>
             </div>
             <div className="bg-[var(--bg-tertiary)] rounded-xl p-5 border border-[var(--border-primary)]">
@@ -609,12 +652,17 @@ export default function ProgramDetail({ programId }) {
                   <Users className="w-4 h-4 text-emerald-400" />
                 </div>
               </div>
-              <p className="text-xl font-black text-[var(--text-primary)]">{metrics.attendanceRate}%</p>
+              <p className="text-xl font-black text-[var(--text-primary)]">
+                {metrics.attendanceRate}%
+              </p>
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
                 Attendance
               </p>
               <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
-                <div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${metrics.attendanceRate}%` }} />
+                <div
+                  className="h-full rounded-full bg-emerald-400 transition-all"
+                  style={{ width: `${metrics.attendanceRate}%` }}
+                />
               </div>
             </div>
             <div className="bg-[var(--bg-tertiary)] rounded-xl p-5 border border-[var(--border-primary)]">
@@ -623,12 +671,17 @@ export default function ProgramDetail({ programId }) {
                   <FileText className="w-4 h-4 text-blue-400" />
                 </div>
               </div>
-              <p className="text-xl font-black text-[var(--text-primary)]">{metrics.kpiCompletion}%</p>
+              <p className="text-xl font-black text-[var(--text-primary)]">
+                {metrics.kpiCompletion}%
+              </p>
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
                 KPI Achievement
               </p>
               <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
-                <div className="h-full rounded-full bg-blue-400 transition-all" style={{ width: `${metrics.kpiCompletion}%` }} />
+                <div
+                  className="h-full rounded-full bg-blue-400 transition-all"
+                  style={{ width: `${metrics.kpiCompletion}%` }}
+                />
               </div>
             </div>
             <div className="bg-[var(--bg-tertiary)] rounded-xl p-5 border border-[var(--border-primary)]">
@@ -644,7 +697,12 @@ export default function ProgramDetail({ programId }) {
                 Deliverables Done
               </p>
               <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
-                <div className="h-full rounded-full bg-purple-400 transition-all" style={{ width: `${(metrics.completedDeliverables / metrics.totalDeliverables) * 100}%` }} />
+                <div
+                  className="h-full rounded-full bg-purple-400 transition-all"
+                  style={{
+                    width: `${(metrics.completedDeliverables / metrics.totalDeliverables) * 100}%`,
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -657,12 +715,17 @@ export default function ProgramDetail({ programId }) {
             {submissions.length === 0 ? (
               <div className="text-center py-8 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
                 <FileText className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-                <p className="text-[10px] font-bold text-[var(--text-secondary)]">No submissions yet</p>
+                <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                  No submissions yet
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
                 {submissions.slice(0, 10).map((sub) => (
-                  <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
+                  <div
+                    key={sub.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
+                  >
                     <div className="flex items-center gap-3">
                       <StatusBadge status={sub.status} />
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">
@@ -671,10 +734,14 @@ export default function ProgramDetail({ programId }) {
                     </div>
                     <div className="flex items-center gap-3">
                       {sub.score > 0 && (
-                        <span className="text-[9px] font-bold text-emerald-400">{sub.score} pts</span>
+                        <span className="text-[9px] font-bold text-emerald-400">
+                          {sub.score} pts
+                        </span>
                       )}
                       <span className="text-[8px] text-[var(--text-tertiary)]">
-                        {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : ""}
+                        {sub.created_at
+                          ? new Date(sub.created_at).toLocaleDateString()
+                          : ""}
                       </span>
                     </div>
                   </div>
@@ -691,11 +758,16 @@ export default function ProgramDetail({ programId }) {
               </h3>
               <div className="space-y-2">
                 {followups.slice(0, 5).map((f) => (
-                  <div key={f.id} className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
+                  <div
+                    key={f.id}
+                    className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
+                  >
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
                       Week {f.week_number}
                     </p>
-                    <p className="text-[9px] text-[var(--text-secondary)] mt-1">{f.comment}</p>
+                    <p className="text-[9px] text-[var(--text-secondary)] mt-1">
+                      {f.comment}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -714,35 +786,57 @@ export default function ProgramDetail({ programId }) {
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Status</p>
-                <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">{program.status || "Active"}</p>
+                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                  Status
+                </p>
+                <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
+                  {program.status || "Active"}
+                </p>
               </div>
               <div>
-                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Duration</p>
+                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                  Duration
+                </p>
                 <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
                   {program.durationWeeks || "?"} weeks
                 </p>
               </div>
               <div>
-                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Start Date</p>
+                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                  Start Date
+                </p>
                 <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
-                  {program.startDate ? new Date(program.startDate).toLocaleDateString() : "TBD"}
+                  {program.startDate
+                    ? new Date(program.startDate).toLocaleDateString()
+                    : "TBD"}
                 </p>
               </div>
               <div>
-                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">End Date</p>
+                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                  End Date
+                </p>
                 <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
-                  {program.endDate ? new Date(program.endDate).toLocaleDateString() : "TBD"}
+                  {program.endDate
+                    ? new Date(program.endDate).toLocaleDateString()
+                    : "TBD"}
                 </p>
               </div>
               <div>
-                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Current Week</p>
-                <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">Week {curriculum.currentWeek}</p>
+                <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                  Current Week
+                </p>
+                <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
+                  Week {curriculum.currentWeek}
+                </p>
               </div>
               {program.pmName && (
                 <div>
-                  <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Program Manager</p>
-                  <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">{program.pmName}</p>
+                  <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Program Manager
+                  </p>
+                  <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
+                    {program.pmName}
+                  </p>
                 </div>
               )}
             </div>
@@ -756,8 +850,13 @@ export default function ProgramDetail({ programId }) {
               </h3>
               <div className="space-y-3">
                 {kpis.map((kpi) => (
-                  <div key={kpi.id} className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-[var(--text-primary)]">{kpi.title}</span>
+                  <div
+                    key={kpi.id}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                      {kpi.title}
+                    </span>
                     <span className="text-[10px] font-bold text-[var(--text-secondary)]">
                       {kpi.current_value || 0} / {kpi.target_value || 0}
                     </span>

@@ -33,11 +33,13 @@ export async function GET(req) {
       );
 
     const { searchParams } = new URL(req.url);
+    let cid = searchParams.get("cid");
+    if (!cid) cid = session.cid;
     const programId = searchParams.get("program_id");
     const weekNum = searchParams.get("week_number");
 
     let sql = "SELECT * FROM v2_retros WHERE participant_id = ?";
-    const args = [session.cid];
+    const args = [cid];
     if (programId) {
       sql += " AND program_id = ?";
       args.push(programId);
@@ -71,6 +73,9 @@ export async function POST(req) {
         { status: 401 },
       );
 
+    const { searchParams } = new URL(req.url);
+    let cid = searchParams.get("cid");
+    if (!cid) cid = session.cid;
     const { program_id, week_number, went_well, improve, action_items } =
       await req.json();
     if (!program_id)
@@ -82,7 +87,7 @@ export async function POST(req) {
     await db.execute({
       sql: "INSERT INTO v2_retros (participant_id, program_id, week_number, went_well, improve, action_items) VALUES (?, ?, ?, ?, ?, ?)",
       args: [
-        session.cid,
+        cid,
         program_id,
         week_number || 1,
         went_well || "",
