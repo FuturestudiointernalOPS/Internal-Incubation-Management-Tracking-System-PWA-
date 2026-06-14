@@ -39,6 +39,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (data.success) {
+        // Persist user to localStorage so dashboard fallback works immediately
+        localStorage.setItem("user", JSON.stringify(data.user));
         setSuccess(true);
         // Show success state then redirect
         setTimeout(() => {
