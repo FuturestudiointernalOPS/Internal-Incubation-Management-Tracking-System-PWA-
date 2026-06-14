@@ -27,16 +27,23 @@ export async function GET(req) {
         ),
       ]);
 
-    return NextResponse.json({
-      success: true,
-      stats: {
-        programs: progRes.rows[0].count,
-        participants: partRes.rows[0].count,
-        totalStaff: staffRes.rows[0].count,
+    return NextResponse.json(
+      {
+        success: true,
+        stats: {
+          programs: progRes.rows[0].count,
+          participants: partRes.rows[0].count,
+          totalStaff: staffRes.rows[0].count,
+        },
+        activity: logRes.rows,
+        activePrograms: activeProgList.rows,
       },
-      activity: logRes.rows,
-      activePrograms: activeProgList.rows,
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      },
+    );
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
