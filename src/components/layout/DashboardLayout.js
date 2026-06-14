@@ -655,6 +655,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     t,
   };
 
+  if (!authChecked) {
+    return <div className="min-h-screen bg-primary" />;
+  }
+
   return (
     <AppErrorBoundary>
       <div className="flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)]">
