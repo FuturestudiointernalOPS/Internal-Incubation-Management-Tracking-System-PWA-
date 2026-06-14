@@ -166,19 +166,19 @@ export default function PublicApplicationRegistration() {
           <div className="space-y-8">
             <h3 className="text-xs font-black uppercase tracking-[0.4em] text-[var(--brand-orange)] flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)] animate-pulse" />
-              Core Intelligence
+              Personal Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <InputGroup
-                label="Full Identity Name"
+                label="Full Name"
                 icon={Users}
-                placeholder="Ex: Samuel Adebayo"
+                placeholder="Samuel Adebayo"
                 value={formData.fullName}
                 onChange={(v) => setFormData({ ...formData, fullName: v })}
                 required
               />
               <InputGroup
-                label="Secure Email Channel"
+                label="Email"
                 icon={Mail}
                 placeholder="name@domain.com"
                 type="email"
@@ -187,7 +187,7 @@ export default function PublicApplicationRegistration() {
                 required
               />
               <InputGroup
-                label="Communication Frequency"
+                label="Phone Number"
                 icon={Phone}
                 placeholder="+234..."
                 value={formData.phone}
@@ -200,7 +200,7 @@ export default function PublicApplicationRegistration() {
                   className="text-[10px] font-black uppercase tracking-widest ml-1"
                   style={{ color: "var(--text-secondary)" }}
                 >
-                  Biological Identity
+                  Gender
                 </label>
                 <div className="relative">
                   <UserIcon
