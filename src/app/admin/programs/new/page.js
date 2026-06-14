@@ -266,6 +266,26 @@ export default function NewProgram() {
 
     setIsDeploying(true);
     try {
+      // Create contact group first if a group name was provided
+      let groupId = program.assigned_segments?.[0];
+      if (!groupId && newGroup.name?.trim()) {
+        const groupRes = await fetch("/api/families", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: newGroup.name.trim(),
+            type: newGroup.type || "individual",
+            description: newGroup.description || null,
+            program_id: null,
+          }),
+        });
+        const groupData = await groupRes.json();
+        if (groupData.success) {
+          groupId = groupData.group?.id || groupData.id;
+          program.assigned_segments = [groupId];
+        }
+      }
+
       const res = await fetch("/api/pm/programs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
