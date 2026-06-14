@@ -42,19 +42,19 @@ export default function LoginPage() {
         // Persist user to localStorage so dashboard fallback works immediately
         localStorage.setItem("user", JSON.stringify(data.user));
         setSuccess(true);
-        // Show success state then redirect
+        // Use full page navigation to ensure the session cookie is sent
         setTimeout(() => {
-          if (data.user.role === "super_admin") {
-            router.push("/admin");
-          } else if (data.user.role === "program_manager") {
-            router.push("/pm");
-          } else if (data.user.role === "staff") {
-            router.push("/staff");
-          } else if (data.user.role === "teacher") {
-            router.push("/teacher");
-          } else {
-            router.push("/participant");
-          }
+          const target =
+            data.user.role === "super_admin"
+              ? "/admin"
+              : data.user.role === "program_manager"
+                ? "/pm"
+                : data.user.role === "staff"
+                  ? "/staff"
+                  : data.user.role === "teacher"
+                    ? "/teacher"
+                    : "/participant";
+          window.location.href = target;
         }, 800);
       } else {
         setErrorMsg(data.error || t("auth.login.error"));
