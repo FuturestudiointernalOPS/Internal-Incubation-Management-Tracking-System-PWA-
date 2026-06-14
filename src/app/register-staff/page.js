@@ -240,20 +240,20 @@ export default function PublicApplicationRegistration() {
 
           <div className="space-y-8">
             <h3 className="text-xs font-black uppercase tracking-[0.4em] text-[var(--brand-orange)] flex items-center gap-3 opacity-60">
-              Tactical Metadata
+              Additional Information
             </h3>
             <div className="space-y-8">
               <InputGroup
-                label="Operational Base (Address)"
+                label="Address"
                 icon={MapPin}
                 placeholder="Current location..."
                 value={formData.homeAddress}
                 onChange={(v) => setFormData({ ...formData, homeAddress: v })}
               />
               <InputGroup
-                label="Strategic Role"
+                label="Job Title"
                 icon={Briefcase}
-                placeholder="Ex: Operations Lead"
+                placeholder="Operations Lead"
                 value={formData.jobTitle}
                 onChange={(v) => setFormData({ ...formData, jobTitle: v })}
               />
