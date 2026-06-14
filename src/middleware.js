@@ -44,6 +44,11 @@ const publicApiPaths = [
   "/api/invites",
 ];
 
+// Soft-auth paths: let client-side handle auth via localStorage fallback.
+// Middleware allows these through without a cookie; if truly unauthenticated,
+// UnifiedDashboard/DashboardLayout will redirect after client-side check.
+const softAuthPaths = ["/participant"];
+
 export function middleware(request) {
   const { pathname } = request.nextUrl;
 
@@ -61,6 +66,13 @@ export function middleware(request) {
     }
   }
 
+  // Soft-auth paths: allow through even without cookie; client-side handles auth
+  for (const softPath of softAuthPaths) {
+    if (pathname === softPath || pathname.startsWith(softPath + "/")) {
+      return NextResponse.next();
+    }
+  }
+
   // Check for session cookie
   const sessionCookie = request.cookies.get("impactos_session");
 
@@ -69,7 +81,7 @@ export function middleware(request) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { success: false, error: "Authentication required." },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
