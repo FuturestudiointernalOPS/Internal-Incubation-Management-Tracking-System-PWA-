@@ -186,14 +186,24 @@ export default function UnifiedDashboard({ role: propRole }) {
       try {
         const res = await fetch("/api/auth/session");
         const session = await res.json();
-        if (!session.authenticated) {
-          router.replace("/login");
+        if (session.authenticated) {
+          setUser(session.user);
           return;
         }
-        setUser(session.user);
-      } catch {
-        router.replace("/login");
+      } catch (_) {
+        // Session API unavailable — fallback below
       }
+
+      // Fallback to localStorage
+      try {
+        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        if (stored.cid || stored.id) {
+          setUser(stored);
+          return;
+        }
+      } catch (_) {}
+
+      router.replace("/login");
     }
     checkAuth();
   }, [router]);
