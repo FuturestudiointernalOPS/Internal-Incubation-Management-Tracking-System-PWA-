@@ -745,15 +745,15 @@ export default function SuperAdminComms() {
                 </div>
               )}
 
-              <input
-                type="text"
-                placeholder={
-                  sendMode === "individual" ? "Subject (optional)" : "Subject"
-                }
-                value={composeSubject}
-                onChange={(e) => setComposeSubject(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
-              />
+              {sendMode !== "individual" && (
+                <input
+                  type="text"
+                  placeholder="Subject"
+                  value={composeSubject}
+                  onChange={(e) => setComposeSubject(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
+                />
+              )}
               <textarea
                 placeholder="Message"
                 value={composeBody}
