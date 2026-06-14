@@ -42,6 +42,8 @@ export async function POST(req) {
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const recipientId = searchParams.get("recipient_id") || "sa";
 
