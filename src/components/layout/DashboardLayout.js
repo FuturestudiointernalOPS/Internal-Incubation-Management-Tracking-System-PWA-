@@ -479,12 +479,8 @@ const NAVIGATION_MATRIX = {
       icon: FileText,
       href: "/participant/assignments",
     },
-    {
-      id: "rituals",
-      name: "RITUALS",
-      icon: Zap,
-      href: "/participant/rituals",
-    },
+    // rituals — removed from sidebar per product decision
+    // Page still exists at /participant/rituals if needed
     {
       id: "progress_hub",
       name: "MY PROGRESS",
