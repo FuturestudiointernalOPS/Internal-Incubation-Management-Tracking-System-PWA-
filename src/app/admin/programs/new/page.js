@@ -860,37 +860,18 @@ export default function NewProgram() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-              <div className="space-y-1 text-left md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">
-                  KPI Target Title
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Weekly Attendance Rate, Assignment Submission..."
-                  value={kpiInput.title}
-                  onChange={(e) =>
-                    setKpiInput({ ...kpiInput, title: e.target.value })
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
-                />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 items-end">
               <div className="space-y-1 text-left">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">
-                  Target Value (%)
+                  KPI Title
                 </label>
                 <div className="flex gap-3">
                   <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    placeholder="80"
-                    value={kpiInput.target_value}
+                    type="text"
+                    placeholder="e.g. Weekly Attendance Rate, Assignment Submission..."
+                    value={kpiInput.title}
                     onChange={(e) =>
-                      setKpiInput({
-                        ...kpiInput,
-                        target_value: parseInt(e.target.value) || 0,
-                      })
+                      setKpiInput({ ...kpiInput, title: e.target.value })
                     }
                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
                   />
@@ -902,10 +883,9 @@ export default function NewProgram() {
                         ...kpisList,
                         {
                           title: kpiInput.title,
-                          target_value: kpiInput.target_value,
                         },
                       ]);
-                      setKpiInput({ title: "", target_value: 80 });
+                      setKpiInput({ title: "" });
                     }}
                     className="px-6 bg-[var(--brand-orange)] text-black font-bold uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all flex items-center justify-center shrink-0"
                   >
