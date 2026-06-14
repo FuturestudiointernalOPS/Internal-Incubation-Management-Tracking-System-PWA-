@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import ProfileView from "@/components/dashboard/ProfileView";
+import AssignmentsView from "@/components/dashboard/AssignmentsView";
 
 /**
- * PARTICIPANT PROFILE PAGE
+ * PARTICIPANT ASSIGNMENTS PAGE
  *
- * Personal profile, startup info, program history, and submitted work.
+ * Centralized view of all assignments across programs
+ * with submission, status tracking, and filtering.
  */
-export default function ParticipantProfilePage() {
+export default function ParticipantAssignmentsPage() {
   const [user, setUser] = useState({});
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function ParticipantProfilePage() {
   return (
     <DashboardLayout role={user.role || "participant"}>
       <div className="p-6">
-        <ProfileView />
+        <AssignmentsView />
       </div>
     </DashboardLayout>
   );

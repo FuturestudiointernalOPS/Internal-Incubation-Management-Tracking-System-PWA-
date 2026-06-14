@@ -4,36 +4,61 @@ import { requireAuth } from "@/lib/auth";
 
 /**
  * PARTICIPANT PROGRAMS API
- * Returns ALL programs a participant is enrolled in.
+ *
+ * GET /api/participant/programs
+ * GET /api/participant/programs?email=X
+ * GET /api/participant/programs?cid=X
+ *
+ * Returns ALL programs a participant is enrolled in with metrics.
  * Supports multi-program enrollment (LMS-style).
+ *
+ * If no email/cid is provided, uses the session CID.
  */
 export async function GET(req) {
   try {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { searchParams } = new URL(req.url);
-    const email = searchParams.get("email");
 
-    // Prevent service worker from serving stale cached empty responses
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    let email = searchParams.get("email");
+    let cid = searchParams.get("cid");
+
+    // Fall back to session data
+    if (!email && !cid) {
+      cid = session.cid;
+      email = session.email;
+    }
+
     const headers = {
       "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
       Pragma: "no-cache",
       Expires: "0",
     };
 
-    if (!email) {
-      return NextResponse.json(
-        { success: false, error: "Email required" },
-        { status: 400, headers },
-      );
+    // 1. Find the participant's contact record
+    let contactQuery;
+    let contactArgs;
+    if (cid) {
+      contactQuery =
+        "SELECT cid, name, email, program_id, program_name, group_name FROM contacts WHERE cid = ?";
+      contactArgs = [cid];
+    } else {
+      contactQuery =
+        "SELECT cid, name, email, program_id, program_name, group_name FROM contacts WHERE email = ?";
+      contactArgs = [email];
     }
 
-    // 1. Find the participant's contact record
-    const userRes = await db.execute({
-      sql: "SELECT cid, program_id, program_name, group_name FROM contacts WHERE email = ?",
-      args: [email],
-    });
+    const userRes = await db.execute({ sql: contactQuery, args: contactArgs });
 
     if (userRes.rows.length === 0) {
       return NextResponse.json(
@@ -43,27 +68,20 @@ export async function GET(req) {
     }
 
     const contact = userRes.rows[0];
-    const cid = contact.cid;
+    const participantCid = contact.cid;
+    const participantEmail = contact.email;
 
     // 2. Find all program IDs this participant is linked to
-    //    - Via contacts.program_id (direct enrollment)
-    //    - Via contacts.group_name matching families.name → families.program_id
-    //    - Via contacts.group_name matching v2_programs.name (direct match)
-    //    - Via v2_participants table (legacy enrollment)
     const programIds = new Set();
 
     if (contact.program_id != null) {
-      // Safely convert to string in case PostgreSQL returns a number
-      const raw = String(contact.program_id);
-      // Handle comma-separated multiple program IDs
-      raw
+      String(contact.program_id)
         .split(",")
         .map((id) => id.trim())
         .filter(Boolean)
         .forEach((id) => programIds.add(id));
     }
 
-    // Check group_name via families table (group → program link)
     if (contact.group_name) {
       const familyRes = await db.execute({
         sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
@@ -73,7 +91,6 @@ export async function GET(req) {
         if (r.program_id != null) programIds.add(String(r.program_id).trim());
       });
 
-      // Also check direct program name match (legacy)
       const groupRes = await db.execute({
         sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
         args: [contact.group_name],
@@ -83,10 +100,9 @@ export async function GET(req) {
       });
     }
 
-    // Also check v2_participants table for this email
     const legacyRes = await db.execute({
       sql: "SELECT program_id FROM v2_participants WHERE email = ?",
-      args: [email],
+      args: [participantEmail],
     });
     legacyRes.rows.forEach((r) => {
       if (r.program_id != null) programIds.add(String(r.program_id).trim());
@@ -97,68 +113,143 @@ export async function GET(req) {
     const programIdList = Array.from(programIds);
 
     for (const pid of programIdList) {
-      // Use parallel queries per program
-      const [progRes, sesRes, delRes, subRes, folRes] = await Promise.all([
-        db.execute({
-          sql: "SELECT * FROM v2_programs WHERE id = ?",
-          args: [pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_sessions WHERE program_id = ? ORDER BY week_number ASC",
-          args: [pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
-          args: [pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ?",
-          args: [cid, pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_followups WHERE program_id = ? ORDER BY created_at DESC LIMIT 5",
-          args: [pid],
-        }),
-      ]);
+      const [progRes, sesRes, delRes, subRes, attRes, kpiRes, staffRes] =
+        await Promise.all([
+          db.execute({
+            sql: "SELECT * FROM v2_programs WHERE id = ?",
+            args: [pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_sessions WHERE program_id = ? ORDER BY week_number ASC, start_at ASC",
+            args: [pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
+            args: [pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ?",
+            args: [participantCid, pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ?",
+            args: [participantCid, pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
+            args: [pid],
+          }),
+          db.execute({
+            sql: `SELECT ps.*, c.name AS staff_name, c.role AS staff_role
+                  FROM v2_program_staff ps
+                  LEFT JOIN contacts c ON ps.staff_id = c.cid
+                  WHERE ps.program_id = ?`,
+            args: [pid],
+          }),
+        ]);
 
       const program = progRes.rows[0];
       if (!program) continue;
 
-      // Calculate completion metrics
       const sessions = sesRes.rows || [];
       const submissions = subRes.rows || [];
       const deliverables = delRes.rows || [];
+      const attendance = attRes.rows || [];
+      const kpis = kpiRes.rows || [];
+
+      // Current week calculation
+      const unlockedSessions = sessions.filter((s) => s.status !== "locked");
+      const maxCompletedWeek =
+        unlockedSessions.length > 0
+          ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
+          : 0;
       const currentWeek = program.duration_weeks
-        ? Math.min(
-            Math.max(
-              ...sessions
-                .filter((s) => s.status !== "locked")
-                .map((s) => s.week_number || 1),
-              1,
-            ),
-            program.duration_weeks,
-          )
+        ? Math.min(Math.max(maxCompletedWeek, 1), program.duration_weeks)
         : 1;
 
-      const totalSteps = deliverables.length || 1;
-      const completedSteps = deliverables.filter((d) => {
-        const sub = submissions.find((s) => s.deliverable_id === d.id);
-        return sub && (sub.status === "approved" || sub.status === "completed");
+      // Program completion (by deliverables)
+      const totalDeliverables = deliverables.length || 1;
+      const completedDeliverables = deliverables.filter((d) => {
+        const sub = submissions.find((s) => s.document_id === d.id);
+        return sub && sub.status === "approved";
       }).length;
-      const percentComplete = Math.round((completedSteps / totalSteps) * 100);
+      const percentComplete = Math.round(
+        (completedDeliverables / totalDeliverables) * 100,
+      );
+
+      // Attendance rate
+      const attendedSessions = attendance.filter(
+        (a) => a.status === "present",
+      ).length;
+      const totalSessionCount = sessions.length || 1;
+      const attendanceRate = Math.round(
+        (attendedSessions / totalSessionCount) * 100,
+      );
+
+      // Submission completion
+      const approvedSubmissions = submissions.filter(
+        (s) => s.status === "approved",
+      ).length;
+      const totalSubmissions = submissions.length || 1;
+      const assignmentCompletion = Math.round(
+        (approvedSubmissions / totalSubmissions) * 100,
+      );
+
+      // KPI completion
+      const targetMetKpis = kpis.filter((k) => {
+        const target = parseInt(k.target_value) || 0;
+        const current = parseInt(k.current_value) || 0;
+        return current >= target;
+      }).length;
+      const totalKpis = kpis.length || 1;
+      const kpiCompletion = Math.round((targetMetKpis / totalKpis) * 100);
+
+      // Facilitators
+      const facilitators = (staffRes.rows || []).map((s) => ({
+        id: s.staff_id,
+        name: s.staff_name || s.staff_id,
+        role: s.role,
+      }));
+
+      // Resolve PM name
+      let pmName = null;
+      if (program.assigned_pm_id) {
+        const pmRes = await db.execute({
+          sql: "SELECT name FROM contacts WHERE cid = ?",
+          args: [program.assigned_pm_id],
+        });
+        if (pmRes.rows.length > 0) {
+          pmName = pmRes.rows[0].name;
+        }
+      }
 
       programs.push({
-        ...program,
-        sessions,
-        deliverables,
-        submissions,
-        followups: folRes.rows || [],
+        id: program.id,
+        name: program.name,
+        description: program.description,
+        status: program.status,
+        startDate: program.start_date,
+        endDate: program.end_date,
+        durationWeeks: program.duration_weeks,
+        currentWeek,
+        cohort: contact.group_name || "Cohort 1",
+        programMode: program.program_mode,
+        facilitators,
+        pmName,
         metrics: {
-          currentWeek,
           percentComplete,
-          totalDeliverables: deliverables.length,
-          completedDeliverables: completedSteps,
+          attendanceRate,
+          assignmentCompletion,
+          kpiCompletion,
+          currentWeek,
+          totalDeliverables,
+          completedDeliverables,
+          totalSessions: sessions.length,
+          attendedSessions,
         },
+        sessionCount: sessions.length,
+        deliverableCount: deliverables.length,
+        unlockedSessionCount: unlockedSessions.length,
       });
     }
 
@@ -167,7 +258,12 @@ export async function GET(req) {
         success: true,
         programs,
         count: programs.length,
-        contact,
+        contact: {
+          cid: contact.cid,
+          name: contact.name,
+          email: contact.email,
+          groupName: contact.group_name,
+        },
       },
       { headers },
     );

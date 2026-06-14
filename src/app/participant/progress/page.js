@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import ProfileView from "@/components/dashboard/ProfileView";
+import ProgressView from "@/components/dashboard/ProgressView";
 
 /**
- * PARTICIPANT PROFILE PAGE
+ * PARTICIPANT PROGRESS PAGE
  *
- * Personal profile, startup info, program history, and submitted work.
+ * Comprehensive progress hub showing all metrics, milestones,
+ * and weekly breakdown across all enrolled programs.
  */
-export default function ParticipantProfilePage() {
+export default function ParticipantProgressPage() {
   const [user, setUser] = useState({});
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function ParticipantProfilePage() {
   return (
     <DashboardLayout role={user.role || "participant"}>
       <div className="p-6">
-        <ProfileView />
+        <ProgressView />
       </div>
     </DashboardLayout>
   );

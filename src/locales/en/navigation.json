@@ -26,6 +26,8 @@
     "createProject": "Create Project",
     "projects": "Projects",
     "sessions": "Sessions",
-    "reviews": "Reviews"
+    "reviews": "Reviews",
+    "assignments": "Assignments",
+    "rituals": "Rituals"
   }
 }

@@ -1,0 +1,394 @@
+import db, { initDb } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
+
+/**
+ * PARTICIPANT HOME DASHBOARD API
+ *
+ * GET /api/participant/home
+ *
+ * Returns everything the participant dashboard needs:
+ *   - Participant identity + current program
+ *   - Progress metrics (completion, attendance, assignments, KPIs, rituals)
+ *   - Action center (overdue/due-soon assignments, pending items)
+ *   - Upcoming calendar events
+ *   - Announcements
+ *
+ * All data is scoped to the authenticated participant.
+ */
+export async function GET(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
+
+    // Get session from cookie
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+
+    const cid = session.cid;
+    const email = session.email;
+
+    // ── 1. Participant contact record ──────────────────────────────
+    const contactRes = await db.execute({
+      sql: "SELECT cid, name, email, group_name, program_id, program_name, role FROM contacts WHERE cid = ?",
+      args: [cid],
+    });
+
+    if (contactRes.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Participant not found" },
+        { status: 404 },
+      );
+    }
+
+    const contact = contactRes.rows[0];
+
+    // ── 2. Discover program IDs ────────────────────────────────────
+    const programIds = new Set();
+
+    if (contact.program_id) {
+      String(contact.program_id)
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+        .forEach((id) => programIds.add(id));
+    }
+
+    if (contact.group_name) {
+      const familyRes = await db.execute({
+        sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
+        args: [contact.group_name],
+      });
+      familyRes.rows.forEach((r) => {
+        if (r.program_id != null) programIds.add(String(r.program_id).trim());
+      });
+
+      const groupRes = await db.execute({
+        sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
+        args: [contact.group_name],
+      });
+      groupRes.rows.forEach((r) => {
+        if (r.id != null) programIds.add(String(r.id).trim());
+      });
+    }
+
+    const programIdList = Array.from(programIds);
+    const programsData = [];
+
+    // ── 3. Fetch programs with metrics ─────────────────────────────
+    for (const pid of programIdList) {
+      const [progRes, sesRes, delRes, subRes, attRes, kpiRes] =
+        await Promise.all([
+          db.execute({
+            sql: "SELECT * FROM v2_programs WHERE id = ?",
+            args: [pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_sessions WHERE program_id = ? ORDER BY week_number ASC, start_at ASC",
+            args: [pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
+            args: [pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ?",
+            args: [cid, pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ?",
+            args: [cid, pid],
+          }),
+          db.execute({
+            sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
+            args: [pid],
+          }),
+        ]);
+
+      const program = progRes.rows[0];
+      if (!program) continue;
+
+      const sessions = sesRes.rows || [];
+      const submissions = subRes.rows || [];
+      const deliverables = delRes.rows || [];
+      const attendance = attRes.rows || [];
+      const kpis = kpiRes.rows || [];
+
+      // Current week
+      const unlockedSessions = sessions.filter((s) => s.status !== "locked");
+      const maxCompletedWeek =
+        unlockedSessions.length > 0
+          ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
+          : 0;
+      const currentWeek = program.duration_weeks
+        ? Math.min(Math.max(maxCompletedWeek, 1), program.duration_weeks)
+        : 1;
+
+      // Program completion %
+      const totalDeliverables = deliverables.length || 1;
+      const completedDeliverables = deliverables.filter((d) => {
+        const sub = submissions.find((s) => s.document_id === d.id);
+        return sub && sub.status === "approved";
+      }).length;
+      const programCompletion = Math.round(
+        (completedDeliverables / totalDeliverables) * 100,
+      );
+
+      // Attendance %
+      const totalSessions = sessions.length || 1;
+      const attendedSessions = attendance.filter(
+        (a) => a.status === "present",
+      ).length;
+      const attendanceRate = Math.round(
+        (attendedSessions / totalSessions) * 100,
+      );
+
+      // Assignment completion %
+      const totalAssignments = submissions.length || 1;
+      const approvedAssignments = submissions.filter(
+        (s) => s.status === "approved",
+      ).length;
+      const assignmentCompletion = Math.round(
+        (approvedAssignments / totalAssignments) * 100,
+      );
+
+      // KPI completion %
+      const totalKpis = kpis.length || 1;
+      const targetMetKpis = kpis.filter((k) => {
+        const target = parseInt(k.target_value) || 0;
+        const current = parseInt(k.current_value) || 0;
+        return current >= target;
+      }).length;
+      const kpiCompletion = Math.round((targetMetKpis / totalKpis) * 100);
+
+      programsData.push({
+        id: program.id,
+        name: program.name,
+        description: program.description,
+        status: program.status,
+        startDate: program.start_date,
+        endDate: program.end_date,
+        durationWeeks: program.duration_weeks,
+        currentWeek,
+        cohort: contact.group_name || "Cohort 1",
+        metrics: {
+          programCompletion,
+          attendanceRate,
+          assignmentCompletion,
+          kpiCompletion,
+        },
+        sessions,
+        deliverables,
+        submissions,
+        attendance,
+      });
+    }
+
+    // Primary program
+    const primaryProgram = programsData[0] || null;
+
+    // ── 4. Action Center ───────────────────────────────────────────
+    // Get primary program's submissions
+    const primarySubmissions = primaryProgram ? primaryProgram.submissions : [];
+
+    // Pending submissions
+    const pendingSubmissions = primarySubmissions.filter(
+      (s) => s.status === "pending",
+    );
+
+    // Overdue: deliverables past due without approved submission
+    let overdueItems = [];
+    let dueSoonItems = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (primaryProgram) {
+      for (const d of primaryProgram.deliverables) {
+        if (!d.due_date) continue;
+        const dueDate = new Date(d.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        const existingSub = primaryProgram.submissions.find(
+          (s) => s.document_id === d.id,
+        );
+        const isApproved = existingSub?.status === "approved";
+
+        if (!isApproved && dueDate < today) {
+          overdueItems.push({
+            id: d.id,
+            title: d.title,
+            type: "deliverable",
+            dueDate: d.due_date,
+            daysOverdue: Math.floor((today - dueDate) / (1000 * 60 * 60 * 24)),
+            programId: primaryProgram.id,
+            programName: primaryProgram.name,
+          });
+        } else if (!isApproved && dueDate >= today) {
+          const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+          if (diffDays <= 7) {
+            dueSoonItems.push({
+              id: d.id,
+              title: d.title,
+              type: "deliverable",
+              dueDate: d.due_date,
+              daysLeft: diffDays,
+              programId: primaryProgram.id,
+              programName: primaryProgram.name,
+            });
+          }
+        }
+      }
+    }
+
+    // Upcoming sessions
+    const upcomingSessions = primaryProgram
+      ? primaryProgram.sessions
+          .filter((s) => {
+            if (!s.start_at && !s.scheduled_date) return false;
+            const sessionDate = new Date(s.start_at || s.scheduled_date);
+            return sessionDate >= today;
+          })
+          .slice(0, 5)
+      : [];
+
+    // ── 5. Announcements ───────────────────────────────────────────
+    const notifRes = await db.execute({
+      sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? OR recipient_id = 'all' OR recipient_id = ? ORDER BY created_at DESC LIMIT 10",
+      args: [cid, email],
+    });
+    const announcements = (notifRes.rows || []).map((n) => ({
+      id: n.id,
+      title: n.title,
+      message: n.message,
+      type: n.type || "announcement",
+      isRead: n.is_read,
+      createdAt: n.created_at,
+    }));
+
+    // ── 6. Calendar events (next 7 days) ─────────────────────────────
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const weekEndStr = weekEnd.toISOString().split("T")[0];
+    const todayStr = today.toISOString().split("T")[0];
+
+    let calendarEvents = [];
+
+    if (primaryProgram) {
+      // Sessions this week
+      for (const s of primaryProgram.sessions) {
+        const sessionDate = s.start_at || s.scheduled_date;
+        if (!sessionDate) continue;
+        const d = new Date(sessionDate);
+        const dateStr = d.toISOString().split("T")[0];
+        if (dateStr >= todayStr && dateStr <= weekEndStr) {
+          calendarEvents.push({
+            id: `session-${s.id}`,
+            title: s.title,
+            date: dateStr,
+            time: s.start_time || null,
+            type: "session",
+            source: "v2_sessions",
+            relatedId: s.id,
+            programId: primaryProgram.id,
+            description: s.type || "Session",
+          });
+        }
+      }
+
+      // Deliverable deadlines this week
+      for (const d of primaryProgram.deliverables) {
+        if (!d.due_date) continue;
+        const dd = new Date(d.due_date);
+        const dateStr = dd.toISOString().split("T")[0];
+        if (dateStr >= todayStr && dateStr <= weekEndStr) {
+          calendarEvents.push({
+            id: `deliverable-${d.id}`,
+            title: `${d.title} (due)`,
+            date: dateStr,
+            time: null,
+            type: "deadline",
+            source: "v2_document_requirements",
+            relatedId: d.id,
+            programId: primaryProgram.id,
+            description: primaryProgram.name,
+          });
+        }
+      }
+    }
+
+    // Sort by date
+    calendarEvents.sort((a, b) => a.date.localeCompare(b.date));
+
+    // ── 7. Build response ──────────────────────────────────────────
+    return NextResponse.json({
+      success: true,
+      participant: {
+        cid: contact.cid,
+        name: contact.name,
+        email: contact.email,
+        groupName: contact.group_name,
+      },
+      primaryProgram: primaryProgram
+        ? {
+            id: primaryProgram.id,
+            name: primaryProgram.name,
+            description: primaryProgram.description,
+            status: primaryProgram.status,
+            startDate: primaryProgram.startDate,
+            endDate: primaryProgram.endDate,
+            durationWeeks: primaryProgram.durationWeeks,
+            currentWeek: primaryProgram.currentWeek,
+            cohort: primaryProgram.cohort,
+            metrics: primaryProgram.metrics,
+            sessionCount: primaryProgram.sessions.length,
+            deliverableCount: primaryProgram.deliverables.length,
+          }
+        : null,
+      programs: programsData.map((p) => ({
+        id: p.id,
+        name: p.name,
+        status: p.status,
+        startDate: p.startDate,
+        endDate: p.endDate,
+        currentWeek: p.currentWeek,
+        durationWeeks: p.durationWeeks,
+        cohort: p.cohort,
+        metrics: p.metrics,
+      })),
+      actionCenter: {
+        overdue: overdueItems,
+        dueSoon: dueSoonItems,
+        pendingSubmissions: pendingSubmissions.map((s) => ({
+          id: s.id,
+          deliverableId: s.document_id,
+          status: s.status,
+          submittedAt: s.created_at,
+          programId: s.program_id,
+        })),
+        upcomingSessions: upcomingSessions.map((s) => ({
+          id: s.id,
+          title: s.title,
+          type: s.type,
+          date: s.start_at || s.scheduled_date,
+          time: s.start_time,
+          weekNumber: s.week_number,
+          programId: s.program_id,
+        })),
+      },
+      calendarEvents,
+      announcements,
+    });
+  } catch (error) {
+    console.error("Participant Home API Error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}

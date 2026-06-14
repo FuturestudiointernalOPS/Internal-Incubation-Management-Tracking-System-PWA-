@@ -65,6 +65,8 @@ const NAV_KEY_MAP = {
   projects: "navigation.projects",
   sessions: "navigation.sessions",
   reviews: "navigation.reviews",
+  assignments: "navigation.assignments",
+  rituals: "navigation.rituals",
   tasks: "reports.tasks",
   blockers: "reports.blockers",
   no_new_intel: "navigation.noNewIntel",
@@ -470,6 +472,24 @@ const NAVIGATION_MATRIX = {
       name: "MY PROGRAMS",
       icon: Briefcase,
       href: "/participant/dashboard",
+    },
+    {
+      id: "assignments",
+      name: "ASSIGNMENTS",
+      icon: FileText,
+      href: "/participant/assignments",
+    },
+    {
+      id: "rituals",
+      name: "RITUALS",
+      icon: Zap,
+      href: "/participant/rituals",
+    },
+    {
+      id: "progress_hub",
+      name: "MY PROGRESS",
+      icon: TrendingUp,
+      href: "/participant/progress",
     },
     {
       id: "communication",

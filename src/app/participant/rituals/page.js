@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import ProfileView from "@/components/dashboard/ProfileView";
+import RitualsView from "@/components/dashboard/RitualsView";
 
 /**
- * PARTICIPANT PROFILE PAGE
+ * PARTICIPANT RITUALS PAGE
  *
- * Personal profile, startup info, program history, and submitted work.
+ * Standups, check-ins, retrospectives, and reflections.
  */
-export default function ParticipantProfilePage() {
+export default function ParticipantRitualsPage() {
   const [user, setUser] = useState({});
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function ParticipantProfilePage() {
   return (
     <DashboardLayout role={user.role || "participant"}>
       <div className="p-6">
-        <ProfileView />
+        <RitualsView />
       </div>
     </DashboardLayout>
   );
