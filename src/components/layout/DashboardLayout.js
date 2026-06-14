@@ -438,12 +438,6 @@ const NAVIGATION_MATRIX = {
       icon: Briefcase,
       subItems: [
         { id: "all_programs", name: "ALL PROGRAMS", href: "/pm/programs" },
-        { id: "sessions", name: "SESSIONS", href: "/teacher/sessions" },
-        {
-          id: "reviews",
-          name: "SUBMISSIONS",
-          href: "/teacher/reviews",
-        },
       ],
     },
     {
