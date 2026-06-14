@@ -65,8 +65,12 @@ export async function getSession() {
 
     const session = result.rows[0];
 
-    // Verify user is still active
-    if (session.status !== "active" && session.role !== "super_admin") {
+    // Verify user is still active (null/undefined status treated as active)
+    if (
+      session.status &&
+      session.status !== "active" &&
+      session.role !== "super_admin"
+    ) {
       await destroySession();
       return null;
     }
