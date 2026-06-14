@@ -743,7 +743,22 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                         notifications.map((n) => (
                           <div
                             key={n.id}
-                            onClick={() => {
+                            onClick={async () => {
+                              // Mark as read
+                              try {
+                                await fetch("/api/notifications", {
+                                  method: "PATCH",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    id: n.id,
+                                    action: "read",
+                                  }),
+                                });
+                                fetchNotifications();
+                              } catch (_) {}
+
                               if (
                                 n.type === "verification" ||
                                 n.title.includes("ACCESS")
