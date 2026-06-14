@@ -6,6 +6,37 @@ import { requireAuth } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 /**
+ * Generates an invite token and sends activation email. Non-blocking.
+ */
+async function fireInvite(cid, name, email, role, groupId) {
+  try {
+    const token = uuidv4();
+    const tokenType =
+      role === "participant" ? "participant_invite" : "staff_invite";
+
+    await db.execute({
+      sql: `INSERT INTO password_setup_tokens (token, user_cid, token_type, role, group_id, expires_at)
+            VALUES (?, ?, ?, ?, ?, NOW() + INTERVAL '48 hours')`,
+      args: [token, cid, tokenType, role || null, groupId || null],
+    });
+
+    await db.execute({
+      sql: "UPDATE contacts SET invited_at = NOW() WHERE cid = ?",
+      args: [cid],
+    });
+
+    // Send email (non-blocking, fire and forget)
+    import("@/lib/email").then(({ sendInviteEmail }) => {
+      sendInviteEmail({ to: email, name, role, token }).catch((e) =>
+        console.error("Invite email failed:", e),
+      );
+    });
+  } catch (e) {
+    console.error("Invite fire failed (non-blocking):", e.message);
+  }
+}
+
+/**
  * CONTACTS API — PERSONNEL REGISTRY
  * Hardened for Gated Onboarding and Real-time Alerts.
  */
@@ -39,18 +70,8 @@ export async function POST(req) {
         uuidv4().split("-")[0].toUpperCase() +
         Math.floor(Math.random() * 10000);
 
-      // Credential Provisioning
-      let finalPassword = rawPassword;
-      if (!finalPassword) {
-        const randomStr = Math.random()
-          .toString(36)
-          .substring(2, 7)
-          .toUpperCase();
-        const prefix =
-          c.role === "staff" ? "FSS" : c.role === "participant" ? "FSP" : "FS";
-        finalPassword = `${prefix}${randomStr}`;
-      }
-      const hashedPassword = await bcrypt.hash(finalPassword, 10);
+      // No password — user sets it via activation link
+      const hashedPassword = null;
 
       // Gated Status Logic (UPPERCASE NORMALIZATION)
       const groupName = (c.group_name || "unassigned").toUpperCase();
@@ -136,6 +157,13 @@ export async function POST(req) {
               "verification",
             ],
           });
+        }
+
+        // Fire invite for auto-approved roles (participants) or pending that get auto-approved
+        if (vc.status === "approved" || vc.role === "participant") {
+          fireInvite(vc.cid, vc.name, vc.email, vc.role, vc.program_id).catch(
+            () => {},
+          );
         }
 
         inserted++;
@@ -238,23 +266,29 @@ export async function PUT(req) {
       args: args,
     });
 
-    // AUTO-PURGE: If status was changed to active/approved, clear related notifications
+    // If status changed to active/approved, fire invite and clear notifications
     if (data.status === "active" || data.status === "approved") {
       try {
-        // Find the user's name first to match the notification message
         const userRes = await db.execute({
-          sql: "SELECT name FROM contacts WHERE cid = ?",
+          sql: "SELECT name, email, role FROM contacts WHERE cid = ?",
           args: [data.cid],
         });
         if (userRes.rows.length > 0) {
-          const userName = userRes.rows[0].name;
+          const u = userRes.rows[0];
+
+          // Fire invite for approved staff (participants already invited on registration)
+          if (u.role !== "participant") {
+            fireInvite(data.cid, u.name, u.email, u.role, null).catch(() => {});
+          }
+
+          // Clear notifications
           await db.execute({
             sql: `UPDATE v2_notifications
                       SET is_read = 1
                       WHERE recipient_id = 'sa'
                       AND message ILIKE ?
                       AND is_read = 0`,
-            args: [`%${userName}%`],
+            args: [`%${u.name}%`],
           });
         }
       } catch (e) {
