@@ -486,11 +486,11 @@ function ContactsPageContent() {
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
                 <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.4em]">
-                  Registry
+                  Contact
                 </span>
               </div>
               <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)]">
-                STAFF
+                CONTACTS
               </h1>
             </div>
           </div>
