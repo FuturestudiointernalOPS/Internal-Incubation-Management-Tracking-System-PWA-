@@ -46,8 +46,14 @@ const publicApiPaths = [
 
 // Soft-auth paths: let client-side handle auth via localStorage fallback.
 // Middleware allows these through without a cookie; if truly unauthenticated,
-// UnifiedDashboard/DashboardLayout will redirect after client-side check.
-const softAuthPaths = ["/participant"];
+// the route handler's requireAuth() call will return 401.
+// Includes /api/participant and /api/notifications so routes with their own
+// requireAuth() check can handle auth themselves instead of being blocked here.
+const softAuthPaths = [
+  "/participant",
+  "/api/participant",
+  "/api/notifications",
+];
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
