@@ -25,6 +25,7 @@ import { NextResponse } from "next/server";
 
 const publicPaths = [
   "/login",
+  "/activate",
   "/forgot-password",
   "/setup-password",
   "/invite",
@@ -38,8 +39,11 @@ const publicPaths = [
 const publicApiPaths = [
   "/api/auth/session-login",
   "/api/auth/session",
+  "/api/auth/activate",
   "/api/auth/forgot-password",
   "/api/auth/setup-password",
+  "/api/auth/invite",
+  "/api/auth/invite-family",
   "/api/contacts",
   "/api/invites",
 ];
