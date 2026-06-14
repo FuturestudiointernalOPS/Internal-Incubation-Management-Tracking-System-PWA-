@@ -1,6 +1,5 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
 
 async function resolveCid(req) {
   const { searchParams } = new URL(req.url);
@@ -16,9 +15,6 @@ async function resolveCid(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
-
     const cid = await resolveCid(req);
     if (!cid)
       return NextResponse.json(

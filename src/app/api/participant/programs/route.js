@@ -1,33 +1,9 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
 
-/**
- * PARTICIPANT PROGRAMS API
- *
- * GET /api/participant/programs
- * GET /api/participant/programs?email=X
- * GET /api/participant/programs?cid=X
- *
- * Returns ALL programs a participant is enrolled in with metrics.
- * Supports multi-program enrollment (LMS-style).
- *
- * If no email/cid is provided, uses the session CID.
- */
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
-
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Authentication required." },
-        { status: 401 },
-      );
-    }
 
     const { searchParams } = new URL(req.url);
     let email = searchParams.get("email");
@@ -35,8 +11,19 @@ export async function GET(req) {
 
     // Fall back to session data
     if (!email && !cid) {
-      cid = session.cid;
-      email = session.email;
+      const { getSession } = await import("@/lib/auth");
+      const session = await getSession();
+      if (session) {
+        cid = session.cid;
+        email = session.email;
+      }
+    }
+
+    if (!cid && !email) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
     }
 
     const headers = {

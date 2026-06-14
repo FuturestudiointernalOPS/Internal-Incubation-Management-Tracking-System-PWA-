@@ -1,40 +1,35 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+
+async function resolveCid(req) {
+  const { searchParams } = new URL(req.url);
+  let cid = searchParams.get("cid");
+  if (!cid) {
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (session) cid = session.cid;
+  }
+  return cid;
+}
 
 /**
  * RETROSPECTIVE API — SUSPENDED
  *
  * This endpoint is intentionally disabled from the participant UI.
- * The retro feature was removed from the frontend RITUAL_TYPES array
- * in RitualsView.js pending UX review.
- *
- * DO NOT re-enable without explicit approval from the product owner.
- * If re-enabling, also restore:
- *   - The retro entry in RITUAL_TYPES (RitualsView.js)
- *   - The retro fieldConfig (RitualsView.js)
- *   - Retro participation in the metrics calculation
- *
- * This API still works if called directly, but no participant-facing
- * UI exposes it. Remove or restore this endpoint as decided.
+ * Do not re-enable without explicit approval from the product owner.
  */
 
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (!session)
+    const cid = await resolveCid(req);
+    if (!cid)
       return NextResponse.json(
-        { success: false, error: "Unauthorized" },
+        { success: false, error: "Authentication required." },
         { status: 401 },
       );
 
     const { searchParams } = new URL(req.url);
-    let cid = searchParams.get("cid");
-    if (!cid) cid = session.cid;
     const programId = searchParams.get("program_id");
     const weekNum = searchParams.get("week_number");
 
@@ -63,19 +58,12 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (!session)
+    const cid = await resolveCid(req);
+    if (!cid)
       return NextResponse.json(
-        { success: false, error: "Unauthorized" },
+        { success: false, error: "Authentication required." },
         { status: 401 },
       );
-
-    const { searchParams } = new URL(req.url);
-    let cid = searchParams.get("cid");
-    if (!cid) cid = session.cid;
     const { program_id, week_number, went_well, improve, action_items } =
       await req.json();
     if (!program_id)

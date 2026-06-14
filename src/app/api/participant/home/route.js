@@ -1,42 +1,35 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
 
-/**
- * PARTICIPANT HOME DASHBOARD API
- *
- * GET /api/participant/home
- * GET /api/participant/home?cid=X
- * GET /api/participant/home?email=X
- *
- * Returns everything the participant dashboard needs.
- * Falls back to session cookie if no cid/email provided.
- */
+async function resolveCid(req) {
+  const { searchParams } = new URL(req.url);
+  let cid = searchParams.get("cid");
+  if (!cid) {
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (session) cid = session.cid;
+  }
+  return cid;
+}
+
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
-
-    const { searchParams } = new URL(req.url);
-    let cid = searchParams.get("cid");
-    let email = searchParams.get("email");
-
-    // Fall back to session
-    if (!cid && !email) {
-      const { getSession } = await import("@/lib/auth");
-      const session = await getSession();
-      if (session) {
-        cid = session.cid;
-        email = session.email;
-      }
-    }
-
+    const cid = await resolveCid(req);
     if (!cid) {
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
+    }
+
+    const { searchParams } = new URL(req.url);
+    let email = searchParams.get("email");
+    // Try to get email from session too
+    if (!email) {
+      const { getSession } = await import("@/lib/auth");
+      const session = await getSession();
+      if (session) email = session.email;
     }
 
     // ── 1. Participant contact record ──────────────────────────────

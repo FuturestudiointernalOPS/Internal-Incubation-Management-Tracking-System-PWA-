@@ -1,16 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
 
-/**
- * PARTICIPANT ASSIGNMENTS API
- *
- * GET /api/participant/assignments?program_id=X
- * POST /api/participant/assignments
- *
- * Falls back to session cookie if no cid/email provided.
- */
-async function resolveUser(req) {
+async function resolveCid(req) {
   const { searchParams } = new URL(req.url);
   let cid = searchParams.get("cid");
   if (!cid) {
@@ -24,10 +15,7 @@ async function resolveUser(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
-
-    const cid = await resolveUser(req);
+    const cid = await resolveCid(req);
     if (!cid)
       return NextResponse.json(
         { success: false, error: "Authentication required." },
@@ -140,15 +128,12 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
-
-    // For POST, get cid from session or request body
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
     const body = await req.json();
-    const participantId = body.participant_id || session?.cid;
-
+    let participantId = body.participant_id;
+    if (!participantId) {
+      const cid = await resolveCid(req);
+      participantId = cid;
+    }
     if (!participantId)
       return NextResponse.json(
         { success: false, error: "Authentication required." },

@@ -1,23 +1,28 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+
+async function resolveCid(req) {
+  const { searchParams } = new URL(req.url);
+  let cid = searchParams.get("cid");
+  if (!cid) {
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (session) cid = session.cid;
+  }
+  return cid;
+}
 
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (!session)
+    const cid = await resolveCid(req);
+    if (!cid)
       return NextResponse.json(
-        { success: false, error: "Unauthorized" },
+        { success: false, error: "Authentication required." },
         { status: 401 },
       );
 
     const { searchParams } = new URL(req.url);
-    let cid = searchParams.get("cid");
-    if (!cid) cid = session.cid;
     const programId = searchParams.get("program_id");
     const weekNum = searchParams.get("week_number");
 
@@ -46,19 +51,12 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (!session)
+    const cid = await resolveCid(req);
+    if (!cid)
       return NextResponse.json(
-        { success: false, error: "Unauthorized" },
+        { success: false, error: "Authentication required." },
         { status: 401 },
       );
-
-    const { searchParams } = new URL(req.url);
-    let cid = searchParams.get("cid");
-    if (!cid) cid = session.cid;
     const { program_id, week_number, learnings, challenges, suggestions } =
       await req.json();
     if (!program_id)

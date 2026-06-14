@@ -41,33 +41,24 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
-    const authError = await requireAuth();
-    if (authError) return authError;
+    await initDb();
     const { searchParams } = new URL(req.url);
     const recipientId = searchParams.get("recipient_id") || "sa";
 
-    // Fetch unread notifications using the Supabase SDK (more reliable on Vercel)
-    const { data, error } = await supabaseAdmin
-      .from("v2_notifications")
-      .select("*")
-      .eq("recipient_id", recipientId)
-      .eq("is_read", false)
-      .order("created_at", { ascending: false });
+    // Use db.execute instead of supabaseAdmin for consistency
+    const result = await db.execute({
+      sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? AND (is_read = false OR is_read IS NULL) ORDER BY created_at DESC",
+      args: [recipientId],
+    });
 
-    if (error) {
-      console.error("Supabase Query Error:", error);
-      throw new Error(error.message);
-    }
-
-    return NextResponse.json({ success: true, notifications: data || [] });
+    return NextResponse.json({
+      success: true,
+      notifications: result.rows || [],
+    });
   } catch (error) {
     console.error("GET Notifications Error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-        hint: "Check if the v2_notifications table and is_read column exist in Supabase.",
-      },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

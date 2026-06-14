@@ -1,39 +1,23 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
 
-/**
- * PARTICIPANT PROGRAM DETAIL API
- *
- * GET /api/participant/programs/:id
- *
- * Returns full program detail including:
- *   - Program info + facilitators
- *   - Curriculum (weekly sessions + deliverables)
- *   - Learning resources (knowledge bank items grouped by module)
- *   - Participant submission status per deliverable
- *   - Attendance records
- *   - KPIs
- *   - Follow-ups
- */
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth();
-    if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
-    const session = await getSession();
-    if (!session) {
+    const { searchParams } = new URL(req.url);
+    let cid = searchParams.get("cid");
+    if (!cid) {
+      const { getSession } = await import("@/lib/auth");
+      const session = await getSession();
+      if (session) cid = session.cid;
+    }
+    if (!cid) {
       return NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
     }
-
-    const { searchParams } = new URL(req.url);
-    let cid = searchParams.get("cid");
-    if (!cid) cid = session.cid;
     const programId = params.id;
 
     // 1. Fetch program
