@@ -12,6 +12,16 @@ async function resolveCid(req) {
   return cid;
 }
 
+// Safe query: returns empty rows if table doesn't exist
+async function safeQuery(sql, args) {
+  try {
+    return await db.execute({ sql, args });
+  } catch (e) {
+    // Table doesn't exist or query failed — return empty
+    return { rows: [] };
+  }
+}
+
 export async function GET(req) {
   try {
     await initDb();
@@ -114,22 +124,22 @@ export async function GET(req) {
           sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
           args: [pid],
         }),
-        db.execute({
-          sql: "SELECT * FROM v2_standups WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          args: [cid, pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_checkins WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          args: [cid, pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_retros WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          args: [cid, pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_reflections WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          args: [cid, pid],
-        }),
+        safeQuery(
+          "SELECT * FROM v2_standups WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          [cid, pid],
+        ),
+        safeQuery(
+          "SELECT * FROM v2_checkins WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          [cid, pid],
+        ),
+        safeQuery(
+          "SELECT * FROM v2_retros WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          [cid, pid],
+        ),
+        safeQuery(
+          "SELECT * FROM v2_reflections WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          [cid, pid],
+        ),
       ]);
 
       const program = progRes.rows[0];
