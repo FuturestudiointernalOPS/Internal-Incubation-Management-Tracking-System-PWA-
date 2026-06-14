@@ -466,12 +466,6 @@ const NAVIGATION_MATRIX = {
       href: "/participant",
     },
     {
-      id: "projects",
-      name: "PROJECTS",
-      icon: Briefcase,
-      href: "/participant",
-    },
-    {
       id: "communication",
       name: "COMMUNICATION",
       icon: MessageSquare,
