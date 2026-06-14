@@ -642,7 +642,15 @@ export default function NewProgram() {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setIsCreatingGroup(!isCreatingGroup)}
+                    onClick={() => {
+                      setIsCreatingGroup(!isCreatingGroup);
+                      if (!isCreatingGroup) {
+                        setNewGroup((prev) => ({
+                          ...prev,
+                          name: program.name || prev.name,
+                        }));
+                      }
+                    }}
                     className="text-[8px] font-bold text-blue-400 uppercase tracking-widest hover:underline"
                   >
                     {isCreatingGroup ? "Cancel" : "+ Create New Group"}
