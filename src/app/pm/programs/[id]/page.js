@@ -2151,7 +2151,7 @@ export default function ProgramWorkspace() {
                         </div>
                       </div>
                     )}
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {kpis.map((kpi, kpiIdx) => {
                         const kpiShare = Math.floor(100 / kpis.length);
                         const kpiPct =
@@ -2161,19 +2161,35 @@ export default function ProgramWorkspace() {
                         return (
                           <div
                             key={kpi.id}
-                            className="flex items-center justify-between p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]"
+                            className="card !p-4 hover:border-[var(--brand-orange)]/30 transition-all group"
                           >
-                            <span className="font-bold text-sm uppercase tracking-tight">
-                              {kpi.title}
-                            </span>
-                            <div className="flex items-center gap-4">
-                              <span className="text-xs font-black text-[var(--brand-orange)]">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                                KPI {kpiIdx + 1}
+                              </span>
+                              <span className="text-sm font-black text-[var(--brand-orange)]">
                                 {kpiPct}%
                               </span>
+                            </div>
+                            <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight mb-3 group-hover:text-[var(--brand-orange)] transition-colors">
+                              {kpi.title}
+                            </p>
+                            <div className="w-full h-2 bg-[var(--border-primary)]/20 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all duration-700"
+                                style={{ width: `${kpiPct}%` }}
+                              />
                             </div>
                           </div>
                         );
                       })}
+                      {kpis.length === 0 && (
+                        <div className="col-span-full p-8 text-center">
+                          <p className="text-[10px] text-[var(--text-secondary)] italic">
+                            No KPIs configured. Contact your Super Admin.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
