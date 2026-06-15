@@ -2259,6 +2259,9 @@ export default function ProgramWorkspace() {
                               />
                             </div>
                             <div className="flex items-center gap-3 mt-2">
+                              <span className="text-[7px] font-bold text-slate-500">
+                                Weight: {kpi.weight || 0}%
+                              </span>
                               {kpi.linkedSessions > 0 && (
                                 <span className="text-[7px] font-bold text-slate-500">
                                   {kpi.completedSessions}/{kpi.linkedSessions}{" "}
@@ -2270,15 +2273,8 @@ export default function ProgramWorkspace() {
                                   {kpi.completedDocs}/{kpi.linkedDocs} docs
                                 </span>
                               )}
-                              {kpi.linkedSubmissions > 0 && (
-                                <span className="text-[7px] font-bold text-slate-500">
-                                  {kpi.completedSubmissions}/
-                                  {kpi.linkedSubmissions} submissions
-                                </span>
-                              )}
                               {kpi.linkedSessions === 0 &&
-                                kpi.linkedDocs === 0 &&
-                                kpi.linkedSubmissions === 0 && (
+                                kpi.linkedDocs === 0 && (
                                   <span className="text-[7px] font-bold text-slate-600 italic">
                                     No linked items
                                   </span>
@@ -2789,29 +2785,55 @@ export default function ProgramWorkspace() {
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Session Date
-                  </label>
-                  <input
-                    type="date"
-                    value={newSession.scheduled_date}
-                    onChange={(e) =>
-                      setNewSession((p) => ({
-                        ...p,
-                        scheduled_date: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newSession.scheduled_date}
+                      onChange={(e) =>
+                        setNewSession((p) => ({
+                          ...p,
+                          scheduled_date: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Finish Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newSession.end_date}
+                      onChange={(e) =>
+                        setNewSession((p) => ({
+                          ...p,
+                          end_date: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
