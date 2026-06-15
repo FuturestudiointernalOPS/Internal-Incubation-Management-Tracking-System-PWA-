@@ -590,7 +590,7 @@ export default function ProgramWorkspace() {
       if (data.success) {
         notify("KPI defined.");
         setShowKPIModal(false);
-        setNewKPI({ title: "", target_value: 80 });
+        setNewKPI({ title: "" });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
     } catch (e) {
@@ -2152,21 +2152,28 @@ export default function ProgramWorkspace() {
                       </div>
                     )}
                     <div className="space-y-2">
-                      {kpis.map((kpi) => (
-                        <div
-                          key={kpi.id}
-                          className="flex items-center justify-between p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]"
-                        >
-                          <span className="font-bold text-sm uppercase tracking-tight">
-                            {kpi.title}
-                          </span>
-                          <div className="flex items-center gap-4">
-                            <span className="text-xs font-black text-[var(--brand-orange)]">
-                              {kpi.target_value}%
+                      {kpis.map((kpi, kpiIdx) => {
+                        const kpiShare = Math.floor(100 / kpis.length);
+                        const kpiPct =
+                          kpiIdx === kpis.length - 1
+                            ? 100 - kpiShare * (kpis.length - 1)
+                            : kpiShare;
+                        return (
+                          <div
+                            key={kpi.id}
+                            className="flex items-center justify-between p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]"
+                          >
+                            <span className="font-bold text-sm uppercase tracking-tight">
+                              {kpi.title}
                             </span>
+                            <div className="flex items-center gap-4">
+                              <span className="text-xs font-black text-[var(--brand-orange)]">
+                                {kpiPct}%
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -3266,32 +3273,6 @@ export default function ProgramWorkspace() {
                     placeholder="e.g. Weekly Engagement"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Target Value (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={newKPI.target_value}
-                    onChange={(e) =>
-                      setNewKPI((p) => ({
-                        ...p,
-                        target_value: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  />
-                </div>
               </div>
               <div className="flex gap-3">
                 <button
@@ -3760,11 +3741,15 @@ export default function ProgramWorkspace() {
                             </p>
                           ) : (
                             <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto p-1 custom-scrollbar">
-                              {kpis.map((kpi) => {
-                                const isSelected =
-                                  newPMReport.assignment_kpi_ids.includes(
-                                    kpi.id,
-                                  );
+                              {kpis.map((kpi, kpiIdx2) => {
+                                const kpiShare2 = Math.floor(100 / kpis.length);
+                                const kpiPct2 =
+                                  kpiIdx2 === kpis.length - 1
+                                    ? 100 - kpiShare2 * (kpis.length - 1)
+                                    : kpiShare2;
+                                const isSelected = (
+                                  newPMReport.assignment_kpi_ids || []
+                                ).includes(kpi.id);
                                 return (
                                   <button
                                     key={kpi.id}
@@ -3787,7 +3772,7 @@ export default function ProgramWorkspace() {
                                   >
                                     <span>{kpi.title}</span>
                                     <span className="text-[8px] opacity-50">
-                                      {kpi.target_value || 80}%
+                                      {kpiPct2}%
                                     </span>
                                   </button>
                                 );
