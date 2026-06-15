@@ -91,6 +91,11 @@ export async function GET(req) {
         sql: "SELECT * FROM families WHERE program_id = ?",
         args: [id],
       },
+      {
+        name: "deliverables",
+        sql: "SELECT * FROM v2_deliverables WHERE program_id = ? ORDER BY week_number ASC",
+        args: [id],
+      },
     ];
 
     const results = await Promise.all(
@@ -119,6 +124,7 @@ export async function GET(req) {
       subRes,
       repRes,
       famRes,
+      delRes,
     ] = results;
 
     const program = progRes.rows[0];
@@ -289,6 +295,16 @@ export async function GET(req) {
       };
     });
 
+    // HARDENED DE-DUPLICATION: Merge sources and ensure participants are unique by email
+    const allParticipantRows = [...parRes.rows, ...contRes.rows];
+    const uniqueParticipants = Array.from(
+      new Map(
+        allParticipantRows
+          .filter((p) => p.email)
+          .map((p) => [p.email.toLowerCase(), p]),
+      ).values(),
+    );
+
     // --- STUDENT PERFORMANCE METRICS (independent from operational KPI) ---
     const totalParticipants = uniqueParticipants.length;
     const totalDocsCount = docList.length;
@@ -317,16 +333,6 @@ export async function GET(req) {
 
     // --- EXECUTIVE HEALTH SCORE (optional combined metric) ---
     const overallHealth = Math.round((operationalProgress + approvalRate) / 2);
-
-    // HARDENED DE-DUPLICATION: Merge sources and ensure participants are unique by email
-    const allParticipantRows = [...parRes.rows, ...contRes.rows];
-    const uniqueParticipants = Array.from(
-      new Map(
-        allParticipantRows
-          .filter((p) => p.email)
-          .map((p) => [p.email.toLowerCase(), p]),
-      ).values(),
-    );
 
     return NextResponse.json({
       success: true,
