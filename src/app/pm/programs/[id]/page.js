@@ -130,6 +130,10 @@ export default function ProgramWorkspace() {
   const [selectedExistingTeamId, setSelectedExistingTeamId] = useState("");
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showStaffModal, setShowStaffModal] = useState(false);
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [materialSessionId, setMaterialSessionId] = useState(null);
+  const [materialName, setMaterialName] = useState("");
+  const [materialUrl, setMaterialUrl] = useState("");
 
   const [showRequirementModal, setShowRequirementModal] = useState(false);
   const [showKPIModal, setShowKPIModal] = useState(false);
@@ -1715,29 +1719,10 @@ export default function ProgramWorkspace() {
                                     <>
                                       <button
                                         onClick={() => {
-                                          const name = prompt("Material name:");
-                                          const url = prompt("URL or note:");
-                                          if (!name || !url) return;
-                                          const current = (() => {
-                                            try {
-                                              return typeof session.extra_materials ===
-                                                "string"
-                                                ? JSON.parse(
-                                                    session.extra_materials,
-                                                  )
-                                                : session.extra_materials || [];
-                                            } catch {
-                                              return [];
-                                            }
-                                          })();
-                                          updateSessionField(
-                                            session.id,
-                                            "extra_materials",
-                                            [
-                                              ...current,
-                                              { name, url, type: "link" },
-                                            ],
-                                          );
+                                          setMaterialSessionId(session.id);
+                                          setMaterialName("");
+                                          setMaterialUrl("");
+                                          setShowMaterialModal(true);
                                         }}
                                         className="text-[9px] font-black text-blue-400 uppercase hover:underline cursor-pointer flex items-center gap-1"
                                       >
@@ -4706,6 +4691,110 @@ export default function ProgramWorkspace() {
           </div>
         )}
       </div>
+
+      {/* ADD MATERIAL MODAL */}
+      {showMaterialModal && (
+        <div
+          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
+          onClick={() => setShowMaterialModal(false)}
+        >
+          <div
+            className="card w-full max-w-sm space-y-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center">
+              <h3
+                className="text-base font-black uppercase tracking-tight"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Add Link
+              </h3>
+              <button onClick={() => setShowMaterialModal(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label
+                  className="text-[10px] font-black uppercase tracking-widest"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Material Name
+                </label>
+                <input
+                  value={materialName}
+                  onChange={(e) => setMaterialName(e.target.value)}
+                  placeholder="e.g. Design Guide"
+                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-primary)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <label
+                  className="text-[10px] font-black uppercase tracking-widest"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  URL or Note
+                </label>
+                <input
+                  value={materialUrl}
+                  onChange={(e) => setMaterialUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-primary)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowMaterialModal(false)}
+                className="flex-1 btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!materialName.trim() || !materialUrl.trim()) return;
+                  const current = (() => {
+                    try {
+                      const sessionData = sessions.find(
+                        (s) => s.id === materialSessionId,
+                      );
+                      if (!sessionData) return [];
+                      return typeof sessionData.extra_materials === "string"
+                        ? JSON.parse(sessionData.extra_materials)
+                        : sessionData.extra_materials || [];
+                    } catch {
+                      return [];
+                    }
+                  })();
+                  updateSessionField(materialSessionId, "extra_materials", [
+                    ...current,
+                    {
+                      name: materialName.trim(),
+                      url: materialUrl.trim(),
+                      type: "link",
+                    },
+                  ]);
+                  setShowMaterialModal(false);
+                }}
+                disabled={!materialName.trim() || !materialUrl.trim()}
+                className="flex-1 btn btn-primary"
+              >
+                Add Material
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
