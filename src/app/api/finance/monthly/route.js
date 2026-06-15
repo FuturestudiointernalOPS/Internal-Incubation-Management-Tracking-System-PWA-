@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getMonthlyTrend } from "@/lib/finance";
 
-export async function GET() {
+export async function GET(req) {
   try {
-    const monthly = await getMonthlyTrend();
+    const { searchParams } = new URL(req.url);
+    const project = searchParams.get("project") || null;
+    const monthly = await getMonthlyTrend(project);
     return NextResponse.json({ success: true, monthly });
   } catch (error) {
     return NextResponse.json(
