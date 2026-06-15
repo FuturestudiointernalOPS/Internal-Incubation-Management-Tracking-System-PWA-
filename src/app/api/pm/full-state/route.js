@@ -232,6 +232,74 @@ export async function GET(req) {
       } catch (e) {}
     }
 
+    // --- PER-KPI PROGRESS CALCULATION ---
+    const kpiList = kpiRes.rows || [];
+    const sessionList = sesRes.rows || [];
+    const docList = docRes.rows || [];
+    const subList = subRes.rows || [];
+
+    const kpisWithProgress = kpiList.map((kpi) => {
+      const kpiId = String(kpi.id);
+      // Find sessions linked to this KPI
+      const linkedSessions = sessionList.filter((s) => {
+        try {
+          const ids =
+            typeof s.kpi_ids === "string"
+              ? JSON.parse(s.kpi_ids)
+              : s.kpi_ids || [];
+          return ids.map(String).includes(kpiId);
+        } catch {
+          return false;
+        }
+      });
+      // Find document requirements linked to this KPI
+      const linkedDocs = docList.filter((d) => {
+        try {
+          const ids =
+            typeof d.kpi_ids === "string"
+              ? JSON.parse(d.kpi_ids)
+              : d.kpi_ids || [];
+          return ids.map(String).includes(kpiId);
+        } catch {
+          return false;
+        }
+      });
+
+      const completedSessions = linkedSessions.filter(
+        (s) => s.status === "completed",
+      ).length;
+      const totalSessions = linkedSessions.length;
+      const completedDocs = linkedDocs.filter((d) => d.is_completed).length;
+      const totalDocs = linkedDocs.length;
+
+      // Find submissions linked to this KPI via requirements
+      const linkedSubmissions = subList.filter((sub) => {
+        const reqId = String(sub.requirement_id || sub.document_id || "");
+        return linkedDocs.some((d) => String(d.id) === reqId);
+      });
+      const completedSubmissions = linkedSubmissions.filter(
+        (sub) => sub.status === "approved" || sub.status === "submitted",
+      ).length;
+      const totalSubmissions = linkedSubmissions.length;
+
+      const totalItems = totalSessions + totalDocs + totalSubmissions;
+      const completedItems =
+        completedSessions + completedDocs + completedSubmissions;
+      const progress =
+        totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+      return {
+        ...kpi,
+        progress,
+        linkedSessions: totalSessions,
+        completedSessions,
+        linkedDocs: totalDocs,
+        completedDocs,
+        linkedSubmissions: totalSubmissions,
+        completedSubmissions,
+      };
+    });
+
     // HARDENED DE-DUPLICATION: Merge sources and ensure participants are unique by email
     const allParticipantRows = [...parRes.rows, ...contRes.rows];
     const uniqueParticipants = Array.from(
@@ -250,7 +318,7 @@ export async function GET(req) {
       sessions: sesRes.rows,
       staffList: staffRes.rows,
       events: eventRes.rows,
-      kpis: kpiRes.rows,
+      kpis: kpisWithProgress,
       documents: docRes.rows,
       followups: folRes.rows,
       assignedStaff: assignedStaff,
