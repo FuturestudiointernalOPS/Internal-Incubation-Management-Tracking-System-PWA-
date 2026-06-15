@@ -64,6 +64,12 @@ export async function GET(req) {
     }
     baseQuery += " ORDER BY p.created_at DESC";
 
+    // Auto-activate programs where start_date has passed
+    await db.execute({
+      sql: "UPDATE v2_programs SET status = 'Active' WHERE status = 'Planned' AND start_date IS NOT NULL AND start_date <= CURRENT_DATE",
+      args: [],
+    });
+
     const programsRes = await db.execute({ sql: baseQuery, args });
     const programs = programsRes.rows;
 
