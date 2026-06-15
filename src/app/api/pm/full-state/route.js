@@ -252,7 +252,7 @@ export async function GET(req) {
           return false;
         }
       });
-      // Find document requirements linked to this KPI
+      // Find document requirements linked to this KPI (these are operational deliverables)
       const linkedDocs = docList.filter((d) => {
         try {
           const ids =
@@ -272,33 +272,51 @@ export async function GET(req) {
       const completedDocs = linkedDocs.filter((d) => d.is_completed).length;
       const totalDocs = linkedDocs.length;
 
-      // Find submissions linked to this KPI via requirements
-      const linkedSubmissions = subList.filter((sub) => {
-        const reqId = String(sub.requirement_id || sub.document_id || "");
-        return linkedDocs.some((d) => String(d.id) === reqId);
-      });
-      const completedSubmissions = linkedSubmissions.filter(
-        (sub) => sub.status === "approved" || sub.status === "submitted",
-      ).length;
-      const totalSubmissions = linkedSubmissions.length;
-
-      const totalItems = totalSessions + totalDocs + totalSubmissions;
-      const completedItems =
-        completedSessions + completedDocs + completedSubmissions;
+      // Operational progress: sessions + docs only (NOT student submissions)
+      const totalItems = totalSessions + totalDocs;
+      const completedItems = completedSessions + completedDocs;
       const progress =
         totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
       return {
         ...kpi,
         progress,
+        weight: kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0,
         linkedSessions: totalSessions,
         completedSessions,
         linkedDocs: totalDocs,
         completedDocs,
-        linkedSubmissions: totalSubmissions,
-        completedSubmissions,
       };
     });
+
+    // --- STUDENT PERFORMANCE METRICS (independent from operational KPI) ---
+    const totalParticipants = uniqueParticipants.length;
+    const totalDocsCount = docList.length;
+    const expectedSubmissions = totalParticipants * totalDocsCount;
+    const actualSubmissions = subList.length;
+    const approvedSubmissions = subList.filter(
+      (s) => s.status === "approved",
+    ).length;
+    const submissionRate =
+      expectedSubmissions > 0
+        ? Math.round((actualSubmissions / expectedSubmissions) * 100)
+        : 0;
+    const approvalRate =
+      actualSubmissions > 0
+        ? Math.round((approvedSubmissions / actualSubmissions) * 100)
+        : 0;
+
+    // --- PROGRAM-LEVEL OPERATIONAL COMPLETION (roll-up from KPI progress) ---
+    const operationalProgress =
+      kpisWithProgress.length > 0
+        ? Math.round(
+            kpisWithProgress.reduce((sum, k) => sum + (k.progress || 0), 0) /
+              kpisWithProgress.length,
+          )
+        : program?.completion_index || 0;
+
+    // --- EXECUTIVE HEALTH SCORE (optional combined metric) ---
+    const overallHealth = Math.round((operationalProgress + approvalRate) / 2);
 
     // HARDENED DE-DUPLICATION: Merge sources and ensure participants are unique by email
     const allParticipantRows = [...parRes.rows, ...contRes.rows];
@@ -325,6 +343,26 @@ export async function GET(req) {
       submissions: subRes.rows,
       reports: repRes.rows,
       families: famRes.rows,
+      metrics: {
+        operational: {
+          progress: operationalProgress,
+          kpis: kpisWithProgress.map((k) => ({
+            id: k.id,
+            title: k.title,
+            progress: k.progress,
+            weight: k.weight,
+          })),
+        },
+        student: {
+          submissionRate,
+          approvalRate,
+          expectedSubmissions,
+          actualSubmissions,
+          approvedSubmissions,
+          totalParticipants,
+        },
+        overallHealth,
+      },
     });
   } catch (error) {
     return NextResponse.json(
