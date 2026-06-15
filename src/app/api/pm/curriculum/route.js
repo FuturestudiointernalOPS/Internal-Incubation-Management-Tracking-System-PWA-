@@ -35,9 +35,11 @@ export async function POST(req) {
         handler_id,
         handler_name,
         kpi_ids,
+        notes,
+        extra_materials,
       } = payload;
       const result = await db.execute({
-        sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+        sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids, notes, extra_materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         args: [
           program_id,
           title,
@@ -54,6 +56,8 @@ export async function POST(req) {
           handler_id || null,
           handler_name || null,
           JSON.stringify(kpi_ids || []),
+          notes || null,
+          extra_materials ? JSON.stringify(extra_materials) : null,
         ],
       });
       return NextResponse.json({ success: true, id: result.rows[0].id });
