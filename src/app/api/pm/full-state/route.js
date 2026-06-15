@@ -16,10 +16,10 @@ export async function GET(req) {
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const includeMetrics = searchParams.get("metrics") === "true";
 
     if (!id) return NextResponse.json({ success: false, error: "ID required" });
 
-    // Granular Forensic Execution
     const queries = [
       {
         name: "program",
@@ -135,7 +135,6 @@ export async function GET(req) {
             ? JSON.parse(program.materials || "[]")
             : program.materials || [];
 
-        // PARSE note_files (comes from k.url in DB as a JSON string like '[]')
         if (
           typeof program.note_files === "string" &&
           program.note_files.trim()
@@ -143,7 +142,6 @@ export async function GET(req) {
           try {
             program.note_files = JSON.parse(program.note_files);
           } catch (e) {
-            // Deep-unwrap: handle triple-encoded strings from double-serialization bugs
             let value = program.note_files;
             let parsed = false;
             for (let i = 0; i < 3; i++) {
@@ -159,7 +157,6 @@ export async function GET(req) {
         } else {
           program.note_files = program.note_files || [];
         }
-        // Normalize note_files entries: handle uppercase Name/URL keys from external imports
         if (Array.isArray(program.note_files)) {
           program.note_files = program.note_files.map((f) => {
             if (typeof f === "object" && f !== null) {
@@ -174,7 +171,6 @@ export async function GET(req) {
           });
         }
 
-        // Fetch new Multi-PDF attachments for the linked Knowledge Note with explicit ID casting
         if (program.note_id) {
           const kbAttachmentsRes = await db.execute({
             sql: "SELECT name, url FROM v2_knowledge_attachments WHERE CAST(note_id AS TEXT) = CAST(? AS TEXT)",
@@ -185,7 +181,6 @@ export async function GET(req) {
           program.knowledge_assets = [];
         }
 
-        // --- DYNAMIC PROGRESS CALCULATION (OFFLOADED FROM SQL) ---
         const sessions = sesRes.rows || [];
         const documents = docRes.rows || [];
         const reports = repRes.rows || [];
@@ -217,10 +212,8 @@ export async function GET(req) {
       }
     }
 
-    // Capture "Assigned Team" from multiple sources
     let assignedStaff = assignedStaffRes.rows;
 
-    // Check for "Legacy" or "Direct" assignments in program.assigned_assistant_id
     if (program?.assigned_assistant_id) {
       try {
         const assistantIds = JSON.parse(program.assigned_assistant_id);
@@ -229,7 +222,6 @@ export async function GET(req) {
             sql: `SELECT cid, name, email, phone, role FROM contacts WHERE cid IN (${assistantIds.map(() => "?").join(",")})`,
             args: assistantIds,
           });
-          // Merge and remove duplicates by cid
           const merged = [...assignedStaff, ...assistantsRes.rows];
           assignedStaff = Array.from(
             new Map(merged.map((item) => [item.cid, item])).values(),
@@ -238,66 +230,9 @@ export async function GET(req) {
       } catch (e) {}
     }
 
-    // --- PER-KPI PROGRESS CALCULATION ---
-    const kpiList = kpiRes.rows || [];
-    const sessionList = sesRes.rows || [];
-    const docList = docRes.rows || [];
-    const subList = subRes.rows || [];
-
-    const kpisWithProgress = kpiList.map((kpi) => {
-      const kpiId = String(kpi.id);
-      // Find sessions linked to this KPI
-      const linkedSessions = sessionList.filter((s) => {
-        try {
-          const ids =
-            typeof s.kpi_ids === "string"
-              ? JSON.parse(s.kpi_ids)
-              : s.kpi_ids || [];
-          return ids.map(String).includes(kpiId);
-        } catch {
-          return false;
-        }
-      });
-      // Find document requirements linked to this KPI (these are operational deliverables)
-      const linkedDocs = docList.filter((d) => {
-        try {
-          const ids =
-            typeof d.kpi_ids === "string"
-              ? JSON.parse(d.kpi_ids)
-              : d.kpi_ids || [];
-          return ids.map(String).includes(kpiId);
-        } catch {
-          return false;
-        }
-      });
-
-      const completedSessions = linkedSessions.filter(
-        (s) => s.status === "completed",
-      ).length;
-      const totalSessions = linkedSessions.length;
-      const completedDocs = linkedDocs.filter((d) => d.is_completed).length;
-      const totalDocs = linkedDocs.length;
-
-      // Operational progress: sessions + docs only (NOT student submissions)
-      const totalItems = totalSessions + totalDocs;
-      const completedItems = completedSessions + completedDocs;
-      const progress =
-        totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-
-      return {
-        ...kpi,
-        progress,
-        weight: kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0,
-        linkedSessions: totalSessions,
-        completedSessions,
-        linkedDocs: totalDocs,
-        completedDocs,
-      };
-    });
-
-    // HARDENED DE-DUPLICATION: Merge sources and ensure participants are unique by email
+    // --- MERGE PARTICIPANTS (always) ---
     const allParticipantRows = [...parRes.rows, ...contRes.rows];
-    const uniqueParticipants = Array.from(
+    const mergedParticipants = Array.from(
       new Map(
         allParticipantRows
           .filter((p) => p.email)
@@ -305,38 +240,107 @@ export async function GET(req) {
       ).values(),
     );
 
-    // --- STUDENT PERFORMANCE METRICS (independent from operational KPI) ---
-    const totalParticipants = uniqueParticipants.length;
-    const totalDocsCount = docList.length;
-    const expectedSubmissions = totalParticipants * totalDocsCount;
-    const actualSubmissions = subList.length;
-    const approvedSubmissions = subList.filter(
-      (s) => s.status === "approved",
-    ).length;
-    const submissionRate =
-      expectedSubmissions > 0
-        ? Math.round((actualSubmissions / expectedSubmissions) * 100)
-        : 0;
-    const approvalRate =
-      actualSubmissions > 0
-        ? Math.round((approvedSubmissions / actualSubmissions) * 100)
-        : 0;
+    // --- OPTIONAL METRICS (only when ?metrics=true) ---
+    let kpisWithProgress = kpiRes.rows || [];
+    let uniqueParticipants = mergedParticipants;
+    let operationalProgress = program?.completion_index || 0;
+    let submissionRate = 0,
+      approvalRate = 0;
+    let expectedSubmissions = 0,
+      actualSubmissions = 0,
+      approvedSubmissions = 0;
+    let totalParticipants = 0,
+      overallHealth = 0;
 
-    // --- PROGRAM-LEVEL OPERATIONAL COMPLETION (roll-up from KPI progress) ---
-    const operationalProgress =
-      kpisWithProgress.length > 0
-        ? Math.round(
-            kpisWithProgress.reduce((sum, k) => sum + (k.progress || 0), 0) /
-              kpisWithProgress.length,
-          )
-        : program?.completion_index || 0;
+    if (includeMetrics) {
+      const kpiList = kpiRes.rows || [];
+      const sessionList = sesRes.rows || [];
+      const docList = docRes.rows || [];
+      const subList = subRes.rows || [];
 
-    // --- EXECUTIVE HEALTH SCORE (optional combined metric) ---
-    const overallHealth = Math.round((operationalProgress + approvalRate) / 2);
+      kpisWithProgress = kpiList.map((kpi) => {
+        const kpiId = String(kpi.id);
+        const linkedSessions = sessionList.filter((s) => {
+          try {
+            const ids =
+              typeof s.kpi_ids === "string"
+                ? JSON.parse(s.kpi_ids)
+                : s.kpi_ids || [];
+            return ids.map(String).includes(kpiId);
+          } catch {
+            return false;
+          }
+        });
+        const linkedDocs = docList.filter((d) => {
+          try {
+            const ids =
+              typeof d.kpi_ids === "string"
+                ? JSON.parse(d.kpi_ids)
+                : d.kpi_ids || [];
+            return ids.map(String).includes(kpiId);
+          } catch {
+            return false;
+          }
+        });
+
+        return {
+          ...kpi,
+          progress:
+            linkedSessions.length + linkedDocs.length > 0
+              ? Math.round(
+                  ((linkedSessions.filter((s) => s.status === "completed")
+                    .length +
+                    linkedDocs.filter((d) => d.is_completed).length) /
+                    (linkedSessions.length + linkedDocs.length)) *
+                    100,
+                )
+              : 0,
+          weight: kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0,
+          linkedSessions: linkedSessions.length,
+          completedSessions: linkedSessions.filter(
+            (s) => s.status === "completed",
+          ).length,
+          linkedDocs: linkedDocs.length,
+          completedDocs: linkedDocs.filter((d) => d.is_completed).length,
+        };
+      });
+
+      const allParticipantRows = [...parRes.rows, ...contRes.rows];
+      uniqueParticipants = Array.from(
+        new Map(
+          allParticipantRows
+            .filter((p) => p.email)
+            .map((p) => [p.email.toLowerCase(), p]),
+        ).values(),
+      );
+
+      totalParticipants = uniqueParticipants.length;
+      expectedSubmissions = totalParticipants * docList.length;
+      actualSubmissions = subList.length;
+      approvedSubmissions = subList.filter(
+        (s) => s.status === "approved",
+      ).length;
+      submissionRate =
+        expectedSubmissions > 0
+          ? Math.round((actualSubmissions / expectedSubmissions) * 100)
+          : 0;
+      approvalRate =
+        actualSubmissions > 0
+          ? Math.round((approvedSubmissions / actualSubmissions) * 100)
+          : 0;
+      operationalProgress =
+        kpisWithProgress.length > 0
+          ? Math.round(
+              kpisWithProgress.reduce((sum, k) => sum + (k.progress || 0), 0) /
+                kpisWithProgress.length,
+            )
+          : program?.completion_index || 0;
+      overallHealth = Math.round((operationalProgress + approvalRate) / 2);
+    }
 
     return NextResponse.json({
       success: true,
-      program: program,
+      program,
       participants: uniqueParticipants,
       teams: teamRes.rows,
       sessions: sesRes.rows,
@@ -345,30 +349,33 @@ export async function GET(req) {
       kpis: kpisWithProgress,
       documents: docRes.rows,
       followups: folRes.rows,
-      assignedStaff: assignedStaff,
+      assignedStaff,
       submissions: subRes.rows,
       reports: repRes.rows,
       families: famRes.rows,
-      metrics: {
-        operational: {
-          progress: operationalProgress,
-          kpis: kpisWithProgress.map((k) => ({
-            id: k.id,
-            title: k.title,
-            progress: k.progress,
-            weight: k.weight,
-          })),
-        },
-        student: {
-          submissionRate,
-          approvalRate,
-          expectedSubmissions,
-          actualSubmissions,
-          approvedSubmissions,
-          totalParticipants,
-        },
-        overallHealth,
-      },
+      deliverables: delRes.rows,
+      metrics: includeMetrics
+        ? {
+            operational: {
+              progress: operationalProgress,
+              kpis: kpisWithProgress.map((k) => ({
+                id: k.id,
+                title: k.title,
+                progress: k.progress,
+                weight: k.weight,
+              })),
+            },
+            student: {
+              submissionRate,
+              approvalRate,
+              expectedSubmissions,
+              actualSubmissions,
+              approvedSubmissions,
+              totalParticipants,
+            },
+            overallHealth,
+          }
+        : undefined,
     });
   } catch (error) {
     return NextResponse.json(
