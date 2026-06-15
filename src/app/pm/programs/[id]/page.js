@@ -1301,7 +1301,7 @@ export default function ProgramWorkspace() {
                       }}
                       className="btn btn-primary btn-sm gap-2"
                     >
-                      <Plus className="w-4 h-4" /> Add Session
+                      <Plus className="w-4 h-4" /> Save
                     </button>
                   )}
                 </div>
@@ -2622,7 +2622,7 @@ export default function ProgramWorkspace() {
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Add Session
+                  Save
                 </h3>
                 <button onClick={() => setShowSessionModal(false)}>
                   <X className="w-5 h-5" />
@@ -3045,7 +3045,7 @@ export default function ProgramWorkspace() {
                   disabled={isSaving || !newSession.title.trim()}
                   className="flex-1 btn btn-primary"
                 >
-                  {isSaving ? "Adding..." : "Add Session"}
+                  {isSaving ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>
