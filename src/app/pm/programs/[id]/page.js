@@ -1343,18 +1343,60 @@ export default function ProgramWorkspace() {
                                 {session.title}
                               </h4>
                               <div className="flex items-center gap-2 mt-1">
-                                <span
-                                  className={`w-2 h-2 rounded-full animate-pulse ${
-                                    session.status === "completed"
-                                      ? "bg-emerald-500"
-                                      : session.status === "in progress"
-                                        ? "bg-indigo-500"
-                                        : "bg-amber-500"
-                                  }`}
-                                />
-                                <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
-                                  State: {session.status}
-                                </span>
+                                {(() => {
+                                  const now = new Date();
+                                  const today = new Date(
+                                    now.getFullYear(),
+                                    now.getMonth(),
+                                    now.getDate(),
+                                  );
+                                  let displayStatus = session.status;
+                                  let statusColor = "bg-amber-500";
+                                  if (session.scheduled_date) {
+                                    const schedDate = new Date(
+                                      session.scheduled_date,
+                                    );
+                                    const schedDay = new Date(
+                                      schedDate.getFullYear(),
+                                      schedDate.getMonth(),
+                                      schedDate.getDate(),
+                                    );
+                                    if (session.status === "completed") {
+                                      displayStatus = "completed";
+                                      statusColor = "bg-emerald-500";
+                                    } else if (schedDay <= today) {
+                                      displayStatus = "active";
+                                      statusColor = "bg-indigo-500";
+                                    } else {
+                                      displayStatus = "pending";
+                                      statusColor = "bg-amber-500";
+                                    }
+                                  } else {
+                                    if (session.status === "completed") {
+                                      displayStatus = "completed";
+                                      statusColor = "bg-emerald-500";
+                                    } else if (
+                                      session.status === "in progress" ||
+                                      session.status === "active"
+                                    ) {
+                                      displayStatus = "active";
+                                      statusColor = "bg-indigo-500";
+                                    } else {
+                                      displayStatus = "pending";
+                                      statusColor = "bg-amber-500";
+                                    }
+                                  }
+                                  return (
+                                    <>
+                                      <span
+                                        className={`w-2 h-2 rounded-full animate-pulse ${statusColor}`}
+                                      />
+                                      <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
+                                        State: {displayStatus}
+                                      </span>
+                                    </>
+                                  );
+                                })()}
                                 {session.scheduled_date && (
                                   <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest ml-2">
                                     📅{" "}
