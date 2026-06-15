@@ -9,7 +9,7 @@ export async function POST(req) {
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
     const body = await req.json();
-    const { program_id, title, description, week_number, type } = body;
+    const { program_id, title, description, week_number, type, kpi_ids } = body;
 
     if (!program_id || !title) {
       return NextResponse.json(
@@ -19,14 +19,15 @@ export async function POST(req) {
     }
 
     const { lastInsertRowid } = await db.execute({
-      sql: `INSERT INTO v2_deliverables (program_id, title, description, week_number, type)
-             VALUES (?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO v2_deliverables (program_id, title, description, week_number, type, kpi_ids)
+             VALUES (?, ?, ?, ?, ?, ?)`,
       args: [
         program_id,
         title,
         description || null,
         week_number || 1,
         type || "Group",
+        kpi_ids ? JSON.stringify(kpi_ids) : null,
       ],
     });
 
