@@ -361,7 +361,10 @@ export default function ProgramWorkspace() {
         setShowSessionModal(false);
         setNewSession({
           title: "",
-          week_number: maxWeek,
+          week_number:
+            sessions.length > 0
+              ? Math.max(...sessions.map((s) => s.week_number || 0)) + 1
+              : 1,
           status: "pending",
           kpi_ids: [],
           handler_ids: [],
