@@ -40,6 +40,9 @@ yarn-error.log*
 local.db
 data.json
 
+# finance (local Excel file — do not commit)
+/finance/*.xlsx
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
