@@ -48,8 +48,31 @@ export const PROJECT_SHEETS = {
   "Master Overview": "Suivi budgétaire",
 };
 
-export async function getTransactions() {
-  const rows = await getSheetJSON("Réalisations globales");
+const BUDGET_SHEET_MAP = {
+  "Future Studio": "Suivi budgétaire",
+  "MTN Innovation Lab": "MTN Innovation Lab_2",
+  "Sème City": "SEME CITY",
+};
+
+/**
+ * Get the sheet name for a given project.
+ * Returns the master overview sheet for "all" or unknown projects.
+ */
+function getSheetForProject(project, type = "budget") {
+  if (!project || project === "all") {
+    return type === "transactions"
+      ? "Réalisations globales"
+      : "Suivi budgétaire";
+  }
+  if (type === "transactions") {
+    return PROJECT_SHEETS[project] || "Réalisations globales";
+  }
+  return BUDGET_SHEET_MAP[project] || "Suivi budgétaire";
+}
+
+export async function getTransactions(project) {
+  const sheetName = getSheetForProject(project, "transactions");
+  const rows = await getSheetJSON(sheetName);
   return rows
     .map((r) => ({
       date: excelDateToISO(r["TRIBU FUTURE STUDIO"] || r.__EMPTY),
@@ -63,8 +86,9 @@ export async function getTransactions() {
     .filter((t) => t.date || t.supplier || t.description);
 }
 
-export async function getSummary() {
-  const rows = await getSheetJSON("Suivi budgétaire");
+export async function getSummary(project) {
+  const sheetName = getSheetForProject(project, "budget");
+  const rows = await getSheetJSON(sheetName);
   let totalPlanned = 0;
   let totalActual = 0;
 
@@ -82,8 +106,13 @@ export async function getSummary() {
   return { totalPlanned, totalActual, remaining, rate };
 }
 
-export async function getMonthlyTrend() {
-  const rows = await getSheetData("Réalisations mensuelles");
+export async function getMonthlyTrend(project) {
+  const sheetName =
+    project && project !== "all"
+      ? getSheetForProject(project, "budget")
+      : "Réalisations mensuelles";
+
+  const rows = await getSheetData(sheetName);
   const months = rows[2] || [];
   const dataRows = rows.slice(3).filter((r) => r.some((c) => c !== ""));
 
@@ -97,6 +126,9 @@ export async function getMonthlyTrend() {
     "mars",
     "avr",
     "mai",
+    "juin",
+    "juil",
+    "août",
   ];
   const monthlyData = {};
 
@@ -114,13 +146,7 @@ export async function getMonthlyTrend() {
 }
 
 export async function getBudgetLines(project) {
-  const sheetMap = {
-    "Future Studio": "Suivi budgétaire",
-    "MTN Innovation Lab": "MTN Innovation Lab_2",
-    "Sème City": "SEME CITY",
-  };
-
-  const sheetName = sheetMap[project] || "Suivi budgétaire";
+  const sheetName = BUDGET_SHEET_MAP[project] || "Suivi budgétaire";
   const rows = await getSheetData(sheetName);
 
   const lines = rows
@@ -137,10 +163,7 @@ export async function getBudgetLines(project) {
   return lines;
 }
 
-// Append transaction — writes to the Excel file locally (for demo).
-// In production, this would use the Google Sheets API.
 export function appendTransaction(rowData) {
   console.log("Transaction logged (demo):", rowData);
-  // Actual Google Sheets API write can be added later
   return { success: true };
 }
