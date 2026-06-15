@@ -317,6 +317,12 @@ const NAVIGATION_MATRIX = {
       icon: TrendingUp,
       href: "/admin/intelligence",
     },
+    {
+      id: "finance",
+      name: "FINANCE",
+      icon: BarChart3,
+      href: "/admin/finance",
+    },
   ],
   admin: [
     { id: "dashboard", name: "DASHBOARD", icon: ShieldCheck, href: "/admin" },

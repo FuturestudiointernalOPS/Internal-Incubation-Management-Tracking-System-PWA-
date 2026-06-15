@@ -57,6 +57,8 @@ const softAuthPaths = [
   "/participant",
   "/api/participant",
   "/api/notifications",
+  "/finance",
+  "/api/finance",
 ];
 
 export function middleware(request) {

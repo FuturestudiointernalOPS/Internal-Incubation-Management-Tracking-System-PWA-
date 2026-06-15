@@ -1,0 +1,26 @@
+========================================
+IMPACTOS PRODUCTION ENVIRONMENT VARIABLES
+========================================
+
+Copy and paste these into Vercel:
+Project Settings → Environment Variables
+
+1. Name: RESEND_API_KEY
+   Value: re_5mAhy6Ps_7ufgUuXpYYCGodZVs3QzrK5d
+   Environment: Production
+
+2. Name: RESEND_FROM_EMAIL
+   Value: onboarding@futurestudio.bj
+   Environment: Production
+
+3. Name: NEXT_PUBLIC_APP_URL
+   Value: https://internal-incubation-management-trac.vercel.app
+   Environment: Production
+
+========================================
+LOCAL .env.local (for your machine only)
+========================================
+
+RESEND_API_KEY=re_5mAhy6Ps_7ufgUuXpYYCGodZVs3QzrK5d
+RESEND_FROM_EMAIL=onboarding@futurestudio.bj
+NEXT_PUBLIC_APP_URL=http://localhost:3000
