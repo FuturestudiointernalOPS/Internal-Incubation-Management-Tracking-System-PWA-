@@ -323,6 +323,12 @@ const NAVIGATION_MATRIX = {
       icon: BarChart3,
       href: "/admin/finance",
     },
+    {
+      id: "metrics",
+      name: "HEALTH",
+      icon: Activity,
+      href: "/admin/metrics",
+    },
   ],
   admin: [
     { id: "dashboard", name: "DASHBOARD", icon: ShieldCheck, href: "/admin" },
