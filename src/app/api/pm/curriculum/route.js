@@ -110,14 +110,14 @@ export async function POST(req) {
 
     if (action === "anchor_material") {
       const { session_id, file_name } = payload;
-      // Fetch existing materials
+      // Fetch existing extra_materials
       const currentRes = await db.execute({
-        sql: "SELECT materials FROM v2_sessions WHERE id = ?",
+        sql: "SELECT extra_materials FROM v2_sessions WHERE id = ?",
         args: [session_id],
       });
       let materials = [];
       try {
-        const raw = currentRes.rows[0]?.materials;
+        const raw = currentRes.rows[0]?.extra_materials;
         materials =
           typeof raw === "string" ? JSON.parse(raw || "[]") : raw || [];
       } catch (e) {
@@ -126,13 +126,13 @@ export async function POST(req) {
 
       const newMaterial = {
         name: file_name,
+        type: "file",
         timestamp: new Date().toISOString(),
-        status: "anchored",
       };
       const updated = JSON.stringify([...materials, newMaterial]);
 
       await db.execute({
-        sql: "UPDATE v2_sessions SET materials = ? WHERE id = ?",
+        sql: "UPDATE v2_sessions SET extra_materials = ? WHERE id = ?",
         args: [updated, session_id],
       });
       return NextResponse.json({ success: true });
