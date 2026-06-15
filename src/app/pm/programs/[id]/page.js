@@ -1710,45 +1710,82 @@ export default function ProgramWorkspace() {
                                     Weekly Resources
                                   </span>
                                 </div>
-                                {canEdit && (
-                                  <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
-                                    <Plus className="w-3 h-3" /> Upload
-                                    <input
-                                      type="file"
-                                      accept=".pdf"
-                                      className="hidden"
-                                      onChange={async (e) => {
-                                        const file = e.target.files[0];
-                                        if (!file) return;
-                                        notify("Syncing material...", "info");
-                                        try {
-                                          const res = await fetch(
-                                            "/api/pm/curriculum",
-                                            {
-                                              method: "POST",
-                                              headers: {
-                                                "Content-Type":
-                                                  "application/json",
-                                              },
-                                              body: JSON.stringify({
-                                                action: "anchor_material",
-                                                program_id: id,
-                                                session_id: session.id,
-                                                file_name: file.name,
-                                              }),
-                                            },
+                                <div className="flex items-center gap-2">
+                                  {canEdit && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          const name = prompt("Material name:");
+                                          const url = prompt("URL or note:");
+                                          if (!name || !url) return;
+                                          const current = (() => {
+                                            try {
+                                              return typeof session.extra_materials ===
+                                                "string"
+                                                ? JSON.parse(
+                                                    session.extra_materials,
+                                                  )
+                                                : session.extra_materials || [];
+                                            } catch {
+                                              return [];
+                                            }
+                                          })();
+                                          updateSessionField(
+                                            session.id,
+                                            "extra_materials",
+                                            [
+                                              ...current,
+                                              { name, url, type: "link" },
+                                            ],
                                           );
-                                          if ((await res.json()).success) {
-                                            notify("Material anchored.");
-                                            fetchProgramData(true);
-                                          }
-                                        } catch (e) {
-                                          notify("Upload failed.", "error");
-                                        }
-                                      }}
-                                    />
-                                  </label>
-                                )}
+                                        }}
+                                        className="text-[9px] font-black text-blue-400 uppercase hover:underline cursor-pointer flex items-center gap-1"
+                                      >
+                                        <Plus className="w-3 h-3" /> Add Link
+                                      </button>
+                                      <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
+                                        <Plus className="w-3 h-3" /> Upload
+                                        <input
+                                          type="file"
+                                          accept=".pdf"
+                                          className="hidden"
+                                          onChange={async (e) => {
+                                            const file = e.target.files[0];
+                                            if (!file) return;
+                                            notify(
+                                              "Syncing material...",
+                                              "info",
+                                            );
+                                            try {
+                                              const res = await fetch(
+                                                "/api/pm/curriculum",
+                                                {
+                                                  method: "POST",
+                                                  headers: {
+                                                    "Content-Type":
+                                                      "application/json",
+                                                  },
+                                                  body: JSON.stringify({
+                                                    action: "anchor_material",
+                                                    program_id: id,
+                                                    session_id: session.id,
+                                                    file_name: file.name,
+                                                  }),
+                                                },
+                                              );
+                                              if ((await res.json()).success) {
+                                                notify("Material anchored.");
+                                                fetchProgramData(true);
+                                              }
+                                            } catch (e) {
+                                              notify("Upload failed.", "error");
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    </>
+                                  )}
+                                </div>
                               </div>
 
                               <div className="space-y-3">

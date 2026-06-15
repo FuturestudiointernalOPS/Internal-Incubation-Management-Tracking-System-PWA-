@@ -295,6 +295,12 @@ export async function PUT(req) {
       } else if (field === "kpi_ids") {
         sql = "UPDATE v2_sessions SET kpi_ids = ? WHERE id = ?";
         args = [JSON.stringify(value || []), targetId];
+      } else if (field === "notes") {
+        sql = "UPDATE v2_sessions SET notes = ? WHERE id = ?";
+        args = [value || null, targetId];
+      } else if (field === "extra_materials") {
+        sql = "UPDATE v2_sessions SET extra_materials = ? WHERE id = ?";
+        args = [JSON.stringify(value || []), targetId];
       }
 
       if (sql) {
