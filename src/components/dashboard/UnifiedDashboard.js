@@ -1141,6 +1141,53 @@ export default function UnifiedDashboard({ role: propRole }) {
               </div>
             </div>
 
+            {/* My Projects — With Role Status */}
+            {visibility.showQuickProjects && (
+              <div className="card">
+                <div className="flex items-center gap-2 mb-3">
+                  <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    My Projects
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                    {quickAccess.projects?.length || 0}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {quickAccess.projects?.slice(0, 5).map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => router.push(`/admin/projects/${p.id}`)}
+                      className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
+                        <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                          {p.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500">
+                            {p.status || "Active"}
+                          </span>
+                          <span className="text-[7px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+                            {p.role === "owner" ? "Owner" : "Collaborator"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {(!quickAccess.projects ||
+                    quickAccess.projects.length === 0) && (
+                    <p className="text-[10px] text-slate-500 italic py-4 text-center">
+                      No projects assigned
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Active Blockers — With Inline Resolve */}
             {visibility.showQuickBlockers && (
               <div className="card">
