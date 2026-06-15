@@ -49,7 +49,7 @@ function StatusBadge({ status }) {
   );
 }
 
-// ─── Week Card ──────────────────────────────────────────────────────
+// ─── Week Card (simplified) ────────────────────────────────────────
 function WeekCard({ week, isExpanded, onToggle }) {
   const completedCount = week.deliverables.filter(
     (d) => d.submission?.status === "approved",
@@ -57,16 +57,15 @@ function WeekCard({ week, isExpanded, onToggle }) {
   const totalCount = week.deliverables.length;
 
   return (
-    <div className="border border-[var(--border-primary)] rounded-xl overflow-hidden transition-all">
-      {/* Header */}
+    <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl overflow-hidden">
+      {/* Header — clickable row */}
       <button
         onClick={() => onToggle(week.number)}
-        className="w-full flex items-center justify-between p-5 bg-[var(--bg-tertiary)] hover:bg-[var(--surface-2)] transition-all text-left"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--surface-2)] transition-all text-left"
       >
         <div className="flex items-center gap-4">
-          {/* Week number indicator */}
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-all ${
+            className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 ${
               week.isCurrent
                 ? "bg-[var(--brand-orange)] text-black"
                 : week.completed
@@ -79,91 +78,78 @@ function WeekCard({ week, isExpanded, onToggle }) {
             {week.locked ? (
               <Lock className="w-4 h-4" />
             ) : week.completed ? (
-              <CheckCircle2 className="w-5 h-5" />
+              <CheckCircle2 className="w-4 h-4" />
             ) : (
               week.number
             )}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-black text-[var(--text-primary)]">
+              <span className="text-sm font-bold text-[var(--text-primary)]">
                 Week {week.number}
               </span>
               {week.isCurrent && (
-                <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-[var(--brand-orange)] text-black uppercase tracking-wider">
-                  Current
+                <span className="text-[10px] font-semibold text-[var(--brand-orange)]">
+                  (Current)
                 </span>
               )}
               {week.locked && (
-                <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-slate-500/20 text-slate-400 uppercase tracking-wider">
-                  Locked
+                <span className="text-[10px] text-[var(--text-tertiary)]">
+                  (Locked)
                 </span>
               )}
             </div>
-            <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               {week.sessions.length > 0
                 ? week.sessions.map((s) => s.title).join(", ")
                 : `${totalCount} deliverable${totalCount > 1 ? "s" : ""}`}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {totalCount > 0 && (
-            <div className="hidden sm:flex items-center gap-1.5">
-              <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-emerald-400 transition-all"
-                  style={{ width: `${(completedCount / totalCount) * 100}%` }}
-                />
-              </div>
-              <span className="text-[9px] font-bold text-[var(--text-tertiary)]">
-                {completedCount}/{totalCount}
-              </span>
-            </div>
+            <span className="text-xs text-[var(--text-tertiary)]">
+              {completedCount}/{totalCount}
+            </span>
           )}
           <ChevronDown
-            className={`w-4 h-4 text-[var(--text-secondary)] transition-transform ${
-              isExpanded ? "rotate-180" : ""
-            }`}
+            className={`w-4 h-4 text-[var(--text-secondary)] transition-transform ${isExpanded ? "rotate-180" : ""}`}
           />
         </div>
       </button>
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="border-t border-[var(--border-primary)]">
+        <div className="border-t border-[var(--border-primary)] px-5 py-4 space-y-4">
           {/* Sessions */}
           {week.sessions.length > 0 && (
-            <div className="p-5 space-y-3">
-              <h4 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
                 Sessions
               </h4>
               {week.sessions.map((session) => (
                 <div
                   key={session.id}
-                  className="p-4 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
+                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-[var(--surface-2)]"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-[12px] font-bold text-[var(--text-primary)]">
-                        {session.title}
+                  <div>
+                    <p className="text-sm font-medium text-[var(--text-primary)]">
+                      {session.title}
+                    </p>
+                    {session.description && (
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                        {session.description}
                       </p>
-                      {session.description && (
-                        <p className="text-[10px] text-[var(--text-secondary)] mt-1 line-clamp-2">
-                          {session.description}
-                        </p>
-                      )}
-                    </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-3">
                     {session.type && (
-                      <span className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-0.5 rounded bg-white/5">
+                      <span className="text-xs text-[var(--text-tertiary)]">
                         {session.type}
                       </span>
                     )}
-                  </div>
-                  {(session.start_at || session.start_time) && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <Calendar className="w-3 h-3 text-[var(--text-tertiary)]" />
-                      <span className="text-[9px] text-[var(--text-tertiary)]">
+                    {(session.start_at || session.start_time) && (
+                      <span className="text-xs text-[var(--text-tertiary)]">
                         {session.start_at
                           ? new Date(session.start_at).toLocaleDateString(
                               "en",
@@ -175,11 +161,11 @@ function WeekCard({ week, isExpanded, onToggle }) {
                             )
                           : ""}
                         {session.start_time
-                          ? ` at ${new Date(`2000-01-01T${session.start_time}`).toLocaleTimeString("en", { hour: "numeric", minute: "2-digit" })}`
+                          ? ` ${new Date(`2000-01-01T${session.start_time}`).toLocaleTimeString("en", { hour: "numeric", minute: "2-digit" })}`
                           : ""}
                       </span>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -187,79 +173,64 @@ function WeekCard({ week, isExpanded, onToggle }) {
 
           {/* Deliverables */}
           {week.deliverables.length > 0 && (
-            <div className="p-5 pt-0 space-y-3">
-              <h4 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
                 Deliverables
               </h4>
               {week.deliverables.map((del) => (
                 <div
                   key={del.id}
-                  className="p-4 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
+                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-[var(--surface-2)]"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-bold text-[var(--text-primary)]">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-[var(--text-primary)]">
                         {del.title}
                       </p>
-                      {del.description && (
-                        <p className="text-[10px] text-[var(--text-secondary)] mt-1 line-clamp-2">
-                          {del.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 ml-3">
-                      {del.submission ? (
+                      {del.submission && (
                         <StatusBadge status={del.submission.status} />
-                      ) : (
-                        !week.locked && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.location.href = `/participant/${week.programId || ""}?submit=${del.id}`;
-                            }}
-                            className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
-                          >
-                            Submit
-                          </button>
-                        )
+                      )}
+                      {!del.submission && !week.locked && del.allowedFormat && (
+                        <span className="text-xs text-[var(--text-tertiary)]">
+                          ({del.allowedFormat})
+                        </span>
                       )}
                     </div>
-                  </div>
-
-                  {/* Submission info */}
-                  {del.submission && (
-                    <div className="flex items-center gap-4 mt-2 pt-2 border-t border-[var(--border-primary)]">
-                      <span className="text-[8px] text-[var(--text-tertiary)]">
+                    {del.submission && (
+                      <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
                         Submitted{" "}
                         {del.submission.submittedAt
                           ? new Date(
                               del.submission.submittedAt,
                             ).toLocaleDateString()
                           : ""}
-                      </span>
-                      {del.submission.score > 0 && (
-                        <span className="text-[8px] font-bold text-emerald-400">
-                          Score: {del.submission.score}
-                        </span>
-                      )}
-                      {del.submission.fileUrl && (
-                        <a
-                          href={del.submission.fileUrl}
-                          target="_blank"
-                          className="flex items-center gap-1 text-[8px] font-bold text-[var(--brand-orange)] hover:underline"
-                        >
-                          <ExternalLink className="w-3 h-3" /> View
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Allowed format hint */}
-                  {del.allowedFormat && !del.submission && (
-                    <p className="text-[8px] text-[var(--text-tertiary)] mt-2">
-                      Format: {del.allowedFormat}
-                    </p>
-                  )}
+                        {del.submission.score > 0 &&
+                          ` · Score: ${del.submission.score}`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    {del.submission?.fileUrl && (
+                      <a
+                        href={del.submission.fileUrl}
+                        target="_blank"
+                        className="text-xs text-[var(--brand-orange)] hover:underline"
+                      >
+                        View
+                      </a>
+                    )}
+                    {!del.submission && !week.locked && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `/participant/${week.programId || ""}?submit=${del.id}`;
+                        }}
+                        className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-xs font-medium hover:brightness-110"
+                      >
+                        Submit
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
