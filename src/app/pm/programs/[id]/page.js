@@ -1811,10 +1811,11 @@ export default function ProgramWorkspace() {
                                 {(() => {
                                   let sessionMaterials = [];
                                   try {
+                                    const raw = session.extra_materials;
                                     sessionMaterials =
-                                      typeof session.materials === "string"
-                                        ? JSON.parse(session.materials || "[]")
-                                        : session.materials || [];
+                                      typeof raw === "string"
+                                        ? JSON.parse(raw || "[]")
+                                        : raw || [];
                                   } catch (e) {
                                     sessionMaterials = [];
                                   }
@@ -1849,10 +1850,10 @@ export default function ProgramWorkspace() {
 
                                 {(() => {
                                   const noSessionMaterials =
-                                    !session.materials ||
-                                    session.materials === "[]" ||
-                                    (Array.isArray(session.materials) &&
-                                      session.materials.length === 0);
+                                    !session.extra_materials ||
+                                    session.extra_materials === "[]" ||
+                                    (Array.isArray(session.extra_materials) &&
+                                      session.extra_materials.length === 0);
                                   const noKnowledgeAssets =
                                     !program?.knowledge_assets ||
                                     program.knowledge_assets.length === 0;

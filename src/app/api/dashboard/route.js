@@ -132,24 +132,28 @@ export async function GET(req) {
       }
     } catch (_) {}
 
-    // Sessions
+    // Sessions (from programs the user manages + sessions they handle)
     try {
       const sessions = await db.execute({
-        sql: `SELECT s.id, s.title, s.start_at, s.type, s.teacher_id
+        sql: `SELECT s.id, s.title, s.scheduled_date, s.start_time, s.handler_id, s.program_id, p.name AS program_name
               FROM v2_sessions s
-              WHERE s.start_at IS NOT NULL
-                AND s.teacher_id = ?`,
-        args: [userId],
+              LEFT JOIN v2_programs p ON s.program_id = p.id
+              WHERE s.scheduled_date IS NOT NULL
+                AND (s.handler_id = ? OR s.program_id IN (
+                  SELECT id FROM v2_programs WHERE assigned_pm_id = ?
+                ) OR ? IN ('super_admin', 'admin'))`,
+        args: [userId, userId, role],
       });
       for (const s of sessions.rows) {
         calendarEvents.push({
           id: `session-${s.id}`,
           title: s.title,
-          date: String(s.start_at).split("T")[0],
+          date: String(s.scheduled_date).split("T")[0],
           type: "session",
           source: "session",
           status: "scheduled",
           related_id: s.id,
+          project_id: s.program_id,
         });
       }
     } catch (_) {}
