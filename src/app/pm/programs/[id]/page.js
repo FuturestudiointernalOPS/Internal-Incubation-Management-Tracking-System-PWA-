@@ -2156,11 +2156,7 @@ export default function ProgramWorkspace() {
                     )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {kpis.map((kpi, kpiIdx) => {
-                        const kpiShare = Math.floor(100 / kpis.length);
-                        const kpiPct =
-                          kpiIdx === kpis.length - 1
-                            ? 100 - kpiShare * (kpis.length - 1)
-                            : kpiShare;
+                        const progPct = kpi.progress || 0;
                         return (
                           <div
                             key={kpi.id}
@@ -2171,7 +2167,7 @@ export default function ProgramWorkspace() {
                                 KPI {kpiIdx + 1}
                               </span>
                               <span className="text-sm font-black text-[var(--brand-orange)]">
-                                {kpiPct}%
+                                {progPct}%
                               </span>
                             </div>
                             <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight mb-3 group-hover:text-[var(--brand-orange)] transition-colors">
@@ -2180,8 +2176,34 @@ export default function ProgramWorkspace() {
                             <div className="w-full h-2 bg-[var(--border-primary)]/20 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all duration-700"
-                                style={{ width: `${kpiPct}%` }}
+                                style={{ width: `${progPct}%` }}
                               />
+                            </div>
+                            <div className="flex items-center gap-3 mt-2">
+                              {kpi.linkedSessions > 0 && (
+                                <span className="text-[7px] font-bold text-slate-500">
+                                  {kpi.completedSessions}/{kpi.linkedSessions}{" "}
+                                  sessions
+                                </span>
+                              )}
+                              {kpi.linkedDocs > 0 && (
+                                <span className="text-[7px] font-bold text-slate-500">
+                                  {kpi.completedDocs}/{kpi.linkedDocs} docs
+                                </span>
+                              )}
+                              {kpi.linkedSubmissions > 0 && (
+                                <span className="text-[7px] font-bold text-slate-500">
+                                  {kpi.completedSubmissions}/
+                                  {kpi.linkedSubmissions} submissions
+                                </span>
+                              )}
+                              {kpi.linkedSessions === 0 &&
+                                kpi.linkedDocs === 0 &&
+                                kpi.linkedSubmissions === 0 && (
+                                  <span className="text-[7px] font-bold text-slate-600 italic">
+                                    No linked items
+                                  </span>
+                                )}
                             </div>
                           </div>
                         );
