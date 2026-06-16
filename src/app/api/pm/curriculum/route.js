@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { recalculateKpiProgress } from "@/lib/kpi-progress";
+
+/**
+ * Fire-and-forget KPI progress recalculation.
+ * Called after session/doc status changes to keep kpi_progress table in sync.
+ */
+async function recalculateKpiForProgram(programId) {
+  try {
+    await recalculateKpiProgress(programId);
+  } catch (e) {
+    console.warn("KPI recalculate trigger failed (non-critical):", e.message);
+  }
+}
 
 export async function POST(req) {
   try {
@@ -87,6 +100,8 @@ export async function POST(req) {
         sql: "UPDATE v2_sessions SET status = ? WHERE id = ?",
         args: [status, id],
       });
+      // Fire-and-forget: keep KPI progress in sync
+      recalculateKpiForProgram(program_id);
       return NextResponse.json({ success: true });
     }
 
@@ -96,6 +111,8 @@ export async function POST(req) {
         sql: "UPDATE v2_document_requirements SET is_completed = ? WHERE id = ?",
         args: [is_completed ? 1 : 0, id],
       });
+      // Fire-and-forget: keep KPI progress in sync
+      recalculateKpiForProgram(program_id);
       return NextResponse.json({ success: true });
     }
 
@@ -275,7 +292,8 @@ export async function PUT(req) {
     ]);
     if (authError) return authError;
     const payload = await req.json();
-    const { id, sessionId, field, value, handlerName, type } = payload;
+    const { id, sessionId, field, value, handlerName, type, program_id } =
+      payload;
 
     const targetId = id || sessionId;
 
@@ -295,6 +313,9 @@ export async function PUT(req) {
       } else if (field === "kpi_ids") {
         sql = "UPDATE v2_sessions SET kpi_ids = ? WHERE id = ?";
         args = [JSON.stringify(value || []), targetId];
+      } else if (field === "kpi_ids_doc") {
+        sql = "UPDATE v2_document_requirements SET kpi_ids = ? WHERE id = ?";
+        args = [JSON.stringify(value || []), targetId];
       } else if (field === "notes") {
         sql = "UPDATE v2_sessions SET notes = ? WHERE id = ?";
         args = [value || null, targetId];
@@ -305,6 +326,10 @@ export async function PUT(req) {
 
       if (sql) {
         await db.execute({ sql, args });
+        // Recalculate KPI progress if KPI linkages changed
+        if (field === "kpi_ids" || field === "kpi_ids_doc") {
+          recalculateKpiForProgram(program_id);
+        }
         return NextResponse.json({ success: true });
       }
     }
@@ -345,6 +370,7 @@ export async function PUT(req) {
           targetId,
         ],
       });
+      recalculateKpiForProgram(program_id);
     } else {
       const { title, description, allowed_format, kpi_ids } = payload;
       await db.execute({
@@ -357,6 +383,7 @@ export async function PUT(req) {
           targetId,
         ],
       });
+      recalculateKpiForProgram(program_id);
     }
 
     return NextResponse.json({ success: true });
@@ -379,9 +406,18 @@ export async function DELETE(req) {
       "teacher",
     ]);
     if (authError) return authError;
-    const { id, type } = await req.json();
+    const { id, type, program_id } = await req.json();
+    let targetProgramId = program_id;
 
     if (type === "session") {
+      // If no program_id provided, fetch it from the session before deleting
+      if (!targetProgramId) {
+        const sesRes = await db.execute({
+          sql: "SELECT program_id FROM v2_sessions WHERE id = ?",
+          args: [id],
+        });
+        targetProgramId = sesRes.rows[0]?.program_id;
+      }
       await db.execute({
         sql: "DELETE FROM v2_sessions WHERE id = ?",
         args: [id],
@@ -391,10 +427,22 @@ export async function DELETE(req) {
         args: [id],
       });
     } else {
+      // If no program_id provided, fetch it from the doc req before deleting
+      if (!targetProgramId) {
+        const docRes = await db.execute({
+          sql: "SELECT program_id FROM v2_document_requirements WHERE id = ?",
+          args: [id],
+        });
+        targetProgramId = docRes.rows[0]?.program_id;
+      }
       await db.execute({
         sql: "DELETE FROM v2_document_requirements WHERE id = ?",
         args: [id],
       });
+    }
+
+    if (targetProgramId) {
+      recalculateKpiForProgram(targetProgramId);
     }
 
     return NextResponse.json({ success: true });
