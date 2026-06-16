@@ -25,6 +25,8 @@ export default function StaffDashboard() {
   const [user, setUser] = useState({});
   const [assignments, setAssignments] = useState([]);
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
+  const [upcomingTasks, setUpcomingTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
 
   useEffect(() => {
     const sessionUser = JSON.parse(localStorage.getItem("user") || "{}");
@@ -38,7 +40,18 @@ export default function StaffDashboard() {
       const assignData = await assignRes.json();
       if (assignData.success) setAssignments(assignData.assignments);
 
-      // In a real app, we'd fetch submissions for assigned programs
+      // Fetch upcoming tasks for this staff member
+      if (uid) {
+        setTasksLoading(true);
+        const taskRes = await fetch(
+          `/api/tasks?user_id=${uid}&status=pending&limit=5`,
+        );
+        const taskData = await taskRes.json();
+        if (taskData.success) setUpcomingTasks(taskData.tasks || []);
+        setTasksLoading(false);
+      }
+
+      // Fetch submissions for assigned programs
       const subRes = await fetch(`/api/participant/submissions`);
       const subData = await subRes.json();
       if (subData.success) {
@@ -73,6 +86,54 @@ export default function StaffDashboard() {
             submissions for evaluation.
           </p>
         </header>
+
+        {/* UPCOMING TASKS */}
+        <div className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+              Next 5 Upcoming Tasks
+            </h3>
+          </div>
+          {tasksLoading ? (
+            <div className="flex items-center gap-3 py-4">
+              <div className="w-4 h-4 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                Loading tasks...
+              </span>
+            </div>
+          ) : upcomingTasks.length === 0 ? (
+            <p className="text-[10px] text-slate-600 italic py-4">
+              No upcoming tasks.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {upcomingTasks.slice(0, 5).map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                        {task.title}
+                      </p>
+                      {task.start_date && (
+                        <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                          {new Date(task.start_date).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 uppercase tracking-wider shrink-0 ml-2">
+                    {task.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
           {/* ASSIGNED PROGRAMS */}

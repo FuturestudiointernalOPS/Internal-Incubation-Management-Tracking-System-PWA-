@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { getWeekNumber } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -474,9 +475,37 @@ export default function ProgramWorkspace() {
           handlerName,
         }),
       });
-      if ((await res.json()).success) {
+      const data = await res.json();
+      if (data.success) {
         notify("Session field synchronized.");
         fetchProgramData(true);
+
+        // When a staff member is assigned, create a task for their calendar
+        if (field === "handler_id" && value && handlerName) {
+          const session = sessions.find((s) => s.id === sessionId);
+          if (session) {
+            const now = new Date();
+            const weekNumber = getWeekNumber(now);
+            const year = now.getFullYear();
+
+            await fetch("/api/tasks", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                user_id: value,
+                user_name: handlerName,
+                title: `${session.title || "Session"} - ${program?.name || "Program"}`,
+                description: `Assigned session for week ${session.week_number}`,
+                status: "pending",
+                created_week: weekNumber,
+                created_year: year,
+                start_date: session.scheduled_date || null,
+                end_date: session.end_date || null,
+                category: "curriculum",
+              }),
+            });
+          }
+        }
       }
     } catch (e) {
       notify("Field sync failed.", "error");
