@@ -1270,7 +1270,7 @@ export default function ProgramWorkspace() {
 
           {activeTab === "curriculum" && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center flex-wrap gap-2">
+              <div className="flex justify-between items-center flex-wrap gap-4 pb-6 border-b border-[var(--border-primary)]">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
                   Strategic Curriculum
                 </h3>
@@ -1315,7 +1315,8 @@ export default function ProgramWorkspace() {
                     </button>
                   )}
                 </div>
-                <div className="flex flex-col gap-4">
+              </div>
+                <div className="flex flex-col gap-4 mt-4">
                   {(sessions || [])
                     .filter(
                       (s) => showArchivedSessions || s.status !== "archived",
