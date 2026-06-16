@@ -759,10 +759,13 @@ export default function ProgramWorkspace() {
       if (!silent) setLoading(true);
       try {
         const timestamp = new Date().getTime();
-        const res = await fetch(`/api/pm/full-state?id=${id}&t=${timestamp}`, {
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-        }).then((res) => res.json());
+        const res = await fetch(
+          `/api/pm/full-state?id=${id}&metrics=true&t=${timestamp}`,
+          {
+            cache: "no-store",
+            headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+          },
+        ).then((res) => res.json());
 
         if (res.success) {
           setProgram(res.program);
@@ -1308,11 +1311,11 @@ export default function ProgramWorkspace() {
                       }}
                       className="btn btn-primary btn-sm gap-2"
                     >
-                      <Plus className="w-4 h-4" /> Save
+                      <Plus className="w-4 h-4" /> Create
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {(sessions || [])
                     .filter(
                       (s) => showArchivedSessions || s.status !== "archived",
@@ -1320,7 +1323,7 @@ export default function ProgramWorkspace() {
                     .map((session) => (
                       <div
                         key={session.id}
-                        className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-secondary group mb-4"
+                        className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-secondary group"
                       >
                         {/* STEP 0: THE HEADER (GLOBAL STATE) — click to toggle */}
                         <div
@@ -1773,41 +1776,53 @@ export default function ProgramWorkspace() {
                                 </div>
                               </div>
 
-                              <div className="space-y-3">
-                                {/* Institutional Assets */}
-                                {(program?.knowledge_assets || []).map(
-                                  (kb, kIdx) => (
-                                    <div
-                                      key={`kb-${kIdx}`}
-                                      className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/20 flex flex-col gap-3 group/asset shadow-sm"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <BookOpen className="w-4 h-4 text-emerald-500" />
-                                        <div className="min-w-0">
-                                          <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate leading-none">
-                                            {kb.name || "Core Asset"}
-                                          </p>
-                                          <p className="text-[7px] text-emerald-600 font-black uppercase tracking-widest mt-1">
-                                            Institutional Intelligence
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <button
-                                        onClick={() =>
-                                          setActivePDF({
-                                            url: kb.url,
-                                            name: kb.name,
-                                          })
-                                        }
-                                        className="w-full py-2 bg-emerald-500/10 rounded-lg text-[9px] font-black text-emerald-600 uppercase hover:bg-emerald-500/20 transition-all border border-emerald-500/10"
-                                      >
-                                        View Asset
-                                      </button>
+                              <div className="space-y-6">
+                                {/* ── SUPER ADMIN GUIDELINES ── */}
+                                {(program?.knowledge_assets || []).length >
+                                  0 && (
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-2 pb-1">
+                                      <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                                      <span className="text-[8px] font-black uppercase tracking-[0.15em] text-emerald-500">
+                                        Super Admin Guidelines
+                                      </span>
+                                      <div className="flex-1 h-px bg-gradient-to-r from-emerald-500/20 to-transparent" />
                                     </div>
-                                  ),
+                                    {(program?.knowledge_assets || []).map(
+                                      (kb, kIdx) => (
+                                        <div
+                                          key={`kb-${kIdx}`}
+                                          className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20 flex items-center justify-between group/asset shadow-sm"
+                                        >
+                                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <BookOpen className="w-4 h-4 text-emerald-500 shrink-0" />
+                                            <div className="min-w-0">
+                                              <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
+                                                {kb.name || "Core Asset"}
+                                              </p>
+                                              <p className="text-[7px] text-emerald-600 font-black uppercase tracking-widest mt-0.5">
+                                                Program Guideline
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <button
+                                            onClick={() =>
+                                              setActivePDF({
+                                                url: kb.url,
+                                                name: kb.name,
+                                              })
+                                            }
+                                            className="shrink-0 px-3 py-1.5 bg-emerald-500/10 rounded-lg text-[8px] font-black text-emerald-600 uppercase hover:bg-emerald-500/20 transition-all border border-emerald-500/10"
+                                          >
+                                            View
+                                          </button>
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
                                 )}
 
-                                {/* Weekly Specific */}
+                                {/* ── WEEKLY SESSION MATERIALS ── */}
                                 {(() => {
                                   let sessionMaterials = [];
                                   try {
@@ -1820,52 +1835,64 @@ export default function ProgramWorkspace() {
                                     sessionMaterials = [];
                                   }
 
-                                  return sessionMaterials.map((mat, mIdx) => (
-                                    <div
-                                      key={`mat-${mIdx}`}
-                                      className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/20 flex flex-col gap-3 group/asset shadow-sm"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <Zap className="w-4 h-4 text-blue-500" />
-                                        <div className="min-w-0">
-                                          <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate leading-none">
-                                            {mat.name}
-                                          </p>
-                                          <p className="text-[7px] text-blue-600 font-black uppercase tracking-widest mt-1">
-                                            Tactical Asset
-                                          </p>
-                                        </div>
+                                  if (
+                                    sessionMaterials.length === 0 &&
+                                    !(program?.knowledge_assets || []).length
+                                  ) {
+                                    return (
+                                      <div className="py-8 text-center opacity-20 italic space-y-2">
+                                        <Clock className="w-6 h-6 mx-auto" />
+                                        <p className="text-[9px] font-bold uppercase">
+                                          No Materials
+                                        </p>
                                       </div>
-                                      <div className="flex gap-2">
-                                        <button className="flex-1 py-2 bg-blue-500/10 rounded-lg text-[9px] font-black text-blue-600 uppercase hover:bg-blue-500/20 transition-all border border-blue-500/10">
-                                          View
-                                        </button>
-                                        <button className="px-3 py-2 bg-rose-500/5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/10">
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ));
-                                })()}
+                                    );
+                                  }
 
-                                {(() => {
-                                  const noSessionMaterials =
-                                    !session.extra_materials ||
-                                    session.extra_materials === "[]" ||
-                                    (Array.isArray(session.extra_materials) &&
-                                      session.extra_materials.length === 0);
-                                  const noKnowledgeAssets =
-                                    !program?.knowledge_assets ||
-                                    program.knowledge_assets.length === 0;
-                                  return noSessionMaterials &&
-                                    noKnowledgeAssets ? (
-                                    <div className="py-8 text-center opacity-20 italic space-y-2">
-                                      <Clock className="w-6 h-6 mx-auto" />
-                                      <p className="text-[9px] font-bold uppercase">
-                                        No Materials
-                                      </p>
+                                  if (sessionMaterials.length === 0)
+                                    return null;
+
+                                  return (
+                                    <div className="space-y-3">
+                                      <div className="flex items-center gap-2 pb-1">
+                                        <Zap className="w-3.5 h-3.5 text-blue-500" />
+                                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-blue-500">
+                                          Weekly Documents
+                                        </span>
+                                        <div className="flex-1 h-px bg-gradient-to-r from-blue-500/20 to-transparent" />
+                                      </div>
+                                      {sessionMaterials.map((mat, mIdx) => (
+                                        <div
+                                          key={`mat-${mIdx}`}
+                                          className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/20 flex items-center justify-between group/asset shadow-sm"
+                                        >
+                                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <Zap className="w-4 h-4 text-blue-500 shrink-0" />
+                                            <div className="min-w-0">
+                                              <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
+                                                {mat.name}
+                                              </p>
+                                              <p className="text-[7px] text-blue-600 font-black uppercase tracking-widest mt-0.5">
+                                                {mat.url
+                                                  ? "External Link"
+                                                  : "Session Material"}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <button className="px-3 py-1.5 bg-blue-500/10 rounded-lg text-[8px] font-black text-blue-600 uppercase hover:bg-blue-500/20 transition-all border border-blue-500/10">
+                                              View
+                                            </button>
+                                            {canEdit && (
+                                              <button className="p-1.5 bg-rose-500/5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/10">
+                                                <Trash2 className="w-3 h-3" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
                                     </div>
-                                  ) : null;
+                                  );
                                 })()}
                               </div>
                             </div>
@@ -2719,21 +2746,37 @@ export default function ProgramWorkspace() {
               className="card w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
+              <div className="flex justify-between items-center pb-4 border-b border-[var(--border-primary)]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
+                  </div>
+                  <div>
+                    <h3
+                      className="text-sm font-black uppercase tracking-tight"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      New Session
+                    </h3>
+                    <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
+                      Week {newSession.week_number}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSessionModal(false)}
+                  className="p-2 hover:bg-[var(--surface-2)] rounded-lg transition-all"
                 >
-                  Save
-                </h3>
-                <button onClick={() => setShowSessionModal(false)}>
-                  <X className="w-5 h-5" />
+                  <X
+                    className="w-4 h-4"
+                    style={{ color: "var(--text-tertiary)" }}
+                  />
                 </button>
               </div>
               <div className="space-y-4">
                 <div className="space-y-1">
                   <label
-                    className="text-[10px] font-black uppercase tracking-widest"
+                    className="text-[9px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
                     Session Title
@@ -2743,7 +2786,7 @@ export default function ProgramWorkspace() {
                     onChange={(e) =>
                       setNewSession((p) => ({ ...p, title: e.target.value }))
                     }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold transition-all focus:border-[var(--brand-orange)]"
                     style={{
                       background: "var(--bg-primary)",
                       border: "1px solid var(--border-primary)",
@@ -2752,29 +2795,11 @@ export default function ProgramWorkspace() {
                     placeholder="e.g. Orientation Week"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Week Number (Auto)
-                  </label>
-                  <div
-                    className="w-full rounded-lg px-4 py-3 text-sm font-bold opacity-60"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    Week {newSession.week_number}
-                  </div>
-                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label
-                      className="text-[10px] font-black uppercase tracking-widest"
+                      className="text-[9px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       Start Date
@@ -2788,7 +2813,7 @@ export default function ProgramWorkspace() {
                           scheduled_date: e.target.value,
                         }))
                       }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
                       style={{
                         background: "var(--bg-primary)",
                         border: "1px solid var(--border-primary)",
@@ -2798,7 +2823,7 @@ export default function ProgramWorkspace() {
                   </div>
                   <div className="space-y-1">
                     <label
-                      className="text-[10px] font-black uppercase tracking-widest"
+                      className="text-[9px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       Finish Date
@@ -2812,7 +2837,7 @@ export default function ProgramWorkspace() {
                           end_date: e.target.value,
                         }))
                       }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
                       style={{
                         background: "var(--bg-primary)",
                         border: "1px solid var(--border-primary)",
@@ -2825,10 +2850,10 @@ export default function ProgramWorkspace() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label
-                      className="text-[10px] font-black uppercase tracking-widest"
+                      className="text-[9px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Start Time (Optional)
+                      Start Time
                     </label>
                     <input
                       type="time"
@@ -2839,7 +2864,7 @@ export default function ProgramWorkspace() {
                           start_time: e.target.value,
                         }))
                       }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
                       style={{
                         background: "var(--bg-primary)",
                         border: "1px solid var(--border-primary)",
@@ -2849,10 +2874,10 @@ export default function ProgramWorkspace() {
                   </div>
                   <div className="space-y-1">
                     <label
-                      className="text-[10px] font-black uppercase tracking-widest"
+                      className="text-[9px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      End Time (Optional)
+                      End Time
                     </label>
                     <input
                       type="time"
@@ -2863,7 +2888,7 @@ export default function ProgramWorkspace() {
                           end_time: e.target.value,
                         }))
                       }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
                       style={{
                         background: "var(--bg-primary)",
                         border: "1px solid var(--border-primary)",
@@ -3173,7 +3198,7 @@ export default function ProgramWorkspace() {
                   disabled={isSaving || !newSession.title.trim()}
                   className="flex-1 btn btn-primary"
                 >
-                  {isSaving ? "Saving..." : "Save"}
+                  {isSaving ? "Creating..." : "Create Session"}
                 </button>
               </div>
             </div>
