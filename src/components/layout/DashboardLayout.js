@@ -611,21 +611,21 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   }, [user.role, user.cid, user.id]);
 
   // Pre-open menus that have an active child route
-  useEffect(() => {
-    const toOpen = {};
-    const checkItems = (items) => {
-      items.forEach((item) => {
-        if (item.subItems) {
-          const hasActiveChild = item.subItems.some((sub) =>
-            pathname?.startsWith(sub.href),
-          );
-          if (hasActiveChild) toOpen[item.id] = true;
-        }
-      });
-    };
-    Object.values(NAVIGATION_MATRIX).forEach((matrix) => checkItems(matrix));
-    setOpenMenus((prev) => ({ ...prev, ...toOpen }));
-  }, [pathname]);
+  // useEffect(() => {
+  //   const toOpen = {};
+  //   const checkItems = (items) => {
+  //     items.forEach((item) => {
+  //       if (item.subItems) {
+  //         const hasActiveChild = item.subItems.some((sub) =>
+  //           pathname?.startsWith(sub.href),
+  //         );
+  //         if (hasActiveChild) toOpen[item.id] = true;
+  //       }
+  //     });
+  //   };
+  //   Object.values(NAVIGATION_MATRIX).forEach((matrix) => checkItems(matrix));
+  //   setOpenMenus((prev) => ({ ...prev, ...toOpen }));
+  // }, [pathname]);
 
   const toggleMenu = useCallback((id) => {
     if (!id) return;
