@@ -143,13 +143,19 @@ export async function POST(req) {
         finalRole = "program_manager";
       } else if (activeTeammateAssignment.rows.length > 0) {
         finalRole = "teacher";
+      } else if (user.role === "participant") {
+        finalRole = "participant";
       } else if (
         user.role === "staff" ||
         user.role === "project_manager" ||
         user.role === "admin" ||
-        (user.group_name || "").toUpperCase().includes("FUTURE STUDIO") ||
         (user.group_name || "").toUpperCase().includes("STAFF")
       ) {
+        finalRole = "staff";
+      } else if (
+        (user.group_name || "").toUpperCase().includes("FUTURE STUDIO")
+      ) {
+        // Only fallback to group_name if role is not explicitly set
         finalRole = "staff";
       }
     }
