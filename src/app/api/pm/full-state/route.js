@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export const dynamic = "force-dynamic";
 
@@ -254,56 +255,142 @@ export async function GET(req) {
 
     if (includeMetrics) {
       const kpiList = kpiRes.rows || [];
-      const sessionList = sesRes.rows || [];
-      const docList = docRes.rows || [];
       const subList = subRes.rows || [];
 
-      kpisWithProgress = kpiList.map((kpi) => {
-        const kpiId = String(kpi.id);
-        const linkedSessions = sessionList.filter((s) => {
-          try {
-            const ids =
-              typeof s.kpi_ids === "string"
-                ? JSON.parse(s.kpi_ids)
-                : s.kpi_ids || [];
-            return ids.map(String).includes(kpiId);
-          } catch {
-            return false;
-          }
+      // ─── PERSISTED KPI PROGRESS ───
+      // Read from kpi_progress table (pre-calculated, updated on session/doc changes)
+      try {
+        const progressRes = await db.execute({
+          sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+          args: [id],
         });
-        const linkedDocs = docList.filter((d) => {
-          try {
-            const ids =
-              typeof d.kpi_ids === "string"
-                ? JSON.parse(d.kpi_ids)
-                : d.kpi_ids || [];
-            return ids.map(String).includes(kpiId);
-          } catch {
-            return false;
-          }
-        });
+        const persistedProgress = progressRes.rows || [];
 
-        return {
-          ...kpi,
-          progress:
-            linkedSessions.length + linkedDocs.length > 0
-              ? Math.round(
-                  ((linkedSessions.filter((s) => s.status === "completed")
-                    .length +
-                    linkedDocs.filter((d) => d.is_completed).length) /
-                    (linkedSessions.length + linkedDocs.length)) *
-                    100,
-                )
-              : 0,
-          weight: kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0,
-          linkedSessions: linkedSessions.length,
-          completedSessions: linkedSessions.filter(
-            (s) => s.status === "completed",
-          ).length,
-          linkedDocs: linkedDocs.length,
-          completedDocs: linkedDocs.filter((d) => d.is_completed).length,
-        };
-      });
+        if (persistedProgress.length > 0) {
+          // Merge persisted progress with KPI metadata
+          kpisWithProgress = kpiList.map((kpi) => {
+            const p = persistedProgress.find(
+              (pp) => String(pp.kpi_id) === String(kpi.id),
+            );
+            return {
+              ...kpi,
+              progress: p ? parseFloat(p.progress) : 0,
+              weight: p ? parseFloat(p.weight) : 0,
+              linkedSessions: p ? p.linked_sessions : 0,
+              completedSessions: p ? p.completed_sessions : 0,
+              linkedDocs: p ? p.linked_docs : 0,
+              completedDocs: p ? p.completed_docs : 0,
+            };
+          });
+        } else {
+          // Fallback: calculate dynamically (first time, no persisted data yet)
+          const sessionList = sesRes.rows || [];
+          const docList = docRes.rows || [];
+
+          kpisWithProgress = kpiList.map((kpi) => {
+            const kpiId = String(kpi.id);
+            const linkedSessions = sessionList.filter((s) => {
+              try {
+                const ids =
+                  typeof s.kpi_ids === "string"
+                    ? JSON.parse(s.kpi_ids)
+                    : s.kpi_ids || [];
+                return ids.map(String).includes(kpiId);
+              } catch {
+                return false;
+              }
+            });
+            const linkedDocs = docList.filter((d) => {
+              try {
+                const ids =
+                  typeof d.kpi_ids === "string"
+                    ? JSON.parse(d.kpi_ids)
+                    : d.kpi_ids || [];
+                return ids.map(String).includes(kpiId);
+              } catch {
+                return false;
+              }
+            });
+
+            return {
+              ...kpi,
+              progress:
+                linkedSessions.length + linkedDocs.length > 0
+                  ? Math.round(
+                      ((linkedSessions.filter((s) => s.status === "completed")
+                        .length +
+                        linkedDocs.filter((d) => d.is_completed).length) /
+                        (linkedSessions.length + linkedDocs.length)) *
+                        100,
+                    )
+                  : 0,
+              weight: kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0,
+              linkedSessions: linkedSessions.length,
+              completedSessions: linkedSessions.filter(
+                (s) => s.status === "completed",
+              ).length,
+              linkedDocs: linkedDocs.length,
+              completedDocs: linkedDocs.filter((d) => d.is_completed).length,
+            };
+          });
+
+          // Fire-and-forget: persist this calculation for next time
+          recalculateKpiProgress(id).catch(() => {});
+        }
+      } catch (e) {
+        console.warn(
+          "kpi_progress table not available, falling back to dynamic calc:",
+          e.message,
+        );
+        // Fallback: calculate dynamically
+        const sessionList = sesRes.rows || [];
+        const docList = docRes.rows || [];
+        kpisWithProgress = kpiList.map((kpi) => {
+          const kpiId = String(kpi.id);
+          const linkedSessions = sessionList.filter((s) => {
+            try {
+              const ids =
+                typeof s.kpi_ids === "string"
+                  ? JSON.parse(s.kpi_ids)
+                  : s.kpi_ids || [];
+              return ids.map(String).includes(kpiId);
+            } catch {
+              return false;
+            }
+          });
+          const linkedDocs = docList.filter((d) => {
+            try {
+              const ids =
+                typeof d.kpi_ids === "string"
+                  ? JSON.parse(d.kpi_ids)
+                  : d.kpi_ids || [];
+              return ids.map(String).includes(kpiId);
+            } catch {
+              return false;
+            }
+          });
+          return {
+            ...kpi,
+            progress:
+              linkedSessions.length + linkedDocs.length > 0
+                ? Math.round(
+                    ((linkedSessions.filter((s) => s.status === "completed")
+                      .length +
+                      linkedDocs.filter((d) => d.is_completed).length) /
+                      (linkedSessions.length + linkedDocs.length)) *
+                      100,
+                  )
+                : 0,
+            weight: kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0,
+            linkedSessions: linkedSessions.length,
+            completedSessions: linkedSessions.filter(
+              (s) => s.status === "completed",
+            ).length,
+            linkedDocs: linkedDocs.length,
+            completedDocs: linkedDocs.filter((d) => d.is_completed).length,
+          };
+        });
+      }
 
       const allParticipantRows = [...parRes.rows, ...contRes.rows];
       uniqueParticipants = Array.from(
@@ -315,6 +402,7 @@ export async function GET(req) {
       );
 
       totalParticipants = uniqueParticipants.length;
+      const docList = docRes.rows || [];
       expectedSubmissions = totalParticipants * docList.length;
       actualSubmissions = subList.length;
       approvedSubmissions = subList.filter(
