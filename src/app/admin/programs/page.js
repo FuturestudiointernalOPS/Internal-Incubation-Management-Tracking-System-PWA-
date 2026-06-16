@@ -43,6 +43,10 @@ export default function ProgramManagement() {
   const [notes, setNotes] = useState([]);
   const [teams, setTeams] = useState([]);
   const [knowledgeItems, setKnowledgeItems] = useState([]);
+  const [showCreateNote, setShowCreateNote] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState("");
+  const [newNoteFiles, setNewNoteFiles] = useState([]);
+  const [creatingNote, setCreatingNote] = useState(false);
 
   const [editingKpis, setEditingKpis] = useState([]);
   const [editKpiInput, setEditKpiInput] = useState({
@@ -315,6 +319,66 @@ export default function ProgramManagement() {
       console.error("Upload failed:", e);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleCreateConceptNote = async () => {
+    if (!newNoteTitle.trim() || !editingProgram?.id) return;
+    setCreatingNote(true);
+    try {
+      const res = await fetch("/api/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newNoteTitle.trim(), description: "" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const createdId = data.id || data.note?.id;
+        if (createdId) {
+          // Assign the new note to the program
+          setEditingProgram({ ...editingProgram, note_id: createdId });
+          // Refresh the knowledge items list
+          const kbRes = await fetch("/api/knowledge");
+          const kbData = await kbRes.json();
+          if (kbData.success) {
+            const items =
+              kbData.conceptNotes ||
+              kbData.knowledgeItems ||
+              kbData.notes ||
+              [];
+            setKnowledgeItems(Array.isArray(items) ? items : []);
+          }
+          window.dispatchEvent(
+            new CustomEvent("impactos:notify", {
+              detail: {
+                type: "success",
+                message: "Concept note created and linked to program.",
+              },
+            }),
+          );
+        }
+        setNewNoteTitle("");
+        setNewNoteFiles([]);
+        setShowCreateNote(false);
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "error",
+              message: data.error || "Failed to create concept note.",
+            },
+          }),
+        );
+      }
+    } catch (e) {
+      console.error("Create concept note failed:", e);
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: "Failed to create concept note." },
+        }),
+      );
+    } finally {
+      setCreatingNote(false);
     }
   };
 
@@ -702,26 +766,72 @@ export default function ProgramManagement() {
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
                     Knowledge Base Note
                   </label>
-                  <select
-                    value={editingProgram?.note_id || ""}
-                    onChange={(e) =>
-                      setEditingProgram({
-                        ...editingProgram,
-                        note_id: e.target.value,
-                      })
-                    }
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
-                  >
-                    <option value="">None Assigned</option>
-                    {(Array.isArray(knowledgeItems) ? knowledgeItems : []).map(
-                      (item) =>
-                        item && (
-                          <option key={item.id} value={item.id}>
-                            {item.title?.toUpperCase() || "UNTITLED NODE"}
-                          </option>
-                        ),
-                    )}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      value={editingProgram?.note_id || ""}
+                      onChange={(e) =>
+                        setEditingProgram({
+                          ...editingProgram,
+                          note_id: e.target.value,
+                        })
+                      }
+                      className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
+                    >
+                      <option value="">None Assigned</option>
+                      {(Array.isArray(knowledgeItems)
+                        ? knowledgeItems
+                        : []
+                      ).map(
+                        (item) =>
+                          item && (
+                            <option key={item.id} value={item.id}>
+                              {item.title?.toUpperCase() || "UNTITLED NODE"}
+                            </option>
+                          ),
+                      )}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateNote(!showCreateNote)}
+                      className="px-3 py-2 rounded-xl border border-dashed border-[var(--brand-orange)] text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider hover:bg-[var(--brand-orange)]/10 transition-all whitespace-nowrap"
+                    >
+                      + New Note
+                    </button>
+                  </div>
+                  {showCreateNote && (
+                    <div className="mt-3 p-4 bg-primary border border-[var(--border-primary)] rounded-xl space-y-3 animate-in">
+                      <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
+                        Create New Concept Note
+                      </p>
+                      <input
+                        type="text"
+                        value={newNoteTitle}
+                        onChange={(e) => setNewNoteTitle(e.target.value)}
+                        placeholder="Concept note title..."
+                        className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg p-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCreateConceptNote}
+                          disabled={creatingNote || !newNoteTitle.trim()}
+                          className="flex-1 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-wider disabled:opacity-50 transition-all"
+                        >
+                          {creatingNote ? "Creating..." : "Create & Link"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCreateNote(false);
+                            setNewNoteTitle("");
+                          }}
+                          className="py-2 px-4 rounded-lg border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider hover:bg-tertiary transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
