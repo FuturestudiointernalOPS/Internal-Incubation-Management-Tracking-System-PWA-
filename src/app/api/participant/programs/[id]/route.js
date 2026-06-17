@@ -149,42 +149,59 @@ export async function GET(req, { params }) {
       if (pmRes.rows.length > 0) pmName = pmRes.rows[0].name;
     }
 
-    // Build weekly curriculum
+    // ─── Auto-calculate current week from program start date ───
+    let currentWeek = 1;
+    if (program.start_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startDate = new Date(program.start_date);
+      startDate.setHours(0, 0, 0, 0);
+      const daysSinceStart = Math.floor(
+        (today - startDate) / (1000 * 60 * 60 * 24),
+      );
+      const weeksSinceStart = Math.floor(daysSinceStart / 7) + 1;
+      currentWeek = Math.min(
+        Math.max(weeksSinceStart, 1),
+        program.duration_weeks || 1,
+      );
+    }
+
+    // Filter sessions/deliverables to only include unlocked weeks
+    const unlockedSessions = sessions.filter(
+      (s) => (s.week_number || 1) <= currentWeek,
+    );
+    const unlockedDeliverables = deliverables.filter((d) => {
+      const wn = d.session_id
+        ? sessions.find((s) => s.id === d.session_id)?.week_number || 1
+        : d.week_number || 1;
+      return wn <= currentWeek;
+    });
+
+    // Build weekly curriculum from unlocked content only
     const weeks = [];
     const weekMap = new Map();
-    for (const s of sessions) {
+    for (const s of unlockedSessions) {
       const wn = s.week_number || 1;
       if (!weekMap.has(wn))
         weekMap.set(wn, {
           number: wn,
           sessions: [],
           deliverables: [],
-          locked: s.status === "locked",
         });
       weekMap.get(wn).sessions.push(s);
     }
-    for (const d of deliverables) {
+    for (const d of unlockedDeliverables) {
       const wn = d.session_id
-        ? sessions.find((s) => s.id === d.session_id)?.week_number || 1
+        ? unlockedSessions.find((s) => s.id === d.session_id)?.week_number || 1
         : d.week_number || 1;
       if (!weekMap.has(wn))
         weekMap.set(wn, {
           number: wn,
           sessions: [],
           deliverables: [],
-          locked: false,
         });
       weekMap.get(wn).deliverables.push(d);
     }
-
-    const unlockedSessions = sessions.filter((s) => s.status !== "locked");
-    const maxCompletedWeek =
-      unlockedSessions.length > 0
-        ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
-        : 0;
-    const currentWeek = program.duration_weeks
-      ? Math.min(Math.max(maxCompletedWeek, 1), program.duration_weeks)
-      : 1;
 
     for (const [wn, data] of weekMap) {
       const completedDels = data.deliverables.filter((d) =>
@@ -215,7 +232,6 @@ export async function GET(req, { params }) {
               : null,
           };
         }),
-        locked: data.locked,
         completed:
           data.deliverables.length > 0 &&
           completedDels === data.deliverables.length,
@@ -238,7 +254,7 @@ export async function GET(req, { params }) {
     }));
     const resourcesByWeek = new Map();
     for (const r of resources) {
-      const matchedSession = sessions.find(
+      const matchedSession = unlockedSessions.find(
         (s) =>
           r.tags?.includes(String(s.id)) ||
           r.category === String(s.id) ||
@@ -255,8 +271,8 @@ export async function GET(req, { params }) {
       return true;
     });
 
-    const totalDeliverables = deliverables.length || 1;
-    const completedDeliverables = deliverables.filter((d) =>
+    const totalDeliverables = unlockedDeliverables.length || 1;
+    const completedDeliverables = unlockedDeliverables.filter((d) =>
       submissions.some(
         (s) => s.document_id === d.id && s.status === "approved",
       ),
@@ -267,7 +283,7 @@ export async function GET(req, { params }) {
     const attendedSessions = attendance.filter(
       (a) => a.status === "present",
     ).length;
-    const totalSessions = sessions.length || 1;
+    const totalSessions = unlockedSessions.length || 1;
     const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
     const targetMetKpis = kpis.filter((k) => {
       const t = parseInt(k.target_value) || 0;
