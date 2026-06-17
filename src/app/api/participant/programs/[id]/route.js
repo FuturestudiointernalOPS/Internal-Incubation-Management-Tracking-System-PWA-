@@ -19,7 +19,7 @@ export async function GET(req, { params }) {
     }
 
     const cid = session.cid;
-    const programId = params.id;
+    const { id: programId } = await params;
 
     // Verify the participant is actually assigned to this program
     const contactRes = await db.execute({
