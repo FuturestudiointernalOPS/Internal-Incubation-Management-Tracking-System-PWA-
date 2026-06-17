@@ -53,6 +53,9 @@ function ContactsPageContent() {
   const [showManualModal, setShowManualModal] = useState(false);
   const [showCredsModal, setShowCredsModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [contactPrograms, setContactPrograms] = useState([]);
+  const [showBulkProgramModal, setShowBulkProgramModal] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState([]);
 
   // Forms
   const [form, setForm] = useState({
@@ -166,7 +169,7 @@ function ContactsPageContent() {
   const handleSaveContact = async () => {
     setIsProcessing(true);
     try {
-      const payload = { ...form };
+      const payload = { ...form, program_ids: contactPrograms };
       if (payload.group_name?.toUpperCase() === "FUTURE STUDIO")
         payload.role = "staff";
       const method = form.cid ? "PUT" : "POST";
@@ -532,6 +535,12 @@ function ContactsPageContent() {
             >
               <Plus className="w-4 h-4" /> Add Member
             </button>
+            <button
+              onClick={() => setShowBulkProgramModal(true)}
+              className="btn btn-secondary gap-2"
+            >
+              <Users className="w-4 h-4" /> Bulk Assign
+            </button>
           </div>
         </header>
 
@@ -791,6 +800,20 @@ function ContactsPageContent() {
                             <button
                               onClick={() => {
                                 setForm(c);
+                                setContactPrograms(c.program_ids || []);
+                                // Fetch actual program assignments
+                                fetch(
+                                  "/api/participant-programs?participant_id=" +
+                                    (c.cid || c.id),
+                                )
+                                  .then((r) => r.json())
+                                  .then((d) => {
+                                    if (d.success)
+                                      setContactPrograms(
+                                        d.assignments.map((a) => a.program_id),
+                                      );
+                                  })
+                                  .catch(() => {});
                                 setShowManualModal(true);
                               }}
                               title="Edit Contact"
@@ -880,20 +903,50 @@ function ContactsPageContent() {
                 <option value="program_manager">Program Manager</option>
                 <option value="teacher">Teacher</option>
               </select>
-              <select
-                value={form.program_id}
-                onChange={(e) =>
-                  setForm({ ...form, program_id: e.target.value })
-                }
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
-              >
-                <option value="">No Program Assigned</option>
-                {programs.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              {/* Program Assignments */}
+              <div className="space-y-2">
+                <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-1">
+                  Program Assignments ({contactPrograms.length})
+                </label>
+                <div className="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto p-2 bg-primary rounded-xl border border-[var(--border-primary)]">
+                  {programs.map((p) => {
+                    const isAssigned = contactPrograms.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setContactPrograms((prev) =>
+                            isAssigned
+                              ? prev.filter((id) => id !== p.id)
+                              : [...prev, p.id],
+                          );
+                        }}
+                        className={`flex items-center gap-2 p-2 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all text-left ${
+                          isAssigned
+                            ? "bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[var(--brand-orange)]"
+                            : "bg-tertiary border border-transparent text-[var(--text-secondary)] hover:border-[var(--border-primary)]"
+                        }`}
+                      >
+                        <div
+                          className={`w-3 h-3 rounded border flex items-center justify-center ${
+                            isAssigned
+                              ? "bg-[var(--brand-orange)] border-[var(--brand-orange)]"
+                              : "border-[var(--border-primary)]"
+                          }`}
+                        >
+                          {isAssigned && (
+                            <span className="text-[7px] text-black font-black">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+                        <span className="truncate">{p.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <button
                 onClick={handleSaveContact}
                 className="btn btn-primary w-full py-5 font-bold uppercase tracking-widest"
@@ -1126,6 +1179,93 @@ function ContactsPageContent() {
                   className="btn btn-secondary w-full uppercase font-bold"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BULK PROGRAM ASSIGNMENT MODAL */}
+      {showBulkProgramModal && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+          <div className="card w-full max-w-lg space-y-6 border-[var(--brand-orange)]/30">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold uppercase">
+                Bulk Program Assignment
+              </h3>
+              <button onClick={() => setShowBulkProgramModal(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-[10px] text-[var(--text-secondary)] font-bold">
+              Select a program to add or remove for all filtered contacts.
+            </p>
+            <div className="space-y-4">
+              <select
+                id="bulk-program-select"
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Select Program...
+                </option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    const programId = document.getElementById(
+                      "bulk-program-select",
+                    ).value;
+                    if (!programId) return;
+                    const participantIds = contacts
+                      .filter((c) => c.role === "participant")
+                      .map((c) => c.cid || c.id)
+                      .filter(Boolean);
+                    if (!participantIds.length) return;
+                    setIsProcessing(true);
+                    try {
+                      const res = await fetch(
+                        "/api/participant-programs/bulk",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            participant_ids: participantIds,
+                            program_id: programId,
+                            action: "add",
+                            assigned_by: "sa",
+                            source: "bulk_assignment",
+                          }),
+                        },
+                      );
+                      const data = await res.json();
+                      if (data.success) {
+                        setNotification({
+                          type: "success",
+                          message: `Added ${data.count || participantIds.length} participants.`,
+                        });
+                        setShowBulkProgramModal(false);
+                      }
+                    } catch (e) {
+                      setNotification({
+                        type: "error",
+                        message: "Bulk assignment failed.",
+                      });
+                    } finally {
+                      setIsProcessing(false);
+                      setTimeout(() => setNotification(null), 3000);
+                    }
+                  }}
+                  disabled={isProcessing}
+                  className="flex-1 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-wider disabled:opacity-50"
+                >
+                  {isProcessing ? "Processing..." : "Add to All Participants"}
                 </button>
               </div>
             </div>
