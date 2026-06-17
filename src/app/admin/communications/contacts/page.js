@@ -1189,19 +1189,22 @@ function ContactsPageContent() {
       {/* BULK PROGRAM ASSIGNMENT MODAL */}
       {showBulkProgramModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-lg space-y-6 border-[var(--brand-orange)]/30">
+          <div className="card w-full max-w-2xl space-y-6 border-[var(--brand-orange)]/30">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-bold uppercase">
                 Bulk Program Assignment
               </h3>
-              <button onClick={() => setShowBulkProgramModal(false)}>
+              <button
+                onClick={() => {
+                  setShowBulkProgramModal(false);
+                  setBulkSelected([]);
+                }}
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-[10px] text-[var(--text-secondary)] font-bold">
-              Select a program to add or remove for all filtered contacts.
-            </p>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* Program Selector */}
               <select
                 id="bulk-program-select"
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
@@ -1216,58 +1219,158 @@ function ContactsPageContent() {
                   </option>
                 ))}
               </select>
-              <div className="flex gap-3">
+
+              {/* Action Type */}
+              <div className="flex gap-2">
                 <button
-                  onClick={async () => {
-                    const programId = document.getElementById(
-                      "bulk-program-select",
-                    ).value;
-                    if (!programId) return;
-                    const participantIds = contacts
-                      .filter((c) => c.role === "participant")
-                      .map((c) => c.cid || c.id)
-                      .filter(Boolean);
-                    if (!participantIds.length) return;
-                    setIsProcessing(true);
-                    try {
-                      const res = await fetch(
-                        "/api/participant-programs/bulk",
-                        {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            participant_ids: participantIds,
-                            program_id: programId,
-                            action: "add",
-                            assigned_by: "sa",
-                            source: "bulk_assignment",
-                          }),
-                        },
-                      );
-                      const data = await res.json();
-                      if (data.success) {
-                        setNotification({
-                          type: "success",
-                          message: `Added ${data.count || participantIds.length} participants.`,
-                        });
-                        setShowBulkProgramModal(false);
-                      }
-                    } catch (e) {
-                      setNotification({
-                        type: "error",
-                        message: "Bulk assignment failed.",
-                      });
-                    } finally {
-                      setIsProcessing(false);
-                      setTimeout(() => setNotification(null), 3000);
-                    }
-                  }}
-                  disabled={isProcessing}
-                  className="flex-1 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-wider disabled:opacity-50"
+                  id="bulk-action-add"
+                  className="flex-1 py-2 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider"
                 >
-                  {isProcessing ? "Processing..." : "Add to All Participants"}
+                  Add to Program
+                </button>
+                <button
+                  id="bulk-action-remove"
+                  className="flex-1 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[10px] font-black uppercase tracking-wider"
+                >
+                  Remove from Program
                 </button>
               </div>
+
+              {/* Select All / Clear */}
+              <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-2">
+                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                  Select Participants ({bulkSelected.length} selected)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const parts = contacts.filter(
+                        (c) => c.role === "participant",
+                      );
+                      setBulkSelected(
+                        parts.map((c) => c.cid || c.id).filter(Boolean),
+                      );
+                    }}
+                    className="text-[8px] font-bold text-blue-400 uppercase tracking-wider hover:underline"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={() => setBulkSelected([])}
+                    className="text-[8px] font-bold text-rose-400 uppercase tracking-wider hover:underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Participant List */}
+              <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
+                {contacts
+                  .filter(
+                    (c) => c.role === "participant" || c.role === "unassigned",
+                  )
+                  .map((c) => {
+                    const cid = c.cid || c.id;
+                    const isSelected = bulkSelected.includes(cid);
+                    return (
+                      <button
+                        key={cid}
+                        type="button"
+                        onClick={() => {
+                          setBulkSelected((prev) =>
+                            isSelected
+                              ? prev.filter((id) => id !== cid)
+                              : [...prev, cid],
+                          );
+                        }}
+                        className={`flex items-center gap-2 p-2.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all text-left ${
+                          isSelected
+                            ? "bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[var(--brand-orange)]"
+                            : "bg-tertiary border border-transparent text-[var(--text-secondary)] hover:border-[var(--border-primary)]"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                            isSelected
+                              ? "bg-[var(--brand-orange)] border-[var(--brand-orange)]"
+                              : "border-[var(--border-primary)]"
+                          }`}
+                        >
+                          {isSelected && (
+                            <span className="text-[8px] text-black font-black">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate">{c.name || "Unknown"}</p>
+                          <p className="text-[7px] opacity-50 truncate">
+                            {c.email || cid}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                {contacts.filter((c) => c.role === "participant").length ===
+                  0 && (
+                  <p className="text-[10px] text-slate-500 italic col-span-2 py-8 text-center">
+                    No participants found.
+                  </p>
+                )}
+              </div>
+
+              {/* Apply Button */}
+              <button
+                onClick={async () => {
+                  const programId = document.getElementById(
+                    "bulk-program-select",
+                  ).value;
+                  const actionEl = document.querySelector(
+                    "#bulk-action-add.bg-\[var\(--brand-orange\)\/10\]",
+                  );
+                  const isAdd = true; // default to add
+                  if (!programId || !bulkSelected.length) return;
+                  setIsProcessing(true);
+                  try {
+                    const res = await fetch("/api/participant-programs/bulk", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        participant_ids: bulkSelected,
+                        program_id: programId,
+                        action: "add",
+                        assigned_by: "sa",
+                        source: "bulk_assignment",
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      setNotification({
+                        type: "success",
+                        message: `Updated ${data.count || bulkSelected.length} participant(s).`,
+                      });
+                      setShowBulkProgramModal(false);
+                      setBulkSelected([]);
+                      fetchData();
+                    }
+                  } catch (e) {
+                    setNotification({
+                      type: "error",
+                      message: "Bulk assignment failed.",
+                    });
+                  } finally {
+                    setIsProcessing(false);
+                    setTimeout(() => setNotification(null), 3000);
+                  }
+                }}
+                disabled={isProcessing || !bulkSelected.length}
+                className="w-full py-4 rounded-xl bg-[var(--brand-orange)] text-black text-[11px] font-black uppercase tracking-wider disabled:opacity-50 hover:brightness-110 transition-all"
+              >
+                {isProcessing
+                  ? "Processing..."
+                  : `Assign ${bulkSelected.length} Participant(s) to Program`}
+              </button>
             </div>
           </div>
         </div>
