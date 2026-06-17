@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export const dynamic = "force-dynamic";
 
@@ -193,6 +194,24 @@ export async function GET(req, { params }) {
         ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
         : 1;
 
+    // Only show KPIs linked to unlocked sessions
+    const unlockedKpiIds = new Set();
+    for (const s of unlockedSessions) {
+      try {
+        const ids =
+          typeof s.kpi_ids === "string"
+            ? JSON.parse(s.kpi_ids || "[]")
+            : s.kpi_ids || [];
+        for (const id of ids) unlockedKpiIds.add(Number(id));
+      } catch (_) {}
+    }
+    const visibleKpis =
+      unlockedKpiIds.size > 0
+        ? kpis.filter((k) => unlockedKpiIds.has(Number(k.id)))
+        : unlockedSessions.length > 0
+          ? kpis
+          : [];
+
     // Build weekly curriculum from unlocked content only
     const weeks = [];
     const weekMap = new Map();
@@ -305,13 +324,29 @@ export async function GET(req, { params }) {
     ).length;
     const totalSessions = unlockedSessions.length || 1;
     const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
-    const targetMetKpis = kpis.filter((k) => {
-      const t = parseInt(k.target_value) || 0;
-      const c = parseInt(k.current_value) || 0;
-      return c >= t;
-    }).length;
-    const totalKpis = kpis.length || 1;
-    const kpiCompletion = Math.round((targetMetKpis / totalKpis) * 100);
+
+    // ─── KPI Progress from persistent engine ───
+    let kpiProgress = [];
+    let kpiCompletion = 0;
+    try {
+      const progressRes = await db.execute({
+        sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+        args: [programId],
+      });
+      kpiProgress = progressRes.rows || [];
+      if (kpiProgress.length === 0) {
+        kpiProgress = await recalculateKpiProgress(programId);
+      }
+      kpiCompletion =
+        kpiProgress.length > 0
+          ? Math.round(
+              kpiProgress.reduce(
+                (sum, e) => sum + (parseFloat(e.progress) || 0),
+                0,
+              ) / kpiProgress.length,
+            )
+          : 0;
+    } catch (_) {}
 
     return NextResponse.json({
       success: true,
@@ -341,7 +376,7 @@ export async function GET(req, { params }) {
       curriculum: { weeks, totalWeeks: weeks.length, currentWeek },
       submissions,
       attendance,
-      kpis,
+      kpis: visibleKpis,
       followups,
       resources: {
         byWeek: Object.fromEntries(resourcesByWeek),
