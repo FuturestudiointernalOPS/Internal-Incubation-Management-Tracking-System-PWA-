@@ -9,7 +9,6 @@ import {
   ExternalLink,
   Send,
   X,
-  Filter,
   RefreshCw,
   BookOpen,
 } from "lucide-react";
@@ -179,21 +178,18 @@ export default function AssignmentsView() {
             </option>
           ))}
         </select>
-        {["all", "pending", "overdue", "submitted", "approved", "rejected"].map(
-          (s) => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
-                filterStatus === s
-                  ? "bg-[var(--brand-orange)] text-black"
-                  : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              {s}
-            </button>
-          ),
-        )}
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
+        >
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="overdue">Overdue</option>
+          <option value="submitted">Submitted</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
       </div>
 
       {/* List */}
