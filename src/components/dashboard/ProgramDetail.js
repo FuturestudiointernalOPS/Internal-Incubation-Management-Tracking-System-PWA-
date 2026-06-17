@@ -27,6 +27,8 @@ import {
   BarChart3,
   User,
   Mail,
+  X,
+  Upload,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -50,7 +52,7 @@ function StatusBadge({ status }) {
 }
 
 // ─── Week Card (simplified) ────────────────────────────────────────
-function WeekCard({ week, isExpanded, onToggle }) {
+function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
   const completedCount = week.deliverables.filter(
     (d) => d.submission?.status === "approved",
   ).length;
@@ -141,6 +143,31 @@ function WeekCard({ week, isExpanded, onToggle }) {
                         {session.description}
                       </p>
                     )}
+                    {/* Weekly Materials from PM */}
+                    {(() => {
+                      let mats = [];
+                      try {
+                        const raw = session.extra_materials;
+                        mats =
+                          typeof raw === "string"
+                            ? JSON.parse(raw || "[]")
+                            : raw || [];
+                      } catch (_) {}
+                      if (mats.length === 0) return null;
+                      return (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {mats.map((m, mi) => (
+                            <span
+                              key={mi}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[8px] font-bold text-blue-400"
+                            >
+                              <FileText className="w-2.5 h-2.5" />
+                              {m.name}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-3 shrink-0 ml-3">
                     {session.type && (
@@ -223,7 +250,7 @@ function WeekCard({ week, isExpanded, onToggle }) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.location.href = `/participant/${week.programId || ""}?submit=${del.id}`;
+                          onSubmit?.(del.id, week.number);
                         }}
                         className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-xs font-medium hover:brightness-110"
                       >
@@ -237,6 +264,85 @@ function WeekCard({ week, isExpanded, onToggle }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function SubmitForm({ programId, deliverableId, onDone }) {
+  const [file, setFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [url, setUrl] = useState("");
+  const [user, setUser] = useState({});
+
+  useEffect(() => {
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    setUser(u);
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!file && !url.trim()) return;
+    setSubmitting(true);
+    try {
+      const body = {
+        participant_id: user.cid || user.id,
+        program_id: programId,
+        document_id: deliverableId,
+        file_url: url.trim() || null,
+        status: "pending",
+      };
+      const res = await fetch("/api/submissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onDone?.();
+      }
+    } catch (_) {}
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+          Upload File
+        </label>
+        <input
+          type="file"
+          onChange={(e) => setFile(e.target.files[0])}
+          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none"
+        />
+      </div>
+      <div className="text-center text-[8px] text-slate-500 uppercase tracking-widest">
+        — or —
+      </div>
+      <div className="space-y-1">
+        <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+          Link URL
+        </label>
+        <input
+          type="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://..."
+          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none focus:border-[var(--brand-orange)]"
+        />
+      </div>
+      <button
+        onClick={handleSubmit}
+        disabled={submitting || (!file && !url.trim())}
+        className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+      >
+        {submitting ? (
+          "Submitting..."
+        ) : (
+          <>
+            <Upload className="w-4 h-4" /> Submit
+          </>
+        )}
+      </button>
     </div>
   );
 }
@@ -333,6 +439,7 @@ export default function ProgramDetail({ programId }) {
   const [error, setError] = useState(null);
   const [expandedWeeks, setExpandedWeeks] = useState({});
   const [activeTab, setActiveTab] = useState("curriculum");
+  const [submitModal, setSubmitModal] = useState(null); // { deliverableId, weekNumber }
 
   const fetchDetail = useCallback(async () => {
     try {
@@ -559,6 +666,13 @@ export default function ProgramDetail({ programId }) {
                 week={week}
                 isExpanded={!!expandedWeeks[week.number]}
                 onToggle={toggleWeek}
+                programId={programId}
+                onSubmit={(delId) =>
+                  setSubmitModal({
+                    deliverableId: delId,
+                    weekNumber: week.number,
+                  })
+                }
               />
             ))
           )}
@@ -858,6 +972,36 @@ export default function ProgramDetail({ programId }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═══ Submit Modal ═══ */}
+      {submitModal && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setSubmitModal(null)}
+        >
+          <div
+            className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl w-full max-w-md space-y-5 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                Submit Deliverable
+              </h3>
+              <button onClick={() => setSubmitModal(null)}>
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <SubmitForm
+              programId={programId}
+              deliverableId={submitModal.deliverableId}
+              onDone={() => {
+                setSubmitModal(null);
+                fetchDetail();
+              }}
+            />
+          </div>
         </div>
       )}
     </motion.div>
