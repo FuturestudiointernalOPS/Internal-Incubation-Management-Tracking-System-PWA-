@@ -15,7 +15,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin", "program_manager", "teacher"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
@@ -25,7 +30,7 @@ export async function GET(req) {
     let sql = `
       SELECT pp.*, p.name AS program_name, p.status AS program_status
       FROM participant_programs pp
-      LEFT JOIN v2_programs p ON pp.program_id::uuid = p.id
+      LEFT JOIN v2_programs p ON pp.program_id = p.id
       WHERE 1=1
     `;
     const args = [];
@@ -56,15 +61,28 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin", "program_manager"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+    ]);
     if (authError) return authError;
 
     const body = await req.json();
     const { participant_id, program_ids, assigned_by, source } = body;
 
-    if (!participant_id || !program_ids || !Array.isArray(program_ids) || program_ids.length === 0) {
+    if (
+      !participant_id ||
+      !program_ids ||
+      !Array.isArray(program_ids) ||
+      program_ids.length === 0
+    ) {
       return NextResponse.json(
-        { success: false, error: "participant_id and program_ids (non-empty array) are required." },
+        {
+          success: false,
+          error:
+            "participant_id and program_ids (non-empty array) are required.",
+        },
         { status: 400 },
       );
     }
@@ -78,19 +96,32 @@ export async function POST(req) {
           sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT (participant_id, program_id) DO NOTHING`,
-          args: [participant_id, program_id, assigned_by || null, source || "manual"],
+          args: [
+            participant_id,
+            program_id,
+            assigned_by || null,
+            source || "manual",
+          ],
         });
 
         // Audit log
         await db.execute({
           sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
                 VALUES (?, ?, 'assigned', ?, ?)`,
-          args: [participant_id, program_id, assigned_by || null, source || "manual"],
+          args: [
+            participant_id,
+            program_id,
+            assigned_by || null,
+            source || "manual",
+          ],
         });
 
         results.push(program_id);
       } catch (err) {
-        console.error(`Error assigning participant ${participant_id} to program ${program_id}:`, err.message);
+        console.error(
+          `Error assigning participant ${participant_id} to program ${program_id}:`,
+          err.message,
+        );
         errors.push({ program_id, error: err.message });
       }
     }
@@ -112,7 +143,11 @@ export async function POST(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin", "program_manager"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+    ]);
     if (authError) return authError;
 
     const body = await req.json();
@@ -120,7 +155,10 @@ export async function DELETE(req) {
 
     if (!participant_id || !program_id) {
       return NextResponse.json(
-        { success: false, error: "participant_id and program_id are required." },
+        {
+          success: false,
+          error: "participant_id and program_id are required.",
+        },
         { status: 400 },
       );
     }
