@@ -524,6 +524,7 @@ function ContactsPageContent() {
                   group_name: "",
                   role: "staff",
                   password: "",
+                  program_id: "",
                 });
                 setShowManualModal(true);
               }}
@@ -865,6 +866,31 @@ function ContactsPageContent() {
                 {families.map((f) => (
                   <option key={f.id} value={f.name}>
                     {f.name.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+              >
+                <option value="staff">Staff</option>
+                <option value="participant">Participant</option>
+                <option value="super_admin">Super Admin</option>
+                <option value="program_manager">Program Manager</option>
+                <option value="teacher">Teacher</option>
+              </select>
+              <select
+                value={form.program_id}
+                onChange={(e) =>
+                  setForm({ ...form, program_id: e.target.value })
+                }
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+              >
+                <option value="">No Program Assigned</option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
                   </option>
                 ))}
               </select>
