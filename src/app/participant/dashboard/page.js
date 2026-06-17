@@ -58,10 +58,8 @@ export default function ParticipantDashboard() {
             <ProgramListing />
           </div>
           <div className="space-y-4">
-            <div className="card">
-              <CalendarPanel events={calendarEvents} compact />
-            </div>
-            {eventsLoading && (
+            <CalendarPanel events={calendarEvents} />
+            {eventsLoading && calendarEvents.length === 0 && (
               <div className="flex justify-center py-8">
                 <div
                   className="w-5 h-5 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"

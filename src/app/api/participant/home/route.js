@@ -272,47 +272,49 @@ export async function GET(req) {
       createdAt: n.created_at,
     }));
 
-    const weekEnd = new Date(today);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    const weekEndStr = weekEnd.toISOString().split("T")[0];
-    const todayStr = today.toISOString().split("T")[0];
-
+    // ─── Build calendar events from ALL enrolled programs ───
     let calendarEvents = [];
-    if (primaryProgram) {
-      for (const s of primaryProgram.sessions) {
+    const seenEventKeys = new Set();
+
+    for (const prog of programsData) {
+      for (const s of prog.sessions || []) {
         const sessionDate = s.start_at || s.scheduled_date;
         if (!sessionDate) continue;
         const d = new Date(sessionDate);
         const dateStr = d.toISOString().split("T")[0];
-        if (dateStr >= todayStr && dateStr <= weekEndStr)
-          calendarEvents.push({
-            id: `session-${s.id}`,
-            title: s.title,
-            date: dateStr,
-            time: s.start_time || null,
-            type: "session",
-            source: "v2_sessions",
-            relatedId: s.id,
-            programId: primaryProgram.id,
-            description: s.type || "Session",
-          });
+        const key = `session-${s.id}`;
+        if (seenEventKeys.has(key)) continue;
+        seenEventKeys.add(key);
+        calendarEvents.push({
+          id: key,
+          title: s.title,
+          date: dateStr,
+          time: s.start_time || null,
+          type: "session",
+          source: "v2_sessions",
+          relatedId: s.id,
+          programId: prog.id,
+          description: prog.name,
+        });
       }
-      for (const d of primaryProgram.deliverables) {
+      for (const d of prog.deliverables || []) {
         if (!d.created_at) continue;
         const dd = new Date(d.created_at);
         const dateStr = dd.toISOString().split("T")[0];
-        if (dateStr >= todayStr && dateStr <= weekEndStr)
-          calendarEvents.push({
-            id: `deliverable-${d.id}`,
-            title: `${d.title} (due)`,
-            date: dateStr,
-            time: null,
-            type: "deadline",
-            source: "v2_document_requirements",
-            relatedId: d.id,
-            programId: primaryProgram.id,
-            description: primaryProgram.name,
-          });
+        const key = `deliverable-${d.id}`;
+        if (seenEventKeys.has(key)) continue;
+        seenEventKeys.add(key);
+        calendarEvents.push({
+          id: key,
+          title: `${d.title} (due)`,
+          date: dateStr,
+          time: null,
+          type: "deadline",
+          source: "v2_document_requirements",
+          relatedId: d.id,
+          programId: prog.id,
+          description: prog.name,
+        });
       }
     }
     calendarEvents.sort((a, b) => a.date.localeCompare(b.date));
