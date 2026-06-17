@@ -16,6 +16,21 @@ export async function POST(req) {
       );
     }
 
+    // Verify the program exists in v2_programs before assigning
+    const progCheck = await db.execute({
+      sql: "SELECT id FROM v2_programs WHERE id = ?",
+      args: [program_id],
+    });
+    if (progCheck.rows.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Program "${program_id}" not found. Create the program first before assigning.`,
+        },
+        { status: 404 },
+      );
+    }
+
     // Update all contacts in the group with the program_id
     await db.execute({
       sql: "UPDATE contacts SET program_id = ?, program_name = ? WHERE group_name = ?",
@@ -25,7 +40,7 @@ export async function POST(req) {
     // Also update v2_participants if they exist for these contacts
     // (Assuming participants are linked to contacts by email or name)
     const contactsRes = await db.execute({
-      sql: "SELECT email, name, phone FROM contacts WHERE group_name = ?",
+      sql: "SELECT cid, email, name, phone FROM contacts WHERE group_name = ?",
       args: [group_name],
     });
 
@@ -44,6 +59,20 @@ export async function POST(req) {
             args: [contact.email, program_id],
           });
         });
+
+      // Sync participant_programs junction table
+      if (contact.cid) {
+        try {
+          await db.execute({
+            sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
+                  VALUES (?, ?, ?, ?)
+                  ON CONFLICT (participant_id, program_id) DO NOTHING`,
+            args: [contact.cid, program_id, "system", "group_assignment"],
+          });
+        } catch (_) {
+          // participant_programs table may not exist
+        }
+      }
     }
 
     return NextResponse.json({

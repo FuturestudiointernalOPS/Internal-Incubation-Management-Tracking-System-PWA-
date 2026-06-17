@@ -21,6 +21,54 @@ export async function GET(req, { params }) {
     const cid = session.cid;
     const programId = params.id;
 
+    // Verify the participant is actually assigned to this program
+    const contactRes = await db.execute({
+      sql: "SELECT program_id, group_name FROM contacts WHERE cid = ?",
+      args: [cid],
+    });
+    const contact = contactRes.rows[0];
+
+    let isAssigned = false;
+    if (contact) {
+      // Check contacts.program_id (comma-separated legacy field)
+      if (contact.program_id) {
+        const ids = String(contact.program_id)
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean);
+        if (ids.includes(programId)) isAssigned = true;
+      }
+      // Check participant_programs junction table (modern assignments)
+      if (!isAssigned) {
+        try {
+          const ppRes = await db.execute({
+            sql: "SELECT 1 FROM participant_programs WHERE participant_id = ? AND program_id = ?",
+            args: [cid, programId],
+          });
+          if (ppRes.rows.length > 0) isAssigned = true;
+        } catch (_) {
+          // participant_programs table may not exist
+        }
+      }
+      // Check families by group_name
+      if (!isAssigned && contact.group_name) {
+        try {
+          const famRes = await db.execute({
+            sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id = ?",
+            args: [contact.group_name, programId],
+          });
+          if (famRes.rows.length > 0) isAssigned = true;
+        } catch (_) {}
+      }
+    }
+
+    if (!isAssigned) {
+      return NextResponse.json(
+        { success: false, error: "You are not enrolled in this program." },
+        { status: 403 },
+      );
+    }
+
     const progRes = await db.execute({
       sql: "SELECT * FROM v2_programs WHERE id = ?",
       args: [programId],

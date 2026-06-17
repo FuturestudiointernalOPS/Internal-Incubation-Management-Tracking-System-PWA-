@@ -20,10 +20,31 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin", "program_manager"]);
     if (authError) return authError;
 
-    const { familyId, familyName, groupName, programId, emails } = await req.json();
+    const { familyId, familyName, groupName, programId, emails } =
+      await req.json();
 
     if (!familyId || !emails || !Array.isArray(emails) || emails.length === 0) {
-      return NextResponse.json({ success: false, error: "familyId and emails array are required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "familyId and emails array are required" },
+        { status: 400 },
+      );
+    }
+
+    // Verify the program exists if programId is provided
+    if (programId) {
+      const progCheck = await db.execute({
+        sql: "SELECT id FROM v2_programs WHERE id = ?",
+        args: [programId],
+      });
+      if (progCheck.rows.length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Program "${programId}" not found. Create it first before inviting.`,
+          },
+          { status: 404 },
+        );
+      }
     }
 
     const results = [];
@@ -40,8 +61,28 @@ export async function POST(req) {
 
         await db.execute({
           sql: "INSERT INTO contacts (cid, name, email, role, status, group_name, program_id, invited_at) VALUES (?, ?, ?, 'participant', 'pending', ?, ?, NOW())",
-          args: [cid, memberName, memberEmail, groupName || familyName || "", programId || null],
+          args: [
+            cid,
+            memberName,
+            memberEmail,
+            groupName || familyName || "",
+            programId || null,
+          ],
         });
+
+        // Sync participant_programs junction table if programId is provided
+        if (programId) {
+          try {
+            await db.execute({
+              sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT (participant_id, program_id) DO NOTHING`,
+              args: [cid, programId, "system", "family_invite"],
+            });
+          } catch (_) {
+            // participant_programs table may not exist
+          }
+        }
 
         // Generate invite token
         const token = uuidv4();
@@ -51,13 +92,25 @@ export async function POST(req) {
         });
 
         // Send email
-        sendInviteEmail({ to: memberEmail, name: memberName, role: "participant", token }).catch((e) =>
-          console.error("Family invite email failed:", e),
-        );
+        sendInviteEmail({
+          to: memberEmail,
+          name: memberName,
+          role: "participant",
+          token,
+        }).catch((e) => console.error("Family invite email failed:", e));
 
-        results.push({ email: memberEmail, name: memberName, status: "invited", cid });
+        results.push({
+          email: memberEmail,
+          name: memberName,
+          status: "invited",
+          cid,
+        });
       } catch (e) {
-        results.push({ email: memberEmail, status: "failed", error: e.message });
+        results.push({
+          email: memberEmail,
+          status: "failed",
+          error: e.message,
+        });
       }
     }
 
@@ -68,6 +121,9 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error("Invite family error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

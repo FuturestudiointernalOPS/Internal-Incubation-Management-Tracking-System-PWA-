@@ -62,6 +62,18 @@ export async function GET(req) {
         if (r.id) programIds.add(String(r.id).trim());
       });
     }
+    // Path 4: participant_programs junction table (modern many-to-many assignments)
+    try {
+      const ppRes = await db.execute({
+        sql: "SELECT program_id FROM participant_programs WHERE participant_id = ?",
+        args: [cid],
+      });
+      ppRes.rows.forEach((r) => {
+        if (r.program_id) programIds.add(String(r.program_id).trim());
+      });
+    } catch (_) {
+      // participant_programs table may not exist in all environments
+    }
 
     const programs = [];
     for (const pid of Array.from(programIds)) {

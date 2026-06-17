@@ -298,6 +298,23 @@ export async function PUT(req) {
 
     // Sync participant_programs if program_ids array is provided
     if (Array.isArray(data.program_ids)) {
+      // Verify all programs exist before assigning
+      for (const pid of data.program_ids) {
+        const check = await db.execute({
+          sql: "SELECT id FROM v2_programs WHERE id = ?",
+          args: [pid],
+        });
+        if (check.rows.length === 0) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Program "${pid}" not found. Create it first before assigning.`,
+            },
+            { status: 404 },
+          );
+        }
+      }
+
       // Remove existing assignments not in the new list
       if (data.program_ids.length > 0) {
         const placeholders = data.program_ids.map(() => "?").join(",");

@@ -286,6 +286,18 @@ export async function PUT(req) {
         { status: 400 },
       );
 
+    // Verify the program exists before updating or assigning
+    const progExists = await db.execute({
+      sql: "SELECT id FROM v2_programs WHERE id = ?",
+      args: [id],
+    });
+    if (progExists.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: `Program "${id}" not found.` },
+        { status: 404 },
+      );
+    }
+
     // If is_archived is provided, handle archive/restore separately
     if (is_archived !== undefined) {
       const newStatus = is_archived ? "archived" : "active";
@@ -364,13 +376,18 @@ export async function PUT(req) {
 
             // Upsert v2_participants using SELECT then INSERT/UPDATE pattern
             const contactsRes = await db.execute({
-              sql: "SELECT name, email, phone FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
+              sql: "SELECT cid, name, email, phone FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
               args: [familyName],
             });
 
             if (contactsRes.rows && contactsRes.rows.length > 0) {
               for (const contact of contactsRes.rows) {
-                const { name: cName, email: cEmail, phone: cPhone } = contact;
+                const {
+                  cid: cCid,
+                  name: cName,
+                  email: cEmail,
+                  phone: cPhone,
+                } = contact;
                 if (!cEmail) continue;
 
                 const existRes = await db.execute({
@@ -388,6 +405,20 @@ export async function PUT(req) {
                     sql: "INSERT INTO v2_participants (program_id, name, email, phone, screening_status, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
                     args: [id, cName, cEmail, cPhone, "pending"],
                   });
+                }
+
+                // Sync participant_programs junction table
+                if (cCid) {
+                  try {
+                    await db.execute({
+                      sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT (participant_id, program_id) DO NOTHING`,
+                      args: [cCid, id, "system", "pm_program_update"],
+                    });
+                  } catch (_) {
+                    // participant_programs table may not exist
+                  }
                 }
               }
             }
