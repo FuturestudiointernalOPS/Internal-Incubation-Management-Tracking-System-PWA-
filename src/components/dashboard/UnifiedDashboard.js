@@ -180,6 +180,16 @@ export default function UnifiedDashboard({ role: propRole }) {
   // ── Quick Access collapse ──
   const [expandedPanels, setExpandedPanels] = useState({});
 
+  // ── This Week date range (computed once on mount) ──
+  const [weekDateRange] = useState(() => {
+    const now = new Date();
+    const start = new Date(now.toDateString());
+    const end = new Date(now);
+    end.setDate(end.getDate() + (6 - now.getDay()));
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  });
+
   // ── Auth check ──
   useEffect(() => {
     async function checkAuth() {
@@ -380,16 +390,6 @@ export default function UnifiedDashboard({ role: propRole }) {
   const quickAccess = data?.quickAccess || {};
   const assignments = data?.assignments || [];
   const activity = data?.activity || [];
-
-  // ── This Week date range ──
-  const [weekDateRange] = useState(() => {
-    const now = new Date();
-    const start = new Date(now.toDateString());
-    const end = new Date(now);
-    end.setDate(end.getDate() + (6 - now.getDay()));
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
-  });
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
