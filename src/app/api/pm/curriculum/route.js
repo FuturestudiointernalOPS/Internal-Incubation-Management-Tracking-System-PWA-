@@ -322,6 +322,27 @@ export async function PUT(req) {
       } else if (field === "extra_materials") {
         sql = "UPDATE v2_sessions SET extra_materials = ? WHERE id = ?";
         args = [JSON.stringify(value || []), targetId];
+      } else if (field === "title") {
+        sql = "UPDATE v2_sessions SET title = ? WHERE id = ?";
+        args = [value, targetId];
+      } else if (field === "description") {
+        sql = "UPDATE v2_sessions SET description = ? WHERE id = ?";
+        args = [value || null, targetId];
+      } else if (field === "week_number") {
+        sql = "UPDATE v2_sessions SET week_number = ? WHERE id = ?";
+        args = [parseInt(value) || 1, targetId];
+      } else if (field === "start_time") {
+        sql = "UPDATE v2_sessions SET start_time = ? WHERE id = ?";
+        args = [value || null, targetId];
+      } else if (field === "end_time") {
+        sql = "UPDATE v2_sessions SET end_time = ? WHERE id = ?";
+        args = [value || null, targetId];
+      } else if (field === "assignment_type") {
+        sql = "UPDATE v2_sessions SET assignment_type = ? WHERE id = ?";
+        args = [value || null, targetId];
+      } else if (field === "task_type") {
+        sql = "UPDATE v2_sessions SET task_type = ? WHERE id = ?";
+        args = [value || null, targetId];
       }
 
       if (sql) {
