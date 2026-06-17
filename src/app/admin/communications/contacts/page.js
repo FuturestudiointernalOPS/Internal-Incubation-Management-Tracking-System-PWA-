@@ -167,6 +167,8 @@ function ContactsPageContent() {
       // Role is auto-derived by the API from group membership
       delete payload.role;
       const method = form.cid ? "PUT" : "POST";
+      // Manual creation by super admin is implicit approval — set active
+      if (method === "POST") payload.status = "active";
       const res = await fetch("/api/contacts", {
         method,
         headers: { "Content-Type": "application/json" },
