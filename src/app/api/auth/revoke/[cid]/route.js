@@ -16,14 +16,17 @@ export async function POST(req, { params }) {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const cid = params.cid;
+    const { cid } = await params;
 
     const contactRes = await db.execute({
       sql: "SELECT cid FROM contacts WHERE cid = ?",
       args: [cid],
     });
     if (contactRes.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 },
+      );
     }
 
     // Set status to inactive
@@ -38,9 +41,15 @@ export async function POST(req, { params }) {
       args: [cid],
     });
 
-    return NextResponse.json({ success: true, message: "Access revoked. User sessions destroyed." });
+    return NextResponse.json({
+      success: true,
+      message: "Access revoked. User sessions destroyed.",
+    });
   } catch (error) {
     console.error("Revoke error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

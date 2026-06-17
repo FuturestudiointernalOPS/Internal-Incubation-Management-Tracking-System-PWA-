@@ -17,14 +17,17 @@ export async function POST(req, { params }) {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const cid = params.cid;
+    const { cid } = await params;
 
     const contactRes = await db.execute({
       sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
       args: [cid],
     });
     if (contactRes.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 },
+      );
     }
 
     const contact = contactRes.rows[0];
@@ -37,13 +40,21 @@ export async function POST(req, { params }) {
       args: [token, cid],
     });
 
-    sendPasswordResetEmail({ to: contact.email, name: contact.name, resetUrl }).catch((e) =>
-      console.error("Password reset email failed:", e),
-    );
+    sendPasswordResetEmail({
+      to: contact.email,
+      name: contact.name,
+      resetUrl,
+    }).catch((e) => console.error("Password reset email failed:", e));
 
-    return NextResponse.json({ success: true, message: "Password reset email sent" });
+    return NextResponse.json({
+      success: true,
+      message: "Password reset email sent",
+    });
   } catch (error) {
     console.error("Reset password error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

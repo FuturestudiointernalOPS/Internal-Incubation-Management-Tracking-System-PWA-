@@ -17,14 +17,17 @@ export async function POST(req, { params }) {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const cid = params.cid;
+    const { cid } = await params;
 
     const contactRes = await db.execute({
       sql: "SELECT cid, name, email, role FROM contacts WHERE cid = ?",
       args: [cid],
     });
     if (contactRes.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "User not found" },
+        { status: 404 },
+      );
     }
 
     const contact = contactRes.rows[0];
@@ -42,13 +45,19 @@ export async function POST(req, { params }) {
       args: [token, cid, contact.role],
     });
 
-    sendInviteEmail({ to: contact.email, name: contact.name, role: contact.role, token }).catch((e) =>
-      console.error("Resend invite email failed:", e),
-    );
+    sendInviteEmail({
+      to: contact.email,
+      name: contact.name,
+      role: contact.role,
+      token,
+    }).catch((e) => console.error("Resend invite email failed:", e));
 
     return NextResponse.json({ success: true, message: "Invite resent" });
   } catch (error) {
     console.error("Resend invite error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
