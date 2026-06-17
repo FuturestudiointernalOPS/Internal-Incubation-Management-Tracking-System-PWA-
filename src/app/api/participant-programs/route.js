@@ -87,6 +87,23 @@ export async function POST(req) {
       );
     }
 
+    // Verify all programs exist before assigning
+    for (const pid of program_ids) {
+      const check = await db.execute({
+        sql: "SELECT id FROM v2_programs WHERE id = ?",
+        args: [pid],
+      });
+      if (check.rows.length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Program "${pid}" not found. Create it first before assigning.`,
+          },
+          { status: 404 },
+        );
+      }
+    }
+
     const results = [];
     const errors = [];
 

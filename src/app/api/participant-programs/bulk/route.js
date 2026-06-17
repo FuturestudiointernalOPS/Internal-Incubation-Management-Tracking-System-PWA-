@@ -14,15 +14,26 @@ export const dynamic = "force-dynamic";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin", "program_manager"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+    ]);
     if (authError) return authError;
 
     const body = await req.json();
     const { participant_ids, program_id, action, assigned_by, source } = body;
 
-    if (!participant_ids || !Array.isArray(participant_ids) || participant_ids.length === 0) {
+    if (
+      !participant_ids ||
+      !Array.isArray(participant_ids) ||
+      participant_ids.length === 0
+    ) {
       return NextResponse.json(
-        { success: false, error: "participant_ids (non-empty array) is required." },
+        {
+          success: false,
+          error: "participant_ids (non-empty array) is required.",
+        },
         { status: 400 },
       );
     }
@@ -41,6 +52,23 @@ export async function POST(req) {
       );
     }
 
+    // Verify the program exists before assigning (only on add)
+    if (action === "add") {
+      const progCheck = await db.execute({
+        sql: "SELECT id FROM v2_programs WHERE id = ?",
+        args: [program_id],
+      });
+      if (progCheck.rows.length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Program "${program_id}" not found. Create it first before assigning.`,
+          },
+          { status: 404 },
+        );
+      }
+    }
+
     const results = [];
     const errors = [];
 
@@ -51,7 +79,12 @@ export async function POST(req) {
             sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
                   VALUES (?, ?, ?, ?)
                   ON CONFLICT (participant_id, program_id) DO NOTHING`,
-            args: [participant_id, program_id, assigned_by || null, source || "bulk"],
+            args: [
+              participant_id,
+              program_id,
+              assigned_by || null,
+              source || "bulk",
+            ],
           });
         } else {
           await db.execute({
@@ -75,7 +108,10 @@ export async function POST(req) {
 
         results.push(participant_id);
       } catch (err) {
-        console.error(`Bulk ${action} error for ${participant_id}:`, err.message);
+        console.error(
+          `Bulk ${action} error for ${participant_id}:`,
+          err.message,
+        );
         errors.push({ participant_id, error: err.message });
       }
     }
