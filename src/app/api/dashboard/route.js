@@ -264,7 +264,7 @@ export async function GET(req) {
     const criticalBlockerList = [];
     try {
       const blockerRes = await db.execute({
-        sql: `SELECT b.id, b.title, b.severity, b.status, b.task_id, t.project_id, t.title AS task_title
+        sql: `SELECT b.id, b.title, b.severity, b.status, b.task_id, t.project_id, t.title AS task_title, t.end_date
               FROM blockers b
               JOIN tasks t ON b.task_id = t.id
               WHERE b.status = 'active'
@@ -278,17 +278,28 @@ export async function GET(req) {
         args: [userId, userId],
       });
       activeBlockers = blockerRes.rows.length;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       for (const b of blockerRes.rows) {
         if (b.severity === "critical" || b.severity === "high") {
-          criticalBlockers++;
-          criticalBlockerList.push({
-            id: b.id,
-            title: b.title,
-            severity: b.severity,
-            task_id: b.task_id,
-            task_title: b.task_title,
-            project_id: b.project_id,
-          });
+          // Only include blockers linked to tasks that are overdue or due today
+          let includeBlocker = true;
+          if (b.end_date) {
+            const dueDate = new Date(b.end_date);
+            dueDate.setHours(0, 0, 0, 0);
+            includeBlocker = dueDate <= today;
+          }
+          if (includeBlocker) {
+            criticalBlockers++;
+            criticalBlockerList.push({
+              id: b.id,
+              title: b.title,
+              severity: b.severity,
+              task_id: b.task_id,
+              task_title: b.task_title,
+              project_id: b.project_id,
+            });
+          }
         }
       }
     } catch (_) {}
