@@ -20,7 +20,7 @@ export async function GET(req, { params }) {
     }
 
     const cid = session.cid;
-    const programId = params.id;
+    const { id: programId } = await params;
 
     const progRes = await db.execute({
       sql: "SELECT * FROM v2_programs WHERE id = ?",
