@@ -128,17 +128,32 @@ export async function GET(req) {
       const attendance = attRes.rows || [];
       const kpis = kpiRes.rows || [];
 
-      const unlockedSessions = sessions.filter((s) => s.status !== "locked");
-      const maxCompletedWeek =
-        unlockedSessions.length > 0
-          ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
-          : 0;
-      const currentWeek = program.duration_weeks
-        ? Math.min(Math.max(maxCompletedWeek, 1), program.duration_weeks)
-        : 1;
+      // ─── Auto-calculate current week from program start date ───
+      let currentWeek = 1;
+      if (program.start_date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const startDate = new Date(program.start_date);
+        startDate.setHours(0, 0, 0, 0);
+        const daysSinceStart = Math.floor(
+          (today - startDate) / (1000 * 60 * 60 * 24),
+        );
+        const weeksSinceStart = Math.floor(daysSinceStart / 7) + 1;
+        currentWeek = Math.min(
+          Math.max(weeksSinceStart, 1),
+          program.duration_weeks || 1,
+        );
+      }
 
-      const totalDeliverables = deliverables.length || 1;
-      const completedDeliverables = deliverables.filter((d) =>
+      const unlockedDeliverables = deliverables.filter((d) => {
+        const wn = d.session_id
+          ? sessions.find((s) => s.id === d.session_id)?.week_number || 1
+          : d.week_number || 1;
+        return wn <= currentWeek;
+      });
+
+      const totalDeliverables = unlockedDeliverables.length || 1;
+      const completedDeliverables = unlockedDeliverables.filter((d) =>
         submissions.some(
           (s) => s.document_id === d.id && s.status === "approved",
         ),
@@ -147,10 +162,13 @@ export async function GET(req) {
         (completedDeliverables / totalDeliverables) * 100,
       );
 
+      const unlockedSessions = sessions.filter(
+        (s) => (s.week_number || 1) <= currentWeek,
+      );
       const attendedSessions = attendance.filter(
         (a) => a.status === "present",
       ).length;
-      const totalSessionCount = sessions.length || 1;
+      const totalSessionCount = unlockedSessions.length || 1;
       const attendanceRate = Math.round(
         (attendedSessions / totalSessionCount) * 100,
       );
