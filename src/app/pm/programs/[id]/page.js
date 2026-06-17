@@ -32,6 +32,7 @@ import {
   Square,
   UserPlus,
   Calendar,
+  RefreshCw,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -2235,7 +2236,23 @@ export default function ProgramWorkspace() {
                   <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
                     <Zap className="w-5 h-5 text-purple-500" />
                     Strategic KPIs
-                  </h3>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/kpi-progress?program_id=${id}`);
+                          const data = await res.json();
+                          if (data.success) {
+                            notify("KPI progress recalculated.");
+                            fetchProgramData(true);
+                          }
+                        } catch (_) {
+                          notify("Recalculation failed.", "error");
+                        }
+                      }}
+                      className="ml-auto text-[8px] font-black text-purple-400 uppercase hover:underline flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-purple-500/10 transition-all"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Recalculate
+                    </button>
                   <div className="card space-y-4">
                     {/* READ-ONLY KNOWLEDGE BASE FOR PM */}
                     {program?.note_title && (

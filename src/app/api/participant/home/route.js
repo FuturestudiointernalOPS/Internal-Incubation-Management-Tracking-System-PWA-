@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export const dynamic = "force-dynamic";
 
@@ -173,13 +174,27 @@ export async function GET(req) {
         (approvedAssignments / totalAssignments) * 100,
       );
 
-      const totalKpis = kpis.length || 1;
-      const targetMetKpis = kpis.filter((k) => {
-        const target = parseInt(k.target_value) || 0;
-        const current = parseInt(k.current_value) || 0;
-        return current >= target;
-      }).length;
-      const kpiCompletion = Math.round((targetMetKpis / totalKpis) * 100);
+      // ─── KPI Progress from persistent engine ───
+      let kpiCompletion = 0;
+      try {
+        const progressRes = await db.execute({
+          sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+          args: [pid],
+        });
+        let kpiProgress = progressRes.rows || [];
+        if (kpiProgress.length === 0) {
+          kpiProgress = await recalculateKpiProgress(pid);
+        }
+        kpiCompletion =
+          kpiProgress.length > 0
+            ? Math.round(
+                kpiProgress.reduce(
+                  (sum, e) => sum + (parseFloat(e.progress) || 0),
+                  0,
+                ) / kpiProgress.length,
+              )
+            : 0;
+      } catch (_) {}
 
       programsData.push({
         id: program.id,

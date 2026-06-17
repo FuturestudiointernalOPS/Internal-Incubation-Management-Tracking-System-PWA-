@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export const dynamic = "force-dynamic";
 
@@ -218,13 +219,33 @@ export async function GET(req) {
         (approvedSubmissions / totalSubmissions) * 100,
       );
 
-      const targetMetKpis = kpis.filter((k) => {
-        const t = parseInt(k.target_value) || 0;
-        const c = parseInt(k.current_value) || 0;
-        return c >= t;
-      }).length;
-      const totalKpis = kpis.length || 1;
-      const kpiCompletion = Math.round((targetMetKpis / totalKpis) * 100);
+      // ─── KPI Progress from persistent engine ───
+      let kpiCompletion = 0;
+      let totalKpis = 0;
+      let targetMetKpis = 0;
+      try {
+        const progressRes = await db.execute({
+          sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+          args: [pid],
+        });
+        let kpiProgress = progressRes.rows || [];
+        if (kpiProgress.length === 0) {
+          kpiProgress = await recalculateKpiProgress(pid);
+        }
+        totalKpis = kpiProgress.length;
+        targetMetKpis = kpiProgress.filter(
+          (e) => parseFloat(e.progress) >= 100,
+        ).length;
+        kpiCompletion =
+          kpiProgress.length > 0
+            ? Math.round(
+                kpiProgress.reduce(
+                  (sum, e) => sum + (parseFloat(e.progress) || 0),
+                  0,
+                ) / kpiProgress.length,
+              )
+            : 0;
+      } catch (_) {}
 
       const weeksWithRituals = new Set();
       standups.forEach((s) => weeksWithRituals.add(s.week_number));
