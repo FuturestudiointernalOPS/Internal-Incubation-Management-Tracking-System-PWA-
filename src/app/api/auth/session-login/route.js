@@ -160,6 +160,34 @@ export async function POST(req) {
       }
     }
 
+    // Allow participants with group_name="unassigned" if they have valid program assignments
+    if (finalRole === "participant" && !isFamilyLogin) {
+      const hasDirectProgram =
+        user.program_id && String(user.program_id).trim();
+      let hasParticipantPrograms = false;
+      if (!hasDirectProgram && user.cid) {
+        try {
+          const ppRes = await db.execute({
+            sql: "SELECT 1 FROM participant_programs WHERE participant_id = ?",
+            args: [user.cid],
+          });
+          hasParticipantPrograms = ppRes.rows.length > 0;
+        } catch (_) {}
+      }
+      if (!user.group_name || user.group_name === "unassigned") {
+        if (!hasDirectProgram && !hasParticipantPrograms) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "Access Denied: You must be assigned to an active Program to log in.",
+            },
+            { status: 403 },
+          );
+        }
+      }
+    }
+
     // --- 7. BUILD RESPONSE USER ---
     let responseUser;
     if (isFamilyLogin) {

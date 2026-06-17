@@ -77,11 +77,10 @@ export async function POST(req) {
       const groupName = (c.group_name || "unassigned").toUpperCase();
       const isInternal = groupName === "FUTURE STUDIO";
 
-      // MANDATORY: Participants and Internal Staff start as PENDING
-      let initialStatus = "approved";
-      if (isInternal || c.role === "participant") {
-        initialStatus = "pending";
-      }
+      // Use provided status, or default: approved for staff, pending for participants
+      let initialStatus =
+        c.status ||
+        (isInternal || c.role === "participant" ? "pending" : "approved");
 
       // Strict Role Normalization
       let finalRole = c.role;
