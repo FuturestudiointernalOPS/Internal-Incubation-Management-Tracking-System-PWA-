@@ -74,6 +74,16 @@ export async function GET(req) {
     } catch (_) {
       // participant_programs table may not exist in all environments
     }
+    // Path 5: v2_participants (direct participant enrollments)
+    try {
+      const vpRes = await db.execute({
+        sql: "SELECT program_id FROM v2_participants WHERE email = ?",
+        args: [email],
+      });
+      vpRes.rows.forEach((r) => {
+        if (r.program_id) programIds.add(String(r.program_id).trim());
+      });
+    } catch (_) {}
 
     const programs = [];
     for (const pid of Array.from(programIds)) {

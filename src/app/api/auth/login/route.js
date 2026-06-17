@@ -163,15 +163,29 @@ export async function POST(req) {
     }
 
     if (finalRole === "participant" && !isFamilyLogin) {
+      const hasDirectProgram =
+        user.program_id && String(user.program_id).trim();
+      let hasParticipantPrograms = false;
+      if (!hasDirectProgram && user.cid) {
+        try {
+          const ppRes = await db.execute({
+            sql: "SELECT 1 FROM participant_programs WHERE participant_id = ?",
+            args: [user.cid],
+          });
+          hasParticipantPrograms = ppRes.rows.length > 0;
+        } catch (_) {}
+      }
       if (!user.group_name || user.group_name === "unassigned") {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "Access Denied: You must be assigned to an active Program to log in.",
-          },
-          { status: 403 },
-        );
+        if (!hasDirectProgram && !hasParticipantPrograms) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "Access Denied: You must be assigned to an active Program to log in.",
+            },
+            { status: 403 },
+          );
+        }
       }
     }
 

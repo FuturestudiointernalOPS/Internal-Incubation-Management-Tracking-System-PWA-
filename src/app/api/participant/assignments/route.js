@@ -55,6 +55,26 @@ export async function GET(req) {
         if (r.program_id) programIds.add(String(r.program_id).trim());
       });
     }
+    // Path 4: participant_programs junction table
+    try {
+      const ppRes = await db.execute({
+        sql: "SELECT program_id FROM participant_programs WHERE participant_id = ?",
+        args: [cid],
+      });
+      ppRes.rows.forEach((r) => {
+        if (r.program_id) programIds.add(String(r.program_id).trim());
+      });
+    } catch (_) {}
+    // Path 5: v2_participants (direct participant enrollments)
+    try {
+      const vpRes = await db.execute({
+        sql: "SELECT program_id FROM v2_participants WHERE email = ?",
+        args: [session.email],
+      });
+      vpRes.rows.forEach((r) => {
+        if (r.program_id) programIds.add(String(r.program_id).trim());
+      });
+    } catch (_) {}
 
     const allAssignments = [];
     for (const pid of programIds) {
