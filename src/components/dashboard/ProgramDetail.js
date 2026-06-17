@@ -252,11 +252,37 @@ function ResourceCard({ resource }) {
     guide: BookOpen,
   };
   const Icon = typeIcons[resource.fileType?.toLowerCase()] || BookOpen;
+  const hasValidUrl =
+    resource.url && resource.url !== "[]" && resource.url !== "";
+
+  if (!hasValidUrl) {
+    return (
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] opacity-60 cursor-default">
+        <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
+          <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+            {resource.title}
+          </p>
+          {resource.description && (
+            <p className="text-[9px] text-[var(--text-secondary)] truncate">
+              {resource.description}
+            </p>
+          )}
+        </div>
+        <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest shrink-0">
+          No file
+        </span>
+      </div>
+    );
+  }
 
   return (
     <a
-      href={resource.url || resource.filePath}
+      href={resource.url}
       target="_blank"
+      rel="noopener noreferrer"
       className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/20 transition-all group"
     >
       <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">

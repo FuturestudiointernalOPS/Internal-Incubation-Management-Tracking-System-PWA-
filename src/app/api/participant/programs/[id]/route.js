@@ -140,6 +140,24 @@ export async function GET(req, { params }) {
     const followups = folRes.rows || [];
     const knowledgeItems = knowRes.rows || [];
 
+    // Fetch actual file URLs from knowledge_attachments
+    let attachmentsByNote = {};
+    if (knowledgeItems.length > 0) {
+      try {
+        const attachRes = await db.execute({
+          sql:
+            "SELECT * FROM v2_knowledge_attachments WHERE note_id IN (" +
+            knowledgeItems.map(() => "?").join(",") +
+            ") ORDER BY created_at DESC",
+          args: knowledgeItems.map((k) => k.id),
+        });
+        for (const a of attachRes.rows || []) {
+          if (!attachmentsByNote[a.note_id]) attachmentsByNote[a.note_id] = [];
+          attachmentsByNote[a.note_id].push({ name: a.name, url: a.url });
+        }
+      } catch (_) {}
+    }
+
     let pmName = null;
     if (program.assigned_pm_id) {
       const pmRes = await db.execute({
@@ -238,18 +256,22 @@ export async function GET(req, { params }) {
     }
     weeks.sort((a, b) => a.number - b.number);
 
-    // Build resources
-    const resources = knowledgeItems.map((item) => ({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      url: item.url,
-      fileType: item.file_type,
-      filePath: item.file_path,
-      category: item.category,
-      tags: item.tags ? item.tags.split(",").map((t) => t.trim()) : [],
-      createdAt: item.created_at,
-    }));
+    // Build resources with real attachment URLs
+    const resources = knowledgeItems.map((item) => {
+      const attachments = attachmentsByNote[item.id] || [];
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        url: attachments.length > 0 ? attachments[0].url : null,
+        fileType: item.file_type,
+        filePath: item.file_path,
+        category: item.category,
+        tags: item.tags ? item.tags.split(",").map((t) => t.trim()) : [],
+        attachments,
+        createdAt: item.created_at,
+      };
+    });
     const resourcesByWeek = new Map();
     for (const r of resources) {
       const matchedSession = unlockedSessions.find(
