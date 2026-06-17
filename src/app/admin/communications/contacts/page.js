@@ -64,7 +64,6 @@ function ContactsPageContent() {
     email: "",
     phone: "",
     group_name: "",
-    role: "staff",
     password: "",
   });
   const [credsForm, setCredsForm] = useState({
@@ -148,12 +147,7 @@ function ContactsPageContent() {
         ? "inactive"
         : "active";
     const payload = { cid, status: newStatus };
-    if (
-      newStatus === "active" &&
-      currentGroup?.toUpperCase() === "FUTURE STUDIO"
-    ) {
-      payload.role = "staff";
-    }
+    // Role is auto-derived by the API from group membership
     try {
       await fetch("/api/contacts", {
         method: "PUT",
@@ -170,8 +164,8 @@ function ContactsPageContent() {
     setIsProcessing(true);
     try {
       const payload = { ...form, program_ids: contactPrograms };
-      if (payload.group_name?.toUpperCase() === "FUTURE STUDIO")
-        payload.role = "staff";
+      // Role is auto-derived by the API from group membership
+      delete payload.role;
       const method = form.cid ? "PUT" : "POST";
       const res = await fetch("/api/contacts", {
         method,
@@ -525,7 +519,6 @@ function ContactsPageContent() {
                   email: "",
                   phone: "",
                   group_name: "",
-                  role: "staff",
                   password: "",
                   program_id: "",
                 });
@@ -724,7 +717,7 @@ function ContactsPageContent() {
                         />
                       </th>
                       <th>Identity</th>
-                      <th>Segment / Role</th>
+                      <th>Group / Status</th>
                       <th className="text-right">Actions</th>
                     </tr>
                   </thead>
@@ -892,17 +885,18 @@ function ContactsPageContent() {
                   </option>
                 ))}
               </select>
-              <select
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
-              >
-                <option value="staff">Staff</option>
-                <option value="participant">Participant</option>
-                <option value="super_admin">Super Admin</option>
-                <option value="program_manager">Program Manager</option>
-                <option value="teacher">Teacher</option>
-              </select>
+              {/* Access auto-derived from group membership */}
+              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-left">
+                <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">
+                  ⓘ Access Auto-Derived
+                </p>
+                <p className="text-[8px] text-[var(--text-secondary)] leading-relaxed">
+                  Adding to <strong>Future Studio</strong> group → Staff access.
+                  Adding to a <strong>Program group</strong> → Participant
+                  access. Program Manager & Teacher are assigned per-program
+                  from the program dashboard.
+                </p>
+              </div>
               {/* Program Assignments */}
               <div className="space-y-2">
                 <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-1">
