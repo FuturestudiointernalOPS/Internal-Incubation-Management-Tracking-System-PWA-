@@ -128,29 +128,31 @@ export async function GET(req) {
       const attendance = attRes.rows || [];
       const kpis = kpiRes.rows || [];
 
-      // ─── Auto-calculate current week from program start date ───
-      let currentWeek = 1;
-      if (program.start_date) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const startDate = new Date(program.start_date);
-        startDate.setHours(0, 0, 0, 0);
-        const daysSinceStart = Math.floor(
-          (today - startDate) / (1000 * 60 * 60 * 24),
-        );
-        const weeksSinceStart = Math.floor(daysSinceStart / 7) + 1;
-        currentWeek = Math.min(
-          Math.max(weeksSinceStart, 1),
-          program.duration_weeks || 1,
-        );
-      }
+      // ─── Determine unlocked sessions based on scheduled_date ───
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
+      const unlockedSessions = sessions.filter((s) => {
+        if (!s.scheduled_date) return true;
+        const sched = new Date(s.scheduled_date);
+        sched.setHours(0, 0, 0, 0);
+        return sched <= today;
+      });
+
+      const unlockedSessionWeekNumbers = new Set(
+        unlockedSessions.map((s) => s.week_number || 1),
+      );
       const unlockedDeliverables = deliverables.filter((d) => {
         const wn = d.session_id
           ? sessions.find((s) => s.id === d.session_id)?.week_number || 1
           : d.week_number || 1;
-        return wn <= currentWeek;
+        return unlockedSessionWeekNumbers.has(wn);
       });
+
+      const currentWeek =
+        unlockedSessions.length > 0
+          ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
+          : 1;
 
       const totalDeliverables = unlockedDeliverables.length || 1;
       const completedDeliverables = unlockedDeliverables.filter((d) =>
@@ -162,9 +164,6 @@ export async function GET(req) {
         (completedDeliverables / totalDeliverables) * 100,
       );
 
-      const unlockedSessions = sessions.filter(
-        (s) => (s.week_number || 1) <= currentWeek,
-      );
       const attendedSessions = attendance.filter(
         (a) => a.status === "present",
       ).length;
