@@ -166,6 +166,36 @@ export async function POST(req) {
           );
         }
 
+        // If program_ids or program_id provided, sync to participant_programs
+        const programIdsToAssign =
+          vc.program_ids && Array.isArray(vc.program_ids)
+            ? vc.program_ids
+            : vc.program_id
+              ? [vc.program_id]
+              : [];
+
+        for (const pid of programIdsToAssign) {
+          try {
+            await db.execute({
+              sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT (participant_id, program_id) DO NOTHING`,
+              args: [vc.cid, pid, "system", "registration"],
+            });
+
+            await db.execute({
+              sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
+                    VALUES (?, ?, 'assigned', ?, 'registration')`,
+              args: [vc.cid, pid, "system"],
+            });
+          } catch (e) {
+            console.error(
+              `Failed to assign ${vc.cid} to program ${pid}:`,
+              e.message,
+            );
+          }
+        }
+
         inserted++;
       } catch (err) {
         console.error(`SQL Save Error for ${vc.email}:`, err.message);
@@ -265,6 +295,63 @@ export async function PUT(req) {
       sql: `UPDATE contacts SET ${fieldsToUpdate.join(", ")} WHERE cid = ?`,
       args: args,
     });
+
+    // Sync participant_programs if program_ids array is provided
+    if (Array.isArray(data.program_ids)) {
+      // Remove existing assignments not in the new list
+      if (data.program_ids.length > 0) {
+        const placeholders = data.program_ids.map(() => "?").join(",");
+        await db.execute({
+          sql: `DELETE FROM participant_programs WHERE participant_id = ? AND program_id NOT IN (${placeholders})`,
+          args: [data.cid, ...data.program_ids],
+        });
+      } else {
+        await db.execute({
+          sql: "DELETE FROM participant_programs WHERE participant_id = ?",
+          args: [data.cid],
+        });
+      }
+
+      // Add new assignments
+      for (const pid of data.program_ids) {
+        try {
+          await db.execute({
+            sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
+                  VALUES (?, ?, ?, ?)
+                  ON CONFLICT (participant_id, program_id) DO NOTHING`,
+            args: [data.cid, pid, data.assigned_by || "system", "manual"],
+          });
+
+          await db.execute({
+            sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
+                  VALUES (?, ?, 'assigned', ?, 'manual')`,
+            args: [data.cid, pid, data.assigned_by || "system"],
+          });
+        } catch (e) {
+          console.error(
+            `PUT program sync error for ${data.cid}, program ${pid}:`,
+            e.message,
+          );
+        }
+      }
+    } else if (data.program_id) {
+      // Single program_id fallback — ensure at least this one exists
+      try {
+        await db.execute({
+          sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (participant_id, program_id) DO NOTHING`,
+          args: [
+            data.cid,
+            data.program_id,
+            data.assigned_by || "system",
+            "manual",
+          ],
+        });
+      } catch (e) {
+        console.error(`PUT program sync error for ${data.cid}:`, e.message);
+      }
+    }
 
     // If status changed to active/approved, fire invite and clear notifications
     if (data.status === "active" || data.status === "approved") {
