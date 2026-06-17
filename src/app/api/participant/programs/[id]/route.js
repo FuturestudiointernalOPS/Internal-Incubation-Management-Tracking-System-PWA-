@@ -60,6 +60,16 @@ export async function GET(req, { params }) {
           if (famRes.rows.length > 0) isAssigned = true;
         } catch (_) {}
       }
+      // Check v2_participants (direct participant enrollment)
+      if (!isAssigned) {
+        try {
+          const vpRes = await db.execute({
+            sql: "SELECT 1 FROM v2_participants WHERE email = ? AND program_id = ?",
+            args: [contact.email || session.email, programId],
+          });
+          if (vpRes.rows.length > 0) isAssigned = true;
+        } catch (_) {}
+      }
     }
 
     if (!isAssigned) {
