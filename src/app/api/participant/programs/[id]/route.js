@@ -122,8 +122,8 @@ export async function GET(req, { params }) {
           args: [programId],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_knowledge_bank WHERE program_id = ? OR category = ? ORDER BY created_at DESC",
-          args: [programId, programId],
+          sql: "SELECT * FROM v2_knowledge_bank WHERE is_archived = 0 ORDER BY created_at DESC",
+          args: [],
         }),
       ]);
 
