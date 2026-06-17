@@ -13,7 +13,7 @@ export async function GET(req) {
     const programId = searchParams.get("program_id");
 
     let query =
-      "SELECT *, deliverable_id AS requirement_id FROM v2_submissions WHERE ";
+      "SELECT *, document_id AS requirement_id FROM v2_submissions WHERE ";
     let args = [];
 
     if (teamId) {
