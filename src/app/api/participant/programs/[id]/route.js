@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,6 @@ export async function GET(req, { params }) {
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -20,7 +19,7 @@ export async function GET(req, { params }) {
     }
 
     const cid = session.cid;
-    const { id: programId } = await params;
+    const programId = params.id;
 
     const progRes = await db.execute({
       sql: "SELECT * FROM v2_programs WHERE id = ?",
