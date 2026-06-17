@@ -381,6 +381,16 @@ export default function UnifiedDashboard({ role: propRole }) {
   const assignments = data?.assignments || [];
   const activity = data?.activity || [];
 
+  // ── This Week date range ──
+  const weekDateRange = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.toDateString());
+    const end = new Date(now);
+    end.setDate(end.getDate() + (6 - now.getDay()));
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }, []);
+
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
@@ -1252,15 +1262,15 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center gap-2 mb-3">
                   <Calendar className="w-4 h-4 text-blue-400" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                    Upcoming
+                    This Week
                   </span>
                 </div>
                 <div className="space-y-1.5">
                   {events
-                    .filter(
-                      (e) =>
-                        new Date(e.date) >= new Date(new Date().toDateString()),
-                    )
+                    .filter((e) => {
+                      const d = new Date(e.date);
+                      return d >= weekDateRange.start && d <= weekDateRange.end;
+                    })
                     .slice(0, 5)
                     .map((ev) => (
                       <button
