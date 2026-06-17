@@ -478,7 +478,11 @@ export default function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Session field synchronized.");
+        // Only show notification for non-text fields to avoid spam on every keystroke
+        const silentFields = ["title", "description", "notes"];
+        if (!silentFields.includes(field)) {
+          notify("Session field synchronized.");
+        }
         fetchProgramData(true);
 
         // When a staff member is assigned, create a task for their calendar
