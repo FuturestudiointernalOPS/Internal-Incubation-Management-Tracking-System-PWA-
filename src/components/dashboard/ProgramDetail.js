@@ -283,11 +283,26 @@ function SubmitForm({ programId, deliverableId, onDone }) {
     if (!file && !url.trim()) return;
     setSubmitting(true);
     try {
+      let fileUrl = url.trim() || null;
+
+      // If a file was selected, upload it first
+      if (file && !fileUrl) {
+        try {
+          const { uploadFile } = await import("@/lib/storage");
+          const result = await uploadFile(
+            "submissions",
+            `${programId}/${Date.now()}-${file.name}`,
+            file,
+          );
+          if (result.success) fileUrl = result.url;
+        } catch (_) {}
+      }
+
       const body = {
         participant_id: user.cid || user.id,
         program_id: programId,
         deliverable_id: deliverableId,
-        file_url: url.trim() || null,
+        file_url: fileUrl,
         status: "pending",
       };
       const res = await fetch("/api/submissions", {
