@@ -538,109 +538,78 @@ export default function ParticipantDashboardHome() {
         </div>
       </motion.div>
 
-      {/* ═══ CALENDAR + ACTION ITEMS ═══ */}
+      {/* ═══ CALENDAR ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ── Calendar Widget (Left) ── */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="lg:col-span-2 space-y-4"
-        >
-          <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-            This Week
-          </h2>
-
-          {calendarEvents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-3">
-                <Calendar className="w-6 h-6 text-[var(--text-tertiary)]" />
-              </div>
-              <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                No events this week
+        <div className="lg:col-span-2">
+          <CalendarPanel events={calendarEvents} />
+        </div>
+        <div className="space-y-3">
+          {actionCenter.overdue.length > 0 && (
+            <div className="card border-l-4 border-l-rose-500 !py-3 !px-4">
+              <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">
+                Overdue ({actionCenter.overdue.length})
               </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {calendarEvents.slice(0, 5).map((event) => (
-                <CalendarEventItem key={event.id} event={event} />
-              ))}
+              <div className="space-y-1 mt-2">
+                {actionCenter.overdue.slice(0, 3).map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)]"
+                  >
+                    <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                    <span className="truncate">{item.title}</span>
+                    <span className="text-[7px] text-rose-500 shrink-0">
+                      {item.daysOverdue}d
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-        </motion.div>
-
-        {/* ── Action Items (Right) ── */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="lg:col-span-1 space-y-4"
-        >
-          <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-            Needs Attention
-          </h2>
-          {!hasActions ? (
-            <div className="flex flex-col items-center justify-center py-8 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-              </div>
-              <p className="text-[11px] font-bold text-[var(--text-secondary)] text-center px-4">
-                All caught up!
+          {actionCenter.dueSoon.length > 0 && (
+            <div className="card border-l-4 border-l-amber-500 !py-3 !px-4">
+              <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest">
+                Due This Week ({actionCenter.dueSoon.length})
               </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {/* Overdue items */}
-              {actionCenter.overdue.map((item) => (
-                <ActionCard
-                  key={`overdue-${item.id}`}
-                  item={item}
-                  type="overdue"
-                  onAction={() => {
-                    window.location.href = `/participant/${item.programId}`;
-                  }}
-                />
-              ))}
-              {/* Due soon items */}
-              {actionCenter.dueSoon.map((item) => (
-                <ActionCard
-                  key={`due-${item.id}`}
-                  item={item}
-                  type="dueSoon"
-                  onAction={() => {
-                    window.location.href = `/participant/${item.programId}`;
-                  }}
-                />
-              ))}
-              {/* Pending submissions */}
-              {actionCenter.pendingSubmissions.map((item) => (
-                <ActionCard
-                  key={`sub-${item.id}`}
-                  item={item}
-                  type="submission"
-                  onAction={() => {
-                    window.location.href = `/participant/${item.programId}`;
-                  }}
-                />
-              ))}
-              {/* Upcoming sessions */}
-              {actionCenter.upcomingSessions.map((s) => (
-                <ActionCard
-                  key={`session-${s.id}`}
-                  item={{
-                    title: s.title,
-                    date: s.date,
-                    type: s.type,
-                  }}
-                  type="session"
-                  onAction={() => {
-                    window.location.href = `/participant/${s.programId || primaryProgram?.id}`;
-                  }}
-                />
-              ))}
+              <div className="space-y-1 mt-2">
+                {actionCenter.dueSoon.slice(0, 3).map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)]"
+                  >
+                    <Clock className="w-3 h-3 text-amber-500 shrink-0" />
+                    <span className="truncate">{item.title}</span>
+                    <span className="text-[7px] text-amber-500 shrink-0">
+                      {item.daysLeft}d
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-        </motion.div>
+          {actionCenter.pendingSubmissions.length > 0 && (
+            <div className="card border-l-4 border-l-blue-500 !py-3 !px-4">
+              <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest">
+                Pending Review ({actionCenter.pendingSubmissions.length})
+              </p>
+              <div className="space-y-1 mt-2">
+                {actionCenter.pendingSubmissions.slice(0, 3).map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)]"
+                  >
+                    <AlertCircle className="w-3 h-3 text-blue-500 shrink-0" />
+                    <span className="truncate">
+                      Deliverable #{item.deliverableId}
+                    </span>
+                    <span className="text-[7px] text-blue-500 shrink-0">
+                      {item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ═══ ANNOUNCEMENTS ═══ */}
