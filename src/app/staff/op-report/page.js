@@ -2359,7 +2359,7 @@ export default function StaffOpReport() {
           onClick={() => setShowStandupModal(false)}
         >
           <div
-            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-secondary border border-[var(--border-primary)] rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
