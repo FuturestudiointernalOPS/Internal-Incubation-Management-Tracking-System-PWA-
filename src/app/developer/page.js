@@ -32,9 +32,7 @@ export default function DeveloperDashboard() {
   }, [fetchErrors]);
 
   const totalErrors = errors.length;
-  const unresolvedErrors = errors.filter(
-    (e) => !e.resolved,
-  ).length;
+  const unresolvedErrors = errors.filter((e) => !e.resolved).length;
   const criticalErrors = errors.filter(
     (e) => e.severity === "critical" || e.severity === "fatal",
   ).length;
@@ -64,7 +62,7 @@ export default function DeveloperDashboard() {
   ];
 
   return (
-    <DashboardLayout role="developer" activeTab="dashboard">
+    <DashboardLayout role="super_admin" activeTab="dashboard">
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
