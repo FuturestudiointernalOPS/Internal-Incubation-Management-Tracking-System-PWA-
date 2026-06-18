@@ -194,6 +194,8 @@ export default function StaffOpReport() {
   const [blockerModal, setBlockerModal] = useState(null); // { taskRowIndex } or null
   const [newBlockerDesc, setNewBlockerDesc] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
+  const [expandedTasks, setExpandedTasks] = useState({}); // taskId -> boolean
+  const [updatingTasks, setUpdatingTasks] = useState({}); // taskId -> boolean
 
   // Summary tab state
   const [summaryTasks, setSummaryTasks] = useState([]);
@@ -1443,21 +1445,229 @@ export default function StaffOpReport() {
                                                     className="border-b border-[var(--border-primary)]/40 hover:bg-primary/50 transition-colors"
                                                   >
                                                     <td className="px-3 py-2.5 text-center">
-                                                      <div
-                                                        className={`w-4 h-4 rounded-full border-2 mx-auto ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600"}`}
+                                                      <button
+                                                        onClick={async () => {
+                                                          if (
+                                                            updatingTasks[
+                                                              task.id
+                                                            ]
+                                                          )
+                                                            return;
+                                                          setUpdatingTasks(
+                                                            (p) => ({
+                                                              ...p,
+                                                              [task.id]: true,
+                                                            }),
+                                                          );
+                                                          try {
+                                                            const newStatus =
+                                                              task.status ===
+                                                              "completed"
+                                                                ? "in_progress"
+                                                                : "completed";
+                                                            // If completing parent, cascade to all sub-tasks
+                                                            if (
+                                                              newStatus ===
+                                                                "completed" &&
+                                                              task.subtasks
+                                                                ?.length > 0
+                                                            ) {
+                                                              await Promise.all(
+                                                                task.subtasks.map(
+                                                                  (st) =>
+                                                                    fetch(
+                                                                      "/api/tasks",
+                                                                      {
+                                                                        method:
+                                                                          "PUT",
+                                                                        headers:
+                                                                          {
+                                                                            "Content-Type":
+                                                                              "application/json",
+                                                                          },
+                                                                        body: JSON.stringify(
+                                                                          {
+                                                                            id: st.id,
+                                                                            status:
+                                                                              "completed",
+                                                                          },
+                                                                        ),
+                                                                      },
+                                                                    ),
+                                                                ),
+                                                              );
+                                                            }
+                                                            await fetch(
+                                                              "/api/tasks",
+                                                              {
+                                                                method: "PUT",
+                                                                headers: {
+                                                                  "Content-Type":
+                                                                    "application/json",
+                                                                },
+                                                                body: JSON.stringify(
+                                                                  {
+                                                                    id: task.id,
+                                                                    status:
+                                                                      newStatus,
+                                                                  },
+                                                                ),
+                                                              },
+                                                            );
+                                                            fetchTasks();
+                                                          } catch (e) {
+                                                            console.error(e);
+                                                          } finally {
+                                                            setUpdatingTasks(
+                                                              (p) => ({
+                                                                ...p,
+                                                                [task.id]: false,
+                                                              }),
+                                                            );
+                                                          }
+                                                        }}
+                                                        disabled={
+                                                          updatingTasks[task.id]
+                                                        }
+                                                        className={`w-4 h-4 rounded-full border-2 mx-auto cursor-pointer transition-all hover:scale-110 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"} ${updatingTasks[task.id] ? "opacity-50 animate-pulse" : ""}`}
                                                       >
                                                         {task.status ===
                                                           "completed" && (
                                                           <CheckCircle2 className="w-3 h-3 text-white" />
                                                         )}
-                                                      </div>
+                                                      </button>
                                                     </td>
                                                     <td className="px-3 py-2.5">
-                                                      <span
-                                                        className={`text-[11px] font-medium ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"}`}
-                                                      >
-                                                        {task.title}
-                                                      </span>
+                                                      <div>
+                                                        <button
+                                                          onClick={() => {
+                                                            if (
+                                                              task.subtasks
+                                                                ?.length > 0
+                                                            ) {
+                                                              setExpandedTasks(
+                                                                (prev) => ({
+                                                                  ...prev,
+                                                                  [task.id]:
+                                                                    !prev[
+                                                                      task.id
+                                                                    ],
+                                                                }),
+                                                              );
+                                                            }
+                                                          }}
+                                                          className={`flex items-center gap-1.5 text-left ${task.subtasks?.length > 0 ? "cursor-pointer hover:text-[var(--brand-orange)]" : ""}`}
+                                                        >
+                                                          <span
+                                                            className={`text-[11px] font-medium ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"}`}
+                                                          >
+                                                            {task.title}
+                                                          </span>
+                                                          {task.subtasks
+                                                            ?.length > 0 && (
+                                                            <span
+                                                              className={`text-[8px] transition-transform ${expandedTasks[task.id] ? "rotate-180" : ""}`}
+                                                            >
+                                                              ▼
+                                                            </span>
+                                                          )}
+                                                        </button>
+                                                        {/* Expanded sub-tasks */}
+                                                        {expandedTasks[
+                                                          task.id
+                                                        ] &&
+                                                          task.subtasks
+                                                            ?.length > 0 && (
+                                                            <div className="mt-2 ml-3 pl-3 border-l-2 border-indigo-500/30 space-y-1">
+                                                              {task.subtasks.map(
+                                                                (st) => (
+                                                                  <div
+                                                                    key={st.id}
+                                                                    className="flex items-center gap-2 py-0.5"
+                                                                  >
+                                                                    <button
+                                                                      onClick={async () => {
+                                                                        if (
+                                                                          updatingTasks[
+                                                                            st
+                                                                              .id
+                                                                          ]
+                                                                        )
+                                                                          return;
+                                                                        setUpdatingTasks(
+                                                                          (
+                                                                            p,
+                                                                          ) => ({
+                                                                            ...p,
+                                                                            [st.id]: true,
+                                                                          }),
+                                                                        );
+                                                                        try {
+                                                                          await fetch(
+                                                                            "/api/tasks",
+                                                                            {
+                                                                              method:
+                                                                                "PUT",
+                                                                              headers:
+                                                                                {
+                                                                                  "Content-Type":
+                                                                                    "application/json",
+                                                                                },
+                                                                              body: JSON.stringify(
+                                                                                {
+                                                                                  id: st.id,
+                                                                                  status:
+                                                                                    st.status ===
+                                                                                    "completed"
+                                                                                      ? "in_progress"
+                                                                                      : "completed",
+                                                                                },
+                                                                              ),
+                                                                            },
+                                                                          );
+                                                                          fetchTasks();
+                                                                        } catch (e) {
+                                                                          console.error(
+                                                                            e,
+                                                                          );
+                                                                        } finally {
+                                                                          setUpdatingTasks(
+                                                                            (
+                                                                              p,
+                                                                            ) => ({
+                                                                              ...p,
+                                                                              [st.id]: false,
+                                                                            }),
+                                                                          );
+                                                                        }
+                                                                      }}
+                                                                      className={`w-3 h-3 rounded-full border-2 shrink-0 ${st.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600"}`}
+                                                                    >
+                                                                      {st.status ===
+                                                                        "completed" && (
+                                                                        <CheckCircle2 className="w-2 h-2 text-white" />
+                                                                      )}
+                                                                    </button>
+                                                                    <span
+                                                                      className={`text-[10px] ${st.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"}`}
+                                                                    >
+                                                                      {st.title}
+                                                                    </span>
+                                                                    <span
+                                                                      className={`text-[7px] px-1 py-0.5 rounded-full ${STATUS_CONFIG[st.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[st.status]?.color || "text-slate-400"}`}
+                                                                    >
+                                                                      {t(
+                                                                        statusLabelKey(
+                                                                          st.status,
+                                                                        ),
+                                                                      )}
+                                                                    </span>
+                                                                  </div>
+                                                                ),
+                                                              )}
+                                                            </div>
+                                                          )}
+                                                      </div>
                                                     </td>
                                                     <td className="px-3 py-2.5 text-[10px] text-slate-500">
                                                       {task.project_id
@@ -1486,32 +1696,108 @@ export default function StaffOpReport() {
                                                             taskId: task.id,
                                                           })
                                                         }
-                                                        className="flex items-center gap-1.5 hover:opacity-80 transition-all"
+                                                        className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-white/5 transition-all text-[9px]"
                                                       >
                                                         {ab.length > 0 ? (
-                                                          <span className="text-[9px] text-rose-400 font-medium">
-                                                            {ab.length}{" "}
-                                                            {t("status.active")}
+                                                          <span className="text-rose-400 font-medium flex items-center gap-1">
+                                                            <Shield className="w-3 h-3" />
+                                                            {ab.length} Blocker
+                                                            {ab.length > 1
+                                                              ? "s"
+                                                              : ""}
                                                           </span>
                                                         ) : (
-                                                          <span className="text-[9px] text-slate-600">
-                                                            {t(
-                                                              "staff.opReport.resolved",
-                                                            )}
+                                                          <span className="text-slate-500 hover:text-slate-300 flex items-center gap-1">
+                                                            <Shield className="w-3 h-3" />
+                                                            Add Blocker
                                                           </span>
                                                         )}
                                                       </button>
                                                     </td>
                                                     <td className="px-3 py-2.5">
-                                                      <span
-                                                        className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}
+                                                      <select
+                                                        value={
+                                                          task.status ||
+                                                          "pending"
+                                                        }
+                                                        onChange={async (e) => {
+                                                          const newStatus =
+                                                            e.target.value;
+                                                          if (
+                                                            updatingTasks[
+                                                              task.id
+                                                            ]
+                                                          )
+                                                            return;
+                                                          setUpdatingTasks(
+                                                            (p) => ({
+                                                              ...p,
+                                                              [task.id]: true,
+                                                            }),
+                                                          );
+                                                          try {
+                                                            await fetch(
+                                                              "/api/tasks",
+                                                              {
+                                                                method: "PUT",
+                                                                headers: {
+                                                                  "Content-Type":
+                                                                    "application/json",
+                                                                },
+                                                                body: JSON.stringify(
+                                                                  {
+                                                                    id: task.id,
+                                                                    status:
+                                                                      newStatus,
+                                                                  },
+                                                                ),
+                                                              },
+                                                            );
+                                                            fetchTasks();
+                                                          } catch (err) {
+                                                            console.error(err);
+                                                          } finally {
+                                                            setUpdatingTasks(
+                                                              (p) => ({
+                                                                ...p,
+                                                                [task.id]: false,
+                                                              }),
+                                                            );
+                                                          }
+                                                        }}
+                                                        className={`text-[8px] font-semibold px-1 py-0.5 rounded-full border-0 outline-none cursor-pointer appearance-none ${STATUS_CONFIG[task.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[task.status]?.color || "text-slate-400"}`}
                                                       >
-                                                        {t(
-                                                          statusLabelKey(
-                                                            task.status,
-                                                          ),
-                                                        )}
-                                                      </span>
+                                                        <option
+                                                          value="pending"
+                                                          className="bg-primary text-slate-400"
+                                                        >
+                                                          Not Started
+                                                        </option>
+                                                        <option
+                                                          value="in_progress"
+                                                          className="bg-primary text-blue-400"
+                                                        >
+                                                          In Progress
+                                                        </option>
+                                                        <option
+                                                          value="blocked"
+                                                          className="bg-primary text-rose-400"
+                                                        >
+                                                          Blocked
+                                                        </option>
+                                                        <option
+                                                          value="carried_over"
+                                                          className="bg-primary text-amber-400"
+                                                        >
+                                                          Carried Over
+                                                        </option>
+                                                        <option
+                                                          value="completed"
+                                                          className="bg-primary text-emerald-400"
+                                                        >
+                                                          Completed
+                                                        </option>
+                                                      </select>
                                                     </td>
                                                   </tr>
                                                 );
@@ -2212,6 +2498,21 @@ export default function StaffOpReport() {
                                         {t("staff.table.weeksOpen")}
                                       </p>
                                     </div>
+                                  </div>
+                                  {/* Reason not completed */}
+                                  <div className="mt-2">
+                                    <input
+                                      type="text"
+                                      value={taskReasons[task.id] || ""}
+                                      onChange={(e) =>
+                                        setTaskReasons((prev) => ({
+                                          ...prev,
+                                          [task.id]: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Why wasn't this completed? e.g. Waiting for feedback, dependency blocked..."
+                                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-medium text-[var(--text-primary)] outline-none placeholder:text-slate-600 focus:border-[var(--brand-orange)] transition-all"
+                                    />
                                   </div>
                                   {weeks >= 3 && (
                                     <div
