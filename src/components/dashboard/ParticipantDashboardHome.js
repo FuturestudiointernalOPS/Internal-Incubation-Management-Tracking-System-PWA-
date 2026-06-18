@@ -536,39 +536,54 @@ export default function ParticipantDashboardHome() {
         </div>
       </motion.div>
 
-      {/* ═══ ACTION CENTER + CALENDAR ═══ */}
+      {/* ═══ CALENDAR + ACTION ITEMS ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ── Action Center ── */}
+        {/* ── Calendar Widget (Left) ── */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.2 }}
           className="lg:col-span-2 space-y-4"
         >
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-              Action Center
-            </h2>
-            {!hasActions && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10">
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span className="text-[8px] font-black text-emerald-400 uppercase tracking-wider">
-                  All Clear
-                </span>
-              </div>
-            )}
-          </div>
+          <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+            This Week
+          </h2>
 
-          {!hasActions ? (
+          {calendarEvents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-3">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-3">
+                <Calendar className="w-6 h-6 text-[var(--text-tertiary)]" />
               </div>
-              <p className="text-[12px] font-bold text-[var(--text-secondary)]">
-                Nothing needs your attention right now
+              <p className="text-[11px] font-bold text-[var(--text-secondary)]">
+                No events this week
               </p>
-              <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
-                Enjoy your day! Check back for updates.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {calendarEvents.slice(0, 5).map((event) => (
+                <CalendarEventItem key={event.id} event={event} />
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        {/* ── Action Items (Right) ── */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="lg:col-span-1 space-y-4"
+        >
+          <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+            Needs Attention
+          </h2>
+          {!hasActions ? (
+            <div className="flex flex-col items-center justify-center py-8 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              </div>
+              <p className="text-[11px] font-bold text-[var(--text-secondary)] text-center px-4">
+                All caught up!
               </p>
             </div>
           ) : (
@@ -620,35 +635,6 @@ export default function ParticipantDashboardHome() {
                     window.location.href = `/participant/${s.programId || primaryProgram?.id}`;
                   }}
                 />
-              ))}
-            </div>
-          )}
-        </motion.div>
-
-        {/* ── Calendar Widget ── */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="space-y-4"
-        >
-          <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-            This Week
-          </h2>
-
-          {calendarEvents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-3">
-                <Calendar className="w-6 h-6 text-[var(--text-tertiary)]" />
-              </div>
-              <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                No events this week
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {calendarEvents.slice(0, 5).map((event) => (
-                <CalendarEventItem key={event.id} event={event} />
               ))}
             </div>
           )}
