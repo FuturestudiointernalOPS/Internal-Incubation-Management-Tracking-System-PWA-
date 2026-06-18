@@ -421,6 +421,7 @@ export default function StaffOpReport() {
           .filter(
             (c) =>
               c.status === "active" &&
+              c.role !== "super_admin" &&
               c.group_name?.toUpperCase() === "FUTURE STUDIO",
           )
           .map((c) => ({

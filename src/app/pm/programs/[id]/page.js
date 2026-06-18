@@ -3504,11 +3504,13 @@ export default function ProgramWorkspace() {
                     }}
                   >
                     <option value="">Select Member...</option>
-                    {staffList.map((s) => (
-                      <option key={s.cid} value={s.cid}>
-                        {s.name} ({s.role})
-                      </option>
-                    ))}
+                    {staffList
+                      .filter((s) => s.role !== "super_admin")
+                      .map((s) => (
+                        <option key={s.cid} value={s.cid}>
+                          {s.name} ({s.role})
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div className="space-y-1">
