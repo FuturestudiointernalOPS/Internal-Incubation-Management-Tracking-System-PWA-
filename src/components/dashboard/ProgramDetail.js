@@ -237,15 +237,21 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-3">
-                    {del.submission?.fileUrl && (
-                      <a
-                        href={del.submission.fileUrl}
-                        target="_blank"
-                        className="text-xs text-[var(--brand-orange)] hover:underline"
-                      >
-                        View
-                      </a>
-                    )}
+                    {del.submission?.fileUrl &&
+                      (() => {
+                        const isExternal =
+                          del.submission.fileUrl.startsWith("http");
+                        return (
+                          <a
+                            href={del.submission.fileUrl}
+                            target={isExternal ? "_blank" : "_self"}
+                            rel={isExternal ? "noopener noreferrer" : ""}
+                            className="text-xs text-[var(--brand-orange)] hover:underline"
+                          >
+                            View
+                          </a>
+                        );
+                      })()}
                     {!del.submission && !week.locked && (
                       <button
                         onClick={(e) => {
@@ -385,6 +391,7 @@ function ResourceCard({ resource }) {
   const Icon = typeIcons[resource.fileType?.toLowerCase()] || BookOpen;
   const hasValidUrl =
     resource.url && resource.url !== "[]" && resource.url !== "";
+  const isExternalUrl = hasValidUrl && resource.url.startsWith("http");
 
   if (!hasValidUrl) {
     return (
@@ -412,8 +419,8 @@ function ResourceCard({ resource }) {
   return (
     <a
       href={resource.url}
-      target="_blank"
-      rel="noopener noreferrer"
+      target={isExternalUrl ? "_blank" : "_self"}
+      rel={isExternalUrl ? "noopener noreferrer" : ""}
       className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/20 transition-all group"
     >
       <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
