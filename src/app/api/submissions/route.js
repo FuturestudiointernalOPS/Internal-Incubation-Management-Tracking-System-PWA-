@@ -112,36 +112,29 @@ export async function PATCH(req) {
       args: [status, feedback || null, score !== undefined ? score : null, id],
     });
 
-    // 3. Dispatch In-App Notification to Participant
+    // 3. Dispatch In-App Notification to Participant (non-blocking)
     if (sub && sub.participant_id) {
       const statusLabel = status?.replace(/_/g, " ") || "reviewed";
-      const notifTitle = `Submission ${statusLabel}`;
-      const notifMessage = feedback
-        ? `Your deliverable "${sub.deliveratable_title || ""}" for ${sub.program_name || ""} was ${statusLabel}. Feedback: ${feedback}`
-        : `Your deliverable "${sub.deliveratable_title || ""}" for ${sub.program_name || ""} was ${statusLabel}.`;
+      try {
+        const notifTitle = `Submission ${statusLabel}`;
+        const notifMessage = feedback
+          ? `Your deliverable "${sub.deliverable_title || ""}" for ${sub.program_name || ""} was ${statusLabel}. Feedback: ${feedback}`
+          : `Your deliverable "${sub.deliverable_title || ""}" for ${sub.program_name || ""} was ${statusLabel}.`;
 
-      await db.execute({
-        sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-              VALUES (?, ?, ?, 'submission', 0, NOW())`,
-        args: [sub.participant_id, notifTitle, notifMessage],
-      });
+        await db.execute({
+          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                VALUES (?, ?, ?, 'submission', 0, NOW())`,
+          args: [sub.participant_id, notifTitle, notifMessage],
+        });
+      } catch (_) {}
 
       // Also try email if we have an email
       if (sub.email) {
         try {
-          let fromName = "ImpactOS Program Office";
-          if (sub.assigned_pm_id) {
-            const pmRes = await db.execute({
-              sql: "SELECT name FROM contacts WHERE cid = ?",
-              args: [sub.assigned_pm_id],
-            });
-            if (pmRes.rows[0]) fromName = pmRes.rows[0].name;
-          }
           await sendEmail({
             to: sub.email,
-            subject: `Update on your submission: ${sub.deliveratable_title || ""}`,
-            body: `Hello ${sub.participant_name || ""},\n\nYour submission for "${sub.deliveratable_title || ""}" has been reviewed.\n\nStatus: ${statusLabel}\nFeedback: ${feedback || "No additional comments provided."}\n\nPlease check your dashboard for more details.`,
-            fromName,
+            subject: `Update on your submission: ${sub.deliverable_title || ""}`,
+            body: `Hello ${sub.participant_name || ""},\n\nYour submission for "${sub.deliverable_title || ""}" has been reviewed.\n\nStatus: ${statusLabel}\nFeedback: ${feedback || "No additional comments provided."}\n\nPlease check your dashboard for more details.`,
           });
         } catch (_) {}
       }
