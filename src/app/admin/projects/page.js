@@ -63,10 +63,10 @@ export default function AdminProjects() {
   const [projectMembers, setProjectMembers] = useState({});
   const [newProject, setNewProject] = useState({
     name: "",
-    type: "",
     description: "",
     lead: "",
     conceptNoteUrl: "",
+    conceptNoteUrlInput: "",
   });
   const [conceptNoteFile, setConceptNoteFile] = useState(null);
   const [uploadingConcept, setUploadingConcept] = useState(false);
@@ -181,7 +181,6 @@ export default function AdminProjects() {
         body: JSON.stringify({
           id: editProject.id,
           name: editProject.name.trim(),
-          type: editProject.type || null,
           description: editProject.description || null,
           concept_note_url: editProject.conceptNoteUrl || null,
           status: editProject.status,
@@ -205,9 +204,9 @@ export default function AdminProjects() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newProject.name.trim(),
-          type: newProject.type || null,
           description: newProject.description || null,
-          concept_note_url: newProject.conceptNoteUrl || null,
+          concept_note_url:
+            newProject.conceptNoteUrl || newProject.conceptNoteUrlInput || null,
           assigned_pm_id: newProject.lead || null,
           status: "Active",
         }),
@@ -234,10 +233,10 @@ export default function AdminProjects() {
         setShowCreateModal(false);
         setNewProject({
           name: "",
-          type: "",
           description: "",
           lead: "",
           conceptNoteUrl: "",
+          conceptNoteUrlInput: "",
         });
         setConceptNoteFile(null);
         setSelectedMembers([]);
@@ -519,7 +518,6 @@ export default function AdminProjects() {
                         setEditProject({
                           id: project.id,
                           name: project.name || "",
-                          type: project.type || "",
                           description: project.meta?.description || "",
                           status: project.status || "Active",
                           lead: project.assigned_pm_id || "",
@@ -538,9 +536,7 @@ export default function AdminProjects() {
                             <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
                               {project.name}
                             </p>
-                            <p className="text-[9px] text-slate-500">
-                              {project.type || "Incubation"}
-                            </p>
+                            <p className="text-[9px] text-slate-500">Project</p>
                           </div>
                         </div>
                       </td>
@@ -635,19 +631,7 @@ export default function AdminProjects() {
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
-              <div>
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Type
-                </label>
-                <input
-                  value={editProject.type}
-                  onChange={(e) =>
-                    setEditProject((p) => ({ ...p, type: e.target.value }))
-                  }
-                  placeholder="Internal, Client, R&D"
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-              </div>
+
               <div className="col-span-2">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Description
@@ -703,29 +687,26 @@ export default function AdminProjects() {
             </div>
 
             {/* Concept Note */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-tertiary/50 border border-[var(--border-primary)]">
-              <div className="flex-1 min-w-0">
-                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Concept Note
-                </p>
-                {editProject.conceptNoteUrl ? (
-                  <a
-                    href={editProject.conceptNoteUrl}
-                    target="_blank"
-                    className="text-[10px] text-[var(--brand-orange)] font-bold underline truncate block"
-                  >
-                    View current concept note
-                  </a>
-                ) : (
-                  <p className="text-[10px] text-[var(--text-secondary)] italic">
-                    No concept note uploaded
-                  </p>
-                )}
-              </div>
+            <div className="p-3 rounded-lg bg-tertiary/50 border border-[var(--border-primary)] space-y-2">
+              <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                Concept Note
+              </p>
+              <p className="text-[8px] text-[var(--text-secondary)]">
+                Upload a document or provide a link.
+              </p>
+              {editProject.conceptNoteUrl && (
+                <a
+                  href={editProject.conceptNoteUrl}
+                  target="_blank"
+                  className="text-[10px] text-[var(--brand-orange)] font-bold underline truncate block"
+                >
+                  View current concept note
+                </a>
+              )}
               <div className="flex gap-2 items-center">
                 <input
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.doc,.docx,.txt,.png,.jpg"
                   id="edit-concept-file"
                   className="hidden"
                   onChange={(e) => setEditConceptFile(e.target.files[0])}
@@ -736,7 +717,7 @@ export default function AdminProjects() {
                   }
                   className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider"
                 >
-                  {editProject.conceptNoteUrl ? "Replace" : "Upload"}
+                  {editProject.conceptNoteUrl ? "Replace File" : "Upload File"}
                 </button>
                 {editConceptFile && (
                   <button
@@ -768,6 +749,25 @@ export default function AdminProjects() {
                   </button>
                 )}
               </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-px bg-[var(--border-primary)]" />
+                <span className="text-[8px] text-[var(--text-secondary)] font-bold">
+                  OR
+                </span>
+                <div className="flex-1 h-px bg-[var(--border-primary)]" />
+              </div>
+              <input
+                type="url"
+                value={editProject.conceptNoteUrl || ""}
+                onChange={(e) =>
+                  setEditProject((p) => ({
+                    ...p,
+                    conceptNoteUrl: e.target.value,
+                  }))
+                }
+                placeholder="Paste a link to the concept note..."
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+              />
             </div>
 
             <button
@@ -887,19 +887,7 @@ export default function AdminProjects() {
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
-              <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Type
-                </label>
-                <input
-                  value={newProject.type}
-                  onChange={(e) =>
-                    setNewProject((p) => ({ ...p, type: e.target.value }))
-                  }
-                  placeholder="e.g. Internal, Client, R&D"
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-              </div>
+
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Description
@@ -919,53 +907,74 @@ export default function AdminProjects() {
               </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Concept Note (PDF)
+                  Concept Note
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => setConceptNoteFile(e.target.files[0])}
-                    className="flex-1 text-[10px] text-[var(--text-secondary)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-wider file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer hover:file:brightness-110"
-                  />
-                  {conceptNoteFile && (
-                    <button
-                      onClick={async () => {
-                        if (!conceptNoteFile) return;
-                        setUploadingConcept(true);
-                        try {
-                          const formData = new FormData();
-                          formData.append("file", conceptNoteFile);
-                          const res = await fetch(
-                            `/api/upload?filename=${encodeURIComponent("concept-" + Date.now() + "-" + conceptNoteFile.name)}`,
-                            { method: "POST", body: formData },
-                          );
-                          // Fallback: use Supabase storage
-                          const { uploadFile } = await import("@/lib/storage");
-                          const uploadResult = await uploadFile(
-                            "project-files",
-                            `concepts/${Date.now()}-${conceptNoteFile.name}`,
-                            conceptNoteFile,
-                          );
-                          if (uploadResult.success) {
-                            setNewProject((p) => ({
-                              ...p,
-                              conceptNoteUrl: uploadResult.url,
-                            }));
+                <p className="text-[8px] text-[var(--text-secondary)] mb-2">
+                  Upload a document or provide a link.
+                </p>
+                <div className="space-y-2">
+                  {/* Upload option */}
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.txt,.png,.jpg"
+                      onChange={(e) => setConceptNoteFile(e.target.files[0])}
+                      className="flex-1 text-[10px] text-[var(--text-secondary)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-wider file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer hover:file:brightness-110"
+                    />
+                    {conceptNoteFile && (
+                      <button
+                        onClick={async () => {
+                          if (!conceptNoteFile) return;
+                          setUploadingConcept(true);
+                          try {
+                            const { uploadFile } =
+                              await import("@/lib/storage");
+                            const uploadResult = await uploadFile(
+                              "project-files",
+                              `concepts/${Date.now()}-${conceptNoteFile.name}`,
+                              conceptNoteFile,
+                            );
+                            if (uploadResult.success) {
+                              setNewProject((p) => ({
+                                ...p,
+                                conceptNoteUrl: uploadResult.url,
+                              }));
+                            }
+                          } catch (e) {
+                            console.error(e);
+                          } finally {
+                            setUploadingConcept(false);
+                            setConceptNoteFile(null);
                           }
-                        } catch (e) {
-                          console.error(e);
-                        } finally {
-                          setUploadingConcept(false);
-                          setConceptNoteFile(null);
-                        }
-                      }}
-                      disabled={uploadingConcept}
-                      className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-30"
-                    >
-                      {uploadingConcept ? "..." : "Upload"}
-                    </button>
-                  )}
+                        }}
+                        disabled={uploadingConcept}
+                        className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-30"
+                      >
+                        {uploadingConcept ? "..." : "Upload"}
+                      </button>
+                    )}
+                  </div>
+                  {/* Divider */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-[var(--border-primary)]" />
+                    <span className="text-[8px] text-[var(--text-secondary)] font-bold">
+                      OR
+                    </span>
+                    <div className="flex-1 h-px bg-[var(--border-primary)]" />
+                  </div>
+                  {/* URL option */}
+                  <input
+                    type="url"
+                    value={newProject.conceptNoteUrlInput}
+                    onChange={(e) =>
+                      setNewProject((p) => ({
+                        ...p,
+                        conceptNoteUrlInput: e.target.value,
+                      }))
+                    }
+                    placeholder="Paste a link to the concept note..."
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+                  />
                 </div>
                 {newProject.conceptNoteUrl && (
                   <a
@@ -976,6 +985,12 @@ export default function AdminProjects() {
                     View uploaded concept note
                   </a>
                 )}
+                {newProject.conceptNoteUrlInput &&
+                  !newProject.conceptNoteUrl && (
+                    <p className="text-[9px] text-[var(--text-secondary)] mt-1 italic">
+                      Link will be saved when you create the project.
+                    </p>
+                  )}
               </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">

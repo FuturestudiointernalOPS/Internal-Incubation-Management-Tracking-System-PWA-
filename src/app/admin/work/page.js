@@ -318,7 +318,7 @@ export default function ProjectKanbanBoard() {
                                 {project.name}
                               </p>
                               <p className="text-[9px] text-[var(--text-secondary)] mt-0.5 truncate">
-                                {project.type || "Project"}
+                                Project
                               </p>
                             </div>
                           </div>

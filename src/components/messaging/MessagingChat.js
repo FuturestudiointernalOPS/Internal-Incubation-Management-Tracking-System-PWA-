@@ -1108,13 +1108,10 @@ export default function MessagingChat({ role = "super_admin" }) {
                 {selectedContact ? (
                   <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
                     <span className="text-[11px] font-bold text-[var(--text-primary)]">
-                      {selectedContact.name} (
-                      {selectedContact.role?.replace(/_/g, " ")})
-                      {selectedContact.group_name && (
-                        <span className="text-[var(--text-secondary)] ml-1">
-                          — {selectedContact.group_name}
-                        </span>
-                      )}
+                      {selectedContact.name}
+                    </span>
+                    <span className="text-[9px] text-[var(--text-secondary)]">
+                      {selectedContact.email}
                     </span>
                     <button
                       onClick={() => {
@@ -1160,10 +1157,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                                 {c.name}
                               </p>
                               <p className="text-[8px] text-[var(--text-secondary)]">
-                                {c.role?.replace(/_/g, " ")}
-                                {c.group_name && (
-                                  <span className="ml-2">— {c.group_name}</span>
-                                )}
+                                {c.email}
                               </p>
                             </button>
                           ))
