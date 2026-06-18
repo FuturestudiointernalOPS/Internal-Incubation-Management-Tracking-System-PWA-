@@ -361,106 +361,35 @@ export default function ProgressView({ programId: filterProgramId }) {
         />
       </div>
 
-      {/* Per-program stats cards (when viewing all) */}
-      {selectedProgram === "all" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {data.programs.map((p) => (
-            <div
-              key={p.id}
-              className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-5"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[12px] font-black text-[var(--text-primary)]">
-                  {p.name}
-                </h3>
-                <span className="text-[9px] text-[var(--text-secondary)]">
-                  Week {p.currentWeek}/{p.durationWeeks || "?"}
-                </span>
-              </div>
-              <div className="grid grid-cols-5 gap-2">
-                {[
-                  {
-                    label: "Progress",
-                    value: p.metrics.programCompletion,
-                    color: "#FF6600",
-                  },
-                  {
-                    label: "Attendance",
-                    value: p.metrics.attendanceRate,
-                    color: "#34D399",
-                  },
-                  {
-                    label: "Assignments",
-                    value: p.metrics.assignmentCompletion,
-                    color: "#6366F1",
-                  },
-                  {
-                    label: "KPIs",
-                    value: p.metrics.kpiCompletion,
-                    color: "#A855F7",
-                  },
-                  {
-                    label: "Rituals",
-                    value: p.metrics.ritualParticipation,
-                    color: "#FBBF24",
-                  },
-                ].map((m) => (
-                  <div key={m.label} className="text-center">
-                    <div className="flex items-end justify-center gap-0.5">
-                      <span className="text-[11px] font-black text-[var(--text-primary)]">
-                        {m.value}
-                      </span>
-                      <span className="text-[7px] text-[var(--text-tertiary)]">
-                        %
-                      </span>
-                    </div>
-                    <p className="text-[6px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mt-0.5">
-                      {m.label}
-                    </p>
-                    <div className="w-full h-1 bg-white/10 rounded-full mt-1 overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${m.value}%`,
-                          backgroundColor: m.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+      {/* Milestones */}
+      {showMilestones && milestones.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowMilestones(!showMilestones)}
+            className="flex items-center gap-2 text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3"
+          >
+            <Award className="w-4 h-4" />
+            Milestones ({milestones.filter((m) => m.achieved).length}/
+            {milestones.length})
+          </button>
+          {showMilestones && (
+            <div className="space-y-2">
+              {milestones.length === 0 ? (
+                <div className="text-center py-8 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+                  <Award className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    No milestones yet
+                  </p>
+                </div>
+              ) : (
+                milestones
+                  .slice(0, 20)
+                  .map((m) => <MilestoneItem key={m.id} milestone={m} />)
+              )}
             </div>
-          ))}
+          )}
         </div>
       )}
-
-      {/* Milestones */}
-      <div>
-        <button
-          onClick={() => setShowMilestones(!showMilestones)}
-          className="flex items-center gap-2 text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3"
-        >
-          <Award className="w-4 h-4" />
-          Milestones ({milestones.filter((m) => m.achieved).length}/
-          {milestones.length})
-        </button>
-        {showMilestones && (
-          <div className="space-y-2">
-            {milestones.length === 0 ? (
-              <div className="text-center py-8 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                <Award className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-                <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                  No milestones yet
-                </p>
-              </div>
-            ) : (
-              milestones
-                .slice(0, 20)
-                .map((m) => <MilestoneItem key={m.id} milestone={m} />)
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Weekly history (per-program view) */}
       {activeProgram && history && history.length > 0 && (
