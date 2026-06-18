@@ -868,6 +868,10 @@ export default function ProgramWorkspace() {
     (program?.assigned_pm_id &&
       (user.cid === program.assigned_pm_id ||
         user.id === program.assigned_pm_id));
+  const isTeamMember = programTeamMembers.some(
+    (m) => m.cid === (user.cid || user.id),
+  );
+  const canContribute = canEdit || isTeamMember;
 
   // curriculum content moved inline below
 
@@ -1782,7 +1786,7 @@ export default function ProgramWorkspace() {
                                   Assessments & Deliverables
                                 </span>
                               </div>
-                              {canEdit && (
+                              {canContribute && (
                                 <button
                                   onClick={() => {
                                     setSelectedSessionId(session.id);
@@ -1856,7 +1860,7 @@ export default function ProgramWorkspace() {
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                {canEdit && (
+                                {canContribute && (
                                   <>
                                     <button
                                       onClick={() => {
