@@ -340,6 +340,40 @@ export async function GET(req) {
         });
       }
     }
+
+    // Fetch events from v2_events for all enrolled programs
+    try {
+      if (programIdList.length > 0) {
+        const placeholders = programIdList.map(() => "?").join(",");
+        const eventRes = await db.execute({
+          sql: `SELECT * FROM v2_events WHERE program_id IN (${placeholders}) AND start_time IS NOT NULL ORDER BY start_time ASC`,
+          args: programIdList,
+        });
+        for (const ev of eventRes.rows || []) {
+          const d = new Date(ev.start_time);
+          const dateStr = d.toISOString().split("T")[0];
+          const timeStr = d.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const key = `event-${ev.id}`;
+          if (seenEventKeys.has(key)) continue;
+          seenEventKeys.add(key);
+          calendarEvents.push({
+            id: key,
+            title: ev.title || "Meeting",
+            date: dateStr,
+            time: timeStr,
+            type: "event",
+            source: "v2_events",
+            relatedId: ev.id,
+            programId: ev.program_id,
+            description: ev.description || ev.event_type || "Review",
+          });
+        }
+      }
+    } catch (_) {}
+
     calendarEvents.sort((a, b) => a.date.localeCompare(b.date));
 
     return NextResponse.json({
