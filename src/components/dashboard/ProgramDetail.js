@@ -831,26 +831,38 @@ export default function ProgramDetail({ programId }) {
                 {submissions.slice(0, 10).map((sub) => (
                   <div
                     key={sub.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
+                    className="flex flex-col p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
                   >
-                    <div className="flex items-center gap-3">
-                      <StatusBadge status={sub.status} />
-                      <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                        Deliverable #{sub.document_id}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {sub.score > 0 && (
-                        <span className="text-[9px] font-bold text-emerald-400">
-                          {sub.score} pts
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <StatusBadge status={sub.status} />
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                          Deliverable #{sub.document_id}
                         </span>
-                      )}
-                      <span className="text-[8px] text-[var(--text-tertiary)]">
-                        {sub.created_at
-                          ? new Date(sub.created_at).toLocaleDateString()
-                          : ""}
-                      </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {sub.score > 0 && (
+                          <span className="text-[9px] font-bold text-emerald-400">
+                            {sub.score} pts
+                          </span>
+                        )}
+                        <span className="text-[8px] text-[var(--text-tertiary)]">
+                          {sub.created_at
+                            ? new Date(sub.created_at).toLocaleDateString()
+                            : ""}
+                        </span>
+                      </div>
                     </div>
+                    {sub.feedback && (
+                      <div className="mt-2 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                        <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">
+                          PM Feedback
+                        </p>
+                        <p className="text-[10px] text-[var(--text-primary)] leading-relaxed">
+                          {sub.feedback}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -68,7 +68,11 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+    ]);
     if (authError) return authError;
     const { id, status, feedback, score } = await req.json();
 
@@ -82,12 +86,14 @@ export async function PATCH(req) {
     // 1. Fetch current submission & participant details for notification
     const subRes = await db.execute({
       sql: `
-           SELECT s.program_id, p.email, p.name as participant_name,
-                  d.title as deliverable_title, prog.assigned_pm_id
+           SELECT s.program_id, s.participant_id,
+                  c.email, c.name as participant_name,
+                  d.title as deliverable_title, prog.assigned_pm_id,
+                  prog.name as program_name
            FROM v2_submissions s
-           JOIN v2_participants p ON s.participant_id = p.id
-           JOIN v2_deliverables d ON s.deliverable_id = d.id
-           JOIN v2_programs prog ON s.program_id = prog.id
+           LEFT JOIN contacts c ON s.participant_id = c.cid
+           LEFT JOIN v2_document_requirements d ON s.deliverable_id = d.id
+           LEFT JOIN v2_programs prog ON s.program_id = prog.id
            WHERE s.id = ?
         `,
       args: [id],
@@ -101,29 +107,39 @@ export async function PATCH(req) {
       args: [status, feedback || null, score !== undefined ? score : null, id],
     });
 
-    // 3. Dispatch Notification (Flexible Branding)
-    if (sub) {
-      // Try to find the PM name for a personal touch
-      let fromName = "ImpactOS Program Office";
-      if (sub.assigned_pm_id) {
-        const pmRes = await db.execute({
-          sql: "SELECT name FROM contacts WHERE role = 'program_manager' AND cid = ?", // Or however users are stored
-          args: [sub.assigned_pm_id],
-        });
-        if (pmRes.rows[0]) {
-          fromName = pmRes.rows[0].name;
-        }
-      }
+    // 3. Dispatch In-App Notification to Participant
+    if (sub && sub.participant_id) {
+      const statusLabel = status?.replace(/_/g, " ") || "reviewed";
+      const notifTitle = `Submission ${statusLabel}`;
+      const notifMessage = feedback
+        ? `Your deliverable "${sub.deliveratable_title || ""}" for ${sub.program_name || ""} was ${statusLabel}. Feedback: ${feedback}`
+        : `Your deliverable "${sub.deliveratable_title || ""}" for ${sub.program_name || ""} was ${statusLabel}.`;
 
-      const subject = `Update on your submission: ${sub.deliverable_title}`;
-      const body = `Hello ${sub.participant_name},\n\nYour submission for "${sub.deliverable_title}" has been reviewed.\n\nStatus: **${status}**\nFeedback: ${feedback || "No additional comments provided."}\n\nPlease check your dashboard for more details.`;
-
-      await sendEmail({
-        to: sub.email,
-        subject,
-        body,
-        fromName,
+      await db.execute({
+        sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+              VALUES (?, ?, ?, 'submission', 0, NOW())`,
+        args: [sub.participant_id, notifTitle, notifMessage],
       });
+
+      // Also try email if we have an email
+      if (sub.email) {
+        try {
+          let fromName = "ImpactOS Program Office";
+          if (sub.assigned_pm_id) {
+            const pmRes = await db.execute({
+              sql: "SELECT name FROM contacts WHERE cid = ?",
+              args: [sub.assigned_pm_id],
+            });
+            if (pmRes.rows[0]) fromName = pmRes.rows[0].name;
+          }
+          await sendEmail({
+            to: sub.email,
+            subject: `Update on your submission: ${sub.deliveratable_title || ""}`,
+            body: `Hello ${sub.participant_name || ""},\n\nYour submission for "${sub.deliveratable_title || ""}" has been reviewed.\n\nStatus: ${statusLabel}\nFeedback: ${feedback || "No additional comments provided."}\n\nPlease check your dashboard for more details.`,
+            fromName,
+          });
+        } catch (_) {}
+      }
     }
 
     return NextResponse.json({ success: true });
