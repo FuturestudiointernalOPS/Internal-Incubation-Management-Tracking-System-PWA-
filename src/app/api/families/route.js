@@ -7,7 +7,13 @@ import { v4 as uuidv4 } from "uuid";
 export async function GET() {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+      "participant",
+    ]);
     if (authError) return authError;
     const result = await db.execute(
       "SELECT * FROM families ORDER BY is_archived ASC, name ASC",
