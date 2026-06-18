@@ -484,11 +484,26 @@ export default function StaffOpReport() {
       const userId = user.cid || user.id;
       const weekData = getCurrentWeek();
 
-      const createdTaskIds = [];
-      for (const row of taskRows) {
+      // Map local row IDs to real DB IDs for parent_task_id resolution
+      const idMapping = {};
+      // Sort: parents before children so real IDs are available for sub-tasks
+      const sortedRows = [...taskRows].sort((a, b) => {
+        if (a.parent_task_id && !b.parent_task_id) return 1;
+        if (!a.parent_task_id && b.parent_task_id) return -1;
+        return 0;
+      });
+      for (const row of sortedRows) {
         if (!row.name.trim()) continue;
         // Skip rows that already exist in DB (they have a status from the database)
         if (row.status !== null && row.status !== undefined) continue;
+
+        // Resolve the real parent_task_id: if the parent was just created in this batch,
+        // use the real DB ID; otherwise use the provided parent_task_id as-is
+        let resolvedParentId = row.parent_task_id || null;
+        if (resolvedParentId && idMapping[resolvedParentId]) {
+          resolvedParentId = idMapping[resolvedParentId];
+        }
+
         const taskRes = await fetch("/api/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -502,7 +517,7 @@ export default function StaffOpReport() {
             status: "in_progress",
             created_week: weekData.week,
             created_year: weekData.year,
-            parent_task_id: row.parent_task_id || null,
+            parent_task_id: resolvedParentId,
             start_date: row.start_date
               ? `${row.start_date}${row.start_time ? `T${row.start_time}:00` : ""}`
               : null,
@@ -514,7 +529,7 @@ export default function StaffOpReport() {
         });
         const taskData = await taskRes.json();
         if (taskData.success) {
-          createdTaskIds.push(taskData.id);
+          idMapping[row.id] = taskData.id;
         }
       }
 
@@ -2734,18 +2749,25 @@ export default function StaffOpReport() {
                                   String(newTaskForm.project_id),
                               )?.name || t("staff.table.projectFallback")}
                             </span>
-                            <button
-                              onClick={() =>
-                                setNewTaskForm((p) => ({
-                                  ...p,
-                                  project_id: "",
-                                  project_search: "",
-                                }))
-                              }
-                              className="text-slate-500 hover:text-[var(--text-primary)]"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
+                            {!pendingParentTaskId && (
+                              <button
+                                onClick={() =>
+                                  setNewTaskForm((p) => ({
+                                    ...p,
+                                    project_id: "",
+                                    project_search: "",
+                                  }))
+                                }
+                                className="text-slate-500 hover:text-[var(--text-primary)]"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {pendingParentTaskId && (
+                              <span className="text-[7px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-1.5 py-0.5 rounded">
+                                Inherited
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <>
@@ -3054,7 +3076,10 @@ export default function StaffOpReport() {
                     <div className="flex gap-2 pt-2">
                       <button
                         onClick={addTaskRow}
-                        disabled={!newTaskForm.name.trim()}
+                        disabled={
+                          !newTaskForm.name.trim() ||
+                          (!newTaskForm.project_id && !newTaskForm.category)
+                        }
                         className="flex-1 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
                       >
                         {t("reports.addTask")}
