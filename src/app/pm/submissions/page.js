@@ -284,27 +284,25 @@ export default function PMSubmissions() {
                           <ExternalLink className="w-3 h-3" /> View File
                         </a>
                       )}
-                      {sub.status === "pending" &&
-                        sub.grading_mode !== "followup" && (
+                      {sub.status === "pending" && (
+                        <>
                           <button
                             onClick={() => setReviewModal(sub)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all ml-auto"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                           >
                             <Shield className="w-3 h-3" />{" "}
-                            {sub.grading_mode === "review"
-                              ? "Feedback"
-                              : "Review"}
+                            {sub.grading_mode === "graded"
+                              ? "Review"
+                              : "Feedback"}
                           </button>
-                        )}
-                      {sub.status === "pending" &&
-                        sub.grading_mode === "followup" && (
                           <button
                             onClick={() => setScheduleModal(sub)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all ml-auto"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                           >
                             <Calendar className="w-3 h-3" /> Schedule Review
                           </button>
-                        )}
+                        </>
+                      )}
                       {sub.status !== "pending" && (
                         <span className="text-[8px] text-slate-500 italic ml-auto">
                           Reviewed{" "}
@@ -388,29 +386,41 @@ export default function PMSubmissions() {
               </div>
             </div>
             <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => handleReview(reviewModal.id, "approved")}
-                disabled={actionLoading}
-                className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4" /> Approve
-              </button>
-              <button
-                onClick={() =>
-                  handleReview(reviewModal.id, "revision_requested")
-                }
-                disabled={actionLoading}
-                className="flex-1 py-3 bg-blue-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" /> Request Revision
-              </button>
-              <button
-                onClick={() => handleReview(reviewModal.id, "rejected")}
-                disabled={actionLoading}
-                className="flex-1 py-3 bg-rose-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                <X className="w-4 h-4" /> Reject
-              </button>
+              {reviewModal.grading_mode === "graded" ? (
+                <>
+                  <button
+                    onClick={() => handleReview(reviewModal.id, "approved")}
+                    disabled={actionLoading}
+                    className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> Approve
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleReview(reviewModal.id, "revision_requested")
+                    }
+                    disabled={actionLoading}
+                    className="flex-1 py-3 bg-blue-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Request Revision
+                  </button>
+                  <button
+                    onClick={() => handleReview(reviewModal.id, "rejected")}
+                    disabled={actionLoading}
+                    className="flex-1 py-3 bg-rose-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <X className="w-4 h-4" /> Reject
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => handleReview(reviewModal.id, "reviewed")}
+                  disabled={actionLoading}
+                  className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Submit Feedback
+                </button>
+              )}
             </div>
           </div>
         </div>
