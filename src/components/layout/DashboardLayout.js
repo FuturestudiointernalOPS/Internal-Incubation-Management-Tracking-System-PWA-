@@ -95,6 +95,7 @@ const SidebarContent = ({
   setMobileMenuOpen,
   handleLogout,
   t,
+  submissionCount,
 }) => {
   return (
     <>
@@ -734,6 +735,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     setMobileMenuOpen,
     handleLogout,
     t,
+    submissionCount,
   };
 
   if (!authChecked) {
