@@ -243,7 +243,14 @@ function ContactsPageContent() {
       if ((await res.json()).success) {
         setCredsForm({ ...c, password: newPass });
         setShowCredsModal(true);
+      } else {
+        setNotification({
+          type: "error",
+          message: "Failed to reset password.",
+        });
       }
+    } catch (e) {
+      setNotification({ type: "error", message: "Network error." });
     } finally {
       setIsProcessing(false);
     }
