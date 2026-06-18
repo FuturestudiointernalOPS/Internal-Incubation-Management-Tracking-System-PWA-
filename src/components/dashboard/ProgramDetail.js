@@ -271,6 +271,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
 function SubmitForm({ programId, deliverableId, onDone }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   const [url, setUrl] = useState("");
   const [user, setUser] = useState({});
 
@@ -313,8 +314,12 @@ function SubmitForm({ programId, deliverableId, onDone }) {
       const data = await res.json();
       if (data.success) {
         onDone?.();
+      } else {
+        setSubmitError(data.error || "Failed to submit. Please try again.");
       }
-    } catch (_) {}
+    } catch (_) {
+      setSubmitError("Network error. Please try again.");
+    }
     setSubmitting(false);
   };
 
@@ -345,6 +350,11 @@ function SubmitForm({ programId, deliverableId, onDone }) {
           className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none focus:border-[var(--brand-orange)]"
         />
       </div>
+      {submitError && (
+        <p className="text-[9px] font-bold text-rose-500 text-center">
+          {submitError}
+        </p>
+      )}
       <button
         onClick={handleSubmit}
         disabled={submitting || (!file && !url.trim())}
