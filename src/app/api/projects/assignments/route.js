@@ -71,10 +71,19 @@ export async function GET(req) {
       all_active = [];
     }
 
+    // Combine owned + collab into a single deduplicated myProjects list
+    const seen = new Set();
+    const myProjects = [...owned, ...collab].filter((p) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+
     return NextResponse.json({
       success: true,
       owned,
       collab,
+      myProjects,
       all_active,
     });
   } catch (error) {
