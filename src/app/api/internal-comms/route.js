@@ -94,7 +94,7 @@ export async function POST(req) {
         staff: "Staff",
         program_manager: "Program Manager",
         super_admin: "Super Admin",
-        teacher: "Teacher",
+        teacher: "Instructor",
         participant: "Participant",
       };
       const dbRole = roleMap[target_id];
