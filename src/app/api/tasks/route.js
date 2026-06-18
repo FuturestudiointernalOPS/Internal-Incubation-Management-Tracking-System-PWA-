@@ -230,6 +230,25 @@ export async function POST(req) {
       } catch (_) {}
     }
 
+    // Prevent assigning to super_admin
+    if (finalAssignedTo) {
+      try {
+        const saCheck = await db.execute({
+          sql: "SELECT role FROM contacts WHERE cid = ? AND role = 'super_admin'",
+          args: [finalAssignedTo],
+        });
+        if (saCheck.rows.length > 0) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Cannot assign tasks to a Super Admin.",
+            },
+            { status: 400 },
+          );
+        }
+      } catch (_) {}
+    }
+
     // Phase 2: Check project assignment if project_id provided
     let finalStatus = status || "in_progress";
     let pendingApproval = false;
