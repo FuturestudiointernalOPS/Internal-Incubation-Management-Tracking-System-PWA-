@@ -286,7 +286,7 @@ function SubmitForm({ programId, deliverableId, onDone }) {
       const body = {
         participant_id: user.cid || user.id,
         program_id: programId,
-        document_id: deliverableId,
+        deliverable_id: deliverableId,
         file_url: url.trim() || null,
         status: "pending",
       };
