@@ -689,7 +689,10 @@ export default function AdminProjects() {
             {/* Concept Note */}
             <div className="p-3 rounded-lg bg-tertiary/50 border border-[var(--border-primary)] space-y-2">
               <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
-                Concept Note
+                Concept Note{" "}
+                <span className="text-slate-600 font-normal normal-case">
+                  (optional)
+                </span>
               </p>
               <p className="text-[8px] text-[var(--text-secondary)]">
                 Upload a document or provide a link.
@@ -907,7 +910,8 @@ export default function AdminProjects() {
               </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Concept Note
+                  Concept Note{" "}
+                  <span className="text-slate-600 font-normal">(optional)</span>
                 </label>
                 <p className="text-[8px] text-[var(--text-secondary)] mb-2">
                   Upload a document or provide a link.
