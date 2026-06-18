@@ -431,117 +431,7 @@ const NAVIGATION_MATRIX = {
       ],
     },
   ],
-  developer: [
-    {
-      id: "dashboard",
-      name: "DASHBOARD",
-      icon: LayoutDashboard,
-      href: "/developer",
-    },
-    {
-      id: "developer_tools",
-      name: "DEVELOPER",
-      icon: Wrench,
-      subItems: [
-        {
-          id: "error_logs",
-          name: "ERROR LOGS",
-          href: "/developer/errors",
-        },
-      ],
-    },
-    {
-      id: "programs",
-      name: "PROGRAMS",
-      icon: Briefcase,
-      subItems: [
-        { id: "all_programs", name: "ALL PROGRAMS", href: "/admin/programs" },
-        {
-          id: "create_program",
-          name: "CREATE PROGRAM",
-          href: "/admin/programs/new",
-        },
-        { id: "progress", name: "PROGRESS", href: "/admin/progress" },
-        {
-          id: "program_reports",
-          name: "PROGRAM REPORTS",
-          href: "/admin/reports/responses",
-        },
-      ],
-    },
-    {
-      id: "internal_ops",
-      name: "Internal Ops",
-      icon: ListTodo,
-      subItems: [
-        { id: "internal_ops_board", name: "WORKSPACE", href: "/admin/work" },
-        {
-          id: "all_projects",
-          name: "PROJECTS",
-          href: "/admin/projects",
-        },
-        {
-          id: "create_project",
-          name: "CREATE PROJECT",
-          href: "/admin/projects?action=create",
-        },
-        {
-          id: "internal_reports",
-          name: "REPORTS",
-          href: "/admin/op-reports",
-        },
-      ],
-    },
-    {
-      id: "communication",
-      name: "COMMUNICATIONS",
-      icon: Send,
-      subItems: [
-        { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
-        {
-          id: "campaigns",
-          name: "CAMPAIGNS",
-          href: "/admin/communications/campaigns",
-        },
-        { id: "forms", name: "FORMS", href: "/admin/communications/forms" },
-        {
-          id: "all_contacts",
-          name: "CONTACTS",
-          href: "/admin/communications/contacts",
-        },
-        {
-          id: "pending_users",
-          name: "PENDING USERS",
-          href: "/admin/pending-users",
-        },
-        { id: "bulk_upload", name: "BULK UPLOAD", href: "/admin/bulk-upload" },
-      ],
-    },
-    {
-      id: "knowledge",
-      name: "KNOWLEDGE BASE",
-      icon: Library,
-      href: "/admin/knowledge",
-    },
-    {
-      id: "intelligence",
-      name: "INTELLIGENCE",
-      icon: TrendingUp,
-      href: "/admin/intelligence",
-    },
-    {
-      id: "finance",
-      name: "FINANCE",
-      icon: BarChart3,
-      href: "/admin/finance",
-    },
-    {
-      id: "metrics",
-      name: "HEALTH",
-      icon: Activity,
-      href: "/admin/metrics",
-    },
-  ],
+
   teacher: [
     {
       id: "dashboard",
@@ -783,8 +673,23 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     // Priority: user.role (from session) > role (from prop) > fallback 'admin'
     const activeRole = user.role || role || "admin";
     const matrix = NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin;
-    // Debug nav removed to prevent console spam on every render
     const items = [...matrix];
+
+    // Inject developer tools for gwyn's account
+    if (user.email === "gwyn.ukoha@gmail.com") {
+      items.splice(1, 0, {
+        id: "developer_tools",
+        name: "DEVELOPER",
+        icon: Wrench,
+        subItems: [
+          {
+            id: "error_logs",
+            name: "ERROR LOGS",
+            href: "/developer/errors",
+          },
+        ],
+      });
+    }
 
     if (
       (activeRole === "program_manager" || activeRole === "super_admin") &&

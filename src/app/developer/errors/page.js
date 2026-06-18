@@ -119,7 +119,7 @@ export default function DeveloperErrors() {
   };
 
   return (
-    <DashboardLayout role="developer" activeTab="error_logs">
+    <DashboardLayout role="super_admin" activeTab="error_logs">
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -209,9 +209,7 @@ export default function DeveloperErrors() {
               <div
                 key={error.id}
                 className={`ios-card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all ${
-                  !error.resolved
-                    ? "border-l-4 border-l-amber-500"
-                    : ""
+                  !error.resolved ? "border-l-4 border-l-amber-500" : ""
                 }`}
               >
                 {/* Summary Row */}
@@ -244,8 +242,7 @@ export default function DeveloperErrors() {
                       )}
                       {error.user_id && (
                         <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1">
-                          <User className="w-3 h-3" />{" "}
-                          {error.user_id}
+                          <User className="w-3 h-3" /> {error.user_id}
                         </span>
                       )}
                       <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1 whitespace-nowrap">
@@ -376,9 +373,7 @@ export default function DeveloperErrors() {
                           {error.resolved_at && (
                             <span className="text-[8px] text-slate-500">
                               Resolved{" "}
-                              {new Date(
-                                error.resolved_at,
-                              ).toLocaleDateString()}
+                              {new Date(error.resolved_at).toLocaleDateString()}
                             </span>
                           )}
                         </div>
