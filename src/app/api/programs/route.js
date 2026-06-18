@@ -68,7 +68,12 @@ export async function POST(req) {
 export async function GET() {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { rows } = await db.execute(
       "SELECT * FROM v2_programs ORDER BY created_at DESC",
