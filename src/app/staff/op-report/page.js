@@ -853,43 +853,45 @@ export default function StaffOpReport() {
                     onClick={() => {
                       setShowStandupModal(true);
                       setWeekInfo(getCurrentWeek());
-                      // Load existing tasks for this week into taskRows
-                      const currentWeekData = getCurrentWeek();
-                      const weekTasks = tasks.filter(
-                        (t) =>
-                          t.created_week === currentWeekData.week &&
-                          t.created_year === currentWeekData.year &&
-                          !["completed", "archived"].includes(t.status),
-                      );
-                      if (weekTasks.length > 0) {
-                        setTaskRows(
-                          weekTasks.map((t) => ({
-                            id: t.id,
-                            name: t.title,
-                            description: t.description || "",
-                            project_id: t.project_id || null,
-                            category: t.category || "",
-                            start_date: t.start_date || "",
-                            start_time: "",
-                            due_date: t.end_date || "",
-                            due_time: "",
-                            blockers:
-                              t.blockers?.map((b) => ({
-                                id: b.id,
-                                description: b.title,
-                                severity: b.severity || "medium",
-                                status: b.status || "Active",
-                                created_at: b.created_at,
-                              })) || [],
-                            status: t.status,
-                            collaborators: [],
-                            uncompleted_reason: "",
-                          })),
+                      // Load existing tasks for this week into taskRows (only when continuing a draft)
+                      if (existingReport) {
+                        const currentWeekData = getCurrentWeek();
+                        const weekTasks = tasks.filter(
+                          (t) =>
+                            t.created_week === currentWeekData.week &&
+                            t.created_year === currentWeekData.year &&
+                            !["completed", "archived"].includes(t.status),
                         );
-                        setTimeout(() => setShowTaskForm(false), 50);
-                      } else {
-                        setTimeout(() => setShowTaskForm(true), 100);
+                        if (weekTasks.length > 0) {
+                          setTaskRows(
+                            weekTasks.map((t) => ({
+                              id: t.id,
+                              name: t.title,
+                              description: t.description || "",
+                              project_id: t.project_id || null,
+                              category: t.category || "",
+                              start_date: t.start_date || "",
+                              start_time: "",
+                              due_date: t.end_date || "",
+                              due_time: "",
+                              blockers:
+                                t.blockers?.map((b) => ({
+                                  id: b.id,
+                                  description: b.title,
+                                  severity: b.severity || "medium",
+                                  status: b.status || "Active",
+                                  created_at: b.created_at,
+                                })) || [],
+                              status: t.status,
+                              collaborators: [],
+                              uncompleted_reason: "",
+                            })),
+                          );
+                          setShowTaskForm(false);
+                          return;
+                        }
                       }
+                      setShowTaskForm(true);
                     }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                   >
