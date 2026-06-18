@@ -50,6 +50,7 @@ export default function PMSubmissions() {
   const [filterProgram, setFilterProgram] = useState("all");
   const [search, setSearch] = useState("");
   const [reviewModal, setReviewModal] = useState(null);
+  const [scheduleModal, setScheduleModal] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -298,7 +299,7 @@ export default function PMSubmissions() {
                       {sub.status === "pending" &&
                         sub.grading_mode === "followup" && (
                           <button
-                            onClick={() => setReviewModal(sub)}
+                            onClick={() => setScheduleModal(sub)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all ml-auto"
                           >
                             <Calendar className="w-3 h-3" /> Schedule Review
