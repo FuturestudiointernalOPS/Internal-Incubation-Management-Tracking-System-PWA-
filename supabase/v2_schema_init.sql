@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS v2_programs (
     start_date DATE,
     end_date DATE,
     feedback_enabled BOOLEAN DEFAULT true,
+    grading_mode TEXT NOT NULL DEFAULT 'graded' CHECK (grading_mode IN ('graded', 'review', 'followup')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -39,6 +40,7 @@ CREATE TABLE IF NOT EXISTS v2_projects (
     kpis_url TEXT,
     topics TEXT, -- Specific adjustment for this instance
     schedule_url TEXT,
+    notion_page_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -218,6 +220,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     first_scheduled_end_date DATE,
     reschedule_count INTEGER DEFAULT 0,
     completed_at TIMESTAMP WITH TIME ZONE,
+    notion_page_id TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -349,8 +352,12 @@ CREATE TABLE IF NOT EXISTS v2_events (
     description TEXT,
     event_type TEXT NOT NULL,
     start_time TIMESTAMP WITH TIME ZONE,
+    end_time TIMESTAMP WITH TIME ZONE,
     location TEXT,
     created_by TEXT,
+    participant_id TEXT,
+    external_calendar_id TEXT,
+    external_calendar_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

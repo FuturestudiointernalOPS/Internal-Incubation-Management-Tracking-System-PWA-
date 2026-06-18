@@ -186,6 +186,7 @@ export async function POST(req) {
       created_week,
       created_year,
       carried_over_from_task_id,
+      parent_task_id,
       start_date,
       end_date,
       assigned_to,
@@ -270,8 +271,8 @@ export async function POST(req) {
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id, category,
          created_week, created_year, carried_over_from_task_id,
-         start_date, end_date, assigned_to)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          parent_task_id, start_date, end_date, assigned_to)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         user_id,
         user_name || "",
@@ -283,6 +284,7 @@ export async function POST(req) {
         created_week,
         created_year,
         carried_over_from_task_id || null,
+        parent_task_id || null,
         finalStartDate,
         finalEndDate,
         finalAssignedTo,
