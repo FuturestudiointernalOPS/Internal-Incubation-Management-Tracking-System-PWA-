@@ -155,13 +155,13 @@ export default function TeacherProfile() {
               <div className="flex flex-col sm:flex-row items-end gap-6">
                 <div className="flex-1 space-y-2 w-full relative">
                   <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest pl-2">
-                    Access Token
+                    New Password
                   </label>
                   <div className="relative group">
                     <input
                       type={showPassword ? "text" : "password"}
-                      defaultValue={dbUser.password}
                       id="teacher_password_field"
+                      placeholder="Enter new password..."
                       className="w-full bg-white/5 border border-white/10 rounded-xl p-4 pr-14 text-xs font-black text-white outline-none focus:border-[#FF6600]/80/50 transition-all font-mono"
                     />
                     <button
@@ -190,32 +190,30 @@ export default function TeacherProfile() {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                           cid: dbUser.cid,
-                          password: newPass || dbUser.password,
+                          password: newPass,
                           name: newName || dbUser.name,
                         }),
                       });
                       if ((await res.json()).success) {
+                        document.getElementById(
+                          "teacher_password_field",
+                        ).value = "";
                         window.dispatchEvent(
                           new CustomEvent("impactos:notify", {
                             detail: {
                               type: "success",
-                              message: t("common.success"),
+                              message: "Password updated successfully",
                             },
                           }),
                         );
-                        fetchProfile();
                       }
                     } catch (e) {
-                      window.dispatchEvent(
-                        new CustomEvent("impactos:notify", {
-                          detail: { type: "error", message: t("common.error") },
-                        }),
-                      );
+                      console.error(e);
                     }
                   }}
-                  className="btn-prime !py-4 px-10 flex items-center justify-center gap-2 whitespace-nowrap"
+                  className="flex items-center gap-2 px-6 py-4 bg-[#FF6600]/80 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shrink-0"
                 >
-                  <Save className="w-5 h-5" /> {t("common.save")}
+                  Update Password
                 </button>
               </div>
             </div>
