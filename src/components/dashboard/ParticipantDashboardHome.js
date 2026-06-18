@@ -538,12 +538,41 @@ export default function ParticipantDashboardHome() {
 
       {/* ═══ CALENDAR + ACTION ITEMS ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ── Action Items (Left, 2/3) ── */}
+        {/* ── Calendar Widget (Left) ── */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.2 }}
           className="lg:col-span-2 space-y-4"
+        >
+          <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+            This Week
+          </h2>
+
+          {calendarEvents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-3">
+                <Calendar className="w-6 h-6 text-[var(--text-tertiary)]" />
+              </div>
+              <p className="text-[11px] font-bold text-[var(--text-secondary)]">
+                No events this week
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {calendarEvents.slice(0, 5).map((event) => (
+                <CalendarEventItem key={event.id} event={event} />
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        {/* ── Action Items (Right) ── */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="lg:col-span-1 space-y-4"
         >
           <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
             Needs Attention
@@ -559,6 +588,7 @@ export default function ParticipantDashboardHome() {
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Overdue items */}
               {actionCenter.overdue.map((item) => (
                 <ActionCard
                   key={`overdue-${item.id}`}
@@ -569,6 +599,7 @@ export default function ParticipantDashboardHome() {
                   }}
                 />
               ))}
+              {/* Due soon items */}
               {actionCenter.dueSoon.map((item) => (
                 <ActionCard
                   key={`due-${item.id}`}
@@ -579,6 +610,7 @@ export default function ParticipantDashboardHome() {
                   }}
                 />
               ))}
+              {/* Pending submissions */}
               {actionCenter.pendingSubmissions.map((item) => (
                 <ActionCard
                   key={`sub-${item.id}`}
@@ -589,43 +621,20 @@ export default function ParticipantDashboardHome() {
                   }}
                 />
               ))}
+              {/* Upcoming sessions */}
               {actionCenter.upcomingSessions.map((s) => (
                 <ActionCard
                   key={`session-${s.id}`}
-                  item={{ title: s.title, date: s.date, type: s.type }}
+                  item={{
+                    title: s.title,
+                    date: s.date,
+                    type: s.type,
+                  }}
                   type="session"
                   onAction={() => {
                     window.location.href = `/participant/${s.programId || primaryProgram?.id}`;
                   }}
                 />
-              ))}
-            </div>
-          )}
-        </motion.div>
-
-        {/* ── Calendar Widget (Right, 1/3) ── */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="space-y-4"
-        >
-          <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-            This Week
-          </h2>
-          {calendarEvents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-3">
-                <Calendar className="w-6 h-6 text-[var(--text-tertiary)]" />
-              </div>
-              <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                No events this week
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {calendarEvents.slice(0, 5).map((event) => (
-                <CalendarEventItem key={event.id} event={event} />
               ))}
             </div>
           )}
