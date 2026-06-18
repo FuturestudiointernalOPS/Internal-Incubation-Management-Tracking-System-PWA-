@@ -24,6 +24,7 @@ import {
   Layers,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import CalendarPanel from "@/components/ui/CalendarPanel";
 
 // ─── Progress Ring ─────────────────────────────────────────────────
 function ProgressRing({
