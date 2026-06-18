@@ -929,7 +929,8 @@ export default function StaffOpReport() {
                           (t) =>
                             t.created_week === currentWeekData.week &&
                             t.created_year === currentWeekData.year &&
-                            !["completed", "archived"].includes(t.status),
+                            !["completed", "archived"].includes(t.status) &&
+                            !t.parent_task_id, // exclude sub-tasks (rendered inside parent)
                         );
                         // Flatten subtasks into the task rows array
                         const allTaskRows = [];
@@ -1340,7 +1341,8 @@ export default function StaffOpReport() {
                           const weekTasks = tasks.filter(
                             (t) =>
                               t.created_week === report.week_number &&
-                              t.created_year === report.year,
+                              t.created_year === report.year &&
+                              !t.parent_task_id, // exclude sub-tasks (rendered inside parent)
                           );
                           const completed = weekTasks.filter(
                             (t) => t.status === "completed",

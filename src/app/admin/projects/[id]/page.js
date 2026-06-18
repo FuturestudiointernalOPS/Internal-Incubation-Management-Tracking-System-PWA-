@@ -117,6 +117,8 @@ export default function ProjectDetail() {
     end_time: "",
   });
   const [creatingTask, setCreatingTask] = useState(false);
+  const [expandedProjectTasks, setExpandedProjectTasks] = useState({});
+  const [parentForSubTask, setParentForSubTask] = useState(null);
 
   const handleTaskStatusChange = async (taskId, newStatus) => {
     try {
@@ -603,14 +605,24 @@ export default function ProjectDetail() {
               <div className="card border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/[0.02] space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-widest">
-                    ✦ Create Task
+                    {parentForSubTask ? "✦ Add Sub-task" : "✦ Create Task"}
                   </h3>
-                  <button
-                    onClick={() => setShowNewTaskForm(false)}
-                    className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)]"
-                  >
-                    Cancel
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {parentForSubTask && (
+                      <span className="text-[7px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded uppercase tracking-wider font-black">
+                        Sub-task
+                      </span>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowNewTaskForm(false);
+                        setParentForSubTask(null);
+                      }}
+                      className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
@@ -741,6 +753,7 @@ export default function ProjectDetail() {
                           assigned_to:
                             newTaskForm.assigned_to || project.owner_id || null,
                           project_id: project.id,
+                          parent_task_id: parentForSubTask || null,
                           start_date: newTaskForm.start_date
                             ? `${newTaskForm.start_date}${newTaskForm.start_time ? `T${newTaskForm.start_time}:00` : ""}`
                             : null,
@@ -757,6 +770,7 @@ export default function ProjectDetail() {
                       const data = await res.json();
                       if (data.success) {
                         setShowNewTaskForm(false);
+                        setParentForSubTask(null);
                         setNewTaskForm({
                           title: "",
                           description: "",
@@ -878,14 +892,86 @@ export default function ProjectDetail() {
                           >
                             <td className="p-3">
                               <div>
-                                <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                                  {task.title || "Untitled"}
-                                </p>
+                                <button
+                                  onClick={() => {
+                                    if (task.subtasks?.length > 0) {
+                                      setExpandedProjectTasks((prev) => ({
+                                        ...prev,
+                                        [task.id]: !prev[task.id],
+                                      }));
+                                    }
+                                  }}
+                                  className={`flex items-center gap-1.5 text-left ${task.subtasks?.length > 0 ? "cursor-pointer hover:text-[var(--brand-orange)]" : ""}`}
+                                >
+                                  <span className="text-[11px] font-bold text-[var(--text-primary)]">
+                                    {task.title || "Untitled"}
+                                  </span>
+                                  {task.subtasks?.length > 0 && (
+                                    <span
+                                      className={`text-[8px] transition-transform ${expandedProjectTasks[task.id] ? "rotate-180" : ""}`}
+                                    >
+                                      ▼
+                                    </span>
+                                  )}
+                                </button>
                                 {task.description && (
                                   <p className="text-[9px] text-slate-500 mt-0.5 line-clamp-1">
                                     {task.description}
                                   </p>
                                 )}
+                                {/* Expanded sub-tasks */}
+                                {expandedProjectTasks[task.id] &&
+                                  task.subtasks?.length > 0 && (
+                                    <div className="mt-2 ml-3 pl-3 border-l-2 border-indigo-500/30 space-y-1">
+                                      {task.subtasks.map((st) => (
+                                        <div
+                                          key={st.id}
+                                          className="flex items-center gap-2 py-0.5"
+                                        >
+                                          <span
+                                            className={`text-[10px] ${st.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"}`}
+                                          >
+                                            {st.title}
+                                          </span>
+                                          <select
+                                            value={st.status}
+                                            onChange={(e) =>
+                                              handleTaskStatusChange(
+                                                st.id,
+                                                e.target.value,
+                                              )
+                                            }
+                                            className={`text-[7px] px-1 py-0.5 rounded outline-none appearance-none cursor-pointer ${TASK_STATUS_BG[st.status] || "bg-slate-500/10"} ${TASK_STATUS_COLORS[st.status] || "text-slate-400"}`}
+                                          >
+                                            <option value="pending">
+                                              Pending
+                                            </option>
+                                            <option value="in_progress">
+                                              In Progress
+                                            </option>
+                                            <option value="blocked">
+                                              Blocked
+                                            </option>
+                                            <option value="completed">
+                                              Completed
+                                            </option>
+                                            <option value="carried_over">
+                                              Carried Over
+                                            </option>
+                                          </select>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                <button
+                                  onClick={() => {
+                                    setShowNewTaskForm(true);
+                                    setParentForSubTask(task.id);
+                                  }}
+                                  className="mt-1 flex items-center gap-1 px-2 py-0.5 text-[7px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-400 rounded hover:bg-indigo-500/20 transition-all"
+                                >
+                                  + Sub-task
+                                </button>
                               </div>
                             </td>
                             <td className="p-3">
