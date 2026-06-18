@@ -173,6 +173,7 @@ function CalendarEventItem({ event }) {
   const typeColors = {
     session: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10",
     deadline: "text-rose-400 bg-rose-500/10",
+    submission: "text-emerald-400 bg-emerald-500/10",
     workshop: "text-blue-400 bg-blue-500/10",
     event: "text-emerald-400 bg-emerald-500/10",
   };
