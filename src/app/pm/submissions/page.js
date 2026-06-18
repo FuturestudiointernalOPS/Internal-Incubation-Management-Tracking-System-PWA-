@@ -15,6 +15,7 @@ import {
   Calendar,
   ChevronDown,
   Briefcase,
+  MapPin,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -53,11 +54,24 @@ export default function PMSubmissions() {
   const [scheduleModal, setScheduleModal] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [eventTitle, setEventTitle] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [eventLocation, setEventLocation] = useState("");
 
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     setUser(u);
   }, []);
+
+  useEffect(() => {
+    if (scheduleModal) {
+      setEventTitle(
+        `Review: ${scheduleModal.deliverable_title} - ${scheduleModal.participant_name}`,
+      );
+      setStartTime("");
+      setEventLocation("");
+    }
+  }, [scheduleModal]);
 
   const fetchSubmissions = useCallback(async () => {
     if (!user?.cid && !user?.id) return;
@@ -421,6 +435,119 @@ export default function PMSubmissions() {
                   <CheckCircle2 className="w-4 h-4" /> Submit Feedback
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Review Modal */}
+      {scheduleModal && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setScheduleModal(null)}
+        >
+          <div
+            className="card w-full max-w-lg space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-purple-400" />
+                <h3 className="text-sm font-black uppercase tracking-tight">
+                  Schedule Review
+                </h3>
+              </div>
+              <button onClick={() => setScheduleModal(null)}>
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                  Participant
+                </p>
+                <p className="text-sm font-bold mt-0.5">
+                  {scheduleModal.participant_name ||
+                    scheduleModal.participant_id}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                  Deliverable
+                </p>
+                <p className="text-sm font-bold mt-0.5">
+                  {scheduleModal.deliverable_title ||
+                    `Deliverable #${scheduleModal.deliverable_id}`}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                  Event Title
+                </label>
+                <input
+                  type="text"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                  Start Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3" /> Location
+                </label>
+                <input
+                  type="text"
+                  value={eventLocation}
+                  onChange={(e) => setEventLocation(e.target.value)}
+                  placeholder="e.g. Room 301, Zoom link..."
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={async () => {
+                  const payload = {
+                    program_id: scheduleModal.program_id,
+                    participant_id: scheduleModal.participant_id,
+                    title: eventTitle,
+                    description: `Review meeting for ${scheduleModal.deliverable_title}`,
+                    event_type: "meeting",
+                    start_time: startTime,
+                    end_time: new Date(
+                      new Date(startTime).getTime() + 60 * 60 * 1000,
+                    ).toISOString(),
+                    location: eventLocation,
+                    created_by: user?.cid || user?.id,
+                  };
+                  try {
+                    const res = await fetch("/api/events", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(payload),
+                    });
+                    if (res.ok) {
+                      setScheduleModal(null);
+                    }
+                  } catch (err) {
+                    console.error("Failed to schedule review", err);
+                  }
+                }}
+                className="flex-1 py-3 bg-purple-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Calendar className="w-4 h-4" /> Schedule
+              </button>
             </div>
           </div>
         </div>

@@ -500,6 +500,7 @@ export default function StaffOpReport() {
             status: "in_progress",
             created_week: weekData.week,
             created_year: weekData.year,
+            parent_task_id: row.parent_task_id || null,
             start_date: row.start_date
               ? `${row.start_date}${row.start_time ? `T${row.start_time}:00` : ""}`
               : null,
@@ -600,8 +601,33 @@ export default function StaffOpReport() {
   };
 
   // ─── TASK ROW MANAGEMENT ───
+  const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
+
+  const addSubTaskRow = (parentRowId) => {
+    // Find the parent row to pre-fill project
+    const parent = taskRows.find((r) => r.id === parentRowId);
+    if (!parent) return;
+    setPendingParentTaskId(parentRowId);
+    setNewTaskForm({
+      name: "",
+      project_id: parent.project_id || "",
+      category: parent.category || "",
+      start_date: "",
+      start_time: "",
+      due_date: "",
+      due_time: "",
+      collaborator: "",
+      collaborator_note: "",
+      project_search: "",
+      show_dropdown: false,
+    });
+    setShowTaskForm(true);
+  };
+
   const addTaskRow = () => {
     if (!newTaskForm.name.trim()) return;
+    const parentId = pendingParentTaskId;
+    setPendingParentTaskId(null);
     setTaskRows((prev) => [
       ...prev,
       {
@@ -623,6 +649,7 @@ export default function StaffOpReport() {
               },
             ]
           : [],
+        parent_task_id: parentId || null,
         status: null,
         uncompleted_reason: "",
       },
@@ -651,7 +678,28 @@ export default function StaffOpReport() {
     });
   };
 
-  const removeTaskRow = (index) => {
+  const removeTaskRow = async (index) => {
+    const row = taskRows[index];
+    if (row?.status) {
+      if (!window.confirm("Are you sure you want to archive this task?")) {
+        return;
+      }
+      try {
+        const res = await fetch("/api/tasks", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: row.id,
+            status: "archived",
+            user_id: user?.cid || user?.id,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to archive task");
+      } catch (err) {
+        console.error(err);
+        return;
+      }
+    }
     setTaskRows((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -864,31 +912,56 @@ export default function StaffOpReport() {
                             t.created_year === currentWeekData.year &&
                             !["completed", "archived"].includes(t.status),
                         );
-                        if (weekTasks.length > 0) {
-                          setTaskRows(
-                            weekTasks.map((t) => ({
-                              id: t.id,
-                              name: t.title,
-                              description: t.description || "",
-                              project_id: t.project_id || null,
-                              category: t.category || "",
-                              start_date: t.start_date || "",
-                              start_time: "",
-                              due_date: t.end_date || "",
-                              due_time: "",
-                              blockers:
-                                t.blockers?.map((b) => ({
-                                  id: b.id,
-                                  description: b.title,
-                                  severity: b.severity || "medium",
-                                  status: b.status || "Active",
-                                  created_at: b.created_at,
-                                })) || [],
-                              status: t.status,
-                              collaborators: [],
-                              uncompleted_reason: "",
-                            })),
-                          );
+                        // Flatten subtasks into the task rows array
+                        const allTaskRows = [];
+                        for (const t of weekTasks) {
+                          allTaskRows.push({
+                            id: t.id,
+                            name: t.title,
+                            description: t.description || "",
+                            project_id: t.project_id || null,
+                            category: t.category || "",
+                            start_date: t.start_date || "",
+                            start_time: "",
+                            due_date: t.end_date || "",
+                            due_time: "",
+                            blockers:
+                              t.blockers?.map((b) => ({
+                                id: b.id,
+                                description: b.title,
+                                severity: b.severity || "medium",
+                                status: b.status || "Active",
+                                created_at: b.created_at,
+                              })) || [],
+                            parent_task_id: t.parent_task_id || null,
+                            status: t.status,
+                            collaborators: [],
+                            uncompleted_reason: "",
+                          });
+                          // Append subtasks right after their parent
+                          if (t.subtasks?.length > 0) {
+                            for (const st of t.subtasks) {
+                              allTaskRows.push({
+                                id: st.id,
+                                name: st.title,
+                                description: "",
+                                project_id: t.project_id || null,
+                                category: t.category || "",
+                                start_date: "",
+                                start_time: "",
+                                due_date: "",
+                                due_time: "",
+                                blockers: [],
+                                parent_task_id: t.id,
+                                status: st.status,
+                                collaborators: [],
+                                uncompleted_reason: "",
+                              });
+                            }
+                          }
+                        }
+                        if (allTaskRows.length > 0) {
+                          setTaskRows(allTaskRows);
                           setShowTaskForm(false);
                           return;
                         }
@@ -2508,10 +2581,23 @@ export default function StaffOpReport() {
                     {taskRows.map((row, idx) => (
                       <div
                         key={row.id}
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)]"
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] ${
+                          row.parent_task_id ? "ml-8" : ""
+                        }`}
                       >
-                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)] shrink-0" />
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            row.parent_task_id
+                              ? "bg-indigo-400"
+                              : "bg-[var(--brand-orange)]"
+                          }`}
+                        />
                         <span className="flex-1 text-[11px] font-bold text-[var(--text-primary)] truncate">
+                          {row.parent_task_id && (
+                            <span className="text-[8px] text-indigo-400 mr-1.5 uppercase tracking-wider">
+                              Sub:
+                            </span>
+                          )}
                           {row.name}
                         </span>
                         <span className="text-[9px] text-slate-500">
@@ -2536,6 +2622,13 @@ export default function StaffOpReport() {
                           </span>
                         )}
                         <button
+                          onClick={() => addSubTaskRow(row.id)}
+                          className="flex items-center gap-1 px-2 py-1 text-[8px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-all"
+                          title="Add sub-task"
+                        >
+                          <ListTodo className="w-3 h-3" /> Sub
+                        </button>
+                        <button
                           onClick={() => removeTaskRow(idx)}
                           className="text-rose-500/50 hover:text-rose-500"
                         >
@@ -2550,8 +2643,21 @@ export default function StaffOpReport() {
                 {showTaskForm ? (
                   <div className="p-4 rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/[0.02] space-y-3">
                     <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider">
-                      {t("staff.opReport.newTask")}
+                      {pendingParentTaskId
+                        ? "Add Sub-task"
+                        : t("staff.opReport.newTask")}
                     </p>
+
+                    {pendingParentTaskId && (
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                        <ListTodo className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span className="text-[9px] font-bold text-indigo-400">
+                          Sub-task of:{" "}
+                          {taskRows.find((r) => r.id === pendingParentTaskId)
+                            ?.name || "Parent task"}
+                        </span>
+                      </div>
+                    )}
 
                     {/* ─── PROJECT AUTOCOMPLETE ─── */}
                     <div className="relative">
@@ -2922,6 +3028,7 @@ export default function StaffOpReport() {
                       <button
                         onClick={() => {
                           setShowTaskForm(false);
+                          setPendingParentTaskId(null);
                           setNewTaskForm({
                             name: "",
                             project_id: "",
