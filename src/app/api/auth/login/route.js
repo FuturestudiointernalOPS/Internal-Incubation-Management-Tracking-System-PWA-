@@ -145,6 +145,8 @@ export async function POST(req) {
       finalRole = "participant"; // Family entity acts like a participant but with group data
     } else if (user.role === "super_admin" || user.id === "sa") {
       finalRole = "super_admin";
+    } else if (user.role === "developer") {
+      finalRole = "developer";
     } else if (pmLeadAssignment.rows.length > 0) {
       finalRole = "program_manager"; // Project Manager (Head)
     } else if (activeTeammateAssignment.rows.length > 0) {

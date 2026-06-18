@@ -71,9 +71,43 @@ export default class AppErrorBoundary extends Component {
       }
     }
 
-    // Optionally log to your error reporting service
+    // Report error to the API
+    this.reportError(error, errorInfo);
+
+    // Optionally call custom onError handler
     if (typeof this.props.onError === "function") {
       this.props.onError(error, errorInfo);
+    }
+  }
+
+  /**
+   * Reports the error to /api/errors for server-side logging.
+   */
+  reportError(error, errorInfo) {
+    try {
+      const payload = {
+        message: error?.message || "Unknown render error",
+        stack: error?.stack || null,
+        url: typeof window !== "undefined" ? window.location.href : null,
+        user_agent:
+          typeof navigator !== "undefined" ? navigator.userAgent : null,
+        severity: "error",
+        method: "GET",
+        endpoint:
+          typeof window !== "undefined" ? window.location.pathname : null,
+      };
+
+      if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+        navigator.sendBeacon("/api/errors", JSON.stringify(payload));
+      } else {
+        fetch("/api/errors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }).catch(() => {});
+      }
+    } catch (_) {
+      // Fail silently — we don't want to loop on reporting errors
     }
   }
 

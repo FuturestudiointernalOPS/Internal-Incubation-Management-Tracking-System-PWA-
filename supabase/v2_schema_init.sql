@@ -363,6 +363,30 @@ CREATE TABLE IF NOT EXISTS v2_events (
 
 CREATE INDEX IF NOT EXISTS idx_v2_events_program_id ON v2_events(program_id);
 
+--------------------------------------------------------------------------------
+-- 7b. ERROR LOGS (Developer Tool)
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS error_logs (
+    id SERIAL PRIMARY KEY,
+    message TEXT NOT NULL,
+    stack TEXT,
+    url TEXT,
+    user_id TEXT,
+    user_agent TEXT,
+    severity TEXT DEFAULT 'error' CHECK (severity IN ('info', 'warning', 'error', 'critical')),
+    status_code INTEGER,
+    method TEXT,
+    endpoint TEXT,
+    request_body TEXT,
+    resolved BOOLEAN DEFAULT false,
+    resolution_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_error_logs_severity ON error_logs(severity);
+CREATE INDEX IF NOT EXISTS idx_error_logs_resolved ON error_logs(resolved);
+CREATE INDEX IF NOT EXISTS idx_error_logs_created ON error_logs(created_at);
+
 CREATE TABLE IF NOT EXISTS v2_document_requirements (
     id SERIAL PRIMARY KEY,
     program_id UUID NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,

@@ -215,7 +215,7 @@ const SidebarContent = ({
           </p>
         )}
         <Link
-          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : "participant"}/profile`}
+          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" ? "developer" : "participant"}/profile`}
           className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
         >
           <User className="w-4 h-4 flex-shrink-0" />
@@ -405,6 +405,49 @@ const NAVIGATION_MATRIX = {
       name: "DASHBOARD",
       icon: LayoutDashboard,
       href: "/staff",
+    },
+    {
+      id: "communication",
+      name: "COMMUNICATION",
+      icon: MessageSquare,
+      href: "/staff/messages",
+    },
+    {
+      id: "reports",
+      name: "REPORTS",
+      icon: BarChart3,
+      subItems: [
+        {
+          id: "internal_reports",
+          name: "INTERNAL REPORTS",
+          href: "/staff/op-report",
+        },
+        {
+          id: "my_projects",
+          name: "MY PROJECTS",
+          href: "/staff/projects",
+        },
+      ],
+    },
+  ],
+  developer: [
+    {
+      id: "dashboard",
+      name: "DASHBOARD",
+      icon: LayoutDashboard,
+      href: "/developer",
+    },
+    {
+      id: "developer_tools",
+      name: "DEVELOPER",
+      icon: Activity,
+      subItems: [
+        {
+          id: "error_logs",
+          name: "ERROR LOGS",
+          href: "/developer/errors",
+        },
+      ],
     },
     {
       id: "communication",

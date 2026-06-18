@@ -20,6 +20,8 @@ import {
   Plus,
   X,
   ListTodo,
+  Archive,
+  RotateCcw,
   Briefcase,
   Activity,
 } from "lucide-react";
@@ -2561,6 +2563,63 @@ export default function StaffOpReport() {
                               className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
                             >
                               {t("staff.opReport.continue")}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 1b — Archived Tasks */}
+              <div>
+                <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
+                  <Archive className="w-3.5 h-3.5" /> Archived Tasks
+                </h3>
+                {tasks.filter((t) => t.status === "archived").length === 0 ? (
+                  <p className="text-[10px] text-slate-600 italic py-2">
+                    No archived tasks.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {tasks
+                      .filter((t) => t.status === "archived")
+                      .map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-start gap-3 p-3 rounded-xl border border-rose-500/20 bg-rose-500/[0.03]"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold text-[var(--text-primary)]">
+                              {task.title}
+                            </p>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              <span className="text-[8px] text-slate-500">
+                                {t("staff.table.due")}:{" "}
+                                {formatDate(task.end_date)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              onClick={async () => {
+                                await fetch("/api/tasks", {
+                                  method: "PUT",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    id: task.id,
+                                    status: "in_progress",
+                                    user_id: user?.cid || user?.id,
+                                  }),
+                                });
+                                fetchTasks();
+                              }}
+                              className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
+                            >
+                              <RotateCcw className="w-2.5 h-2.5 inline mr-1" />
+                              Unarchive
                             </button>
                           </div>
                         </div>

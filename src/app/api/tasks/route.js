@@ -202,8 +202,26 @@ export async function POST(req) {
       );
     }
 
-    // Phase 1: Task must have project_id OR category (not both empty)
-    if (!project_id && !category) {
+    // Phase 1: Inherit project/category from parent task if creating a sub-task
+    let finalProjectId = project_id;
+    let finalCategory = category;
+    if (parent_task_id && !finalProjectId && !finalCategory) {
+      try {
+        const parentRes = await db.execute({
+          sql: "SELECT project_id, category FROM tasks WHERE id = ?",
+          args: [parseInt(parent_task_id)],
+        });
+        if (parentRes.rows.length > 0) {
+          const p = parentRes.rows[0];
+          if (!finalProjectId && p.project_id)
+            finalProjectId = String(p.project_id);
+          if (!finalCategory && p.category) finalCategory = p.category;
+        }
+      } catch (_) {}
+    }
+
+    // Task must have project_id OR category (not both empty)
+    if (!finalProjectId && !finalCategory) {
       return NextResponse.json(
         {
           success: false,
@@ -219,11 +237,11 @@ export async function POST(req) {
     let finalAssignedTo = assigned_to || null;
 
     // If task has a project but no assignee, default to project owner
-    if (!finalAssignedTo && project_id) {
+    if (!finalAssignedTo && finalProjectId) {
       try {
         const ownerRes = await db.execute({
           sql: "SELECT owner_id FROM v2_projects WHERE id::text = ?",
-          args: [String(project_id)],
+          args: [String(finalProjectId)],
         });
         if (ownerRes.rows.length > 0 && ownerRes.rows[0].owner_id) {
           finalAssignedTo = ownerRes.rows[0].owner_id;
@@ -254,10 +272,10 @@ export async function POST(req) {
     let finalStatus = status || "in_progress";
     let pendingApproval = false;
 
-    if (project_id) {
+    if (finalProjectId) {
       const memberCheck = await db.execute({
         sql: "SELECT id FROM project_members WHERE project_id = ? AND user_cid = ?",
-        args: [parseInt(project_id), user_id],
+        args: [parseInt(finalProjectId), user_id],
       });
 
       if (memberCheck.rows.length === 0) {
@@ -279,8 +297,8 @@ export async function POST(req) {
         title,
         description || null,
         finalStatus,
-        project_id || null,
-        category || null,
+        finalProjectId || null,
+        finalCategory || null,
         created_week,
         created_year,
         carried_over_from_task_id || null,
@@ -294,28 +312,28 @@ export async function POST(req) {
     const taskId = Number(result.lastInsertRowid);
 
     // Phase 2: Create approval request + notification if pending
-    if (pendingApproval && project_id) {
+    if (pendingApproval && finalProjectId) {
       // Create approval request record
       await db.execute({
         sql: `INSERT INTO project_approval_requests
           (task_id, requester_id, requester_name, project_id, status)
           VALUES (?, ?, ?, ?, 'pending')`,
-        args: [taskId, user_id, user_name || "", parseInt(project_id)],
+        args: [taskId, user_id, user_name || "", parseInt(finalProjectId)],
       });
 
       // Notify project owner (or Super Admin as fallback)
       try {
         const projectInfo = await db.execute({
           sql: "SELECT name FROM v2_projects WHERE id = ?",
-          args: [parseInt(project_id)],
+          args: [parseInt(finalProjectId)],
         });
         const projectName =
-          projectInfo.rows[0]?.name || `Project #${project_id}`;
+          projectInfo.rows[0]?.name || `Project #${finalProjectId}`;
 
         // Get project leads/members to notify
         const leads = await db.execute({
           sql: "SELECT user_cid FROM project_members WHERE project_id = ? AND role = 'lead'",
-          args: [parseInt(project_id)],
+          args: [parseInt(finalProjectId)],
         });
         const notifyIds =
           leads.rows.length > 0 ? leads.rows.map((r) => r.user_cid) : ["sa"];
@@ -351,8 +369,8 @@ export async function POST(req) {
       metadata: {
         title,
         status: finalStatus,
-        project_id,
-        category,
+        project_id: finalProjectId,
+        category: finalCategory,
         created_week,
         created_year,
       },
@@ -361,15 +379,51 @@ export async function POST(req) {
     // Immutable task audit trail
     await logTaskEvent({
       task_id: taskId,
-      project_id,
+      project_id: finalProjectId,
       actor_id: user_id,
       target_user_id: user_id,
       action_type: pendingApproval
         ? ACTION_TYPES.TASK_UPDATED
         : ACTION_TYPES.TASK_CREATED,
-      new_state: { title, status: finalStatus, project_id, category },
+      new_state: {
+        title,
+        status: finalStatus,
+        project_id: finalProjectId,
+        category: finalCategory,
+      },
       description: `Task "${title}" created${pendingApproval ? " (pending project approval)" : ""}`,
     });
+
+    // ─── Notify super admins about new sub-tasks ───
+    if (parent_task_id) {
+      try {
+        // Fetch parent task title
+        const parentRes = await db.execute({
+          sql: "SELECT title FROM tasks WHERE id = ?",
+          args: [parseInt(parent_task_id)],
+        });
+        const parentTitle = parentRes.rows[0]?.title || "Unknown";
+
+        // Fetch all super admins
+        const saRes = await db.execute({
+          sql: "SELECT cid, name FROM contacts WHERE role = 'super_admin' AND status = 'active'",
+          args: [],
+        });
+
+        for (const sa of saRes.rows) {
+          await fetch(`${req.nextUrl.origin}/api/notifications`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipient_id: sa.cid,
+              title: "New Sub-task Created",
+              message: `${user_name || user_id} added sub-task "${title}" under "${parentTitle}"`,
+              type: "task",
+            }),
+          });
+        }
+      } catch (_) {}
+    }
 
     return NextResponse.json({
       success: true,
@@ -671,6 +725,36 @@ export async function PUT(req) {
       sql: `UPDATE tasks SET ${updateFields.join(", ")} WHERE id = ?`,
       args: updateArgs,
     });
+
+    // ─── Auto-complete sub-tasks when parent is completed ───
+    if (status === "completed" && status !== task.status) {
+      try {
+        const updatedSubs = await db.execute({
+          sql: `UPDATE tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE parent_task_id = ? AND status != 'completed' AND status != 'archived'`,
+          args: [parseInt(id)],
+        });
+
+        // Notify super admins when sub-tasks are auto-completed
+        if (updatedSubs.rowsAffected > 0) {
+          const saRes = await db.execute({
+            sql: "SELECT cid FROM contacts WHERE role = 'super_admin' AND status = 'active'",
+            args: [],
+          });
+          for (const sa of saRes.rows) {
+            await fetch(`${req.nextUrl.origin}/api/notifications`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipient_id: sa.cid,
+                title: "Sub-tasks Auto-completed",
+                message: `"${task.title}" was marked completed — ${updatedSubs.rowsAffected} sub-task(s) auto-completed.`,
+                type: "task",
+              }),
+            });
+          }
+        }
+      } catch (_) {}
+    }
 
     // ─── Log assignment event to task_assignment_log ───
     if (assigned_to !== undefined) {
