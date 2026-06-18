@@ -40,7 +40,7 @@ function formatTime(dateStr) {
 // Determines what contacts, groups, and send modes a user can access
 // based on their role, group membership, and program assignments.
 
-function getPermissions(role, groupName, userProgramIds) {
+function getPermissions(role, groupName, userProgramIds, allPrograms) {
   const isSA = role === "super_admin";
   const isStaffFutureStudio = role === "staff" && groupName === "FUTURE STUDIO";
   const isPM = role === "program_manager";
@@ -92,18 +92,43 @@ function getPermissions(role, groupName, userProgramIds) {
       return false;
     }
 
-    // Participant: staff/PMs of their program + same-group peers
+    // Participant: only contacts linked to their specific program
     if (isParticipant) {
       // Other participants with same group_name
       if (contact.role === "participant" && contact.group_name === groupName)
         return true;
-      // Staff/PM/teachers (visible to participant)
-      if (
-        ["super_admin", "program_manager", "teacher", "staff"].includes(
-          contact.role,
-        )
-      )
-        return true;
+      // Staff/PM/teachers assigned to this participant's program
+      if (contact.role !== "participant" && userProgramIds.length > 0) {
+        // Contact is the assigned PM for participant's program
+        const isAssignedPm = userProgramIds.some((pid) => {
+          const prog = allPrograms.find((p) => p.id === pid);
+          return (
+            prog &&
+            String(prog.assigned_pm_id) === String(contact.cid || contact.id)
+          );
+        });
+        if (isAssignedPm) return true;
+        // Contact is assigned as assistant for participant's program
+        const isAssistantPm = userProgramIds.some((pid) => {
+          const prog = allPrograms.find((p) => p.id === pid);
+          if (!prog || !prog.assigned_assistant_id) return false;
+          try {
+            const assistants = JSON.parse(prog.assigned_assistant_id);
+            return (
+              Array.isArray(assistants) &&
+              assistants.some(
+                (a) => String(a) === String(contact.cid || contact.id),
+              )
+            );
+          } catch {
+            return false;
+          }
+        });
+        if (isAssistantPm) return true;
+        // Contact has matching program_id in their record
+        if (contact.program_id && userProgramIds.includes(contact.program_id))
+          return true;
+      }
       return false;
     }
 
@@ -197,7 +222,13 @@ function getPermissions(role, groupName, userProgramIds) {
     return [];
   }
 
-  return { sendModes, canMessage, getAvailableGroups, getAvailablePrograms };
+  return {
+    sendModes,
+    canMessage,
+    getAvailableGroups,
+    getAvailablePrograms,
+    userProgramIds,
+  };
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────
@@ -279,8 +310,8 @@ export default function MessagingChat({ role = "super_admin" }) {
 
   // ── Permissions derived from role + group + programs ──
   const permissions = useMemo(
-    () => getPermissions(role, groupName, userProgramIds),
-    [role, groupName, userProgramIds],
+    () => getPermissions(role, groupName, userProgramIds, allPrograms),
+    [role, groupName, userProgramIds, allPrograms],
   );
 
   // ── Available contacts (filtered by permissions) ──
