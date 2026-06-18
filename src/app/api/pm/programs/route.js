@@ -277,6 +277,7 @@ export async function PUT(req) {
       assigned_segments,
       start_date,
       end_date,
+      grading_mode,
       is_archived,
     } = await req.json();
 
@@ -313,7 +314,7 @@ export async function PUT(req) {
 
     await db.execute({
       sql: `UPDATE v2_programs
-                SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?
+                SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?
                 WHERE id = ?`,
       args: [
         name,
@@ -327,6 +328,7 @@ export async function PUT(req) {
         JSON.stringify(materials || []),
         start_date || null,
         end_date || null,
+        grading_mode || "graded",
         id,
       ],
     });

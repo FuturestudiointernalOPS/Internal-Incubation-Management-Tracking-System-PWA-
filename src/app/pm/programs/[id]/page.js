@@ -225,6 +225,7 @@ export default function ProgramWorkspace() {
   const configStatusRef = useRef(null);
   const configStartRef = useRef(null);
   const configEndRef = useRef(null);
+  const configGradingRef = useRef(null);
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
@@ -253,6 +254,7 @@ export default function ProgramWorkspace() {
           materials: program?.materials,
           start_date: configStartRef.current?.value,
           end_date: configEndRef.current?.value,
+          grading_mode: configGradingRef.current?.value || "graded",
         }),
       });
       const data = await res.json();
@@ -2267,6 +2269,24 @@ export default function ProgramWorkspace() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-purple-500 flex items-center gap-2">
+                          <Shield className="w-3 h-3 text-white" /> Grading Mode
+                        </label>
+                        <select
+                          ref={configGradingRef}
+                          defaultValue={program?.grading_mode || "graded"}
+                          className="w-full bg-primary border border-purple-500/30 rounded-lg px-4 py-3 text-sm focus:border-purple-500 outline-none transition-all font-bold"
+                        >
+                          <option value="graded">
+                            Graded (Score + Review)
+                          </option>
+                          <option value="review">Review Only (Feedback)</option>
+                          <option value="followup">
+                            Follow-up (Schedule Meeting)
+                          </option>
+                        </select>
+                      </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2">
                           <Calendar className="w-3 h-3 text-white" /> Project

@@ -13,7 +13,11 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin", "program_manager"]);
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+    ]);
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
@@ -42,10 +46,12 @@ export async function GET(req) {
     const placeholders = programIds.map(() => "?").join(",");
     const subRes = await db.execute({
       sql: `SELECT s.*, d.title as deliverable_title, d.week_number as deliverable_week,
-                   c.name as participant_name
+                   c.name as participant_name, c.group_name as participant_group,
+                   prog.grading_mode
             FROM v2_submissions s
             LEFT JOIN v2_document_requirements d ON s.deliverable_id = d.id
             LEFT JOIN contacts c ON s.participant_id = c.cid
+            LEFT JOIN v2_programs prog ON s.program_id = prog.id
             WHERE s.program_id IN (${placeholders})
             ORDER BY s.created_at DESC`,
       args: programIds,
