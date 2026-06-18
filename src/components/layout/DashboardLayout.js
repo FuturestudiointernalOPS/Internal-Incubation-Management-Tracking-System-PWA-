@@ -148,6 +148,13 @@ const SidebarContent = ({
                       </span>
                     )}
                   </div>
+                  {!collapsed &&
+                    item.id === "programs" &&
+                    submissionCount > 0 && (
+                      <span className="text-[8px] font-black bg-[var(--brand-orange)] text-black px-1.5 py-0.5 rounded-full mr-2">
+                        {submissionCount}
+                      </span>
+                    )}
                   {!collapsed && (
                     <ChevronDown
                       className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
@@ -539,11 +546,38 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     } catch (e) {}
   }, []);
 
+  // ── Fetch pending submission count for PM ──
+  const [submissionCount, setSubmissionCount] = useState(0);
+  const fetchSubmissionCount = useCallback(async () => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (!savedUser) return;
+      const parsedUser = JSON.parse(savedUser);
+      if (parsedUser.role !== "program_manager") return;
+      const pmId = parsedUser.cid || parsedUser.id;
+      if (!pmId) return;
+      const res = await fetch(
+        `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`,
+      );
+      const data = await res.json();
+      if (data.success) {
+        const pending = (data.submissions || []).filter(
+          (s) => s.status === "pending",
+        ).length;
+        setSubmissionCount(pending);
+      }
+    } catch (_) {}
+  }, []);
+
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000);
+    fetchSubmissionCount();
+    const interval = setInterval(() => {
+      fetchNotifications();
+      fetchSubmissionCount();
+    }, 60000);
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, fetchSubmissionCount]);
 
   const { toggleTheme, theme } = useTheme();
   const [user, setUser] = useState({});
@@ -659,7 +693,14 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                   href: "/admin/programs/new",
                 },
               ]
-            : [{ id: "all_programs", name: "OVERVIEW", href: "/pm/programs" }];
+            : [
+                { id: "all_programs", name: "OVERVIEW", href: "/pm/programs" },
+                {
+                  id: "submissions",
+                  name: "SUBMISSIONS",
+                  href: "/pm/submissions",
+                },
+              ];
 
         // Only static menu items — no dynamic program listing
         items[progIndex] = {
