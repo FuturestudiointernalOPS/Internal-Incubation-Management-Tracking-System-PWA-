@@ -32,6 +32,7 @@ import {
   UserCheck,
   UploadCloud,
   ListTodo,
+  Wrench,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -440,7 +441,7 @@ const NAVIGATION_MATRIX = {
     {
       id: "developer_tools",
       name: "DEVELOPER",
-      icon: Activity,
+      icon: Wrench,
       subItems: [
         {
           id: "error_logs",
@@ -450,27 +451,95 @@ const NAVIGATION_MATRIX = {
       ],
     },
     {
-      id: "communication",
-      name: "COMMUNICATION",
-      icon: MessageSquare,
-      href: "/staff/messages",
-    },
-    {
-      id: "reports",
-      name: "REPORTS",
-      icon: BarChart3,
+      id: "programs",
+      name: "PROGRAMS",
+      icon: Briefcase,
       subItems: [
+        { id: "all_programs", name: "ALL PROGRAMS", href: "/admin/programs" },
         {
-          id: "internal_reports",
-          name: "INTERNAL REPORTS",
-          href: "/staff/op-report",
+          id: "create_program",
+          name: "CREATE PROGRAM",
+          href: "/admin/programs/new",
         },
+        { id: "progress", name: "PROGRESS", href: "/admin/progress" },
         {
-          id: "my_projects",
-          name: "MY PROJECTS",
-          href: "/staff/projects",
+          id: "program_reports",
+          name: "PROGRAM REPORTS",
+          href: "/admin/reports/responses",
         },
       ],
+    },
+    {
+      id: "internal_ops",
+      name: "Internal Ops",
+      icon: ListTodo,
+      subItems: [
+        { id: "internal_ops_board", name: "WORKSPACE", href: "/admin/work" },
+        {
+          id: "all_projects",
+          name: "PROJECTS",
+          href: "/admin/projects",
+        },
+        {
+          id: "create_project",
+          name: "CREATE PROJECT",
+          href: "/admin/projects?action=create",
+        },
+        {
+          id: "internal_reports",
+          name: "REPORTS",
+          href: "/admin/op-reports",
+        },
+      ],
+    },
+    {
+      id: "communication",
+      name: "COMMUNICATIONS",
+      icon: Send,
+      subItems: [
+        { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
+        {
+          id: "campaigns",
+          name: "CAMPAIGNS",
+          href: "/admin/communications/campaigns",
+        },
+        { id: "forms", name: "FORMS", href: "/admin/communications/forms" },
+        {
+          id: "all_contacts",
+          name: "CONTACTS",
+          href: "/admin/communications/contacts",
+        },
+        {
+          id: "pending_users",
+          name: "PENDING USERS",
+          href: "/admin/pending-users",
+        },
+        { id: "bulk_upload", name: "BULK UPLOAD", href: "/admin/bulk-upload" },
+      ],
+    },
+    {
+      id: "knowledge",
+      name: "KNOWLEDGE BASE",
+      icon: Library,
+      href: "/admin/knowledge",
+    },
+    {
+      id: "intelligence",
+      name: "INTELLIGENCE",
+      icon: TrendingUp,
+      href: "/admin/intelligence",
+    },
+    {
+      id: "finance",
+      name: "FINANCE",
+      icon: BarChart3,
+      href: "/admin/finance",
+    },
+    {
+      id: "metrics",
+      name: "HEALTH",
+      icon: Activity,
+      href: "/admin/metrics",
     },
   ],
   teacher: [
