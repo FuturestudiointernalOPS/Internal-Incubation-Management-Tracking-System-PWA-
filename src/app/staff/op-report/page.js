@@ -478,13 +478,15 @@ export default function StaffOpReport() {
 
     setSaving(true);
     try {
-      // First: create all task rows as real tasks
+      // First: create only NEW task rows as real tasks (skip existing ones already in DB)
       const userId = user.cid || user.id;
       const weekData = getCurrentWeek();
 
       const createdTaskIds = [];
       for (const row of taskRows) {
         if (!row.name.trim()) continue;
+        // Skip rows that already exist in DB (they have a status from the database)
+        if (row.status !== null && row.status !== undefined) continue;
         const taskRes = await fetch("/api/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
