@@ -164,8 +164,8 @@ function ContactsPageContent() {
     setIsProcessing(true);
     try {
       const payload = { ...form, program_ids: contactPrograms };
-      // Role is auto-derived by the API from group membership
-      delete payload.role;
+      // Remove role if empty to let API auto-detect
+      if (!payload.role) delete payload.role;
       const method = form.cid ? "PUT" : "POST";
       // Manual creation by super admin is implicit approval — set active
       if (method === "POST") payload.status = "active";
@@ -895,16 +895,24 @@ function ContactsPageContent() {
                   </option>
                 ))}
               </select>
-              {/* Access auto-derived from group membership */}
-              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-left">
-                <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">
-                  ⓘ Access Auto-Derived
-                </p>
-                <p className="text-[8px] text-[var(--text-secondary)] leading-relaxed">
-                  Adding to <strong>Future Studio</strong> group → Staff access.
-                  Adding to a <strong>Program group</strong> → Participant
-                  access. Program Manager & Teacher are assigned per-program
-                  from the program dashboard.
+              {/* Role Selection */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-1">
+                  Role Override
+                </label>
+                <select
+                  value={form.role || ""}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+                >
+                  <option value="">Auto-detect (default)</option>
+                  <option value="developer">Developer</option>
+                  <option value="staff">Staff</option>
+                  <option value="participant">Participant</option>
+                </select>
+                <p className="text-[8px] text-[var(--text-secondary)] ml-1 opacity-60">
+                  Leave as Auto-detect for most users. Set to Developer for dev
+                  account only.
                 </p>
               </div>
               {/* Program Assignments */}
