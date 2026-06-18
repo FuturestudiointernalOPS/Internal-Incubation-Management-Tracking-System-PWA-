@@ -314,6 +314,12 @@ export async function GET(req) {
       }
       for (const d of prog.deliverables || []) {
         if (!d.created_at) continue;
+        // Check if participant already submitted
+        const existingSub = (prog.submissions || []).find(
+          (s) =>
+            String(s.document_id) === String(d.id) ||
+            String(s.deliverable_id) === String(d.id),
+        );
         const dd = new Date(d.created_at);
         const dateStr = dd.toISOString().split("T")[0];
         const key = `deliverable-${d.id}`;
@@ -321,14 +327,16 @@ export async function GET(req) {
         seenEventKeys.add(key);
         calendarEvents.push({
           id: key,
-          title: `${d.title} (due)`,
+          title: existingSub ? `${d.title} (submitted)` : `${d.title} (due)`,
           date: dateStr,
           time: null,
-          type: "deadline",
+          type: existingSub ? "submission" : "deadline",
           source: "v2_document_requirements",
           relatedId: d.id,
           programId: prog.id,
-          description: prog.name,
+          description: existingSub
+            ? `Status: ${existingSub.status}`
+            : prog.name,
         });
       }
     }
