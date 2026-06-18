@@ -2792,25 +2792,24 @@ export default function StaffOpReport() {
                                         p.name.toLowerCase().includes(search),
                                     );
 
-                                  const myProjects =
-                                    filterProjects(ownedProjects);
-                                  const collabProjs =
-                                    filterProjects(collabProjects);
+                                  // My Projects: owned + lead + collaborator (deduplicated)
+                                  const myProjectIds = new Set();
+                                  const myProjects = [
+                                    ...filterProjects(ownedProjects),
+                                    ...filterProjects(collabProjects),
+                                  ].filter((p) => {
+                                    if (myProjectIds.has(p.id)) return false;
+                                    myProjectIds.add(p.id);
+                                    return true;
+                                  });
                                   const otherProjs = filterProjects(
                                     assignedProjects.filter((p) => {
-                                      const isOwned = ownedProjects.some(
-                                        (o) => String(o.id) === String(p.id),
-                                      );
-                                      const isCollab = collabProjects.some(
-                                        (c) => String(c.id) === String(p.id),
-                                      );
-                                      return !isOwned && !isCollab;
+                                      return !myProjectIds.has(p.id);
                                     }),
                                   );
 
                                   const hasResults =
                                     myProjects.length > 0 ||
-                                    collabProjs.length > 0 ||
                                     otherProjs.length > 0;
 
                                   if (!hasResults) {
@@ -2848,31 +2847,7 @@ export default function StaffOpReport() {
                                           ))}
                                         </div>
                                       )}
-                                      {collabProjs.length > 0 && (
-                                        <div>
-                                          <div className="px-3 py-1.5 text-[7px] font-black text-blue-500 uppercase tracking-widest bg-tertiary/50">
-                                            {t("staff.opReport.collaborating")}
-                                          </div>
-                                          {collabProjs.map((p) => (
-                                            <button
-                                              key={p.id}
-                                              onMouseDown={() =>
-                                                setNewTaskForm((form) => ({
-                                                  ...form,
-                                                  project_id: p.id,
-                                                  project_search: "",
-                                                  show_dropdown: false,
-                                                  category: "",
-                                                }))
-                                              }
-                                              className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary transition-all text-left"
-                                            >
-                                              <Users className="w-3 h-3 text-blue-500 shrink-0" />
-                                              {p.name}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      )}
+
                                       {otherProjs.length > 0 && (
                                         <div>
                                           <div className="px-3 py-1.5 text-[7px] font-black text-slate-500 uppercase tracking-widest bg-tertiary/50">
