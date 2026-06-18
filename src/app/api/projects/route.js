@@ -25,7 +25,6 @@ export async function POST(req) {
       program_id,
       name,
       status,
-      type,
       description,
       concept_note,
       concept_note_url,
@@ -41,7 +40,6 @@ export async function POST(req) {
 
     // Build meta with all extra fields
     const meta = JSON.stringify({
-      type: type || null,
       description: description || null,
       concept_note: concept_note || null,
       concept_note_url: concept_note_url || null,
@@ -174,7 +172,6 @@ export async function PUT(req) {
       id,
       name,
       status,
-      type,
       description,
       concept_note,
       concept_note_url,
@@ -202,7 +199,6 @@ export async function PUT(req) {
 
     // If meta fields changed, update the meta JSON
     if (
-      type !== undefined ||
       description !== undefined ||
       concept_note !== undefined ||
       concept_note_url !== undefined ||
@@ -220,7 +216,6 @@ export async function PUT(req) {
 
       const newMeta = JSON.stringify({
         ...currentMeta,
-        ...(type !== undefined ? { type } : {}),
         ...(description !== undefined ? { description } : {}),
         ...(concept_note !== undefined ? { concept_note } : {}),
         ...(concept_note_url !== undefined ? { concept_note_url } : {}),
