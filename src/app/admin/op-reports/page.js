@@ -1386,6 +1386,7 @@ function ReportCard({ report, onClick }) {
 }
 
 function MonthlyBreakdown({ reports }) {
+  const { t } = useI18n();
   // Group reports by month+year
   const groups = {};
   reports.forEach((r) => {
@@ -1466,6 +1467,7 @@ function MonthlyBreakdown({ reports }) {
 }
 
 function TrendsDashboard({ reports, allReports, onViewReport }) {
+  const { t } = useI18n();
   // Monthly report volume
   const monthlyData = useMemo(() => {
     const groups = {};
