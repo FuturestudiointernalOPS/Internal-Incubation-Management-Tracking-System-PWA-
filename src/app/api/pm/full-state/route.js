@@ -34,8 +34,8 @@ export async function GET(req) {
       },
       {
         name: "participants_contacts",
-        sql: `SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'group' as source, v2_team_id FROM contacts WHERE program_id = ? OR UPPER(TRIM(group_name)) IN (SELECT UPPER(TRIM(name)) FROM families WHERE program_id = ?)`,
-        args: [id, id],
+        sql: `SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'group' as source, v2_team_id FROM contacts WHERE program_id IS NOT NULL AND program_id != '' AND (program_id = ? OR program_id LIKE ? OR UPPER(TRIM(group_name)) IN (SELECT UPPER(TRIM(name)) FROM families WHERE program_id = ?))`,
+        args: [id, `%${id}%`, id],
       },
       {
         name: "teams",
