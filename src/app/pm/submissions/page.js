@@ -27,9 +27,13 @@ function StatusBadge({ status }) {
     rejected: "bg-rose-500/10 text-rose-400 border-rose-500/20",
     revision_requested: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   };
-  const c = config[status?.toLowerCase()] || "bg-slate-500/10 text-slate-400 border-slate-500/20";
+  const c =
+    config[status?.toLowerCase()] ||
+    "bg-slate-500/10 text-slate-400 border-slate-500/20";
   return (
-    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${c}`}>
+    <span
+      className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${c}`}
+    >
       {status?.replace(/_/g, " ") || "draft"}
     </span>
   );
@@ -59,7 +63,9 @@ export default function PMSubmissions() {
     setLoading(true);
     try {
       const pmId = user.cid || user.id;
-      const res = await fetch(`/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`);
+      const res = await fetch(
+        `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`,
+      );
       const data = await res.json();
       if (data.success) {
         setSubmissions(data.submissions || []);
@@ -168,7 +174,9 @@ export default function PMSubmissions() {
           >
             <option value="all">All Programs</option>
             {programs.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
           </select>
         </div>
@@ -176,16 +184,26 @@ export default function PMSubmissions() {
         {/* Submissions List */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin" style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
+            <div
+              className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+              style={{
+                borderColor: "rgba(255,102,0,0.1)",
+                borderTopColor: "var(--brand-orange)",
+              }}
+            />
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center opacity-40">
             <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
-              {search || filterStatus !== "all" ? "No matches" : "No submissions yet"}
+              {search || filterStatus !== "all"
+                ? "No matches"
+                : "No submissions yet"}
             </p>
             <p className="text-xs font-bold text-slate-500 mt-1">
-              {search || filterStatus !== "all" ? "Try different filters" : "Submissions from participants will appear here."}
+              {search || filterStatus !== "all"
+                ? "Try different filters"
+                : "Submissions from participants will appear here."}
             </p>
           </div>
         ) : (
@@ -194,7 +212,9 @@ export default function PMSubmissions() {
               <div
                 key={sub.id}
                 className={`ios-card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all ${
-                  sub.status === "pending" ? "border-l-4 border-l-amber-500" : ""
+                  sub.status === "pending"
+                    ? "border-l-4 border-l-amber-500"
+                    : ""
                 }`}
               >
                 <div className="flex flex-col lg:flex-row items-stretch">
@@ -203,21 +223,32 @@ export default function PMSubmissions() {
                     <div>
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-sm font-black uppercase">
-                          {(sub.participant_name || sub.participant_id || "?").charAt(0)}
+                          {(
+                            sub.participant_name ||
+                            sub.participant_id ||
+                            "?"
+                          ).charAt(0)}
                         </div>
                         <div>
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                            {sub.participant_name || sub.participant_id || "Unknown"}
+                            {sub.participant_name ||
+                              sub.participant_id ||
+                              "Unknown"}
                           </p>
                           <p className="text-[8px] text-slate-500 uppercase tracking-wider">
-                            {sub.participant_id ? `ID: ${sub.participant_id}` : ""}
+                            {sub.participant_group || sub.participant_id
+                              ? `Group: ${sub.participant_group || "—"}`
+                              : ""}
                           </p>
                         </div>
                       </div>
                       <StatusBadge status={sub.status} />
                     </div>
                     <p className="text-[8px] text-slate-500 mt-3">
-                      Submitted {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : ""}
+                      Submitted{" "}
+                      {sub.created_at
+                        ? new Date(sub.created_at).toLocaleDateString()
+                        : ""}
                     </p>
                   </div>
 
@@ -225,15 +256,18 @@ export default function PMSubmissions() {
                   <div className="flex-1 p-5 flex flex-col justify-between">
                     <div>
                       <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                        {sub.deliverable_title || `Deliverable #${sub.deliverable_id}`}
+                        {sub.deliverable_title ||
+                          `Deliverable #${sub.deliverable_id}`}
                       </h3>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
                         <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1">
-                          <Briefcase className="w-3 h-3" /> {sub.program_name || `Program #${sub.program_id}`}
+                          <Briefcase className="w-3 h-3" />{" "}
+                          {sub.program_name || `Program #${sub.program_id}`}
                         </span>
                         {sub.deliverable_week && (
                           <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> Week {sub.deliverable_week}
+                            <Calendar className="w-3 h-3" /> Week{" "}
+                            {sub.deliverable_week}
                           </span>
                         )}
                       </div>
@@ -249,17 +283,33 @@ export default function PMSubmissions() {
                           <ExternalLink className="w-3 h-3" /> View File
                         </a>
                       )}
-                      {sub.status === "pending" && (
-                        <button
-                          onClick={() => setReviewModal(sub)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all ml-auto"
-                        >
-                          <Shield className="w-3 h-3" /> Review
-                        </button>
-                      )}
+                      {sub.status === "pending" &&
+                        sub.grading_mode !== "followup" && (
+                          <button
+                            onClick={() => setReviewModal(sub)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all ml-auto"
+                          >
+                            <Shield className="w-3 h-3" />{" "}
+                            {sub.grading_mode === "review"
+                              ? "Feedback"
+                              : "Review"}
+                          </button>
+                        )}
+                      {sub.status === "pending" &&
+                        sub.grading_mode === "followup" && (
+                          <button
+                            onClick={() => setReviewModal(sub)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all ml-auto"
+                          >
+                            <Calendar className="w-3 h-3" /> Schedule Review
+                          </button>
+                        )}
                       {sub.status !== "pending" && (
                         <span className="text-[8px] text-slate-500 italic ml-auto">
-                          Reviewed {sub.reviewed_at ? new Date(sub.reviewed_at).toLocaleDateString() : ""}
+                          Reviewed{" "}
+                          {sub.reviewed_at
+                            ? new Date(sub.reviewed_at).toLocaleDateString()
+                            : ""}
                         </span>
                       )}
                     </div>
@@ -273,12 +323,20 @@ export default function PMSubmissions() {
 
       {/* Review Modal */}
       {reviewModal && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm" onClick={() => setReviewModal(null)}>
-          <div className="card w-full max-w-lg space-y-5" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setReviewModal(null)}
+        >
+          <div
+            className="card w-full max-w-lg space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
-                <h3 className="text-sm font-black uppercase tracking-tight">Review Submission</h3>
+                <h3 className="text-sm font-black uppercase tracking-tight">
+                  Review Submission
+                </h3>
               </div>
               <button onClick={() => setReviewModal(null)}>
                 <X className="w-5 h-5 text-slate-400" />
@@ -286,23 +344,39 @@ export default function PMSubmissions() {
             </div>
             <div className="space-y-3">
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Participant</p>
-                <p className="text-sm font-bold mt-0.5">{reviewModal.participant_name || reviewModal.participant_id}</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                  Participant
+                </p>
+                <p className="text-sm font-bold mt-0.5">
+                  {reviewModal.participant_name || reviewModal.participant_id}
+                </p>
               </div>
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Deliverable</p>
-                <p className="text-sm font-bold mt-0.5">{reviewModal.deliverable_title || `Deliverable #${reviewModal.deliverable_id}`}</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                  Deliverable
+                </p>
+                <p className="text-sm font-bold mt-0.5">
+                  {reviewModal.deliverable_title ||
+                    `Deliverable #${reviewModal.deliverable_id}`}
+                </p>
               </div>
               {reviewModal.file_url && (
-                <a href={reviewModal.file_url} target="_blank" rel="noopener noreferrer"
+                <a
+                  href={reviewModal.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center gap-2 p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-400 hover:brightness-110 transition-all"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  <span className="text-[10px] font-bold">View Submission File</span>
+                  <span className="text-[10px] font-bold">
+                    View Submission File
+                  </span>
                 </a>
               )}
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Feedback</label>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                  Feedback
+                </label>
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
@@ -321,7 +395,9 @@ export default function PMSubmissions() {
                 <CheckCircle2 className="w-4 h-4" /> Approve
               </button>
               <button
-                onClick={() => handleReview(reviewModal.id, "revision_requested")}
+                onClick={() =>
+                  handleReview(reviewModal.id, "revision_requested")
+                }
                 disabled={actionLoading}
                 className="flex-1 py-3 bg-blue-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
               >
