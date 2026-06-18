@@ -863,6 +863,11 @@ export default function ProgramWorkspace() {
 
   const canEdit =
     user.role === "super_admin" || user.role === "program_manager";
+  const isAssignedPm =
+    user.role === "super_admin" ||
+    (program?.assigned_pm_id &&
+      (user.cid === program.assigned_pm_id ||
+        user.id === program.assigned_pm_id));
 
   // curriculum content moved inline below
 
@@ -1509,19 +1514,21 @@ export default function ProgramWorkspace() {
                               Attendance
                             </span>
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedSessionId(session.id);
-                              setShowPMReportModal(true);
-                            }}
-                            className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/5 transition-all"
-                          >
-                            <Activity className="w-3.5 h-3.5" />
-                            <span className="text-[9px] font-black uppercase italic tracking-wider">
-                              Give Weekly Report
-                            </span>
-                          </button>
+                          {isAssignedPm && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSessionId(session.id);
+                                setShowPMReportModal(true);
+                              }}
+                              className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/5 transition-all"
+                            >
+                              <Activity className="w-3.5 h-3.5" />
+                              <span className="text-[9px] font-black uppercase italic tracking-wider">
+                                Give Weekly Report
+                              </span>
+                            </button>
+                          )}
                           {canEdit && (
                             <button
                               onClick={(e) => {
