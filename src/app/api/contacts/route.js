@@ -228,6 +228,7 @@ export async function PUT(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "participant",
     ]);
     if (authError) return authError;
     const data = await req.json();
@@ -411,19 +412,39 @@ export async function PUT(req) {
   }
 }
 
-export async function GET() {
+export async function GET(req) {
   try {
     await initDb();
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+
     const authError = await requireAuth([
       "staff",
       "super_admin",
       "program_manager",
       "teacher",
+      "participant",
     ]);
     if (authError) return authError;
-    const result = await db.execute(
-      "SELECT * FROM contacts ORDER BY created_at DESC",
-    );
+
+    let result;
+    if (session.role === "participant") {
+      // Participants can only see their own contact
+      result = await db.execute({
+        sql: "SELECT * FROM contacts WHERE cid = ?",
+        args: [session.cid],
+      });
+    } else {
+      result = await db.execute(
+        "SELECT * FROM contacts ORDER BY created_at DESC",
+      );
+    }
     return NextResponse.json({ success: true, contacts: result.rows });
   } catch (error) {
     return NextResponse.json(
