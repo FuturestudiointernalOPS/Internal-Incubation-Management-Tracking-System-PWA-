@@ -256,7 +256,13 @@ export default function TaskManager({
     return (
       <div key={task.id}>
         <div
-          className={`flex items-center gap-2 py-1.5 ${isSub ? "ml-6 pl-3 border-l-2 border-indigo-500/30" : ""}`}
+          className={`flex items-center gap-2 py-1.5 ${
+            !isSub && task.subtasks?.length > 0
+              ? "pl-3 border-l-[3px] border-indigo-400 rounded-sm"
+              : isSub
+                ? "ml-6 pl-3 border-l-2 border-indigo-500/30"
+                : ""
+          } ${!isSub && task.subtasks?.length > 0 ? "bg-indigo-500/[0.04]" : ""}`}
         >
           {/* Checkbox */}
           <button
@@ -274,27 +280,51 @@ export default function TaskManager({
             )}
           </button>
 
+          {/* Parent indicator icon */}
+          {!isSub && task.subtasks?.length > 0 && (
+            <button
+              onClick={() =>
+                setExpandedTasks((p) => ({ ...p, [task.id]: !p[task.id] }))
+              }
+              className="w-5 h-5 flex items-center justify-center rounded-md bg-indigo-500/15 hover:bg-indigo-500/25 transition-all shrink-0"
+              title={isExpanded ? "Collapse sub-tasks" : "Expand sub-tasks"}
+            >
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-indigo-400 transition-transform ${
+                  isExpanded ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          )}
+
           {/* Task name with expand toggle */}
           {!isSub && task.subtasks?.length > 0 ? (
             <button
               onClick={() =>
                 setExpandedTasks((p) => ({ ...p, [task.id]: !p[task.id] }))
               }
-              className="flex items-center gap-1 text-left flex-1 min-w-0"
+              className="flex items-center gap-1.5 text-left flex-1 min-w-0"
             >
               <span
-                className={`text-[11px] font-medium ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"} ${isSub ? "text-[10px]" : ""}`}
+                className={`text-[11px] font-bold ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"} ${isSub ? "text-[10px]" : ""}`}
               >
                 {task.title}
               </span>
-              <ChevronDown
-                className={`w-3 h-3 shrink-0 text-slate-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-              />
+              <span className="text-[7px] font-black text-indigo-400 uppercase tracking-wider bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0">
+                {isExpanded
+                  ? `${task.subtasks.length} sub`
+                  : `${task.subtasks.length} sub`}
+              </span>
             </button>
           ) : (
             <span
               className={`flex-1 text-[11px] font-medium min-w-0 truncate ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"} ${isSub ? "text-[10px]" : ""}`}
             >
+              {isSub && (
+                <span className="text-[7px] text-indigo-400 mr-1 uppercase tracking-wider font-bold">
+                  Sub:
+                </span>
+              )}
               {task.title}
             </span>
           )}
@@ -322,13 +352,6 @@ export default function TaskManager({
                 </option>
               ))}
             </select>
-          )}
-
-          {/* Sub-task count */}
-          {!isSub && task.subtasks?.length > 0 && (
-            <span className="text-[8px] text-indigo-400 font-bold shrink-0">
-              {task.subtasks.length} sub
-            </span>
           )}
         </div>
 
