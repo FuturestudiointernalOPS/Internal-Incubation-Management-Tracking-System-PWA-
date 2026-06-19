@@ -648,9 +648,8 @@ export default function StaffOpReport() {
     if (!newTaskForm.name.trim()) return;
     const parentId = pendingParentTaskId;
     setPendingParentTaskId(null);
-    setTaskRows((prev) => [
-      ...prev,
-      {
+    setTaskRows((prev) => {
+      const newRow = {
         id: Date.now(),
         name: newTaskForm.name.trim(),
         description: "",
@@ -672,8 +671,18 @@ export default function StaffOpReport() {
         parent_task_id: parentId || null,
         status: null,
         uncompleted_reason: "",
-      },
-    ]);
+      };
+      // Insert sub-task right after its parent instead of at the bottom
+      if (parentId) {
+        const parentIdx = prev.findIndex((r) => r.id === parentId);
+        if (parentIdx !== -1) {
+          const updated = [...prev];
+          updated.splice(parentIdx + 1, 0, newRow);
+          return updated;
+        }
+      }
+      return [...prev, newRow];
+    });
     setNewTaskForm({
       name: "",
       project_id: "",
