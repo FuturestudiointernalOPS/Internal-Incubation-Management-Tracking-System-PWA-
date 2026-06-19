@@ -313,7 +313,24 @@ export default function AdminProjects() {
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
           <div className="space-y-2">
             <button
-              onClick={() => router.push("/admin")}
+              onClick={() => {
+                const saved = localStorage.getItem("user");
+                let role = "admin";
+                if (saved) {
+                  try {
+                    role = JSON.parse(saved).role || "admin";
+                  } catch {}
+                }
+                const destMap = {
+                  super_admin: "/admin",
+                  developer: "/developer",
+                  staff: "/staff",
+                  program_manager: "/pm",
+                  teacher: "/teacher",
+                  participant: "/participant",
+                };
+                router.push(destMap[role] || "/admin");
+              }}
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
