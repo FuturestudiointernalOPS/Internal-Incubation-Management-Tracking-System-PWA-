@@ -941,15 +941,11 @@ export default function StaffOpReport() {
                       // Load existing tasks for this week into taskRows (only when continuing a draft)
                       if (existingReport) {
                         const currentWeekData = getCurrentWeek();
+                        // Show all active tasks regardless of week — incomplete tasks carry forward
                         const weekTasks = tasks.filter(
                           (t) =>
                             !["completed", "archived"].includes(t.status) &&
-                            !t.parent_task_id &&
-                            // Tasks with dates filter to their specific week; tasks without dates show always
-                            (t.end_date
-                              ? t.created_week === currentWeekData.week &&
-                                t.created_year === currentWeekData.year
-                              : true),
+                            !t.parent_task_id,
                         );
                         // Flatten subtasks into the task rows array
                         const allTaskRows = [];
@@ -1133,13 +1129,7 @@ export default function StaffOpReport() {
                                                     "completed",
                                                     "archived",
                                                   ].includes(t.status) &&
-                                                  !t.parent_task_id &&
-                                                  (t.end_date
-                                                    ? t.created_week ===
-                                                        report.week_number &&
-                                                      t.created_year ===
-                                                        report.year
-                                                    : true),
+                                                  !t.parent_task_id,
                                               );
                                               const allTaskRows = [];
                                               for (const t of weekTasks) {
