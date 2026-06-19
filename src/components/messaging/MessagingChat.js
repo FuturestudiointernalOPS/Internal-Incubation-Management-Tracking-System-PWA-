@@ -514,27 +514,32 @@ export default function MessagingChat({ role = "super_admin" }) {
   const activeMessages = useMemo(() => {
     if (!activeConversation) return [];
     const seen = new Set();
-    return messages.filter((msg) => {
-      if (seen.has(msg.id)) return false;
-      seen.add(msg.id);
-      if (activeConversation.type === "individual") {
-        const otherId =
-          msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
-        return otherId === activeConversation.targetId;
-      }
-      if (activeConversation.type === "all") return msg.target_type === "all";
-      if (activeConversation.type === "role")
-        return (
-          msg.target_type === "role" &&
-          msg.target_id === activeConversation.targetId
-        );
-      if (activeConversation.type === "program")
-        return (
-          msg.target_type === "program" &&
-          msg.target_id === activeConversation.targetId
-        );
-      return false;
-    });
+    return messages
+      .filter((msg) => {
+        if (seen.has(msg.id)) return false;
+        seen.add(msg.id);
+        if (activeConversation.type === "individual") {
+          const otherId =
+            msg.sender_id === uid ? msg.recipient_id : msg.sender_id;
+          return otherId === activeConversation.targetId;
+        }
+        if (activeConversation.type === "all") return msg.target_type === "all";
+        if (activeConversation.type === "role")
+          return (
+            msg.target_type === "role" &&
+            msg.target_id === activeConversation.targetId
+          );
+        if (activeConversation.type === "program")
+          return (
+            msg.target_type === "program" &&
+            msg.target_id === activeConversation.targetId
+          );
+        return false;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
   }, [messages, activeConversation, uid]);
 
   // ── Open a conversation and mark messages as read ──
