@@ -184,7 +184,7 @@ export default function SuperAdminProfile() {
                           new CustomEvent("impactos:notify", {
                             detail: {
                               type: "success",
-                              message: "Settings Saved.",
+                              message: "Saved",
                             },
                           }),
                         );

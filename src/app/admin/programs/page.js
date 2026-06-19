@@ -193,7 +193,7 @@ export default function ProgramManagement() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "success",
-              message: "Program saved successfully. Groups have been linked.",
+              message: "Saved",
             },
           }),
         );

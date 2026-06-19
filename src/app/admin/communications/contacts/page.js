@@ -176,7 +176,7 @@ function ContactsPageContent() {
       });
       const data = await res.json();
       if (data.success) {
-        setNotification({ type: "success", message: "Identity saved." });
+        setNotification({ type: "success", message: "Saved" });
         setShowManualModal(false);
         fetchData();
       }
@@ -202,7 +202,7 @@ function ContactsPageContent() {
         }),
       });
       if ((await res.json()).success) {
-        setNotification({ type: "success", message: "Segment synced." });
+        setNotification({ type: "success", message: "Saved" });
         setShowGroupModal(null);
         fetchData();
       }
@@ -221,7 +221,7 @@ function ContactsPageContent() {
         body: JSON.stringify(groupKeysForm),
       });
       if ((await res.json()).success) {
-        setNotification({ type: "success", message: "Keys synced." });
+        setNotification({ type: "success", message: "Saved" });
         setShowGroupKeysModal(null);
         fetchData();
       }
@@ -276,7 +276,7 @@ function ContactsPageContent() {
       );
       setNotification({
         type: "success",
-        message: `${targets.length} members approved.`,
+        message: "Approved",
       });
       setSelectedContacts([]);
       fetchData();
@@ -333,7 +333,7 @@ function ContactsPageContent() {
         if ((await res.json()).success) {
           setNotification({
             type: "success",
-            message: `${payload.length} members uploaded as PENDING.`,
+            message: "Uploaded",
           });
           fetchData();
         }
@@ -446,7 +446,7 @@ function ContactsPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cid: c.cid, group_name: entityName }),
       });
-      setNotification({ type: "success", message: "Entity Pivot Successful." });
+      setNotification({ type: "success", message: "Done" });
       fetchData();
     } catch (e) {
       console.error("Pivot Error:", e);
@@ -1339,7 +1339,7 @@ function ContactsPageContent() {
                     if (data.success) {
                       setNotification({
                         type: "success",
-                        message: `Updated ${data.count || bulkSelected.length} participant(s).`,
+                        message: `Updated`,
                       });
                       setShowBulkProgramModal(false);
                       setBulkSelected([]);
