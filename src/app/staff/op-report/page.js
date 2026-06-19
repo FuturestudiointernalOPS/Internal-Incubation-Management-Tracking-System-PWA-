@@ -1095,7 +1095,96 @@ export default function StaffOpReport() {
                                 <tr key={`tasks-${report.id}`}>
                                   <td colSpan={4} className="px-0 py-0">
                                     <div className="bg-tertiary/50 border-t border-[var(--border-primary)]">
-                                      <div className="p-4">
+                                      <div className="p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                                            {report.week_number > 0
+                                              ? `Week ${report.week_number}, ${report.year}`
+                                              : ""}
+                                          </span>
+                                          <button
+                                            onClick={() => {
+                                              setWeekInfo({
+                                                week: report.week_number,
+                                                year: report.year,
+                                              });
+                                              // Load tasks for that week into taskRows
+                                              const weekTasks = tasks.filter(
+                                                (t) =>
+                                                  t.created_week ===
+                                                    report.week_number &&
+                                                  t.created_year ===
+                                                    report.year &&
+                                                  ![
+                                                    "completed",
+                                                    "archived",
+                                                  ].includes(t.status) &&
+                                                  !t.parent_task_id,
+                                              );
+                                              const allTaskRows = [];
+                                              for (const t of weekTasks) {
+                                                allTaskRows.push({
+                                                  id: t.id,
+                                                  name: t.title,
+                                                  description:
+                                                    t.description || "",
+                                                  project_id:
+                                                    t.project_id || null,
+                                                  category: t.category || "",
+                                                  start_date:
+                                                    t.start_date || "",
+                                                  start_time: "",
+                                                  due_date: t.end_date || "",
+                                                  due_time: "",
+                                                  blockers:
+                                                    t.blockers?.map((b) => ({
+                                                      id: b.id,
+                                                      description: b.title,
+                                                      severity:
+                                                        b.severity || "medium",
+                                                      status:
+                                                        b.status || "Active",
+                                                      created_at: b.created_at,
+                                                    })) || [],
+                                                  parent_task_id:
+                                                    t.parent_task_id || null,
+                                                  status: t.status,
+                                                  collaborators: [],
+                                                  uncompleted_reason: "",
+                                                });
+                                                if (t.subtasks?.length > 0) {
+                                                  for (const st of t.subtasks) {
+                                                    allTaskRows.push({
+                                                      id: st.id,
+                                                      name: st.title,
+                                                      description: "",
+                                                      project_id:
+                                                        t.project_id || null,
+                                                      category:
+                                                        t.category || "",
+                                                      start_date: "",
+                                                      start_time: "",
+                                                      due_date: "",
+                                                      due_time: "",
+                                                      blockers: [],
+                                                      parent_task_id: t.id,
+                                                      status: st.status,
+                                                      collaborators: [],
+                                                      uncompleted_reason: "",
+                                                    });
+                                                  }
+                                                }
+                                              }
+                                              setTaskRows(allTaskRows);
+                                              setShowStandupModal(true);
+                                              setShowTaskForm(false);
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                                          >
+                                            <ChevronRight className="w-3 h-3" />{" "}
+                                            Edit Standup
+                                          </button>
+                                        </div>
                                         {tasks.filter(
                                           (t) =>
                                             t.created_week ===
