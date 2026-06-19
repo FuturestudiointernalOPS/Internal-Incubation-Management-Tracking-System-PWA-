@@ -78,6 +78,7 @@ export default function TaskManager({
   const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
   const [subTaskModal, setSubTaskModal] = useState(null); // { id, project_id, category, title } or null
   const [subTaskInput, setSubTaskInput] = useState("");
+  const [subTaskSuccess, setSubTaskSuccess] = useState("");
   const [projectSearch, setProjectSearch] = useState("");
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
 
@@ -215,6 +216,8 @@ export default function TaskManager({
     });
     if (data.success) {
       setSubTaskInput("");
+      setSubTaskSuccess("Sub-task added!");
+      setTimeout(() => setSubTaskSuccess(""), 2000);
       if (onTasksChange) onTasksChange();
     }
   }, [subTaskInput, subTaskModal, createTask, onTasksChange]);
@@ -586,12 +589,62 @@ export default function TaskManager({
 
             <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
               <p className="text-[9px] font-bold text-indigo-400">
-                Parent task: {""}
+                Parent task:{" "}
                 <span className="text-white">{subTaskModal.title}</span>
               </p>
             </div>
 
+            {/* Existing sub-tasks */}
+            {(() => {
+              const parentTask = tasks.find(
+                (t) => String(t.id) === String(subTaskModal.id),
+              );
+              const subs = parentTask?.subtasks || [];
+              if (subs.length === 0) return null;
+              return (
+                <div>
+                  <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                    Existing sub-tasks ({subs.length})
+                  </p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {subs.map((st) => (
+                      <div
+                        key={st.id}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)]"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                        <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                          {st.title}
+                        </span>
+                        <span
+                          className={`ml-auto text-[7px] font-semibold px-1.5 py-0.5 rounded-full ${
+                            st.status === "completed"
+                              ? "bg-emerald-500/10 text-emerald-400"
+                              : "bg-slate-500/10 text-slate-400"
+                          }`}
+                        >
+                          {st.status === "completed"
+                            ? "Done"
+                            : st.status?.replace(/_/g, " ") || "Pending"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="space-y-3 pt-2">
+              {/* Success indicator */}
+              {subTaskSuccess && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-[9px] font-bold text-emerald-400">
+                    {subTaskSuccess}
+                  </span>
+                </div>
+              )}
+
               <input
                 type="text"
                 value={subTaskInput}
