@@ -799,7 +799,11 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
               <ChevronRight className="w-3 h-3 opacity-30" />
               <span className="text-[var(--text-primary)]">
                 {pathname
-                  ? pathname.split("/").pop().replace(/-/g, " ")
+                  ? pathname
+                      .split("/")
+                      .pop()
+                      .replace(/-/g, " ")
+                      .replace(/\bteacher\b/gi, "Instructor")
                   : "Dashboard"}
               </span>
             </div>
