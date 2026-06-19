@@ -77,19 +77,26 @@ export async function POST(req) {
       ],
     });
 
-    // ARCHITECTURE UPGRADE: Trigger Notifications on Message Transmission
+    // Get sender name for notification
+    let senderName = sender_id;
+    try {
+      const senderRes = await db.execute({
+        sql: "SELECT name FROM contacts WHERE cid = ? OR id = ?",
+        args: [sender_id, sender_id],
+      });
+      if (senderRes.rows.length > 0) senderName = senderRes.rows[0].name;
+    } catch (_) {}
+
+    // Trigger Notifications on Message Transmission
+    const notifTitle = "New Message";
+    const notifMessage = `You have 1 new message from ${senderName}`;
+
     if (recipient_id) {
       await db.execute({
         sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
-        args: [
-          recipient_id,
-          subject,
-          body.substring(0, 50) + (body.length > 50 ? "..." : ""),
-          "message",
-        ],
+        args: [recipient_id, notifTitle, notifMessage, "message"],
       });
     } else if (target_type === "role" && target_id) {
-      // Notify all users with the given role
       const roleMap = {
         staff: "Staff",
         program_manager: "Program Manager",
@@ -107,12 +114,7 @@ export async function POST(req) {
           if (m.cid === sender_id) continue;
           await db.execute({
             sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
-            args: [
-              m.cid,
-              subject,
-              body.substring(0, 50) + (body.length > 50 ? "..." : ""),
-              "message",
-            ],
+            args: [m.cid, notifTitle, notifMessage, "message"],
           });
         }
       }
