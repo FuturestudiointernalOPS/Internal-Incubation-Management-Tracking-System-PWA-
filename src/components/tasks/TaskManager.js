@@ -22,6 +22,8 @@ import {
   ChevronDown,
   Plus,
   CheckCircle2,
+  Edit3,
+  Trash2,
 } from "lucide-react";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -80,6 +82,16 @@ export default function TaskManager({
   const [subTaskModal, setSubTaskModal] = useState(null); // { id, project_id, category, title } or null
   const [subTaskInput, setSubTaskInput] = useState("");
   const [subTaskSuccess, setSubTaskSuccess] = useState("");
+  const [editTaskModal, setEditTaskModal] = useState(null); // task object or null
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    project_id: "",
+    category: "",
+    start_date: "",
+    due_date: "",
+    status: "",
+  });
   const [projectSearch, setProjectSearch] = useState("");
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
 
@@ -392,6 +404,43 @@ export default function TaskManager({
                 </option>
               ))}
             </select>
+          )}
+
+          {/* Edit button */}
+          {!isSub && (
+            <button
+              onClick={() => {
+                setEditForm({
+                  name: task.title,
+                  description: task.description || "",
+                  project_id: task.project_id || "",
+                  category: task.category || "",
+                  start_date: task.start_date || "",
+                  due_date: task.end_date || "",
+                  status: task.status || "in_progress",
+                });
+                setEditTaskModal(task);
+              }}
+              className="text-slate-500 hover:text-[var(--brand-orange)] transition-all shrink-0"
+              title="Edit task"
+            >
+              <Edit3 className="w-3 h-3" />
+            </button>
+          )}
+
+          {/* Delete button */}
+          {!isSub && (
+            <button
+              onClick={async () => {
+                if (!window.confirm(`Delete task "${task.title}"?`)) return;
+                await fetch(`/api/tasks?id=${task.id}`, { method: "DELETE" });
+                if (onTasksChange) onTasksChange();
+              }}
+              className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
+              title="Delete task"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
           )}
 
           {/* Move up/down buttons */}
@@ -757,6 +806,112 @@ export default function TaskManager({
               <p className="text-[8px] text-slate-500 text-center">
                 Press Enter to add another, or click Done when finished.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── EDIT TASK MODAL ─── */}
+      {editTaskModal && (
+        <div
+          className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setEditTaskModal(null)}
+        >
+          <div
+            className="card w-full max-w-lg space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-[var(--brand-orange)]" />
+                <h3 className="text-sm font-black uppercase tracking-tight">
+                  Edit Task
+                </h3>
+              </div>
+              <button onClick={() => setEditTaskModal(null)}>
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm((p) => ({ ...p, name: e.target.value }))
+                }
+                placeholder="Task name"
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold"
+              />
+              <textarea
+                value={editForm.description}
+                onChange={(e) =>
+                  setEditForm((p) => ({ ...p, description: e.target.value }))
+                }
+                placeholder="Description (optional)"
+                rows={2}
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.start_date}
+                    onChange={(e) =>
+                      setEditForm((p) => ({ ...p, start_date: e.target.value }))
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.due_date}
+                    onChange={(e) =>
+                      setEditForm((p) => ({ ...p, due_date: e.target.value }))
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={async () => {
+                  if (!editForm.name.trim()) return;
+                  await fetch("/api/tasks", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      id: editTaskModal.id,
+                      title: editForm.name.trim(),
+                      description: editForm.description || null,
+                      start_date: editForm.start_date || null,
+                      end_date: editForm.due_date || null,
+                      user_id: uid,
+                    }),
+                  });
+                  setEditTaskModal(null);
+                  if (onTasksChange) onTasksChange();
+                }}
+                disabled={!editForm.name.trim()}
+                className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditTaskModal(null)}
+                className="flex-1 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
