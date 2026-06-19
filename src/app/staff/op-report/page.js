@@ -943,10 +943,13 @@ export default function StaffOpReport() {
                         const currentWeekData = getCurrentWeek();
                         const weekTasks = tasks.filter(
                           (t) =>
-                            t.created_week === currentWeekData.week &&
-                            t.created_year === currentWeekData.year &&
                             !["completed", "archived"].includes(t.status) &&
-                            !t.parent_task_id, // exclude sub-tasks (rendered inside parent)
+                            !t.parent_task_id &&
+                            // Tasks with dates filter to their specific week; tasks without dates show always
+                            (t.end_date
+                              ? t.created_week === currentWeekData.week &&
+                                t.created_year === currentWeekData.year
+                              : true),
                         );
                         // Flatten subtasks into the task rows array
                         const allTaskRows = [];
@@ -1126,15 +1129,17 @@ export default function StaffOpReport() {
                                               // Load tasks for that week into taskRows
                                               const weekTasks = tasks.filter(
                                                 (t) =>
-                                                  t.created_week ===
-                                                    report.week_number &&
-                                                  t.created_year ===
-                                                    report.year &&
                                                   ![
                                                     "completed",
                                                     "archived",
                                                   ].includes(t.status) &&
-                                                  !t.parent_task_id,
+                                                  !t.parent_task_id &&
+                                                  (t.end_date
+                                                    ? t.created_week ===
+                                                        report.week_number &&
+                                                      t.created_year ===
+                                                        report.year
+                                                    : true),
                                               );
                                               const allTaskRows = [];
                                               for (const t of weekTasks) {
