@@ -120,6 +120,17 @@ export default function ProjectDetail() {
   const [creatingTask, setCreatingTask] = useState(false);
   const [expandedProjectTasks, setExpandedProjectTasks] = useState({});
   const [parentForSubTask, setParentForSubTask] = useState(null);
+  const [userRole, setUserRole] = useState("super_admin");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("user");
+      if (saved) {
+        const u = JSON.parse(saved);
+        setUserRole(u.role || "super_admin");
+      }
+    } catch (_) {}
+  }, []);
 
   const handleTaskStatusChange = async (taskId, newStatus) => {
     try {
@@ -293,7 +304,7 @@ export default function ProjectDetail() {
   // Loading state
   if (loading) {
     return (
-      <DashboardLayout role="super_admin">
+      <DashboardLayout role={userRole || "super_admin"}>
         <div className="space-y-8 pb-20 text-left">
           {/* Skeleton header */}
           <div className="animate-pulse space-y-4">
@@ -316,7 +327,7 @@ export default function ProjectDetail() {
   // Error state
   if (error || !project) {
     return (
-      <DashboardLayout role="super_admin">
+      <DashboardLayout role={userRole || "super_admin"}>
         <div className="flex flex-col items-center justify-center py-32">
           <AlertTriangle className="w-16 h-16 text-rose-500 mb-4" />
           <p className="text-base font-black text-rose-500">
@@ -339,7 +350,7 @@ export default function ProjectDetail() {
   const timeline = project.timeline || [];
 
   return (
-    <DashboardLayout role="super_admin">
+    <DashboardLayout role={userRole || "super_admin"}>
       <div className="space-y-8 pb-20 text-left">
         {/* ─── TOAST NOTIFICATIONS ─── */}
 
@@ -347,7 +358,15 @@ export default function ProjectDetail() {
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
           <div className="space-y-3">
             <button
-              onClick={() => router.push("/admin/projects")}
+              onClick={() => {
+                const roleMap = {
+                  super_admin: "/admin/projects",
+                  staff: "/staff/projects",
+                  program_manager: "/staff/projects",
+                  teacher: "/staff/projects",
+                };
+                router.push(roleMap[userRole] || "/admin/projects");
+              }}
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
