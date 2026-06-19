@@ -142,17 +142,30 @@ export async function GET(req) {
       memberMap[pid].push({ user_cid: m.user_cid, role: m.role });
     }
 
-    // Parse meta JSON for each project
-    const projects = result.rows.map((row) => {
-      const meta = row.meta ? JSON.parse(row.meta) : {};
-      return {
-        ...row,
-        meta,
-        members: memberMap[String(row.id)] || [],
-      };
-    });
+    // For each project, aggregate task stats
+    const projectsWithStats = await Promise.all(
+      result.rows.map(async (row) => {
+        const meta = row.meta ? JSON.parse(row.meta) : {};
+        const taskStats = await db.execute({
+          sql: `SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+            FROM tasks WHERE project_id::text = ?`,
+          args: [String(row.id)],
+        });
+        return {
+          ...row,
+          meta,
+          members: memberMap[String(row.id)] || [],
+          task_summary: {
+            total: taskStats.rows[0]?.total || 0,
+            completed: taskStats.rows[0]?.completed || 0,
+          },
+        };
+      }),
+    );
 
-    return NextResponse.json({ success: true, projects });
+    return NextResponse.json({ success: true, projects: projectsWithStats });
   } catch (error) {
     console.error("GET /api/projects error:", error);
     return NextResponse.json(
