@@ -74,8 +74,7 @@ export default function PublicApplicationRegistration() {
       if (data.success) {
         setStatus({
           state: "success",
-          message:
-            "Strategic registration complete! Your account is now awaiting Super Admin approval.",
+          message: "Registration submitted! Awaiting approval.",
         });
       } else {
         setStatus({
