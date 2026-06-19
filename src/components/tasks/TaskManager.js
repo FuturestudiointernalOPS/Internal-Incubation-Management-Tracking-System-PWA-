@@ -348,7 +348,7 @@ export default function TaskManager({
             </span>
           )}
 
-          {/* Creator + Project / Category tag */}
+          {/* Creator + Assignee + Project / Category tag */}
           {!isSub && (
             <div className="hidden sm:flex items-center gap-2 shrink-0 text-[8px]">
               {task.user_name && (
@@ -358,6 +358,15 @@ export default function TaskManager({
                 >
                   <User className="w-2.5 h-2.5" />
                   {task.user_name}
+                </span>
+              )}
+              {task.assignee_name && (
+                <span
+                  className="text-emerald-500 flex items-center gap-1"
+                  title="Assigned to"
+                >
+                  <Send className="w-2.5 h-2.5" />
+                  {task.assignee_name}
                 </span>
               )}
               <span className="text-slate-500">
