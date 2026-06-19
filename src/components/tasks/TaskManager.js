@@ -18,6 +18,7 @@ import {
   Check,
   ListTodo,
   Shield,
+  ChevronUp,
   ChevronDown,
   Plus,
   CheckCircle2,
@@ -239,13 +240,31 @@ export default function TaskManager({
 
   const activeTasks = useMemo(
     () =>
-      tasks.filter(
-        (t) =>
-          !["completed", "archived", "carried_over"].includes(t.status) &&
-          !t.parent_task_id,
-      ),
+      tasks
+        .filter(
+          (t) =>
+            !["completed", "archived", "carried_over"].includes(t.status) &&
+            !t.parent_task_id,
+        )
+        .sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        ),
     [tasks],
   );
+
+  // Move task up or down in the active list
+  const moveTask = useCallback((taskId, direction) => {
+    setTasks((prev) => {
+      const idx = prev.findIndex((t) => t.id === taskId);
+      if (idx === -1) return prev;
+      const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const updated = [...prev];
+      [updated[idx], updated[targetIdx]] = [updated[targetIdx], updated[idx]];
+      return updated;
+    });
+  }, []);
 
   // ── Render task row (with optional sub-tasks) ──
   const renderTaskRow = (task, isSub = false) => {
@@ -352,6 +371,26 @@ export default function TaskManager({
                 </option>
               ))}
             </select>
+          )}
+
+          {/* Move up/down buttons */}
+          {!isSub && (
+            <div className="flex flex-col gap-0.5 shrink-0">
+              <button
+                onClick={() => moveTask(task.id, "up")}
+                className="text-slate-500 hover:text-[var(--text-primary)] transition-all"
+                title="Move up"
+              >
+                <ChevronUp className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => moveTask(task.id, "down")}
+                className="text-slate-500 hover:text-[var(--text-primary)] transition-all"
+                title="Move down"
+              >
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </div>
           )}
         </div>
 
