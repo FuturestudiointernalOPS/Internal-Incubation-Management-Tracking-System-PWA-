@@ -5,6 +5,14 @@ import { requireAuth } from "@/lib/auth";
 export async function GET(req) {
   try {
     await initDb();
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const authError = await requireAuth([
       "staff",
       "super_admin",
@@ -13,15 +21,36 @@ export async function GET(req) {
     ]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
-    const cid = searchParams.get("cid"); // Get messages for a specific user
+    const cid = searchParams.get("cid");
+
+    // SECURITY: Users can only request their own messages unless super_admin
+    const requestingCid = session.cid;
+    if (session.role !== "super_admin" && cid !== requestingCid) {
+      return NextResponse.json(
+        { success: false, error: "You can only access your own messages." },
+        { status: 403 },
+      );
+    }
+
+    // Use the validated CID
+    const targetCid = cid || requestingCid;
 
     let query = "SELECT * FROM v2_messages";
     let args = [];
 
-    if (cid) {
-      query +=
-        " WHERE recipient_id = ? OR sender_id = ? OR target_type = 'all'";
-      args = [cid, cid];
+    query +=
+      " WHERE (recipient_id = ? OR sender_id = ?) AND target_type != 'all'";
+    args = [targetCid, targetCid];
+
+    // Super admins can also see broadcast messages
+    if (session.role === "super_admin") {
+      query = "SELECT * FROM v2_messages";
+      args = [];
+      if (targetCid) {
+        query +=
+          " WHERE recipient_id = ? OR sender_id = ? OR target_type = 'all'";
+        args = [targetCid, targetCid];
+      }
     }
 
     query += " ORDER BY created_at DESC";
@@ -39,6 +68,14 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const authError = await requireAuth([
       "staff",
       "super_admin",
@@ -55,6 +92,15 @@ export async function POST(req) {
       body,
       priority,
     } = await req.json();
+
+    // SECURITY: Sender must match the authenticated user
+    const sessionCid = session.cid;
+    if (sender_id !== sessionCid && session.role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "Cannot send messages as another user." },
+        { status: 403 },
+      );
+    }
 
     // Ensure is_read column exists (safe migration)
     try {
@@ -132,6 +178,14 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const authError = await requireAuth([
       "staff",
       "super_admin",
@@ -140,6 +194,25 @@ export async function PUT(req) {
     ]);
     if (authError) return authError;
     const { messageIds, conversationWith } = await req.json();
+
+    // SECURITY: Validate the user is a participant in the conversation
+    const sessionCid = session.cid;
+    if (conversationWith) {
+      if (
+        conversationWith.recipientId !== sessionCid &&
+        conversationWith.senderId !== sessionCid &&
+        session.role !== "super_admin"
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Cannot mark messages as read for a conversation you are not part of.",
+          },
+          { status: 403 },
+        );
+      }
+    }
 
     // Ensure is_read column exists
     try {

@@ -35,8 +35,32 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
+
+    // SECURITY: Users can only see their own tasks unless super_admin
+    const sessionCid = session.cid;
+    if (session.role !== "super_admin") {
+      // If requesting another user's tasks, block it
+      if (user_id && user_id !== sessionCid) {
+        return NextResponse.json(
+          { success: false, error: "You can only access your own tasks." },
+          { status: 403 },
+        );
+      }
+      // If no user_id specified, force scope to own tasks
+      if (!user_id && !assigned_to && !project_id_filter) {
+        // Will add user_id filter below
+      }
+    }
     const status = searchParams.get("status");
     const week_number = searchParams.get("week");
     const year = searchParams.get("year");
@@ -56,9 +80,16 @@ export async function GET(req) {
       args.push(parseInt(id));
     }
 
-    if (user_id) {
+    // SECURITY: Force scope to own tasks if not super_admin and no explicit filter
+    const effectiveUserId =
+      user_id ||
+      (session.role !== "super_admin" && !assigned_to && !project_id_filter
+        ? sessionCid
+        : null);
+
+    if (effectiveUserId) {
       sql += " AND user_id = ?";
-      args.push(user_id);
+      args.push(effectiveUserId);
     }
 
     if (assigned_to) {
@@ -445,6 +476,14 @@ export async function PUT(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const body = await req.json();
     const {
       id,
@@ -778,6 +817,17 @@ export async function PUT(req) {
       }
     }
 
+    // SECURITY: Only the task owner or super_admin can update a task
+    if (
+      session.role !== "super_admin" &&
+      String(task.user_id) !== String(session.cid)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "You can only update your own tasks." },
+        { status: 403 },
+      );
+    }
+
     // ─── Reschedule increment (Phase 2/11) ───
     if (needsRescheduleInc) {
       await db.execute({
@@ -864,16 +914,40 @@ export async function DELETE(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    const user_id = searchParams.get("user_id");
-    const user_name = searchParams.get("user_name");
 
     if (!id) {
       return NextResponse.json(
         { success: false, error: "id query parameter is required" },
         { status: 400 },
       );
+    }
+
+    // SECURITY: Only the task owner or super_admin can delete
+    const taskCheck = await db.execute({
+      sql: "SELECT user_id, title, status FROM tasks WHERE id = ?",
+      args: [parseInt(id)],
+    });
+    if (taskCheck.rows.length > 0) {
+      const taskOwner = taskCheck.rows[0].user_id;
+      if (
+        session.role !== "super_admin" &&
+        String(taskOwner) !== String(session.cid)
+      ) {
+        return NextResponse.json(
+          { success: false, error: "You can only delete your own tasks." },
+          { status: 403 },
+        );
+      }
     }
 
     // Phase 6: Locking enforcement - locked tasks cannot be deleted
@@ -890,10 +964,6 @@ export async function DELETE(req) {
     }
 
     // Carry-over tasks cannot be deleted (standup commitment rule)
-    const taskCheck = await db.execute({
-      sql: "SELECT status FROM tasks WHERE id = ?",
-      args: [parseInt(id)],
-    });
     if (
       taskCheck.rows.length > 0 &&
       taskCheck.rows[0].status === "carried_over"
@@ -931,8 +1001,8 @@ export async function DELETE(req) {
       await logAuditEvent({
         entity_type: "task",
         entity_id: parseInt(id),
-        user_id: user_id || task.user_id,
-        user_name: user_name || task.user_name,
+        user_id: session.cid || task.user_id,
+        user_name: session.name || task.user_name,
         action: "deleted",
         details: `Task "${task.title}" deleted`,
         metadata: { title: task.title },
