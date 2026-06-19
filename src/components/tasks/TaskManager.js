@@ -74,6 +74,15 @@ export default function TaskManager({
   showCarryOver = true, // show carry-over tasks section
 }) {
   const uid = userId;
+  // Get current logged-in user for permission checks
+  const [currentUserId, setCurrentUserId] = useState(null);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("user");
+      if (saved)
+        setCurrentUserId(JSON.parse(saved).cid || JSON.parse(saved).id || null);
+    } catch (_) {}
+  }, []);
   const [tasks, setTasks] = useState([]);
   const [expandedTasks, setExpandedTasks] = useState({});
   const [updatingTasks, setUpdatingTasks] = useState({});
@@ -279,6 +288,8 @@ export default function TaskManager({
   }, []);
 
   // ── Render task row (with optional sub-tasks) ──
+  // Track task index for numbering in standup mode
+  let taskIndex = 0;
   const renderTaskRow = (task, isSub = false) => {
     const isExpanded = expandedTasks[task.id];
     const cfg = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
@@ -295,21 +306,48 @@ export default function TaskManager({
                 : ""
           } ${!isSub && task.subtasks?.length > 0 ? "bg-indigo-500/[0.04]" : ""}`}
         >
-          {/* Checkbox */}
-          <button
-            onClick={() =>
-              updateStatus(
-                task.id,
-                task.status === "completed" ? "in_progress" : "completed",
-              )
-            }
-            disabled={isUpdating}
-            className={`w-4 h-4 rounded-full border-2 shrink-0 transition-all hover:scale-110 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"} ${isUpdating ? "opacity-50 animate-pulse" : ""}`}
-          >
-            {task.status === "completed" && (
-              <CheckCircle2 className="w-3 h-3 text-white" />
-            )}
-          </button>
+          {/* Checkbox — only in project mode for task owner/assignee, never in standup */}
+          {mode !== "standup" &&
+            (() => {
+              const canCheck =
+                mode === "project"
+                  ? String(task.user_id) === String(currentUserId) ||
+                    String(task.assigned_to) === String(currentUserId) ||
+                    String(userId) === String(currentUserId)
+                  : true;
+              if (mode === "project" && !canCheck) {
+                // Show static completed indicator only
+                if (task.status === "completed") {
+                  return (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  );
+                }
+                return <div className="w-4 h-4 shrink-0" />;
+              }
+              return (
+                <button
+                  onClick={() =>
+                    updateStatus(
+                      task.id,
+                      task.status === "completed" ? "in_progress" : "completed",
+                    )
+                  }
+                  disabled={isUpdating}
+                  className={`w-4 h-4 rounded-full border-2 shrink-0 transition-all hover:scale-110 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"} ${isUpdating ? "opacity-50 animate-pulse" : ""}`}
+                >
+                  {task.status === "completed" && (
+                    <CheckCircle2 className="w-3 h-3 text-white" />
+                  )}
+                </button>
+              );
+            })()}
+
+          {/* Task number in standup mode */}
+          {mode === "standup" && !isSub && (
+            <span className="w-5 h-5 flex items-center justify-center rounded-md bg-tertiary border border-[var(--border-primary)] text-[9px] font-black text-slate-500 shrink-0">
+              {++taskIndex}
+            </span>
+          )}
 
           {/* Parent indicator icon */}
           {!isSub && task.subtasks?.length > 0 && (
