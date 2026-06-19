@@ -194,6 +194,8 @@ export default function StaffOpReport() {
   const [taskRows, setTaskRows] = useState([]);
   const [blockerModal, setBlockerModal] = useState(null); // { taskRowIndex } or null
   const [newBlockerDesc, setNewBlockerDesc] = useState("");
+  const [subTaskModal, setSubTaskModal] = useState(null); // parent row id or null
+  const [subTaskName, setSubTaskName] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
   const [expandedTasks, setExpandedTasks] = useState({}); // taskId -> boolean
   const [updatingTasks, setUpdatingTasks] = useState({}); // taskId -> boolean
@@ -621,33 +623,46 @@ export default function StaffOpReport() {
   };
 
   // ─── TASK ROW MANAGEMENT ───
-  const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
 
   const addSubTaskRow = (parentRowId) => {
-    // Find the parent row to pre-fill project
-    const parent = taskRows.find((r) => r.id === parentRowId);
-    if (!parent) return;
-    setPendingParentTaskId(parentRowId);
-    setNewTaskForm({
-      name: "",
-      project_id: parent.project_id || "",
-      category: parent.category || "",
-      start_date: "",
-      start_time: "",
-      due_date: "",
-      due_time: "",
-      collaborator: "",
-      collaborator_note: "",
-      project_search: "",
-      show_dropdown: false,
+    setSubTaskModal(parentRowId);
+    setSubTaskName("");
+  };
+
+  const addSubTaskFromModal = () => {
+    const name = subTaskName.trim();
+    if (!name) return;
+    const parentId = subTaskModal;
+    setTaskRows((prev) => {
+      const newRow = {
+        id: Date.now(),
+        name,
+        description: "",
+        project_id: prev.find((r) => r.id === parentId)?.project_id || null,
+        category: prev.find((r) => r.id === parentId)?.category || "",
+        start_date: "",
+        start_time: "",
+        due_date: "",
+        due_time: "",
+        blockers: [],
+        collaborators: [],
+        parent_task_id: parentId,
+        status: null,
+        uncompleted_reason: "",
+      };
+      const parentIdx = prev.findIndex((r) => r.id === parentId);
+      if (parentIdx !== -1) {
+        const updated = [...prev];
+        updated.splice(parentIdx + 1, 0, newRow);
+        return updated;
+      }
+      return [...prev, newRow];
     });
-    setShowTaskForm(true);
+    setSubTaskName("");
   };
 
   const addTaskRow = () => {
     if (!newTaskForm.name.trim()) return;
-    const parentId = pendingParentTaskId;
-    setPendingParentTaskId(null);
     setTaskRows((prev) => {
       const newRow = {
         id: Date.now(),
@@ -668,19 +683,10 @@ export default function StaffOpReport() {
               },
             ]
           : [],
-        parent_task_id: parentId || null,
+        parent_task_id: null,
         status: null,
         uncompleted_reason: "",
       };
-      // Insert sub-task right after its parent instead of at the bottom
-      if (parentId) {
-        const parentIdx = prev.findIndex((r) => r.id === parentId);
-        if (parentIdx !== -1) {
-          const updated = [...prev];
-          updated.splice(parentIdx + 1, 0, newRow);
-          return updated;
-        }
-      }
       return [...prev, newRow];
     });
     setNewTaskForm({
