@@ -176,7 +176,7 @@ export default function NewProgram() {
           materials: [...prev.materials, ...uploadedUrls],
         }));
       }
-      notify("success", `${files.length} file(s) attached successfully.`);
+      notify("success", "Attached");
     } catch (e) {
       notify("error", e.message);
     } finally {
@@ -199,7 +199,7 @@ export default function NewProgram() {
         setProgram((p) => ({ ...p, assigned_segments: [data.group.id] }));
         setSegments((prev) => [...prev, data.group]);
         setIsCreatingGroup(false);
-        notify("success", "Contact Group created and assigned.");
+        notify("success", "Created");
       }
     } catch (e) {
       notify("error", e.message);
@@ -227,7 +227,7 @@ export default function NewProgram() {
           { id: data.id, title: newKB.title },
         ]);
         setIsCreatingKB(false);
-        notify("success", "Knowledge Base created and linked.");
+        notify("success", "Created");
       }
     } catch (e) {
       notify("error", e.message);
@@ -294,7 +294,7 @@ export default function NewProgram() {
       const data = await res.json();
 
       if (data.success) {
-        notify("success", "Program Created Successfully.");
+        notify("success", "Created");
         setTimeout(() => router.push("/admin/programs"), 1500);
       } else {
         throw new Error(data.error || "Failed to save program");
@@ -743,7 +743,7 @@ export default function NewProgram() {
                           navigator.clipboard.writeText(
                             `${window.location.origin}/register-participant?group_id=${createdGroup.registration_id}`,
                           );
-                          notify("success", "URL copied to clipboard.");
+                          notify("success", "Copied");
                         }}
                         className="p-1 bg-white/5 rounded hover:bg-white/10"
                       >

@@ -259,7 +259,7 @@ export default function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Configuration saved.");
+        notify("Saved");
         fetchProgramData(true);
       } else notify(data.error || "Save failed.", "error");
     } catch (e) {
@@ -365,7 +365,7 @@ export default function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Session added.");
+        notify("Added");
         setShowSessionModal(false);
         setNewSession({
           title: "",
@@ -411,7 +411,7 @@ export default function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Requirement anchored.");
+        notify("Added");
         if (shouldClose) setShowRequirementModal(false);
         setNewRequirement({
           title: "",
