@@ -348,14 +348,26 @@ export default function TaskManager({
             </span>
           )}
 
-          {/* Project / Category tag */}
+          {/* Creator + Project / Category tag */}
           {!isSub && (
-            <span className="text-[8px] text-slate-500 hidden sm:inline shrink-0">
-              {task.project_id
-                ? projects.find((p) => String(p.id) === String(task.project_id))
-                    ?.name
-                : task.category || ""}
-            </span>
+            <div className="hidden sm:flex items-center gap-2 shrink-0 text-[8px]">
+              {task.user_name && (
+                <span
+                  className="text-slate-500 flex items-center gap-1"
+                  title="Created by"
+                >
+                  <User className="w-2.5 h-2.5" />
+                  {task.user_name}
+                </span>
+              )}
+              <span className="text-slate-500">
+                {task.project_id
+                  ? projects.find(
+                      (p) => String(p.id) === String(task.project_id),
+                    )?.name
+                  : task.category || ""}
+              </span>
+            </div>
           )}
 
           {/* Status dropdown */}
