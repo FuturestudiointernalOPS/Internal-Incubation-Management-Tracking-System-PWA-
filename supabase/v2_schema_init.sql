@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     title TEXT NOT NULL,
     description TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
-    project_id INTEGER,
+    project_id TEXT,
     category TEXT,
     created_week INTEGER NOT NULL,
     created_year INTEGER NOT NULL,

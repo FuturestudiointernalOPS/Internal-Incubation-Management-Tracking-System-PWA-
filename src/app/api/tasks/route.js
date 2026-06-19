@@ -275,7 +275,7 @@ export async function POST(req) {
     if (finalProjectId) {
       const memberCheck = await db.execute({
         sql: "SELECT id FROM project_members WHERE project_id = ? AND user_cid = ?",
-        args: [parseInt(finalProjectId), user_id],
+        args: [finalProjectId, user_id],
       });
 
       if (memberCheck.rows.length === 0) {
@@ -318,14 +318,14 @@ export async function POST(req) {
         sql: `INSERT INTO project_approval_requests
           (task_id, requester_id, requester_name, project_id, status)
           VALUES (?, ?, ?, ?, 'pending')`,
-        args: [taskId, user_id, user_name || "", parseInt(finalProjectId)],
+        args: [taskId, user_id, user_name || "", finalProjectId],
       });
 
       // Notify project owner (or Super Admin as fallback)
       try {
         const projectInfo = await db.execute({
           sql: "SELECT name FROM v2_projects WHERE id = ?",
-          args: [parseInt(finalProjectId)],
+          args: [finalProjectId],
         });
         const projectName =
           projectInfo.rows[0]?.name || `Project #${finalProjectId}`;
@@ -333,7 +333,7 @@ export async function POST(req) {
         // Get project leads/members to notify
         const leads = await db.execute({
           sql: "SELECT user_cid FROM project_members WHERE project_id = ? AND role = 'lead'",
-          args: [parseInt(finalProjectId)],
+          args: [finalProjectId],
         });
         const notifyIds =
           leads.rows.length > 0 ? leads.rows.map((r) => r.user_cid) : ["sa"];
@@ -588,7 +588,7 @@ export async function PUT(req) {
         // Phase 5: Re-validate project assignment on change
         const memberCheck = await db.execute({
           sql: "SELECT id FROM project_members WHERE project_id = ? AND user_cid = ?",
-          args: [parseInt(project_id), user_id || task.user_id],
+          args: [project_id, user_id || task.user_id],
         });
 
         if (memberCheck.rows.length === 0) {
@@ -603,7 +603,7 @@ export async function PUT(req) {
               parseInt(id),
               user_id || task.user_id,
               user_name || task.user_name || "",
-              parseInt(project_id),
+              project_id,
             ],
           });
           changes.push("project reassignment requires approval");
