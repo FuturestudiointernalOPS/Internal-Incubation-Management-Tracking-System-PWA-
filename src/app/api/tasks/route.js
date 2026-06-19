@@ -817,10 +817,20 @@ export async function PUT(req) {
       }
     }
 
-    // SECURITY: Only the task owner or super_admin can update a task
+    // SECURITY: Status changes (complete, carry-over) are allowed for collaborative workflows
+    // Only block metadata changes (title, description, project) by non-owners
+    const isTaskOwner = String(task.user_id) === String(session.cid);
+    const isAssignee =
+      task.assigned_to && String(task.assigned_to) === String(session.cid);
+    const isOnlyStatusChange =
+      Object.keys(body).filter(
+        (k) => k !== "id" && k !== "status" && k !== "force_complete",
+      ).length === 0;
     if (
       session.role !== "super_admin" &&
-      String(task.user_id) !== String(session.cid)
+      !isTaskOwner &&
+      !isAssignee &&
+      !isOnlyStatusChange
     ) {
       return NextResponse.json(
         { success: false, error: "You can only update your own tasks." },
