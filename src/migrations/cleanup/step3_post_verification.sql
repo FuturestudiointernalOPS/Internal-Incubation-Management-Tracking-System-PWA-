@@ -38,7 +38,37 @@ SELECT 'v2_sessions', COUNT(*) FROM v2_sessions
 UNION ALL
 SELECT 'v2_kpis', COUNT(*) FROM v2_kpis
 UNION ALL
-SELECT 'v2_events', COUNT(*) FROM v2_events
+SELECT 'kpi_progress', COUNT(*) FROM kpi_progress
+UNION ALL
+SELECT 'v2_standups', COUNT(*) FROM v2_standups
+UNION ALL
+SELECT 'v2_retros', COUNT(*) FROM v2_retros
+UNION ALL
+SELECT 'v2_checkins', COUNT(*) FROM v2_checkins
+UNION ALL
+SELECT 'v2_reflections', COUNT(*) FROM v2_reflections
+UNION ALL
+SELECT 'v2_weekly_reports', COUNT(*) FROM v2_weekly_reports
+UNION ALL
+SELECT 'v2_attendance', COUNT(*) FROM v2_attendance
+UNION ALL
+SELECT 'v2_followups', COUNT(*) FROM v2_followups
+UNION ALL
+SELECT 'v2_groups', COUNT(*) FROM v2_groups
+UNION ALL
+SELECT 'v2_teams', COUNT(*) FROM v2_teams
+UNION ALL
+SELECT 'v2_knowledge_bank', COUNT(*) FROM v2_knowledge_bank
+UNION ALL
+SELECT 'forms', COUNT(*) FROM forms
+UNION ALL
+SELECT 'form_responses', COUNT(*) FROM form_responses
+UNION ALL
+SELECT 'campaigns', COUNT(*) FROM campaigns
+UNION ALL
+SELECT 'activity_logs', COUNT(*) FROM activity_logs
+UNION ALL
+SELECT 'audit_log', COUNT(*) FROM audit_log
 UNION ALL
 SELECT 'user_sessions', COUNT(*) FROM user_sessions
 ORDER BY table_name;
@@ -75,6 +105,16 @@ WHERE c.cid IS NULL;
 SELECT 'Blockers with no valid task' AS check_name, COUNT(*) AS orphans
 FROM blockers b LEFT JOIN tasks t ON b.task_id = t.id
 WHERE t.id IS NULL;
+
+-- v2_messages with no sender
+SELECT 'Messages with no valid sender' AS check_name, COUNT(*) AS orphans
+FROM v2_messages m LEFT JOIN contacts c ON m.sender_id = c.cid
+WHERE c.cid IS NULL AND m.sender_id IS NOT NULL;
+
+-- v2_standups with no valid user
+SELECT 'Standups with no valid user' AS check_name, COUNT(*) AS orphans
+FROM v2_standups s LEFT JOIN contacts c ON s.user_id = c.cid
+WHERE c.cid IS NULL;
 
 -- Foreign key integrity
 SELECT '=== FOREIGN KEY INTEGRITY ===' AS info;

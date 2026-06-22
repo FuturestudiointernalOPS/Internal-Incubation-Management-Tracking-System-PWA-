@@ -61,7 +61,7 @@ const softAuthPaths = [
   "/api/finance",
 ];
 
-export function middleware(request) {
+export function proxy(request) {
   const { pathname } = request.nextUrl;
 
   // Allow public paths
