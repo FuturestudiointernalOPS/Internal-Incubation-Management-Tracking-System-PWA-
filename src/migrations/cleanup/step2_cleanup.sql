@@ -108,6 +108,7 @@ DELETE FROM v2_document_requirements WHERE program_id IS NOT NULL;
 DELETE FROM v2_followups WHERE program_id IS NOT NULL;
 DELETE FROM v2_program_staff WHERE program_id IS NOT NULL;
 DELETE FROM v2_submissions WHERE program_id IS NOT NULL;
+DELETE FROM v2_participants WHERE program_id IS NOT NULL;
 DELETE FROM participant_programs WHERE program_id IS NOT NULL;
 DELETE FROM v2_groups WHERE program_id IS NOT NULL;
 DELETE FROM v2_programs;

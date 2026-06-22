@@ -507,23 +507,25 @@ export default function AdminDashboard() {
   const handleApproval = async (notif) => {
     setProcessingId(notif.id);
     try {
+      // Find the matching pending user by name from contacts
       const contactsRes = await fetch("/api/contacts");
       const contactsData = await contactsRes.json();
       const pendingUser = contactsData.contacts.find(
         (c) => c.status === "pending" && notif.message.includes(c.name),
       );
       if (pendingUser) {
-        await fetch("/api/contacts", {
-          method: "PUT",
+        // Use the dedicated approve endpoint (same as Pending Users page)
+        // This handles: status change, token generation, email, audit log, notification cleanup
+        await fetch("/api/admin/approve-user", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cid: pendingUser.cid, status: "approved" }),
+          body: JSON.stringify({
+            user_cid: pendingUser.cid,
+            admin_name: "super_admin",
+          }),
         });
       }
-      await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: notif.id, action: "read" }),
-      });
+      // Refresh — approved user and their notification will be gone from both places
       fetchDashboardData();
     } catch (e) {
       console.error("Approval Failed:", e);

@@ -15,7 +15,9 @@ export async function GET(req) {
         db.execute(
           "SELECT COUNT(*) as count FROM v2_programs WHERE is_archived = 0 AND status = 'active'",
         ),
-        db.execute("SELECT COUNT(*) as count FROM v2_participants"),
+        db.execute(
+          "SELECT COUNT(*) as count FROM contacts WHERE role = 'participant' AND deleted = 0",
+        ),
         db.execute(
           "SELECT COUNT(*) as count FROM contacts WHERE role IN ('admin', 'staff', 'teacher')",
         ),
