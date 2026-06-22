@@ -487,7 +487,8 @@ export default function StaffOpReport() {
     try {
       // First: create only NEW task rows as real tasks (skip existing ones already in DB)
       const userId = user.cid || user.id;
-      const weekData = getCurrentWeek();
+      // Use weekInfo (the viewed week) for both task creation AND standup — keep them in sync
+      const weekData = weekInfo;
 
       // Map local row IDs to real DB IDs for parent_task_id resolution
       const idMapping = {};
