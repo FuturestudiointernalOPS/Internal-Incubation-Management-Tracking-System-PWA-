@@ -210,6 +210,76 @@ export default function ProjectKanbanBoard() {
   );
 
   const [deletingTaskId, setDeletingTaskId] = useState(null);
+  const [dragTaskId, setDragTaskId] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
+
+  const COLUMN_TO_STATUS = {
+    planning: "pending",
+    pending_approval: "pending_project_approval",
+    in_progress: "in_progress",
+    blocked: "blocked",
+    carried_over: "carried_over",
+    completed: "completed",
+  };
+
+  const handleDragStart = (e, taskId) => {
+    setDragTaskId(taskId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(taskId));
+    requestAnimationFrame(() => {
+      e.target.style.opacity = "0.4";
+    });
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = "1";
+    setDragTaskId(null);
+    setDragOverCol(null);
+  };
+
+  const handleDragOver = (e, colId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverCol !== colId) setDragOverCol(colId);
+  };
+
+  const handleDragLeave = () => setDragOverCol(null);
+
+  const handleDrop = async (e, targetColId) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    const taskId = parseInt(e.dataTransfer.getData("text/plain"));
+    if (!taskId) return;
+    const newStatus = COLUMN_TO_STATUS[targetColId];
+    if (!newStatus) return;
+    const allTasks = [
+      ...uncategorizedTasks,
+      ...Object.values(projectTasks).flat(),
+    ];
+    const task = allTasks.find((t) => t.id === taskId);
+    if (!task || task.status === newStatus) return;
+    const upd = (prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
+    setUncategorizedTasks((prev) => upd(prev));
+    setProjectTasks((prev) => {
+      const n = { ...prev };
+      for (const p of Object.keys(n))
+        n[p] = n[p].map((t) =>
+          t.id === taskId ? { ...t, status: newStatus } : t,
+        );
+      return n;
+    });
+    try {
+      await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: taskId, status: newStatus }),
+      });
+    } catch (e) {
+      console.error("Move failed:", e);
+      fetchData();
+    }
+  };
 
   const handleDeleteTask = useCallback(async (taskId) => {
     if (!confirm("Delete this task? This action cannot be undone.")) return;
@@ -328,7 +398,7 @@ export default function ProjectKanbanBoard() {
               </div>
 
               {/* Column Body */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              <div className={`flex-1 overflow-y-auto p-3 space-y-3 transition-colors ${dragOverCol === col.id ? "bg-[var(--brand-orange)]/5 border-2 border-dashed border-[var(--brand-orange)]/40 rounded-lg" : ""}`} onDragOver={(e) => handleDragOver(e, col.id)} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, col.id)}>
                 {col.projects.length === 0 && col.uncategorized.length === 0 ? (
                   <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-8">
                     No items
@@ -402,7 +472,7 @@ export default function ProjectKanbanBoard() {
                               (projectTasks[project.id] || []).map((task) => (
                                 <div
                                   key={task.id}
-                                  className="p-2 rounded-md bg-tertiary/50 border border-[var(--border-primary)] flex items-center justify-between gap-2"
+                                  draggable onDragStart={(e) => handleDragStart(e, task.id)} onDragEnd={handleDragEnd} className="p-2 rounded-md bg-tertiary/50 border border-[var(--border-primary)] flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing hover:border-[var(--brand-orange)]/30 transition-colors"
                                 >
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[10px] font-semibold text-[var(--text-primary)] truncate">
@@ -470,7 +540,7 @@ export default function ProjectKanbanBoard() {
                     {col.uncategorized.map((task) => (
                       <div
                         key={task.id}
-                        className="p-2.5 rounded-lg border border-dashed border-[var(--border-primary)] bg-tertiary/50"
+                        draggable onDragStart={(e) => handleDragStart(e, task.id)} onDragEnd={handleDragEnd} className="p-2.5 rounded-lg border border-dashed border-[var(--border-primary)] bg-tertiary/50 cursor-grab active:cursor-grabbing hover:border-[var(--brand-orange)]/30 transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
