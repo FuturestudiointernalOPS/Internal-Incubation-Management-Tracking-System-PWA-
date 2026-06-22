@@ -24,6 +24,7 @@ import {
   RotateCcw,
   Briefcase,
   Activity,
+  CornerDownRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -1228,15 +1229,55 @@ export default function StaffOpReport() {
                                                 </tr>
                                               </thead>
                                               <tbody>
-                                                {tasks
-                                                  .filter(
+                                                {(() => {
+                                                  const weekTasks = tasks.filter(
                                                     (t) =>
                                                       t.created_week ===
                                                         report.week_number &&
                                                       t.created_year ===
                                                         report.year,
-                                                  )
-                                                  .map((task) => {
+                                                  );
+                                                  const mainTasks = weekTasks.filter(
+                                                    (t) => !t.parent_task_id,
+                                                  );
+                                                  const subTasks = weekTasks.filter(
+                                                    (t) => t.parent_task_id,
+                                                  );
+
+                                                  const rowsToRender = [];
+                                                  const renderedSubTaskIds = new Set();
+
+                                                  mainTasks.forEach((mainTask) => {
+                                                    rowsToRender.push({
+                                                      ...mainTask,
+                                                      isSubtask: false,
+                                                    });
+                                                    const children = subTasks.filter(
+                                                      (st) =>
+                                                        st.parent_task_id ===
+                                                        mainTask.id,
+                                                    );
+                                                    children.forEach((st) => {
+                                                      rowsToRender.push({
+                                                        ...st,
+                                                        isSubtask: true,
+                                                      });
+                                                      renderedSubTaskIds.add(st.id);
+                                                    });
+                                                  });
+
+                                                  // Catch any orphaned subtasks (parent not in this week)
+                                                  subTasks.forEach((st) => {
+                                                    if (!renderedSubTaskIds.has(st.id)) {
+                                                      rowsToRender.push({
+                                                        ...st,
+                                                        isSubtask: true,
+                                                        isOrphan: true,
+                                                      });
+                                                    }
+                                                  });
+
+                                                  return rowsToRender.map((task) => {
                                                     const config =
                                                       STATUS_CONFIG[
                                                         task.status
@@ -1251,10 +1292,15 @@ export default function StaffOpReport() {
                                                     return (
                                                       <tr
                                                         key={task.id}
-                                                        className="border-b border-[var(--border-primary)]/40 hover:bg-primary/50 transition-colors"
+                                                        className={`border-b border-[var(--border-primary)]/40 hover:bg-primary/50 transition-colors ${
+                                                          task.isSubtask && !task.isOrphan ? "bg-tertiary/20" : ""
+                                                        }`}
                                                       >
-                                                        <td className="px-3 py-2.5">
+                                                        <td className={`px-3 py-2.5 ${task.isSubtask && !task.isOrphan ? "pl-8" : ""}`}>
                                                           <div className="flex items-center gap-2">
+                                                            {task.isSubtask && (
+                                                              <CornerDownRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                                            )}
                                                             <div
                                                               className={`w-1.5 h-1.5 rounded-full ${config.color.replace("text-", "bg-")} shrink-0`}
                                                             />
@@ -1313,7 +1359,8 @@ export default function StaffOpReport() {
                                                         </td>
                                                       </tr>
                                                     );
-                                                  })}
+                                                  });
+                                                })()}
                                               </tbody>
                                             </table>
                                           </div>
