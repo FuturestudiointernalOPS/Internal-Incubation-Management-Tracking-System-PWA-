@@ -4,23 +4,23 @@
 -- ============================================================================
 
 -- Users to retain (@epitech.eu)
-SELECT '=== RETAINED USERS (eligible for retention) ===' AS info;
+SELECT '=== RETAINED USERS (@epitech.eu) ===' AS info;
 SELECT cid, name, email, role, group_name FROM contacts WHERE email ILIKE '%@epitech.eu' AND deleted = 0;
 
 -- Users to delete (non-@epitech.eu)
 SELECT '=== USERS TO BE DELETED ===' AS info;
-SELECT cid, name, email, role, group_name FROM contacts WHERE email NOT ILIKE '%@epitech.eu' AND email NOT ILIKE '%@futurestudio%' AND deleted = 0;
+SELECT cid, name, email, role, group_name FROM contacts WHERE email NOT ILIKE '%@epitech.eu' AND deleted = 0;
 
 -- Counts of records that will be affected
 SELECT '=== RECORD COUNTS TO BE REMOVED ===' AS info;
 
-SELECT 'CONTACTS (non-epitech)' AS table_name, COUNT(*) AS count FROM contacts WHERE email NOT ILIKE '%@epitech.eu' AND deleted = 0
+SELECT 'contacts (non-epitech)' AS table_name, COUNT(*) AS count FROM contacts WHERE email NOT ILIKE '%@epitech.eu' AND deleted = 0
 UNION ALL
-SELECT 'v2_programs (all)', COUNT(*) FROM v2_programs WHERE is_archived IS NULL OR is_archived = 0
+SELECT 'v2_programs (all)', COUNT(*) FROM v2_programs
 UNION ALL
 SELECT 'v2_submissions (all)', COUNT(*) FROM v2_submissions
 UNION ALL
-SELECT 'v2_projects (all)', COUNT(*) FROM v2_projects WHERE status != 'Archived'
+SELECT 'v2_projects (all)', COUNT(*) FROM v2_projects
 UNION ALL
 SELECT 'tasks (all)', COUNT(*) FROM tasks
 UNION ALL
@@ -42,11 +42,39 @@ SELECT 'v2_sessions (all)', COUNT(*) FROM v2_sessions
 UNION ALL
 SELECT 'v2_kpis (all)', COUNT(*) FROM v2_kpis
 UNION ALL
-SELECT 'v2_kpi_progress (all)', COUNT(*) FROM v2_kpi_progress
+SELECT 'kpi_progress (all)', COUNT(*) FROM kpi_progress
 UNION ALL
-SELECT 'v2_events (all)', COUNT(*) FROM v2_events
+SELECT 'v2_standups (all)', COUNT(*) FROM v2_standups
 UNION ALL
-SELECT 'error_logs (all)', COUNT(*) FROM error_logs
+SELECT 'v2_retros (all)', COUNT(*) FROM v2_retros
+UNION ALL
+SELECT 'v2_checkins (all)', COUNT(*) FROM v2_checkins
+UNION ALL
+SELECT 'v2_reflections (all)', COUNT(*) FROM v2_reflections
+UNION ALL
+SELECT 'v2_weekly_reports (all)', COUNT(*) FROM v2_weekly_reports
+UNION ALL
+SELECT 'v2_attendance (all)', COUNT(*) FROM v2_attendance
+UNION ALL
+SELECT 'v2_followups (all)', COUNT(*) FROM v2_followups
+UNION ALL
+SELECT 'v2_groups (all)', COUNT(*) FROM v2_groups
+UNION ALL
+SELECT 'v2_teams (all)', COUNT(*) FROM v2_teams
+UNION ALL
+SELECT 'v2_knowledge_bank (all)', COUNT(*) FROM v2_knowledge_bank
+UNION ALL
+SELECT 'forms (all)', COUNT(*) FROM forms
+UNION ALL
+SELECT 'form_responses (all)', COUNT(*) FROM form_responses
+UNION ALL
+SELECT 'campaigns (all)', COUNT(*) FROM campaigns
+UNION ALL
+SELECT 'activity_logs (all)', COUNT(*) FROM activity_logs
+UNION ALL
+SELECT 'audit_log (all)', COUNT(*) FROM audit_log
+UNION ALL
+SELECT 'user_sessions (all)', COUNT(*) FROM user_sessions
 ORDER BY table_name;
 
 -- Super Admin check
