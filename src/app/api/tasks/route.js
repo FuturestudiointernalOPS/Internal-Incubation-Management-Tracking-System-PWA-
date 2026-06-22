@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { logAuditEvent, isTaskLocked } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
 import { requireAuth } from "@/lib/auth";
+import { standupUpsert } from "@/lib/standupUpsert";
 
 /**
  * TASKS API
@@ -456,6 +457,26 @@ export async function POST(req) {
       } catch (_) {}
     }
 
+    // ─── Auto-upsert weekly standup (unified task→standup sync) ───
+    try {
+      const userRes = await db.execute({
+        sql: "SELECT role FROM contacts WHERE cid = ? LIMIT 1",
+        args: [user_id],
+      });
+      const userRole = userRes.rows[0]?.role || "staff";
+
+      await standupUpsert({
+        user_id,
+        user_name: user_name || "Unknown",
+        user_role: userRole,
+        week_number: created_week,
+        year: created_year,
+        taskContext: { title, status: finalStatus },
+      });
+    } catch (e) {
+      console.error("Standup upsert failed (non-blocking):", e.message);
+    }
+
     return NextResponse.json({
       success: true,
       id: taskId,
@@ -904,6 +925,20 @@ export async function PUT(req) {
       });
     }
 
+    // ─── Rebuild standup task list after task update ───
+    if (status !== undefined || title !== undefined) {
+      try {
+        const { rebuildStandupTasks } = await import("@/lib/standupUpsert");
+        await rebuildStandupTasks(
+          task.user_id,
+          task.created_week,
+          task.created_year,
+        );
+      } catch (e) {
+        console.error("Standup rebuild failed (non-blocking):", e.message);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       id: parseInt(id),
@@ -988,9 +1023,9 @@ export async function DELETE(req) {
       );
     }
 
-    // Get task info before deleting
+    // Get task info before deleting (need all fields for standup rebuild)
     const taskInfo = await db.execute({
-      sql: "SELECT title, user_id, user_name FROM tasks WHERE id = ?",
+      sql: "SELECT title, user_id, user_name, created_week, created_year FROM tasks WHERE id = ?",
       args: [parseInt(id)],
     });
 
@@ -1017,6 +1052,18 @@ export async function DELETE(req) {
         details: `Task "${task.title}" deleted`,
         metadata: { title: task.title },
       });
+
+      // ─── Rebuild standup after task deletion ───
+      try {
+        const { rebuildStandupTasks } = await import("@/lib/standupUpsert");
+        await rebuildStandupTasks(
+          task.user_id,
+          task.created_week,
+          task.created_year,
+        );
+      } catch (e) {
+        console.error("Standup rebuild failed (non-blocking):", e.message);
+      }
     }
 
     return NextResponse.json({
