@@ -543,9 +543,13 @@ export async function PUT(req) {
     const task = currentTask.rows[0];
     const locked = await isTaskLocked(id);
 
-    // Ownership enforcement: only the task creator can change status
+    // Ownership enforcement: only the task creator or super_admin can change status
     if (status !== undefined && status !== task.status) {
-      if (String(user_id) !== String(task.user_id)) {
+      const effectiveUserId = user_id || session.cid;
+      if (
+        session.role !== "super_admin" &&
+        String(effectiveUserId) !== String(task.user_id)
+      ) {
         return NextResponse.json(
           {
             success: false,
