@@ -167,6 +167,13 @@ export async function POST(req) {
 
       for (const field of allFields) {
         if (fieldValues[field] !== undefined) {
+          // Merge projects_tasks: don't overwrite auto-generated tasks with empty/null
+          if (
+            field === "projects_tasks" &&
+            (!fieldValues[field] || fieldValues[field].trim() === "")
+          ) {
+            continue; // skip — keep existing tasks
+          }
           updateFields.push(`${field} = ?`);
           updateArgs.push(fieldValues[field]);
         }
