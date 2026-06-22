@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronRight,
   Shield,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -208,6 +209,39 @@ export default function ProjectKanbanBoard() {
     [projectTasks],
   );
 
+  const [deletingTaskId, setDeletingTaskId] = useState(null);
+
+  const handleDeleteTask = useCallback(async (taskId) => {
+    if (!confirm("Delete this task? This action cannot be undone.")) return;
+    setDeletingTaskId(taskId);
+    try {
+      const res = await fetch(`/api/tasks?id=${taskId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        // Remove from uncategorized if present
+        setUncategorizedTasks((prev) => prev.filter((t) => t.id !== taskId));
+        // Remove from any expanded project tasks
+        setProjectTasks((prev) => {
+          const next = { ...prev };
+          for (const pid of Object.keys(next)) {
+            next[pid] = next[pid].filter((t) => t.id !== taskId);
+          }
+          return next;
+        });
+      } else {
+        alert(data.error || "Failed to delete task.");
+      }
+    } catch (e) {
+      console.error("Delete task error:", e);
+      alert("Network error deleting task.");
+    } finally {
+      setDeletingTaskId(null);
+    }
+  }, []);
+
+  const isSuperAdmin =
+    user?.role === "super_admin" || user?.role === "developer";
+
   const handleProjectClick = (projectId) => {
     if (expandedProject === projectId) {
       setExpandedProject(null);
@@ -368,7 +402,7 @@ export default function ProjectKanbanBoard() {
                               (projectTasks[project.id] || []).map((task) => (
                                 <div
                                   key={task.id}
-                                  className="p-2 rounded-md bg-tertiary/50 border border-[var(--border-primary)] flex items-center justify-between"
+                                  className="p-2 rounded-md bg-tertiary/50 border border-[var(--border-primary)] flex items-center justify-between gap-2"
                                 >
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[10px] font-semibold text-[var(--text-primary)] truncate">
@@ -378,21 +412,40 @@ export default function ProjectKanbanBoard() {
                                       {task.user_name || "Unassigned"}
                                     </p>
                                   </div>
-                                  <span
-                                    className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
-                                      task.status === "completed"
-                                        ? "text-emerald-400 bg-emerald-500/10"
-                                        : task.status === "blocked"
-                                          ? "text-rose-400 bg-rose-500/10"
-                                          : task.status === "carried_over"
-                                            ? "text-purple-400 bg-purple-500/10"
-                                            : task.status === "in_progress"
-                                              ? "text-blue-400 bg-blue-500/10"
-                                              : "text-slate-400 bg-slate-500/10"
-                                    }`}
-                                  >
-                                    {task.status?.replace(/_/g, " ")}
-                                  </span>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span
+                                      className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                                        task.status === "completed"
+                                          ? "text-emerald-400 bg-emerald-500/10"
+                                          : task.status === "blocked"
+                                            ? "text-rose-400 bg-rose-500/10"
+                                            : task.status === "carried_over"
+                                              ? "text-purple-400 bg-purple-500/10"
+                                              : task.status === "in_progress"
+                                                ? "text-blue-400 bg-blue-500/10"
+                                                : "text-slate-400 bg-slate-500/10"
+                                      }`}
+                                    >
+                                      {task.status?.replace(/_/g, " ")}
+                                    </span>
+                                    {isSuperAdmin && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteTask(task.id);
+                                        }}
+                                        disabled={deletingTaskId === task.id}
+                                        className="p-0.5 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
+                                        title="Delete task"
+                                      >
+                                        {deletingTaskId === task.id ? (
+                                          <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                          <Trash2 className="w-3 h-3" />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               ))
                             )}
@@ -419,7 +472,7 @@ export default function ProjectKanbanBoard() {
                         key={task.id}
                         className="p-2.5 rounded-lg border border-dashed border-[var(--border-primary)] bg-tertiary/50"
                       >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-bold text-[var(--text-primary)]">
                               {task.title}
@@ -428,9 +481,25 @@ export default function ProjectKanbanBoard() {
                               {task.user_name || "Unassigned"}
                             </p>
                           </div>
-                          <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-500/10 ml-2 whitespace-nowrap">
-                            Internal
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-500/10 whitespace-nowrap">
+                              Internal
+                            </span>
+                            {isSuperAdmin && (
+                              <button
+                                onClick={() => handleDeleteTask(task.id)}
+                                disabled={deletingTaskId === task.id}
+                                className="p-0.5 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
+                                title="Delete task"
+                              >
+                                {deletingTaskId === task.id ? (
+                                  <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3 h-3" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
