@@ -103,6 +103,19 @@ export default function TaskManager({
   });
   const [projectSearch, setProjectSearch] = useState("");
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const projectDropdownRef = useRef(null);
+
+  // Close project dropdown on outside click
+  useEffect(() => {
+    if (!showProjectDropdown) return;
+    const handler = (e) => {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target)) {
+        setShowProjectDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showProjectDropdown]);
 
   // Form state
   const [form, setForm] = useState({
@@ -570,7 +583,7 @@ export default function TaskManager({
           {!pendingParentTaskId && (
             <div className="grid grid-cols-2 gap-2">
               {/* Project picker */}
-              <div className="relative">
+              <div className="relative" ref={projectDropdownRef}>
                 <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Project
                 </label>
