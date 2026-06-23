@@ -300,22 +300,9 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // Phase 2: Check project assignment if project_id provided
+    // Phase 2: All Future Studio staff can add tasks to any project — skip membership check
     let finalStatus = status || "in_progress";
     let pendingApproval = false;
-
-    if (finalProjectId) {
-      const memberCheck = await db.execute({
-        sql: "SELECT id FROM project_members WHERE project_id = ? AND user_cid = ?",
-        args: [finalProjectId, user_id],
-      });
-
-      if (memberCheck.rows.length === 0) {
-        // Staff not assigned to this project — flag for approval
-        finalStatus = "pending_project_approval";
-        pendingApproval = true;
-      }
-    }
 
     const result = await db.execute({
       sql: `INSERT INTO tasks
@@ -342,53 +329,6 @@ export async function POST(req) {
     });
 
     const taskId = Number(result.lastInsertRowid);
-
-    // Phase 2: Create approval request + notification if pending
-    if (pendingApproval && finalProjectId) {
-      // Create approval request record
-      await db.execute({
-        sql: `INSERT INTO project_approval_requests
-          (task_id, requester_id, requester_name, project_id, status)
-          VALUES (?, ?, ?, ?, 'pending')`,
-        args: [taskId, user_id, user_name || "", finalProjectId],
-      });
-
-      // Notify project owner (or Super Admin as fallback)
-      try {
-        const projectInfo = await db.execute({
-          sql: "SELECT name FROM v2_projects WHERE id = ?",
-          args: [finalProjectId],
-        });
-        const projectName =
-          projectInfo.rows[0]?.name || `Project #${finalProjectId}`;
-
-        // Get project leads/members to notify
-        const leads = await db.execute({
-          sql: "SELECT user_cid FROM project_members WHERE project_id = ? AND role = 'lead'",
-          args: [finalProjectId],
-        });
-        const notifyIds =
-          leads.rows.length > 0 ? leads.rows.map((r) => r.user_cid) : ["sa"];
-
-        for (const recipient_id of notifyIds) {
-          await fetch(`${req.nextUrl.origin}/api/notifications`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipient_id,
-              title: "Project Contribution Request",
-              message: `${user_name || user_id} wants to link task "${title}" to "${projectName}". Please review and approve.`,
-              type: "approval",
-            }),
-          });
-        }
-      } catch (notifErr) {
-        console.error(
-          "Failed to send approval notification:",
-          notifErr.message,
-        );
-      }
-    }
 
     // Audit log: Task Created
     await logAuditEvent({
