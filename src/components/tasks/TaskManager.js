@@ -109,7 +109,10 @@ export default function TaskManager({
   useEffect(() => {
     if (!showProjectDropdown) return;
     const handler = (e) => {
-      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target)) {
+      if (
+        projectDropdownRef.current &&
+        !projectDropdownRef.current.contains(e.target)
+      ) {
         setShowProjectDropdown(false);
       }
     };
@@ -197,10 +200,15 @@ export default function TaskManager({
   );
 
   // ── Submit new task from form ──
+  const [creating, setCreating] = useState(false);
+  const [addedCount, setAddedCount] = useState(0);
+
   const handleAddTask = useCallback(async () => {
+    if (creating) return;
     if (!form.name.trim()) return;
     if (!form.project_id && !form.category) return;
 
+    setCreating(true);
     const data = await createTask({
       title: form.name.trim(),
       project_id: form.project_id || null,
@@ -211,20 +219,20 @@ export default function TaskManager({
     });
 
     if (data.success) {
-      setForm({
-        name: "",
-        project_id: "",
-        category: "",
-        start_date: "",
-        due_date: "",
-        start_time: "",
-        due_time: "",
-      });
+      setForm((p) => ({ ...p, name: "", start_date: "", due_date: "", start_time: "", due_time: "" }));
       setPendingParentTaskId(null);
-      setShowTaskForm(false);
+      setAddedCount((c) => c + 1);
       if (onTasksChange) onTasksChange();
     }
-  }, [form, pendingParentTaskId, createTask, onTasksChange]);
+    setCreating(false);
+  }, [form, pendingParentTaskId, createTask, onTasksChange, creating]);
+
+  const handleCloseForm = useCallback(() => {
+    setShowTaskForm(false);
+    setPendingParentTaskId(null);
+    setAddedCount(0);
+    setForm({ name: "", project_id: "", category: "", start_date: "", due_date: "", start_time: "", due_time: "" });
+  }, []);
 
   // ── Open sub-task popup modal ──
   const openSubTask = useCallback(
@@ -704,21 +712,16 @@ export default function TaskManager({
           <div className="flex gap-2">
             <button
               onClick={handleAddTask}
-              disabled={
-                !form.name.trim() || (!form.project_id && !form.category)
-              }
+              disabled={creating || !form.name.trim() || (!form.project_id && !form.category)}
               className="flex-1 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition-all"
             >
-              {pendingParentTaskId ? "Add Sub-task" : "Add Task"}
+              {creating ? "Saving..." : pendingParentTaskId ? "Add Sub-task" : addedCount > 0 ? "Add Another Task" : "Add Task"}
             </button>
             <button
-              onClick={() => {
-                setShowTaskForm(false);
-                setPendingParentTaskId(null);
-              }}
+              onClick={handleCloseForm}
               className="px-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[8px] font-black uppercase tracking-wider text-slate-500 hover:text-[var(--text-primary)] transition-all"
             >
-              Cancel
+              {addedCount > 0 ? "Done" : "Cancel"}
             </button>
           </div>
         </div>
