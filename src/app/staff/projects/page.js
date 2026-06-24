@@ -148,7 +148,14 @@ export default function MyProjects() {
               return (
                 <div
                   key={project.id}
-                  onClick={() => router.push(`/admin/projects/${project.id}`)}
+                  onClick={() => {
+                    // Route based on user role — admin goes to admin path, staff goes to staff path
+                    const base =
+                      user?.role === "super_admin" || user?.role === "developer"
+                        ? "/admin"
+                        : "/staff";
+                    router.push(`${base}/projects/${project.id}`);
+                  }}
                   className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all hover:bg-tertiary border-[var(--border-primary)]"
                 >
                   <div className="flex flex-col lg:flex-row items-stretch">
@@ -225,8 +232,11 @@ export default function MyProjects() {
                       <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[var(--border-primary)]">
                         <span className="text-[9px] text-slate-500 flex items-center gap-1">
                           <Users className="w-3 h-3" />
-                          {project.members?.filter((m) => m.role === "lead")
-                            .length > 0
+                          {project.members?.some(
+                            (m) =>
+                              m.user_cid === (user?.cid || user?.id) &&
+                              m.role === "lead",
+                          )
                             ? "You are lead"
                             : "Member"}
                         </span>
