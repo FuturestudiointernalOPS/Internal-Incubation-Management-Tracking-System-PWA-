@@ -940,68 +940,66 @@ export default function StaffOpReport() {
                     onClick={() => {
                       setShowStandupModal(true);
                       setWeekInfo(getCurrentWeek());
-                      // Load existing tasks for this week into taskRows (only when continuing a draft)
-                      if (existingReport) {
-                        const currentWeekData = getCurrentWeek();
-                        // Show all active tasks regardless of week — incomplete tasks carry forward
-                        const weekTasks = tasks.filter(
-                          (t) =>
-                            !["completed", "archived"].includes(t.status) &&
-                            !t.parent_task_id,
-                        );
-                        // Flatten subtasks into the task rows array
-                        const allTaskRows = [];
-                        for (const t of weekTasks) {
-                          allTaskRows.push({
-                            id: t.id,
-                            name: t.title,
-                            description: t.description || "",
-                            project_id: t.project_id || null,
-                            category: t.category || "",
-                            start_date: t.start_date || "",
-                            start_time: "",
-                            due_date: t.end_date || "",
-                            due_time: "",
-                            blockers:
-                              t.blockers?.map((b) => ({
-                                id: b.id,
-                                description: b.title,
-                                severity: b.severity || "medium",
-                                status: b.status || "Active",
-                                created_at: b.created_at,
-                              })) || [],
-                            parent_task_id: t.parent_task_id || null,
-                            status: t.status,
-                            collaborators: [],
-                            uncompleted_reason: "",
-                          });
-                          // Append subtasks right after their parent
-                          if (t.subtasks?.length > 0) {
-                            for (const st of t.subtasks) {
-                              allTaskRows.push({
-                                id: st.id,
-                                name: st.title,
-                                description: "",
-                                project_id: t.project_id || null,
-                                category: t.category || "",
-                                start_date: "",
-                                start_time: "",
-                                due_date: "",
-                                due_time: "",
-                                blockers: [],
-                                parent_task_id: t.id,
-                                status: st.status,
-                                collaborators: [],
-                                uncompleted_reason: "",
-                              });
-                            }
+                      // Always load tasks — regardless of whether a standup report exists
+                      const currentWeekData = getCurrentWeek();
+                      // Show all active tasks — incomplete tasks carry forward
+                      const weekTasks = tasks.filter(
+                        (t) =>
+                          !["completed", "archived"].includes(t.status) &&
+                          !t.parent_task_id,
+                      );
+                      // Flatten subtasks into the task rows array
+                      const allTaskRows = [];
+                      for (const t of weekTasks) {
+                        allTaskRows.push({
+                          id: t.id,
+                          name: t.title,
+                          description: t.description || "",
+                          project_id: t.project_id || null,
+                          category: t.category || "",
+                          start_date: t.start_date || "",
+                          start_time: "",
+                          due_date: t.end_date || "",
+                          due_time: "",
+                          blockers:
+                            t.blockers?.map((b) => ({
+                              id: b.id,
+                              description: b.title,
+                              severity: b.severity || "medium",
+                              status: b.status || "Active",
+                              created_at: b.created_at,
+                            })) || [],
+                          parent_task_id: t.parent_task_id || null,
+                          status: t.status,
+                          collaborators: [],
+                          uncompleted_reason: "",
+                        });
+                        // Append subtasks right after their parent
+                        if (t.subtasks?.length > 0) {
+                          for (const st of t.subtasks) {
+                            allTaskRows.push({
+                              id: st.id,
+                              name: st.title,
+                              description: "",
+                              project_id: t.project_id || null,
+                              category: t.category || "",
+                              start_date: "",
+                              start_time: "",
+                              due_date: "",
+                              due_time: "",
+                              blockers: [],
+                              parent_task_id: t.id,
+                              status: st.status,
+                              collaborators: [],
+                              uncompleted_reason: "",
+                            });
                           }
                         }
-                        if (allTaskRows.length > 0) {
-                          setTaskRows(allTaskRows);
-                          setShowTaskForm(false);
-                          return;
-                        }
+                      }
+                      if (allTaskRows.length > 0) {
+                        setTaskRows(allTaskRows);
+                        setShowTaskForm(false);
+                        return;
                       }
                       setShowTaskForm(true);
                     }}
@@ -1230,45 +1228,58 @@ export default function StaffOpReport() {
                                               </thead>
                                               <tbody>
                                                 {(() => {
-                                                  const weekTasks = tasks.filter(
-                                                    (t) =>
-                                                      t.created_week ===
-                                                        report.week_number &&
-                                                      t.created_year ===
-                                                        report.year,
-                                                  );
-                                                  const mainTasks = weekTasks.filter(
-                                                    (t) => !t.parent_task_id,
-                                                  );
-                                                  const subTasks = weekTasks.filter(
-                                                    (t) => t.parent_task_id,
-                                                  );
+                                                  const weekTasks =
+                                                    tasks.filter(
+                                                      (t) =>
+                                                        t.created_week ===
+                                                          report.week_number &&
+                                                        t.created_year ===
+                                                          report.year,
+                                                    );
+                                                  const mainTasks =
+                                                    weekTasks.filter(
+                                                      (t) => !t.parent_task_id,
+                                                    );
+                                                  const subTasks =
+                                                    weekTasks.filter(
+                                                      (t) => t.parent_task_id,
+                                                    );
 
                                                   const rowsToRender = [];
-                                                  const renderedSubTaskIds = new Set();
+                                                  const renderedSubTaskIds =
+                                                    new Set();
 
-                                                  mainTasks.forEach((mainTask) => {
-                                                    rowsToRender.push({
-                                                      ...mainTask,
-                                                      isSubtask: false,
-                                                    });
-                                                    const children = subTasks.filter(
-                                                      (st) =>
-                                                        st.parent_task_id ===
-                                                        mainTask.id,
-                                                    );
-                                                    children.forEach((st) => {
+                                                  mainTasks.forEach(
+                                                    (mainTask) => {
                                                       rowsToRender.push({
-                                                        ...st,
-                                                        isSubtask: true,
+                                                        ...mainTask,
+                                                        isSubtask: false,
                                                       });
-                                                      renderedSubTaskIds.add(st.id);
-                                                    });
-                                                  });
+                                                      const children =
+                                                        subTasks.filter(
+                                                          (st) =>
+                                                            st.parent_task_id ===
+                                                            mainTask.id,
+                                                        );
+                                                      children.forEach((st) => {
+                                                        rowsToRender.push({
+                                                          ...st,
+                                                          isSubtask: true,
+                                                        });
+                                                        renderedSubTaskIds.add(
+                                                          st.id,
+                                                        );
+                                                      });
+                                                    },
+                                                  );
 
                                                   // Catch any orphaned subtasks (parent not in this week)
                                                   subTasks.forEach((st) => {
-                                                    if (!renderedSubTaskIds.has(st.id)) {
+                                                    if (
+                                                      !renderedSubTaskIds.has(
+                                                        st.id,
+                                                      )
+                                                    ) {
                                                       rowsToRender.push({
                                                         ...st,
                                                         isSubtask: true,
@@ -1277,89 +1288,96 @@ export default function StaffOpReport() {
                                                     }
                                                   });
 
-                                                  return rowsToRender.map((task) => {
-                                                    const config =
-                                                      STATUS_CONFIG[
-                                                        task.status
-                                                      ] ||
-                                                      STATUS_CONFIG.pending;
-                                                    const activeBlockers = (
-                                                      task.blockers || []
-                                                    ).filter(
-                                                      (b) =>
-                                                        b.status === "active",
-                                                    );
-                                                    return (
-                                                      <tr
-                                                        key={task.id}
-                                                        className={`border-b border-[var(--border-primary)]/40 hover:bg-primary/50 transition-colors ${
-                                                          task.isSubtask && !task.isOrphan ? "bg-tertiary/20" : ""
-                                                        }`}
-                                                      >
-                                                        <td className={`px-3 py-2.5 ${task.isSubtask && !task.isOrphan ? "pl-8" : ""}`}>
-                                                          <div className="flex items-center gap-2">
-                                                            {task.isSubtask && (
-                                                              <CornerDownRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                                                            )}
-                                                            <div
-                                                              className={`w-1.5 h-1.5 rounded-full ${config.color.replace("text-", "bg-")} shrink-0`}
-                                                            />
-                                                            <span className="text-[12px] font-medium text-[var(--text-primary)]">
-                                                              {task.title}
-                                                            </span>
-                                                          </div>
-                                                        </td>
-                                                        <td className="px-3 py-2.5 text-[11px] text-slate-500">
-                                                          {task.project_id
-                                                            ? assignedProjects.find(
-                                                                (p) =>
-                                                                  String(
-                                                                    p.id,
-                                                                  ) ===
-                                                                  String(
-                                                                    task.project_id,
-                                                                  ),
-                                                              )?.name ||
-                                                              t(
-                                                                "staff.table.projectFallback",
-                                                              )
-                                                            : task.category ||
-                                                              "—"}
-                                                        </td>
-                                                        <td className="px-3 py-2.5 text-[11px] text-slate-500">
-                                                          {formatDate(
-                                                            task.end_date,
-                                                          )}
-                                                        </td>
-                                                        <td className="px-3 py-2.5">
-                                                          {activeBlockers.length >
-                                                          0 ? (
-                                                            <span className="flex items-center gap-1 text-[10px] text-rose-400">
-                                                              <Shield className="w-3 h-3" />
-                                                              {
-                                                                activeBlockers.length
-                                                              }
-                                                            </span>
-                                                          ) : (
-                                                            <span className="text-[10px] text-slate-600">
-                                                              —
-                                                            </span>
-                                                          )}
-                                                        </td>
-                                                        <td className="px-3 py-2.5">
-                                                          <span
-                                                            className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}
+                                                  return rowsToRender.map(
+                                                    (task) => {
+                                                      const config =
+                                                        STATUS_CONFIG[
+                                                          task.status
+                                                        ] ||
+                                                        STATUS_CONFIG.pending;
+                                                      const activeBlockers = (
+                                                        task.blockers || []
+                                                      ).filter(
+                                                        (b) =>
+                                                          b.status === "active",
+                                                      );
+                                                      return (
+                                                        <tr
+                                                          key={task.id}
+                                                          className={`border-b border-[var(--border-primary)]/40 hover:bg-primary/50 transition-colors ${
+                                                            task.isSubtask &&
+                                                            !task.isOrphan
+                                                              ? "bg-tertiary/20"
+                                                              : ""
+                                                          }`}
+                                                        >
+                                                          <td
+                                                            className={`px-3 py-2.5 ${task.isSubtask && !task.isOrphan ? "pl-8" : ""}`}
                                                           >
-                                                            {t(
-                                                              statusLabelKey(
-                                                                task.status,
-                                                              ),
+                                                            <div className="flex items-center gap-2">
+                                                              {task.isSubtask && (
+                                                                <CornerDownRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                                              )}
+                                                              <div
+                                                                className={`w-1.5 h-1.5 rounded-full ${config.color.replace("text-", "bg-")} shrink-0`}
+                                                              />
+                                                              <span className="text-[12px] font-medium text-[var(--text-primary)]">
+                                                                {task.title}
+                                                              </span>
+                                                            </div>
+                                                          </td>
+                                                          <td className="px-3 py-2.5 text-[11px] text-slate-500">
+                                                            {task.project_id
+                                                              ? assignedProjects.find(
+                                                                  (p) =>
+                                                                    String(
+                                                                      p.id,
+                                                                    ) ===
+                                                                    String(
+                                                                      task.project_id,
+                                                                    ),
+                                                                )?.name ||
+                                                                t(
+                                                                  "staff.table.projectFallback",
+                                                                )
+                                                              : task.category ||
+                                                                "—"}
+                                                          </td>
+                                                          <td className="px-3 py-2.5 text-[11px] text-slate-500">
+                                                            {formatDate(
+                                                              task.end_date,
                                                             )}
-                                                          </span>
-                                                        </td>
-                                                      </tr>
-                                                    );
-                                                  });
+                                                          </td>
+                                                          <td className="px-3 py-2.5">
+                                                            {activeBlockers.length >
+                                                            0 ? (
+                                                              <span className="flex items-center gap-1 text-[10px] text-rose-400">
+                                                                <Shield className="w-3 h-3" />
+                                                                {
+                                                                  activeBlockers.length
+                                                                }
+                                                              </span>
+                                                            ) : (
+                                                              <span className="text-[10px] text-slate-600">
+                                                                —
+                                                              </span>
+                                                            )}
+                                                          </td>
+                                                          <td className="px-3 py-2.5">
+                                                            <span
+                                                              className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}
+                                                            >
+                                                              {t(
+                                                                statusLabelKey(
+                                                                  task.status,
+                                                                ),
+                                                              )}
+                                                            </span>
+                                                          </td>
+                                                        </tr>
+                                                      );
+                                                    },
+                                                  );
                                                 })()}
                                               </tbody>
                                             </table>
