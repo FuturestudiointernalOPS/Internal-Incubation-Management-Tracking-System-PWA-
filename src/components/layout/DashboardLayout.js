@@ -770,22 +770,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     const matrix = NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin;
     const items = [...matrix];
 
-    // Inject developer tools for gwyn's account
-    if (user.email === "gwyn.ukoha@gmail.com") {
-      items.splice(1, 0, {
-        id: "developer_tools",
-        name: "DEVELOPER",
-        icon: Wrench,
-        subItems: [
-          {
-            id: "error_logs",
-            name: "ERROR LOGS",
-            href: "/developer/errors",
-          },
-        ],
-      });
-    }
-
     if (
       (activeRole === "program_manager" || activeRole === "super_admin") &&
       pmPrograms.length > 0
