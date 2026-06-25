@@ -124,11 +124,11 @@ export default function DeveloperDashboard() {
             <div className="flex items-center gap-2">
               <Wrench className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Developer Console
+                Developer Workspace
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Developer Dashboard
+              Developer Dashboard Developer Dashboard
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
               Your tasks, errors, and daily workflow
