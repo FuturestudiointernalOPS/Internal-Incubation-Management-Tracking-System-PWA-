@@ -37,7 +37,7 @@ export async function logAuditEvent({
 }
 
 /**
- * Check if a task is locked (older than 12 hours)
+ * Check if a task is locked (older than 6 days)
  * Locked tasks cannot have their title/description modified or be deleted.
  * Status updates are still allowed.
  */
@@ -53,7 +53,7 @@ export async function isTaskLocked(taskId) {
     const createdAt = new Date(result.rows[0].created_at);
     const now = new Date();
     const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
-    return hoursDiff >= 12;
+    return hoursDiff >= 144; // 6 days
   } catch (e) {
     console.error("Task lock check error:", e.message);
     return false;
