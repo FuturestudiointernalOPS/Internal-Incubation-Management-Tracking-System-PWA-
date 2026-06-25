@@ -67,6 +67,17 @@ export default function DeveloperErrors() {
   const [expandedId, setExpandedId] = useState(null);
   const [resolutionNotes, setResolutionNotes] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
+  const [userRole, setUserRole] = useState("developer");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("user");
+      if (saved) {
+        const u = JSON.parse(saved);
+        setUserRole(u.role || "developer");
+      }
+    } catch (_) {}
+  }, []);
 
   const fetchErrors = useCallback(async () => {
     setLoading(true);
@@ -119,7 +130,7 @@ export default function DeveloperErrors() {
   };
 
   return (
-    <DashboardLayout role="super_admin" activeTab="error_logs">
+    <DashboardLayout role={userRole} activeTab="error_logs">
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
