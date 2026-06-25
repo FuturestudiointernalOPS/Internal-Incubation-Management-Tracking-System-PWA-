@@ -126,6 +126,10 @@ export async function GET(req) {
       case "updated":
         sql += " ORDER BY updated_at DESC";
         break;
+      case "priority":
+        sql +=
+          " ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, created_at DESC";
+        break;
       default:
         sql += " ORDER BY created_at DESC";
     }

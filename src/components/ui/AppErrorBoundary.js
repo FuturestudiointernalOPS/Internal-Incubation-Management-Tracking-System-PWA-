@@ -72,7 +72,11 @@ export default class AppErrorBoundary extends Component {
     }
 
     // Report error to the API
-    this.reportError(error, errorInfo);
+    this.reportError(error, errorInfo, {
+      page: typeof window !== "undefined" ? window.location.pathname : null,
+      action: "render",
+      severity: "error",
+    });
 
     // Optionally call custom onError handler
     if (typeof this.props.onError === "function") {
@@ -83,18 +87,24 @@ export default class AppErrorBoundary extends Component {
   /**
    * Reports the error to /api/errors for server-side logging.
    */
-  reportError(error, errorInfo) {
+  reportError(error, errorInfo, context = {}) {
     try {
       const payload = {
         message: error?.message || "Unknown render error",
         stack: error?.stack || null,
         url: typeof window !== "undefined" ? window.location.href : null,
+        user_id: context.userId || null,
+        user_name: context.userName || null,
         user_agent:
           typeof navigator !== "undefined" ? navigator.userAgent : null,
-        severity: "error",
+        severity: context.severity || "error",
         method: "GET",
         endpoint:
           typeof window !== "undefined" ? window.location.pathname : null,
+        page:
+          context.page ||
+          (typeof window !== "undefined" ? window.location.pathname : null),
+        action_attempted: context.action || null,
       };
 
       if (typeof navigator !== "undefined" && navigator.sendBeacon) {

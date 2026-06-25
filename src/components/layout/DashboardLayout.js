@@ -33,6 +33,7 @@ import {
   UploadCloud,
   ListTodo,
   Wrench,
+  CheckSquare,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -216,7 +217,7 @@ const SidebarContent = ({
           </p>
         )}
         <Link
-          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" ? "developer" : "participant"}/profile`}
+          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" || role === "intern" ? "developer" : "participant"}/profile`}
           className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
         >
           <User className="w-4 h-4 flex-shrink-0" />
@@ -337,6 +338,12 @@ const NAVIGATION_MATRIX = {
       name: "HEALTH",
       icon: Activity,
       href: "/admin/metrics",
+    },
+    {
+      id: "engineering",
+      name: "ENGINEERING",
+      icon: Wrench,
+      href: "/admin/engineering",
     },
   ],
   admin: [
@@ -480,6 +487,94 @@ const NAVIGATION_MATRIX = {
           href: "/staff/projects",
         },
       ],
+    },
+  ],
+  developer: [
+    {
+      id: "dashboard",
+      name: "DASHBOARD",
+      icon: LayoutDashboard,
+      href: "/developer",
+    },
+    {
+      id: "my_tasks",
+      name: "MY TASKS",
+      icon: CheckSquare,
+      href: "/developer/my-tasks",
+    },
+    {
+      id: "assigned_tasks",
+      name: "ASSIGNED TASKS",
+      icon: ListTodo,
+      href: "/developer/assigned-tasks",
+    },
+    {
+      id: "rituals",
+      name: "STANDUPS & RETROS",
+      icon: MessageSquare,
+      subItems: [
+        { id: "standup", name: "STANDUP", href: "/developer/standup" },
+        { id: "retro", name: "RETRO", href: "/developer/retro" },
+      ],
+    },
+    {
+      id: "projects",
+      name: "PROJECTS",
+      icon: Briefcase,
+      href: "/developer/projects",
+    },
+    {
+      id: "notifications",
+      name: "NOTIFICATIONS",
+      icon: Bell,
+      href: "/developer/notifications",
+    },
+    {
+      id: "messages",
+      name: "MESSAGES",
+      icon: Send,
+      href: "/developer/messages",
+    },
+  ],
+  intern: [
+    {
+      id: "dashboard",
+      name: "DASHBOARD",
+      icon: LayoutDashboard,
+      href: "/developer",
+    },
+    {
+      id: "my_tasks",
+      name: "MY TASKS",
+      icon: CheckSquare,
+      href: "/developer/my-tasks",
+    },
+    {
+      id: "assigned_tasks",
+      name: "ASSIGNED TASKS",
+      icon: ListTodo,
+      href: "/developer/assigned-tasks",
+    },
+    {
+      id: "rituals",
+      name: "STANDUPS & RETROS",
+      icon: MessageSquare,
+      subItems: [
+        { id: "standup", name: "STANDUP", href: "/developer/standup" },
+        { id: "retro", name: "RETRO", href: "/developer/retro" },
+      ],
+    },
+    {
+      id: "notifications",
+      name: "NOTIFICATIONS",
+      icon: Bell,
+      href: "/developer/notifications",
+    },
+    {
+      id: "messages",
+      name: "MESSAGES",
+      icon: Send,
+      href: "/developer/messages",
     },
   ],
   participant: [

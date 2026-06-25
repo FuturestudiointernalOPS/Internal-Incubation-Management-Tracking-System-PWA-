@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 
 /**
  * POST /api/errors — Accepts error reports from client-side.
- */
+ -- Error Logs — Accepts error reports from client-side.
+  */
 export async function POST(request) {
   try {
     const {
@@ -11,12 +12,15 @@ export async function POST(request) {
       stack,
       url,
       user_id,
+      user_name,
       user_agent,
       severity,
       status_code,
       method,
       endpoint,
       request_body,
+      page,
+      action_attempted,
     } = await request.json();
 
     if (!message) {
@@ -28,9 +32,10 @@ export async function POST(request) {
 
     const dbInstance = await initDb();
 
-    await dbInstance.execute({
-      sql: `INSERT INTO error_logs (message, stack, url, user_id, user_agent, severity, status_code, method, endpoint, request_body)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    const result = await dbInstance.execute({
+      sql: `INSERT INTO error_logs (message, stack, url, user_id, user_agent, severity, status_code, method, endpoint, request_body, page, action_attempted)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             RETURNING id`,
       args: [
         message,
         stack || null,
@@ -42,10 +47,13 @@ export async function POST(request) {
         method || null,
         endpoint || null,
         request_body || null,
+        page || null,
+        action_attempted || null,
       ],
     });
 
-    return NextResponse.json({ success: true });
+    const newId = result.rows?.[0]?.id || result.lastInsertRowid;
+    return NextResponse.json({ success: true, id: newId });
   } catch (err) {
     console.error("[API errors] POST failed:", err);
     return NextResponse.json(
@@ -105,7 +113,7 @@ export async function GET(request) {
  */
 export async function PATCH(request) {
   try {
-    const { id, resolved, resolution_notes } = await request.json();
+    const { id, resolved, resolution_notes, task_id } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -130,6 +138,13 @@ export async function PATCH(request) {
       await dbInstance.execute({
         sql: "UPDATE error_logs SET resolution_notes = ? WHERE id = ?",
         args: [resolution_notes, id],
+      });
+    }
+
+    if (task_id !== undefined) {
+      await dbInstance.execute({
+        sql: "UPDATE error_logs SET task_id = ? WHERE id = ?",
+        args: [task_id, id],
       });
     }
 
