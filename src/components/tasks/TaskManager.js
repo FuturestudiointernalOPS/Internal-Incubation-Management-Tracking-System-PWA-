@@ -948,20 +948,30 @@ export default function TaskManager({
               <button
                 onClick={async () => {
                   if (!editForm.name.trim()) return;
-                  await fetch("/api/tasks", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      id: editTaskModal.id,
-                      title: editForm.name.trim(),
-                      description: editForm.description || null,
-                      start_date: editForm.start_date || null,
-                      end_date: editForm.due_date || null,
-                      user_id: uid,
-                    }),
-                  });
-                  setEditTaskModal(null);
-                  if (onTasksChange) onTasksChange();
+                  try {
+                    const res = await fetch("/api/tasks", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        id: editTaskModal.id,
+                        title: editForm.name.trim(),
+                        description: editForm.description || null,
+                        start_date: editForm.start_date || null,
+                        end_date: editForm.due_date || null,
+                        user_id: uid,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      setEditTaskModal(null);
+                      if (onTasksChange) onTasksChange();
+                    } else {
+                      alert(data.error || "Failed to save task.");
+                    }
+                  } catch (e) {
+                    alert("Network error saving task.");
+                    console.error(e);
+                  }
                 }}
                 disabled={!editForm.name.trim()}
                 className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40"
