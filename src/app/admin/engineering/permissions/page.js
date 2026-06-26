@@ -298,15 +298,80 @@ export default function PermissionManager() {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      setSelectedUser(null);
-                      setUserPerms(null);
-                    }}
-                    className="p-2 hover:bg-tertiary rounded-lg transition-all"
-                  >
-                    <X className="w-4 h-4 text-[var(--text-secondary)]" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {userPerms.user.role !== "super_admin" ? (
+                      <button
+                        onClick={async () => {
+                          setActionMsg("");
+                          setActionError("");
+                          try {
+                            const res = await fetch(
+                              "/api/engineering/permissions",
+                              {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  action: "promote_super_admin",
+                                  user_cid: selectedUser.cid,
+                                }),
+                              },
+                            );
+                            const data = await res.json();
+                            if (data.success) {
+                              setActionMsg("Promoted to Super Admin");
+                              selectUser(selectedUser);
+                            } else setActionError(data.error || "Failed");
+                          } catch (e) {
+                            setActionError("Network error");
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all"
+                      >
+                        <Shield className="w-3 h-3 inline mr-1" />
+                        Make Super Admin
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setActionMsg("");
+                          setActionError("");
+                          try {
+                            const res = await fetch(
+                              "/api/engineering/permissions",
+                              {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  action: "remove_super_admin",
+                                  user_cid: selectedUser.cid,
+                                }),
+                              },
+                            );
+                            const data = await res.json();
+                            if (data.success) {
+                              setActionMsg("Super Admin status removed");
+                              selectUser(selectedUser);
+                            } else setActionError(data.error || "Failed");
+                          } catch (e) {
+                            setActionError("Network error");
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
+                      >
+                        <Shield className="w-3 h-3 inline mr-1" />
+                        Remove Super Admin
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setSelectedUser(null);
+                        setUserPerms(null);
+                      }}
+                      className="p-2 hover:bg-tertiary rounded-lg transition-all"
+                    >
+                      <X className="w-4 h-4 text-[var(--text-secondary)]" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Status messages */}
