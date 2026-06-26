@@ -827,17 +827,20 @@ function RoleDefaultsView() {
 
   useEffect(() => {
     async function fetch() {
-      try {
-        const res = await fetch("/api/engineering/permissions");
-        const data = await res.json();
-        if (data.success) setRoleDefaults(data.roleDefaults || []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
+      const fetchRoleDefaults = async () => {
+          try {
+            const res = await fetch("/api/engineering/permissions");
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const text = await res.text();
+            const data = JSON.parse(text);
+            if (data.success) setRoleDefaults(data.roleDefaults || []);
+          } catch (e) {
+            console.error("Failed to load role defaults:", e.message);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchRoleDefaults();
   }, []);
 
   if (loading)

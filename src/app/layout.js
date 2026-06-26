@@ -9,9 +9,42 @@ export default function RootLayout({ children }) {
   const [themeReady, setThemeReady] = useState(false);
 
   useEffect(() => {
-    // Pre-hydration script already set data-theme on <html>.
-    // Mark ready so ThemeProvider can sync from DOM without flash.
     setThemeReady(true);
+  }, []);
+
+  // Global error capture — reports uncaught errors to /api/errors
+  useEffect(() => {
+    const handler = (event) => {
+      const error = event.error || event.reason || {};
+      const msg = error.message || event.message || "Unknown client error";
+
+      // Don't report chunk loading errors (handled by AppErrorBoundary)
+      if (msg.includes("ChunkLoadError") || msg.includes("is not a function"))
+        return;
+
+      const payload = JSON.stringify({
+        message: msg,
+        stack: error.stack || null,
+        url: window.location.href,
+        user_agent: navigator.userAgent,
+        severity: "error",
+        page: window.location.pathname,
+        action_attempted: "browser event",
+      });
+
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon("/api/errors", payload);
+      } else {
+        fetch("/api/errors", { method: "POST", body: payload }).catch(() => {});
+      }
+    };
+
+    window.addEventListener("error", handler);
+    window.addEventListener("unhandledrejection", handler);
+    return () => {
+      window.removeEventListener("error", handler);
+      window.removeEventListener("unhandledrejection", handler);
+    };
   }, []);
 
   return (
