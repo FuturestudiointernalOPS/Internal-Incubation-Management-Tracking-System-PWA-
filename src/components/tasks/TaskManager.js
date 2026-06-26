@@ -463,8 +463,8 @@ export default function TaskManager({
             </select>
           )}
 
-          {/* Edit button */}
-          {!isSub && (
+          {/* Edit button — parent AND sub tasks */}
+          {
             <button
               onClick={() => {
                 setEditForm({
@@ -483,10 +483,10 @@ export default function TaskManager({
             >
               <Edit3 className="w-3 h-3" />
             </button>
-          )}
+          }
 
-          {/* Delete button */}
-          {!isSub && (
+          {/* Delete button — parent AND sub tasks */}
+          {
             <button
               onClick={async () => {
                 if (!window.confirm(`Delete task "${task.title}"?`)) return;
@@ -498,7 +498,7 @@ export default function TaskManager({
             >
               <Trash2 className="w-3 h-3" />
             </button>
-          )}
+          }
 
           {/* Move up/down buttons */}
           {!isSub && (

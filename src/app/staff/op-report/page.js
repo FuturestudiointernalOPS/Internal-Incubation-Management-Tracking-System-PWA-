@@ -3172,7 +3172,7 @@ export default function StaffOpReport() {
                 className="flex-1 btn btn-primary gap-2 py-4"
               >
                 <Send className="w-4 h-4" />
-                {saving ? t("common.saving") : t("reports.submitReport")}
+                {saving ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
