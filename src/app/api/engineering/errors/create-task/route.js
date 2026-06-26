@@ -46,13 +46,14 @@ export async function POST(request) {
     const year = new Date().getFullYear();
 
     const result = await db.execute({
-      sql: `INSERT INTO tasks (user_id, user_name, title, description, status, priority, assigned_to, end_date, created_week, created_year, project_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO tasks (user_id, user_name, title, description, status, category, priority, assigned_to, end_date, created_week, created_year, project_id)
+            VALUES (?, ?, ?, ?, ?, 'development', ?, ?, ?, ?, ?, ?)`,
       args: [
         errorLog.user_id || "system",
         "Engineering Ops",
         title,
-        description || `Auto-created from Error Log #${error_id}: ${errorLog.message}`,
+        description ||
+          `Auto-created from Error Log #${error_id}: ${errorLog.message}`,
         "pending",
         priority || "medium",
         assignee || null,

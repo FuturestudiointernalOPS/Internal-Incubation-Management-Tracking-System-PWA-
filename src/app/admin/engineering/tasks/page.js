@@ -72,8 +72,7 @@ export default function EngineeringTasks() {
       !search ||
       t.title?.toLowerCase().includes(search.toLowerCase()) ||
       t.assignee_name?.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || t.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || t.status === statusFilter;
     const matchesPriority =
       priorityFilter === "all" || t.priority === priorityFilter;
     return matchesSearch && matchesStatus && matchesPriority;
@@ -91,8 +90,12 @@ export default function EngineeringTasks() {
       // Get current user info
       const sessionRes = await fetch("/api/auth/session");
       const sessionData = await sessionRes.json();
-      const userId = sessionData.authenticated ? sessionData.user.cid : "system";
-      const userName = sessionData.authenticated ? sessionData.user.name : "Engineering Ops";
+      const userId = sessionData.authenticated
+        ? sessionData.user.cid
+        : "system";
+      const userName = sessionData.authenticated
+        ? sessionData.user.name
+        : "Engineering Ops";
 
       const res = await fetch("/api/tasks", {
         method: "POST",
@@ -102,6 +105,7 @@ export default function EngineeringTasks() {
           user_name: userName,
           title: formTitle,
           description: formDesc || null,
+          category: "development",
           priority: formPriority,
           assigned_to: formAssignee || null,
           end_date: formDueDate || null,
@@ -260,11 +264,13 @@ export default function EngineeringTasks() {
                       <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 uppercase tracking-wider">
                         {task.status?.replace("_", " ") || "pending"}
                       </span>
-                      {task.end_date && new Date(task.end_date) < new Date() && task.status !== "completed" && (
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 uppercase tracking-wider flex items-center gap-1">
-                          <AlertTriangle className="w-2.5 h-2.5" /> Overdue
-                        </span>
-                      )}
+                      {task.end_date &&
+                        new Date(task.end_date) < new Date() &&
+                        task.status !== "completed" && (
+                          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 uppercase tracking-wider flex items-center gap-1">
+                            <AlertTriangle className="w-2.5 h-2.5" /> Overdue
+                          </span>
+                        )}
                     </div>
                     <p className="text-xs font-bold text-[var(--text-primary)] truncate">
                       #{task.id} — {task.title}
@@ -384,7 +390,9 @@ export default function EngineeringTasks() {
 
                 {formError && (
                   <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                    <p className="text-[10px] font-bold text-red-400">{formError}</p>
+                    <p className="text-[10px] font-bold text-red-400">
+                      {formError}
+                    </p>
                   </div>
                 )}
 
@@ -396,7 +404,8 @@ export default function EngineeringTasks() {
                   >
                     {formCreating ? (
                       <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Creating...
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />{" "}
+                        Creating...
                       </>
                     ) : (
                       <>
