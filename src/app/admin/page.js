@@ -940,11 +940,11 @@ export default function AdminDashboard() {
           )}
 
         {/* ──────── PENDING APPROVALS (not messages) ──────── */}
-        {notifications.filter((n) => !n.read && n.type === "verification")
+        {notifications.filter((n) => !n.is_read && n.type === "verification")
           .length > 0 && (
           <div className="space-y-4">
             {notifications
-              .filter((n) => !n.read && n.type === "verification")
+              .filter((n) => !n.is_read && n.type === "verification")
               .map((notif) => (
                 <div
                   key={notif.id}

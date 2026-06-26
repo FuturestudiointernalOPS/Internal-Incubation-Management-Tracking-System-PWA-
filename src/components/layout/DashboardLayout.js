@@ -632,7 +632,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       if (data.success) {
         setNotifications(data.notifications || []);
         setUnreadCount(
-          (data.notifications || []).filter((n) => !n.read).length,
+          (data.notifications || []).filter((n) => !n.is_read).length,
         );
       }
     } catch (e) {}
@@ -958,13 +958,13 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                                 setShowNotifications(false);
                               }
                             }}
-                            className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.read ? "bg-[var(--brand-orange)]/5" : ""}`}
+                            className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.is_read ? "bg-[var(--brand-orange)]/5" : ""}`}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">
                                 {n.title}
                               </p>
-                              {!n.read && (
+                              {!n.is_read && (
                                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
                               )}
                             </div>
