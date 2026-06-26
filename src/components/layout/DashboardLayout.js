@@ -536,41 +536,7 @@ const NAVIGATION_MATRIX = {
       href: "/developer/messages",
     },
   ],
-  intern: [
-    {
-      id: "dashboard",
-      name: "DASHBOARD",
-      icon: LayoutDashboard,
-      href: "/developer",
-    },
-    {
-      id: "my_tasks",
-      name: "MY TASKS",
-      icon: CheckSquare,
-      href: "/developer/my-tasks",
-    },
-    {
-      id: "assigned_tasks",
-      name: "ASSIGNED TASKS",
-      icon: ListTodo,
-      href: "/developer/assigned-tasks",
-    },
-    {
-      id: "rituals",
-      name: "STANDUPS & RETROS",
-      icon: MessageSquare,
-      subItems: [
-        { id: "standup", name: "STANDUP", href: "/developer/standup" },
-        { id: "retro", name: "RETRO", href: "/developer/retro" },
-      ],
-    },
-    {
-      id: "messages",
-      name: "MESSAGES",
-      icon: Send,
-      href: "/developer/messages",
-    },
-  ],
+
   participant: [
     {
       id: "dashboard",
@@ -701,6 +667,22 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           setUser(userWithFullData);
           // Sync localStorage for components that still read from it
           localStorage.setItem("user", JSON.stringify(userWithFullData));
+
+          // Fetch user groups for group-based navigation
+          try {
+            const groupsRes = await fetch(
+              `/api/user-groups?user_cid=${sessionData.user.cid}`,
+            );
+            const groupsData = await groupsRes.json();
+            if (groupsData.success && groupsData.groups.length > 0) {
+              const updatedUser = {
+                ...userWithFullData,
+                groups: groupsData.groups,
+              };
+              setUser(updatedUser);
+              localStorage.setItem("user", JSON.stringify(updatedUser));
+            }
+          } catch (_) {}
         } else {
           // Session API failed — fallback to localStorage
           const savedUser = localStorage.getItem("user");
@@ -761,6 +743,51 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   const navItems = useMemo(() => {
     // Priority: user.role (from session) > role (from prop) > fallback 'admin'
     const activeRole = user.role || role || "admin";
+
+    // Check if user belongs to Future Studio Interns group
+    const userGroups = user.groups || [];
+    const isIntern = userGroups.some(
+      (g) =>
+        g.toUpperCase() === "FUTURE STUDIO INTERNS" ||
+        g.toUpperCase() === "INTERN",
+    );
+
+    if (isIntern) {
+      // Interns get restricted navigation regardless of their role
+      return [
+        {
+          id: "dashboard",
+          name: "DASHBOARD",
+          icon: LayoutDashboard,
+          href: "/developer",
+        },
+        {
+          id: "standup",
+          name: "STAND-UP",
+          icon: MessageSquare,
+          href: "/developer/standup",
+        },
+        {
+          id: "my_tasks",
+          name: "MY TASKS",
+          icon: CheckSquare,
+          href: "/developer/my-tasks",
+        },
+        {
+          id: "projects",
+          name: "MY PROJECTS",
+          icon: Briefcase,
+          href: "/developer/projects",
+        },
+        {
+          id: "messages",
+          name: "MESSAGING",
+          icon: Send,
+          href: "/developer/messages",
+        },
+      ];
+    }
+
     const matrix = NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin;
     const items = [...matrix];
 
@@ -801,7 +828,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       }
     }
     return items;
-  }, [user.role, role, pmPrograms]);
+  }, [user.role, user.groups, role, pmPrograms]);
 
   const handleLogout = async () => {
     try {

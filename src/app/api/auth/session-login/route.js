@@ -141,8 +141,6 @@ export async function POST(req) {
         finalRole = "super_admin";
       } else if (user.role === "developer") {
         finalRole = "developer";
-      } else if (user.role === "intern") {
-        finalRole = "intern";
       } else if (pmLeadAssignment.rows.length > 0) {
         finalRole = "program_manager";
       } else if (activeTeammateAssignment.rows.length > 0) {
