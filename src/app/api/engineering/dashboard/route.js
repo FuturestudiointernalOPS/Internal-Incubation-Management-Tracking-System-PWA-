@@ -82,7 +82,7 @@ export async function GET(request) {
     const weeklyRes = await db.execute({
       sql: `SELECT assigned_to, c.name as assignee_name,
                    COUNT(*) as total_tasks,
-                   SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_tasks
+                   SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed_tasks
             FROM tasks t
             LEFT JOIN contacts c ON t.assigned_to = c.cid
             WHERE t.created_week = ? AND t.created_year = ?
