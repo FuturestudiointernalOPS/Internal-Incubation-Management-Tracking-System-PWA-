@@ -565,12 +565,6 @@ const NAVIGATION_MATRIX = {
       ],
     },
     {
-      id: "notifications",
-      name: "NOTIFICATIONS",
-      icon: Bell,
-      href: "/developer/notifications",
-    },
-    {
       id: "messages",
       name: "MESSAGES",
       icon: Send,
