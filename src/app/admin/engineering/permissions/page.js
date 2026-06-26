@@ -39,6 +39,15 @@ const ACCESS_SHORT = { 0: "—", 1: "V", 2: "C", 3: "E", 4: "D", 5: "All" };
 
 const LEVELS_ORDER = [0, 1, 2, 3, 4, 5];
 
+const ACCESS_COLORS = {
+  0: "text-slate-500",
+  1: "text-blue-400",
+  2: "text-emerald-400",
+  3: "text-amber-400",
+  4: "text-red-400",
+  5: "text-purple-400",
+};
+
 // Module grouping
 const MODULE_CATEGORIES = [
   {
@@ -991,12 +1000,3 @@ function SeedView() {
     </div>
   );
 }
-
-const ACCESS_COLORS = {
-  0: "text-slate-500",
-  1: "text-blue-400",
-  2: "text-emerald-400",
-  3: "text-amber-400",
-  4: "text-red-400",
-  5: "text-purple-400",
-};
