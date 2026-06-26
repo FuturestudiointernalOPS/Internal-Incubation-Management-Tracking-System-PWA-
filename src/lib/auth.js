@@ -237,3 +237,288 @@ export async function requireProjectAccess(projectId) {
     );
   }
 }
+
+// =============================================================================
+// AUTHORIZATION SYSTEM
+// =============================================================================
+
+export const PERMISSION_MODULES = {
+  projects: {
+    name: "Projects",
+    capabilities: ["view", "create", "edit", "delete", "archive"],
+  },
+  programs: {
+    name: "Programs",
+    capabilities: ["view", "create", "edit", "delete", "publish"],
+  },
+  users: {
+    name: "Users",
+    capabilities: [
+      "view",
+      "create",
+      "edit",
+      "suspend",
+      "delete",
+      "assign_roles",
+    ],
+  },
+  reports: {
+    name: "Reports",
+    capabilities: ["view", "create", "export", "delete"],
+  },
+  messaging: { name: "Messaging", capabilities: ["view", "send", "delete"] },
+  internal_comms: {
+    name: "Internal Communication",
+    capabilities: ["view", "create_announcements", "moderate"],
+  },
+  contacts: {
+    name: "Contacts",
+    capabilities: ["view", "create", "edit", "delete", "import", "export"],
+  },
+  permissions: {
+    name: "Permissions",
+    capabilities: [
+      "view_matrix",
+      "grant",
+      "revoke",
+      "assign_capabilities",
+      "assign_groups",
+      "assign_responsibilities",
+      "promote_super_admin",
+      "remove_super_admin",
+    ],
+  },
+  engineering: {
+    name: "Engineering Operations",
+    capabilities: [
+      "view",
+      "manage_tasks",
+      "manage_errors",
+      "manage_developers",
+    ],
+  },
+  finance: {
+    name: "Finance",
+    capabilities: ["view", "create", "edit", "delete", "export"],
+  },
+  settings: { name: "System Settings", capabilities: ["view", "edit"] },
+};
+
+export const ACCESS_LEVELS = {
+  NONE: 0,
+  VIEW: 1,
+  CREATE: 2,
+  EDIT: 3,
+  DELETE: 4,
+  FULL: 5,
+};
+
+export async function getUserGroups(userCid) {
+  try {
+    await initDb();
+    const r = await db.execute({
+      sql: "SELECT group_name FROM user_groups WHERE user_cid = ?",
+      args: [userCid],
+    });
+    if (r.rows.length > 0) return r.rows.map((g) => g.group_name);
+    const u = await db.execute({
+      sql: "SELECT group_name FROM contacts WHERE cid = ?",
+      args: [userCid],
+    });
+    if (u.rows.length > 0 && u.rows[0].group_name)
+      return [u.rows[0].group_name];
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getUserEffectiveCapabilities(userCid, userRole, module) {
+  try {
+    await initDb();
+    const groups = await getUserGroups(userCid);
+    const role = await db.execute({
+      sql: "SELECT capability, access_level FROM role_capabilities WHERE role = ? AND module = ?",
+      args: [userRole, module],
+    });
+    let group = [];
+    if (groups.length > 0) {
+      const ph = groups.map(() => "?").join(",");
+      group = (
+        await db.execute({
+          sql: `SELECT capability, access_level FROM group_capabilities WHERE group_name IN (${ph}) AND module = ?`,
+          args: [...groups, module],
+        })
+      ).rows;
+    }
+    const grants = (
+      await db.execute({
+        sql: "SELECT capability, access_level FROM user_capabilities WHERE user_cid = ? AND module = ? AND (expires_at IS NULL OR expires_at > NOW())",
+        args: [userCid, module],
+      })
+    ).rows;
+    const restricts = new Set(
+      (
+        await db.execute({
+          sql: "SELECT capability FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND (expires_at IS NULL OR expires_at > NOW())",
+          args: [userCid, module],
+        })
+      ).rows.map((r) => r.capability),
+    );
+    const merged = new Map();
+    const add = (cap, lvl) => {
+      const e = merged.get(cap) || 0;
+      if (lvl > e) merged.set(cap, lvl);
+    };
+    role.rows.forEach((r) => add(r.capability, r.access_level));
+    group.forEach((r) => add(r.capability, r.access_level));
+    grants.forEach((r) => add(r.capability, r.access_level));
+    restricts.forEach((c) => merged.delete(c));
+    return merged;
+  } catch {
+    return new Map();
+  }
+}
+
+export async function getUserFullPermissionMatrix(userCid, userRole) {
+  const result = {};
+  for (const mod of Object.keys(PERMISSION_MODULES)) {
+    const caps = await getUserEffectiveCapabilities(userCid, userRole, mod);
+    result[mod] = {};
+    for (const [capability, level] of caps) result[mod][capability] = level;
+  }
+  return result;
+}
+
+export async function hasCapability(
+  userCid,
+  userRole,
+  module,
+  capability,
+  minLevel = 1,
+) {
+  try {
+    await initDb();
+    if (userRole === "super_admin") {
+      const r = await db.execute({
+        sql: "SELECT 1 FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND capability = ? AND (expires_at IS NULL OR expires_at > NOW())",
+        args: [userCid, module, capability],
+      });
+      if (r.rows.length === 0) {
+        const g = await db.execute({
+          sql: "SELECT access_level FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ? AND (expires_at IS NULL OR expires_at > NOW())",
+          args: [userCid, module, capability],
+        });
+        if (g.rows.length > 0)
+          return parseInt(g.rows[0].access_level) >= minLevel;
+        return true;
+      }
+      return false;
+    }
+    const caps = await getUserEffectiveCapabilities(userCid, userRole, module);
+    return (caps.get(capability) || 0) >= minLevel;
+  } catch {
+    return false;
+  }
+}
+
+export async function requireCapability(module, capability, minLevel = 1) {
+  try {
+    const session = await getSession();
+    if (!session)
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    const has = await hasCapability(
+      session.cid,
+      session.role,
+      module,
+      capability,
+      minLevel,
+    );
+    if (!has)
+      return NextResponse.json(
+        { success: false, error: "Insufficient permissions." },
+        { status: 403 },
+      );
+    return null;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Authorization system failure." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function logPermissionAudit({
+  actorCid,
+  actorName,
+  targetCid,
+  targetName,
+  action,
+  module,
+  capability,
+  previousValue,
+  newValue,
+  details,
+}) {
+  try {
+    await initDb();
+    await db.execute({
+      sql: `INSERT INTO permission_audit_log (actor_cid, actor_name, target_cid, target_name, action, module, capability, previous_value, new_value, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        actorCid,
+        actorName || null,
+        targetCid,
+        targetName || null,
+        action,
+        module || null,
+        capability || null,
+        previousValue || null,
+        newValue || null,
+        details || null,
+      ],
+    });
+  } catch (e) {
+    console.error("logPermissionAudit error:", e.message);
+  }
+}
+
+export async function seedDefaultRoleCapabilities() {
+  try {
+    await initDb();
+    const defaults = {
+      super_admin: Object.fromEntries(
+        Object.entries(PERMISSION_MODULES).map(([k, m]) => [
+          k,
+          Object.fromEntries(m.capabilities.map((c) => [c, 5])),
+        ]),
+      ),
+      staff: {
+        projects: { view: 1, create: 2, edit: 3 },
+        programs: { view: 1 },
+        reports: { view: 1, create: 2 },
+        messaging: { view: 1, send: 2 },
+        contacts: { view: 1 },
+      },
+      participant: {
+        projects: { view: 1 },
+        messaging: { view: 1, send: 2 },
+      },
+    };
+    for (const [role, modules] of Object.entries(defaults)) {
+      for (const [module, caps] of Object.entries(modules)) {
+        for (const [capability, level] of Object.entries(caps)) {
+          await db.execute({
+            sql: `INSERT INTO role_capabilities (role, module, capability, access_level) VALUES (?, ?, ?, ?) ON CONFLICT (role, module, capability) DO UPDATE SET access_level = ?`,
+            args: [role, module, capability, level, level],
+          });
+        }
+      }
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}

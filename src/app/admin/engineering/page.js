@@ -19,6 +19,7 @@ import {
   Search,
   RefreshCw,
   Calendar,
+  Shield,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -51,7 +52,8 @@ export default function EngineeringOperations() {
     ? [
         {
           label: "Active Developers",
-          value: data.developers?.filter((d) => d.role === "developer").length || 0,
+          value:
+            data.developers?.filter((d) => d.role === "developer").length || 0,
           icon: Users,
           color: "var(--brand-orange)",
           bg: "rgba(255,102,0,0.1)",
@@ -59,7 +61,8 @@ export default function EngineeringOperations() {
         },
         {
           label: "Interns",
-          value: data.developers?.filter((d) => d.role === "intern").length || 0,
+          value:
+            data.developers?.filter((d) => d.role === "intern").length || 0,
           icon: UserPlus,
           color: "var(--chart-info, #3b82f6)",
           bg: "rgba(59,130,246,0.1)",
@@ -85,16 +88,26 @@ export default function EngineeringOperations() {
           label: "Overdue Tasks",
           value: data.overdueTasks?.length || 0,
           icon: Clock,
-          color: data.overdueTasks?.length > 0 ? "#ef4444" : "var(--text-secondary)",
-          bg: data.overdueTasks?.length > 0 ? "rgba(239,68,68,0.1)" : "rgba(100,100,100,0.05)",
+          color:
+            data.overdueTasks?.length > 0 ? "#ef4444" : "var(--text-secondary)",
+          bg:
+            data.overdueTasks?.length > 0
+              ? "rgba(239,68,68,0.1)"
+              : "rgba(100,100,100,0.05)",
           onClick: () => {},
         },
         {
           label: "Active Blockers",
           value: data.activeBlockers?.length || 0,
           icon: AlertTriangle,
-          color: data.activeBlockers?.length > 0 ? "#ef4444" : "var(--text-secondary)",
-          bg: data.activeBlockers?.length > 0 ? "rgba(239,68,68,0.1)" : "rgba(100,100,100,0.05)",
+          color:
+            data.activeBlockers?.length > 0
+              ? "#ef4444"
+              : "var(--text-secondary)",
+          bg:
+            data.activeBlockers?.length > 0
+              ? "rgba(239,68,68,0.1)"
+              : "rgba(100,100,100,0.05)",
           onClick: () => {},
         },
       ]
@@ -221,6 +234,22 @@ export default function EngineeringOperations() {
                   </p>
                 </div>
               </button>
+              <button
+                onClick={() => router.push("/admin/engineering/permissions")}
+                className="ios-card !p-6 flex items-center gap-4 hover:border-purple-500/30 transition-all text-left"
+              >
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-purple-500/10">
+                  <Shield className="w-6 h-6 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                    Permissions
+                  </p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                    Manage roles, groups, and capabilities
+                  </p>
+                </div>
+              </button>
             </div>
 
             {/* Recent Unresolved Errors */}
@@ -245,7 +274,9 @@ export default function EngineeringOperations() {
                     <div
                       key={err.id}
                       className="ios-card !p-4 border-l-4 border-l-red-500 hover:border-[var(--brand-orange)]/30 transition-all cursor-pointer"
-                      onClick={() => router.push("/admin/engineering/error-logs")}
+                      onClick={() =>
+                        router.push("/admin/engineering/error-logs")
+                      }
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
@@ -309,7 +340,8 @@ export default function EngineeringOperations() {
                             {task.title}
                           </p>
                           <p className="text-[8px] font-bold text-slate-500 mt-0.5">
-                            {task.assignee_name && `Assigned to: ${task.assignee_name}`}
+                            {task.assignee_name &&
+                              `Assigned to: ${task.assignee_name}`}
                             {task.end_date &&
                               ` — Due: ${new Date(task.end_date).toLocaleDateString()}`}
                           </p>
