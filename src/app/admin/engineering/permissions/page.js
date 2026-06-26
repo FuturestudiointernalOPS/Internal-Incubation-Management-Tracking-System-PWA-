@@ -4,8 +4,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   Shield,
   Search,
-  RefreshCw,
   User,
+  ChevronDown,
   ChevronRight,
   CheckCircle2,
   X,
@@ -14,19 +14,46 @@ import {
   Plus,
   Trash2,
   Loader2,
+  RefreshCw,
+  Info,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
-const ACCESS_LEVELS = { NONE: 0, VIEW: 1, CREATE: 2, EDIT: 3, DELETE: 4, FULL: 5 };
-const ACCESS_LABELS = { 0: "None", 1: "View", 2: "Create", 3: "Edit", 4: "Delete", 5: "Full" };
-const ACCESS_COLORS = {
-  0: "text-slate-500",
-  1: "text-blue-400",
-  2: "text-emerald-400",
-  3: "text-amber-400",
-  4: "text-red-400",
-  5: "text-purple-400",
+const ACCESS_LEVELS = {
+  NONE: 0,
+  VIEW: 1,
+  CREATE: 2,
+  EDIT: 3,
+  DELETE: 4,
+  FULL: 5,
 };
+const ACCESS_LABELS = {
+  0: "None",
+  1: "View",
+  2: "Create",
+  3: "Edit",
+  4: "Delete",
+  5: "Full",
+};
+const ACCESS_SHORT = { 0: "—", 1: "V", 2: "C", 3: "E", 4: "D", 5: "All" };
+
+const LEVELS_ORDER = [0, 1, 2, 3, 4, 5];
+
+// Module grouping
+const MODULE_CATEGORIES = [
+  {
+    label: "Content",
+    modules: ["projects", "programs", "reports", "contacts"],
+  },
+  {
+    label: "People",
+    modules: ["users", "messaging", "internal_comms"],
+  },
+  {
+    label: "System",
+    modules: ["permissions", "engineering", "finance", "settings"],
+  },
+];
 
 export default function PermissionManager() {
   const [activeTab, setActiveTab] = useState("search");
@@ -37,17 +64,9 @@ export default function PermissionManager() {
   const [userPerms, setUserPerms] = useState(null);
   const [loadingPerms, setLoadingPerms] = useState(false);
   const [modules, setModules] = useState({});
-  const [roleDefaults, setRoleDefaults] = useState([]);
-  const [groupDefaults, setGroupDefaults] = useState([]);
-  const [auditLog, setAuditLog] = useState([]);
+  const [expandedModules, setExpandedModules] = useState({});
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
-  const [showGrantModal, setShowGrantModal] = useState(null);
-  const [grantModule, setGrantModule] = useState("");
-  const [grantCap, setGrantCap] = useState("");
-  const [grantLevel, setGrantLevel] = useState(1);
-  const [grantExpiry, setGrantExpiry] = useState("");
-  const [granting, setGranting] = useState(false);
 
   useEffect(() => {
     fetchModules();
@@ -57,11 +76,7 @@ export default function PermissionManager() {
     try {
       const res = await fetch("/api/engineering/permissions");
       const data = await res.json();
-      if (data.success) {
-        setModules(data.modules || {});
-        setRoleDefaults(data.roleDefaults || []);
-        setGroupDefaults(data.groupDefaults || []);
-      }
+      if (data.success) setModules(data.modules || {});
     } catch (e) {
       console.error("Failed to fetch modules", e);
     }
@@ -71,11 +86,11 @@ export default function PermissionManager() {
     if (!searchQuery.trim()) return;
     setSearching(true);
     try {
-      const res = await fetch(`/api/contacts?search=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(
+        `/api/contacts?search=${encodeURIComponent(searchQuery)}`,
+      );
       const data = await res.json();
-      if (data.success) {
-        setSearchResults((data.contacts || []).filter((c) => c.role !== "participant" || searchQuery.length > 0));
-      }
+      if (data.success) setSearchResults(data.contacts || []);
     } catch (e) {
       console.error("Search failed", e);
     } finally {
@@ -89,10 +104,18 @@ export default function PermissionManager() {
     setActionMsg("");
     setActionError("");
     try {
-      const res = await fetch(`/api/engineering/permissions?user_cid=${user.cid}`);
+      const res = await fetch(
+        `/api/engineering/permissions?user_cid=${user.cid}`,
+      );
       const data = await res.json();
       if (data.success) {
         setUserPerms(data);
+        // Auto-expand all modules
+        const expanded = {};
+        Object.keys(data.effectivePermissions || {}).forEach((key) => {
+          expanded[key] = true;
+        });
+        setExpandedModules(expanded);
       }
     } catch (e) {
       console.error("Failed to fetch user permissions", e);
@@ -101,17 +124,25 @@ export default function PermissionManager() {
     }
   };
 
-  const fetchAuditLog = async (cid) => {
-    try {
-      const res = await fetch(`/api/engineering/permissions/audit?target_cid=${cid}&limit=50`);
-      const data = await res.json();
-      if (data.success) setAuditLog(data.entries || []);
-    } catch (e) {
-      console.error("Failed to fetch audit log", e);
-    }
+  const getEffectiveLevel = (module, capability) => {
+    return userPerms?.effectivePermissions?.[module]?.[capability] ?? 0;
   };
 
-  const handlePermissionAction = async (action, module, capability, level, expiry) => {
+  const getOrigin = (module, capability) => {
+    const grants = userPerms?.individualGrants || [];
+    const restrictions = userPerms?.individualRestrictions || [];
+    if (
+      restrictions.some(
+        (r) => r.module === module && r.capability === capability,
+      )
+    )
+      return "restricted";
+    if (grants.some((g) => g.module === module && g.capability === capability))
+      return "granted";
+    return "inherited";
+  };
+
+  const handleQuickAction = async (action, module, capability, level) => {
     setActionMsg("");
     setActionError("");
     try {
@@ -123,38 +154,19 @@ export default function PermissionManager() {
           user_cid: selectedUser.cid,
           module,
           capability,
-          access_level: level,
-          expires_at: expiry || null,
+          access_level: level ?? 1,
         }),
       });
       const data = await res.json();
       if (data.success) {
         setActionMsg(`${action} successful`);
         selectUser(selectedUser);
-        setShowGrantModal(null);
       } else {
         setActionError(data.error || "Action failed");
       }
     } catch (e) {
       setActionError("Network error");
     }
-  };
-
-  const getEffectiveLevel = (module, capability) => {
-    if (!userPerms?.effectivePermissions?.[module]) return 0;
-    return userPerms.effectivePermissions[module][capability] || 0;
-  };
-
-  const isGranted = (module, capability) => {
-    return userPerms?.individualGrants?.some(
-      (g) => g.module === module && g.capability === capability
-    );
-  };
-
-  const isRestricted = (module, capability) => {
-    return userPerms?.individualRestrictions?.some(
-      (r) => r.module === module && r.capability === capability
-    );
   };
 
   return (
@@ -180,9 +192,24 @@ export default function PermissionManager() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
-          <button onClick={() => setActiveTab("search")} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "search" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}>User Search</button>
-          <button onClick={() => setActiveTab("roles")} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "roles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}>Role Defaults</button>
-          <button onClick={() => setActiveTab("seed")} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "seed" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}>Initialize</button>
+          <button
+            onClick={() => setActiveTab("search")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "search" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            User Search
+          </button>
+          <button
+            onClick={() => setActiveTab("roles")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "roles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            Role Defaults
+          </button>
+          <button
+            onClick={() => setActiveTab("seed")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "seed" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            Initialize
+          </button>
         </div>
 
         {activeTab === "search" && (
@@ -199,23 +226,39 @@ export default function PermissionManager() {
                   className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
                 />
               </div>
-              <button onClick={searchUsers} disabled={searching} className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50">
-                {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
+              <button
+                onClick={searchUsers}
+                disabled={searching}
+                className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+              >
+                {searching ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Search"
+                )}
               </button>
             </div>
 
-            {/* Results list */}
+            {/* Results */}
             {searchResults.length > 0 && !selectedUser && (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {searchResults.map((u) => (
-                  <button key={u.cid} onClick={() => selectUser(u)} className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between">
+                  <button
+                    key={u.cid}
+                    onClick={() => selectUser(u)}
+                    className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
                         <User className="w-5 h-5 text-[var(--brand-orange)]" />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">{u.name}</p>
-                        <p className="text-[10px] font-bold text-[var(--text-secondary)]">{u.email} · {u.role} · {u.status}</p>
+                        <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                          {u.name}
+                        </p>
+                        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                          {u.email} · {u.role} · {u.status}
+                        </p>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
@@ -228,67 +271,359 @@ export default function PermissionManager() {
             {selectedUser && userPerms && (
               <div className="space-y-6">
                 {/* User info bar */}
-                <div className="ios-card !p-4 border-[var(--border-primary)] flex items-center justify-between">
+                <div className="ios-card !p-5 border-[var(--border-primary)] flex items-center justify-between bg-secondary/50">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                      <User className="w-6 h-6 text-[var(--brand-orange)]" />
+                    <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
+                      <User className="w-7 h-7 text-[var(--brand-orange)]" />
                     </div>
                     <div>
-                      <p className="text-base font-black text-[var(--text-primary)] uppercase tracking-tight">{userPerms.user.name}</p>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">{userPerms.user.email}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">{userPerms.user.role}</span>
-                        {userPerms.groups.map((g) => (
-                          <span key={g} className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider">{g}</span>
+                      <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
+                        {userPerms.user.name}
+                      </p>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                        {userPerms.user.email}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
+                          {userPerms.user.role}
+                        </span>
+                        {(userPerms.groups || []).map((g) => (
+                          <span
+                            key={g}
+                            className="text-[8px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
+                          >
+                            {g}
+                          </span>
                         ))}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => fetchAuditLog(selectedUser.cid)} className="px-3 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all">Audit Log</button>
-                    <button onClick={() => { setSelectedUser(null); setUserPerms(null); }} className="p-2 hover:bg-tertiary rounded-lg transition-all"><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedUser(null);
+                      setUserPerms(null);
+                    }}
+                    className="p-2 hover:bg-tertiary rounded-lg transition-all"
+                  >
+                    <X className="w-4 h-4 text-[var(--text-secondary)]" />
+                  </button>
                 </div>
 
-                {actionMsg && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20"><p className="text-[10px] font-bold text-emerald-400">{actionMsg}</p></div>}
-                {actionError && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20"><p className="text-[10px] font-bold text-red-400">{actionError}</p></div>}
+                {/* Status messages */}
+                {actionMsg && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                    <p className="text-[10px] font-bold text-emerald-400">
+                      {actionMsg}
+                    </p>
+                  </div>
+                )}
+                {actionError && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                    <p className="text-[10px] font-bold text-red-400">
+                      {actionError}
+                    </p>
+                  </div>
+                )}
 
-                {/* Permission Matrix */}
+                {/* Legend */}
+                <div className="flex items-center gap-4 text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-slate-400" />{" "}
+                    Inherited
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
+                    Individual Grant
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-400" />{" "}
+                    Restricted
+                  </span>
+                </div>
+
+                {/* Permission Tables */}
                 {loadingPerms ? (
-                  <div className="flex items-center justify-center py-10">
-                    <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin" style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
+                  <div className="flex items-center justify-center py-20">
+                    <div
+                      className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+                      style={{
+                        borderColor: "rgba(255,102,0,0.1)",
+                        borderTopColor: "var(--brand-orange)",
+                      }}
+                    />
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {Object.entries(modules).map(([modKey, mod]) => (
-                      <div key={modKey} className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
-                        <div className="p-4 bg-tertiary/50 border-b border-[var(--border-primary)]">
-                          <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">{mod.name}</h3>
-                        </div>
-                        <div className="p-4">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {(mod.capabilities || []).map((cap) => {
-                              const level = getEffectiveLevel(modKey, cap);
-                              const granted = isGranted(modKey, cap);
-                              const restricted = isRestricted(modKey, cap);
-                              return (
-                                <div key={cap} className={`p-2 rounded-lg border ${restricted ? "border-red-500/30 bg-red-500/5" : granted ? "border-emerald-500/30 bg-emerald-500/5" : "border-[var(--border-primary)] bg-primary"} flex items-center justify-between`}>
-                                  <div>
-                                    <p className="text-[8px] font-bold text-[var(--text-primary)] uppercase tracking-wider">{cap.replace(/_/g, " ")}</p>
-                                    <p className={`text-[8px] font-black ${ACCESS_COLORS[level] || "text-slate-500"}`}>{ACCESS_LABELS[level] || "None"}</p>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    {granted && <span className="text-[7px] text-emerald-400 font-black">+</span>}
-                                    {restricted && <span className="text-[7px] text-red-400 font-black">-</span>}
-                                    <button onClick={() => { setShowGrantModal({ module: modKey, capability: cap, currentLevel: level }); setGrantModule(modKey); setGrantCap(cap); setGrantLevel(1); setGrantExpiry(""); }} className="p-1 hover:bg-tertiary rounded transition-all">
-                                      <Plus className="w-3 h-3 text-[var(--text-secondary)]" />
-                                    </button>
-                                  </div>
+                  <div className="space-y-8">
+                    {MODULE_CATEGORIES.map((category) => (
+                      <div key={category.label} className="space-y-3">
+                        <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] opacity-50 pl-1">
+                          {category.label}
+                        </h3>
+                        {category.modules.map((modKey) => {
+                          const mod = modules[modKey];
+                          if (!mod) return null;
+                          const caps = mod.capabilities || [];
+                          const isExpanded = expandedModules[modKey] !== false;
+
+                          return (
+                            <div
+                              key={modKey}
+                              className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden"
+                            >
+                              {/* Module header */}
+                              <button
+                                onClick={() =>
+                                  setExpandedModules((prev) => ({
+                                    ...prev,
+                                    [modKey]: !prev[modKey],
+                                  }))
+                                }
+                                className="w-full flex items-center justify-between px-5 py-4 bg-tertiary/30 hover:bg-tertiary/50 transition-all border-b border-[var(--border-primary)]"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {isExpanded ? (
+                                    <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                                  ) : (
+                                    <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                                  )}
+                                  <span className="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider">
+                                    {mod.name}
+                                  </span>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                                <span className="text-[8px] font-bold text-slate-500">
+                                  {caps.length} capabilities
+                                </span>
+                              </button>
+
+                              {isExpanded && (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border-collapse">
+                                    <thead>
+                                      <tr className="border-b border-[var(--border-primary)]">
+                                        <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest w-40">
+                                          Capability
+                                        </th>
+                                        {LEVELS_ORDER.map((level) => (
+                                          <th
+                                            key={level}
+                                            className="px-3 py-3 text-center text-[8px] font-black uppercase tracking-widest whitespace-nowrap"
+                                            style={{
+                                              color:
+                                                level === 0
+                                                  ? "var(--text-secondary)"
+                                                  : ACCESS_COLORS[level],
+                                            }}
+                                          >
+                                            {ACCESS_LABELS[level]}
+                                          </th>
+                                        ))}
+                                        <th className="px-3 py-3 text-center text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest w-24">
+                                          Actions
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {caps.map((cap) => {
+                                        const effectiveLevel =
+                                          getEffectiveLevel(modKey, cap);
+                                        const origin = getOrigin(modKey, cap);
+
+                                        return (
+                                          <tr
+                                            key={cap}
+                                            className="group border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all"
+                                          >
+                                            {/* Capability name */}
+                                            <td className="px-5 py-3">
+                                              <div className="flex items-center gap-2">
+                                                {origin === "granted" && (
+                                                  <span
+                                                    className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"
+                                                    title="Individual grant"
+                                                  />
+                                                )}
+                                                {origin === "restricted" && (
+                                                  <span
+                                                    className="w-2 h-2 rounded-full bg-red-400 shrink-0"
+                                                    title="Restricted"
+                                                  />
+                                                )}
+                                                {origin === "inherited" && (
+                                                  <span
+                                                    className="w-2 h-2 rounded-full bg-slate-400 shrink-0"
+                                                    title="Inherited from role/group"
+                                                  />
+                                                )}
+                                                <span className="text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-wider">
+                                                  {cap.replace(/_/g, " ")}
+                                                </span>
+                                              </div>
+                                            </td>
+
+                                            {/* Access level radio cells */}
+                                            {LEVELS_ORDER.map((level) => {
+                                              const isActive =
+                                                effectiveLevel === level;
+                                              const isClickable =
+                                                level !== effectiveLevel;
+                                              return (
+                                                <td
+                                                  key={level}
+                                                  className={`px-3 py-3 text-center ${isClickable ? "cursor-pointer" : ""}`}
+                                                  onClick={() => {
+                                                    if (
+                                                      origin === "restricted"
+                                                    ) {
+                                                      handleQuickAction(
+                                                        "unrestrict",
+                                                        modKey,
+                                                        cap,
+                                                      );
+                                                    } else if (
+                                                      level === 0 &&
+                                                      effectiveLevel > 0
+                                                    ) {
+                                                      handleQuickAction(
+                                                        "restrict",
+                                                        modKey,
+                                                        cap,
+                                                        0,
+                                                      );
+                                                    } else if (level > 0) {
+                                                      handleQuickAction(
+                                                        "grant",
+                                                        modKey,
+                                                        cap,
+                                                        level,
+                                                      );
+                                                    }
+                                                  }}
+                                                >
+                                                  {origin === "restricted" &&
+                                                  level === 0 ? (
+                                                    <div
+                                                      className="w-6 h-6 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center mx-auto cursor-pointer hover:bg-red-500/30 transition-all"
+                                                      title="Restricted — click to unrestrict"
+                                                    >
+                                                      <X className="w-3 h-3 text-red-400" />
+                                                    </div>
+                                                  ) : isActive &&
+                                                    origin === "granted" ? (
+                                                    <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto">
+                                                      <span className="text-[8px] font-black text-emerald-400">
+                                                        {ACCESS_SHORT[level]}
+                                                      </span>
+                                                    </div>
+                                                  ) : isActive &&
+                                                    origin === "inherited" ? (
+                                                    <div className="w-6 h-6 rounded-lg bg-slate-500/20 border border-slate-500/40 flex items-center justify-center mx-auto">
+                                                      <span className="text-[8px] font-black text-slate-400">
+                                                        {ACCESS_SHORT[level]}
+                                                      </span>
+                                                    </div>
+                                                  ) : isActive ? (
+                                                    <div
+                                                      className="w-6 h-6 rounded-lg border-2 flex items-center justify-center mx-auto"
+                                                      style={{
+                                                        borderColor:
+                                                          ACCESS_COLORS[level],
+                                                        background: `${ACCESS_COLORS[level]}15`,
+                                                      }}
+                                                    >
+                                                      <span
+                                                        className="text-[8px] font-black"
+                                                        style={{
+                                                          color:
+                                                            ACCESS_COLORS[
+                                                              level
+                                                            ],
+                                                        }}
+                                                      >
+                                                        {ACCESS_SHORT[level]}
+                                                      </span>
+                                                    </div>
+                                                  ) : level === 0 ? (
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleQuickAction(
+                                                          "restrict",
+                                                          modKey,
+                                                          cap,
+                                                          0,
+                                                        );
+                                                      }}
+                                                      className="w-6 h-6 rounded-lg border border-dashed border-slate-600/30 flex items-center justify-center mx-auto hover:border-red-400/40 hover:bg-red-500/5 transition-all opacity-0 group-hover:opacity-100 hover:opacity-100"
+                                                      title="Restrict"
+                                                    >
+                                                      <X className="w-2.5 h-2.5 text-slate-600" />
+                                                    </button>
+                                                  ) : (
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleQuickAction(
+                                                          "grant",
+                                                          modKey,
+                                                          cap,
+                                                          level,
+                                                        );
+                                                      }}
+                                                      className="w-6 h-6 rounded-lg border border-dashed border-slate-600/30 flex items-center justify-center mx-auto hover:border-emerald-400/40 hover:bg-emerald-500/5 transition-all opacity-0 group-hover:opacity-100 hover:opacity-100"
+                                                      title={`Set to ${ACCESS_LABELS[level]}`}
+                                                    >
+                                                      <Plus className="w-2.5 h-2.5 text-slate-600" />
+                                                    </button>
+                                                  )}
+                                                </td>
+                                              );
+                                            })}
+
+                                            {/* Actions column */}
+                                            <td className="px-3 py-3 text-center">
+                                              <div className="flex items-center justify-center gap-1">
+                                                {origin === "granted" && (
+                                                  <button
+                                                    onClick={() =>
+                                                      handleQuickAction(
+                                                        "revoke",
+                                                        modKey,
+                                                        cap,
+                                                      )
+                                                    }
+                                                    className="p-1.5 rounded-lg hover:bg-red-500/10 transition-all"
+                                                    title="Revoke grant"
+                                                  >
+                                                    <Trash2 className="w-3 h-3 text-red-400" />
+                                                  </button>
+                                                )}
+                                                {origin === "restricted" && (
+                                                  <button
+                                                    onClick={() =>
+                                                      handleQuickAction(
+                                                        "unrestrict",
+                                                        modKey,
+                                                        cap,
+                                                      )
+                                                    }
+                                                    className="p-1.5 rounded-lg hover:bg-emerald-500/10 transition-all"
+                                                    title="Remove restriction"
+                                                  >
+                                                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ))}
                   </div>
@@ -298,109 +633,192 @@ export default function PermissionManager() {
           </div>
         )}
 
-        {activeTab === "roles" && (
-          <div className="space-y-6">
-            <p className="text-xs font-bold text-[var(--text-secondary)]">Role defaults define baseline permissions for each role. Group defaults define permissions for team membership.</p>
-            {roleDefaults.length > 0 ? (
-              <div className="space-y-4">
-                {[...new Set(roleDefaults.map((r) => r.role))].map((role) => (
-                  <div key={role} className="ios-card !p-4 border-[var(--border-primary)]">
-                    <h3 className="text-xs font-black text-[var(--brand-orange)] uppercase tracking-wider mb-3">{role}</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {roleDefaults.filter((r) => r.role === role).map((r) => (
-                        <div key={`${r.module}-${r.capability}`} className="p-2 rounded-lg bg-primary border border-[var(--border-primary)]">
-                          <p className="text-[8px] font-bold text-[var(--text-primary)]">{r.module} / {r.capability.replace(/_/g, " ")}</p>
-                          <p className={`text-[8px] font-black ${ACCESS_COLORS[r.access_level] || "text-slate-500"}`}>{ACCESS_LABELS[r.access_level] || "None"}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-10 text-center opacity-40">
-                <Shield className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-                <p className="text-sm font-black text-[var(--text-primary)] uppercase">No defaults seeded</p>
-                <p className="text-[10px] font-bold text-slate-500 mt-1">Go to Initialize tab to seed default role capabilities</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "seed" && (
-          <div className="max-w-md space-y-6">
-            <p className="text-xs font-bold text-[var(--text-secondary)]">This will seed default capabilities for core roles (super_admin, staff, participant). Safe to run multiple times.</p>
-            <button onClick={async () => {
-              setActionMsg(""); setActionError("");
-              try {
-                const res = await fetch("/api/engineering/permissions/seed", { method: "POST" });
-                const data = await res.json();
-                if (data.success) { setActionMsg("Defaults seeded successfully!"); fetchModules(); }
-                else setActionError(data.error || "Seed failed");
-              } catch (e) { setActionError("Network error"); }
-            }} className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all">
-              Seed Default Role Capabilities
-            </button>
-            {actionMsg && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20"><p className="text-[10px] font-bold text-emerald-400">{actionMsg}</p></div>}
-            {actionError && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20"><p className="text-[10px] font-bold text-red-400">{actionError}</p></div>}
-          </div>
-        )}
-
-        {/* Grant Modal */}
-        {showGrantModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl p-6 shadow-2xl space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
-                  <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">Manage Permission</h2>
-                </div>
-                <button onClick={() => setShowGrantModal(null)} className="p-2 hover:bg-tertiary rounded-lg transition-all"><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-[var(--text-secondary)]">Module: <strong className="text-[var(--text-primary)]">{modules[grantModule]?.name || grantModule}</strong></p>
-                <p className="text-[10px] font-bold text-[var(--text-secondary)]">Capability: <strong className="text-[var(--text-primary)]">{grantCap.replace(/_/g, " ")}</strong></p>
-                <p className="text-[10px] font-bold text-[var(--text-secondary)]">Current effective level: <strong className={ACCESS_COLORS[showGrantModal.currentLevel]}>{ACCESS_LABELS[showGrantModal.currentLevel]}</strong></p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5">Access Level</label>
-                  <select value={grantLevel} onChange={(e) => setGrantLevel(parseInt(e.target.value))} className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none">
-                    {Object.entries(ACCESS_LABELS).map(([level, label]) => (
-                      <option key={level} value={level}>{label} ({level})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5">Expires At (optional)</label>
-                  <input type="datetime-local" value={grantExpiry} onChange={(e) => setGrantExpiry(e.target.value)} className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none" />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button onClick={() => handlePermissionAction("grant", grantModule, grantCap, grantLevel, grantExpiry)} className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all">
-                  <Plus className="w-3.5 h-3.5" /> Grant
-                </button>
-                <button onClick={() => handlePermissionAction("revoke", grantModule, grantCap)} className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 text-red-400 text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all">
-                  <Trash2 className="w-3.5 h-3.5" /> Revoke Grant
-                </button>
-                <button onClick={() => handlePermissionAction("restrict", grantModule, grantCap, 0, grantExpiry)} className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-500/10 text-amber-400 text-[9px] font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all">
-                  <X className="w-3.5 h-3.5" /> Restrict
-                </button>
-                <button onClick={() => handlePermissionAction("unrestrict", grantModule, grantCap)} className="px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:bg-tertiary transition-all">
-                  Unrestrict
-                </button>
-              </div>
-
-              <button onClick={() => setShowGrantModal(null)} className="w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:bg-tertiary transition-all">
-                Close
-              </button>
-            </div>
-          </div>
-        )}
+        {activeTab === "roles" && <RoleDefaultsView />}
+        {activeTab === "seed" && <SeedView />}
       </div>
     </DashboardLayout>
   );
 }
+
+function RoleDefaultsView() {
+  const [roleDefaults, setRoleDefaults] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res = await fetch("/api/engineering/permissions");
+        const data = await res.json();
+        if (data.success) setRoleDefaults(data.roleDefaults || []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetch();
+  }, []);
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center py-10">
+        <div
+          className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+          style={{
+            borderColor: "rgba(255,102,0,0.1)",
+            borderTopColor: "var(--brand-orange)",
+          }}
+        />
+      </div>
+    );
+
+  const roles = [...new Set(roleDefaults.map((r) => r.role))];
+
+  if (roles.length === 0) {
+    return (
+      <div className="py-10 text-center opacity-40">
+        <Shield className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+        <p className="text-sm font-black text-[var(--text-primary)] uppercase">
+          No defaults seeded
+        </p>
+        <p className="text-[10px] font-bold text-slate-500 mt-1">
+          Go to Initialize tab to seed default role capabilities
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs font-bold text-[var(--text-secondary)]">
+        Baseline permissions per role. These apply to every user with that role.
+      </p>
+      {roles.map((role) => {
+        const caps = roleDefaults.filter((r) => r.role === role);
+        const modules = [...new Set(caps.map((c) => c.module))];
+        return (
+          <div
+            key={role}
+            className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden"
+          >
+            <div className="px-5 py-4 bg-tertiary/30 border-b border-[var(--border-primary)]">
+              <h3 className="text-xs font-black text-[var(--brand-orange)] uppercase tracking-wider">
+                {role}
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-[var(--border-primary)]">
+                    <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                      Module
+                    </th>
+                    <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                      Capability
+                    </th>
+                    <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                      Access Level
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modules.map((mod) =>
+                    caps
+                      .filter((c) => c.module === mod)
+                      .map((c, i) => (
+                        <tr
+                          key={`${mod}-${c.capability}`}
+                          className="border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all"
+                        >
+                          {i === 0 && (
+                            <td
+                              className="px-5 py-3 text-[9px] font-black text-[var(--text-primary)] uppercase tracking-wider"
+                              rowSpan={
+                                caps.filter((c) => c.module === mod).length
+                              }
+                            >
+                              {mod}
+                            </td>
+                          )}
+                          <td className="px-5 py-3 text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                            {c.capability.replace(/_/g, " ")}
+                          </td>
+                          <td className="px-5 py-3">
+                            <span
+                              className={`text-[9px] font-black ${ACCESS_COLORS[c.access_level] || "text-slate-500"}`}
+                            >
+                              {ACCESS_LABELS[c.access_level] || "None"}
+                            </span>
+                          </td>
+                        </tr>
+                      )),
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SeedView() {
+  const [actionMsg, setActionMsg] = useState("");
+  const [actionError, setActionError] = useState("");
+
+  return (
+    <div className="max-w-md space-y-6">
+      <p className="text-xs font-bold text-[var(--text-secondary)]">
+        Seeds default capabilities for core roles (super_admin, staff,
+        participant). Safe to run multiple times.
+      </p>
+      <button
+        onClick={async () => {
+          setActionMsg("");
+          setActionError("");
+          try {
+            const res = await fetch("/api/engineering/permissions/seed", {
+              method: "POST",
+            });
+            const data = await res.json();
+            if (data.success) setActionMsg("Defaults seeded successfully!");
+            else setActionError(data.error || "Seed failed");
+          } catch (e) {
+            setActionError("Network error");
+          }
+        }}
+        className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+      >
+        Seed Default Role Capabilities
+      </button>
+      {actionMsg && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <p className="text-[10px] font-bold text-emerald-400">{actionMsg}</p>
+        </div>
+      )}
+      {actionError && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <p className="text-[10px] font-bold text-red-400">{actionError}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ACCESS_COLORS = {
+  0: "text-slate-500",
+  1: "text-blue-400",
+  2: "text-emerald-400",
+  3: "text-amber-400",
+  4: "text-red-400",
+  5: "text-purple-400",
+};
+const ACCESS_LABELS = {
+  0: "None",
+  1: "View",
+  2: "Create",
+  3: "Edit",
+  4: "Delete",
+  5: "Full",
+};
