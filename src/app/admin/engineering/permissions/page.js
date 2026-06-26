@@ -825,23 +825,25 @@ function RoleDefaultsView() {
   const [roleDefaults, setRoleDefaults] = useState([]);
   const [loading, setLoading] = useState(true);
 
+function RoleDefaultsView() {
+  const [roleDefaults, setRoleDefaults] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    async function fetch() {
-      const fetchRoleDefaults = async () => {
-          try {
-            const res = await fetch("/api/engineering/permissions");
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const text = await res.text();
-            const data = JSON.parse(text);
-            if (data.success) setRoleDefaults(data.roleDefaults || []);
-          } catch (e) {
-            console.error("Failed to load role defaults:", e.message);
-          } finally {
-            setLoading(false);
-          }
-        };
-        fetchRoleDefaults();
-  }, []);
+    const loadDefaults = async () => {
+      try {
+        const res = await window.fetch("/api/engineering/permissions");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const text = await res.text();
+        const data = JSON.parse(text);
+        if (data.success) setRoleDefaults(data.roleDefaults || []);
+      } catch (e) {
+        console.error("Failed to load role defaults:", e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDefaults();
 
   if (loading)
     return (
