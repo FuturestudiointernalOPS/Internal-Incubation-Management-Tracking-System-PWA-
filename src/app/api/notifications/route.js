@@ -49,7 +49,7 @@ export async function GET(req) {
 
     // Use db.execute instead of supabaseAdmin for consistency
     const result = await db.execute({
-      sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? AND (is_read = false OR is_read IS NULL) ORDER BY created_at DESC",
+      sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? AND (is_read = 0 OR is_read IS NULL) ORDER BY created_at DESC",
       args: [recipientId],
     });
 
