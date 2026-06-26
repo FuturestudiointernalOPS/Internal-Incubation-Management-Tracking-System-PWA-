@@ -24,12 +24,12 @@ export async function GET(request) {
             ORDER BY role, name`,
     });
 
-    // 2. Active tasks assigned to developers (not completed)
+    // 2. Development tasks (tagged with category='development')
     const tasksRes = await db.execute({
       sql: `SELECT t.*, c.name as assignee_name
             FROM tasks t
             LEFT JOIN contacts c ON t.assigned_to = c.cid
-            WHERE t.assigned_to IS NOT NULL
+            WHERE t.category = 'development'
               AND t.status NOT IN ('completed', 'archived')
             ORDER BY
               CASE t.priority
@@ -52,13 +52,13 @@ export async function GET(request) {
             LIMIT 50`,
     });
 
-    // 4. Overdue tasks
+    // 4. Overdue development tasks
     const today = new Date().toISOString().split("T")[0];
     const overdueRes = await db.execute({
       sql: `SELECT t.*, c.name as assignee_name
             FROM tasks t
             LEFT JOIN contacts c ON t.assigned_to = c.cid
-            WHERE t.assigned_to IS NOT NULL
+            WHERE t.category = 'development'
               AND t.end_date < ?
               AND t.status NOT IN ('completed', 'archived')
             ORDER BY t.end_date ASC`,
@@ -85,7 +85,8 @@ export async function GET(request) {
                    SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed_tasks
             FROM tasks t
             LEFT JOIN contacts c ON t.assigned_to = c.cid
-            WHERE t.created_week = ? AND t.created_year = ?
+            WHERE t.category = 'development'
+              AND t.created_week = ? AND t.created_year = ?
               AND t.assigned_to IS NOT NULL
             GROUP BY t.assigned_to, c.name`,
       args: [weekNumber, year],
