@@ -127,7 +127,7 @@ const SidebarContent = ({
         </div>
       )}
 
-      <nav className="flex-1 space-y-2">
+      <nav className="flex-1 space-y-2 overflow-y-auto min-h-0 pr-1">
         {navItems.map((item) => {
           if (item.subItems) {
             const isChildActive = item.subItems.some((sub) =>
@@ -864,7 +864,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       <div className="flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)]">
         <aside
           style={{ width: collapsed ? 64 : 260 }}
-          className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden z-[100] transition-[width] duration-150"
+          className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden min-h-0 z-[100] transition-[width] duration-150"
         >
           <SidebarContent {...commonProps} />
         </aside>
