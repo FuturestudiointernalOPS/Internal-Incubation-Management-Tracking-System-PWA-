@@ -1,7 +1,15 @@
-import { initDb } from "@/lib/db";
-import db from "@/lib/db";
+import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, PERMISSION_MODULES, ACCESS_LEVELS, getUserFullPermissionMatrix, getUserGroups, logPermissionAudit, seedDefaultRoleCapabilities } from "@/lib/auth";
+import {
+  requireAuth,
+  getSession,
+  PERMISSION_MODULES,
+  ACCESS_LEVELS,
+  getUserFullPermissionMatrix,
+  getUserGroups,
+  logPermissionAudit,
+  seedDefaultRoleCapabilities,
+} from "@/lib/auth";
 
 /**
  * GET /api/engineering/permissions
@@ -50,7 +58,10 @@ export async function GET(req) {
         args: [userCid],
       });
       if (userRes.rows.length === 0) {
-        return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+        return NextResponse.json(
+          { success: false, error: "User not found" },
+          { status: 404 },
+        );
       }
       const user = userRes.rows[0];
       const groups = await getUserGroups(userCid);
@@ -70,7 +81,13 @@ export async function GET(req) {
 
       return NextResponse.json({
         success: true,
-        user: { cid: user.cid, name: user.name, email: user.email, role: user.role, status: user.status },
+        user: {
+          cid: user.cid,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+        },
         groups,
         effectivePermissions: matrix,
         individualGrants: grants.rows,
@@ -84,7 +101,11 @@ export async function GET(req) {
         sql: "SELECT * FROM role_capabilities WHERE role = ? ORDER BY module, capability",
         args: [role],
       });
-      return NextResponse.json({ success: true, role, capabilities: caps.rows });
+      return NextResponse.json({
+        success: true,
+        role,
+        capabilities: caps.rows,
+      });
     }
 
     // Get group defaults
@@ -93,11 +114,18 @@ export async function GET(req) {
         sql: "SELECT * FROM group_capabilities WHERE group_name = ? ORDER BY module, capability",
         args: [group],
       });
-      return NextResponse.json({ success: true, group, capabilities: caps.rows });
+      return NextResponse.json({
+        success: true,
+        group,
+        capabilities: caps.rows,
+      });
     }
   } catch (err) {
     console.error("[Permissions] GET error:", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 },
+    );
   }
 }
 
@@ -113,18 +141,24 @@ export async function PUT(req) {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const sessionRes = await fetch(`${req.nextUrl.origin}/api/auth/session`);
-    const sessionData = await sessionRes.json();
-    if (!sessionData.authenticated) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
     }
-    const actor = sessionData.user;
+    const actor = { cid: session.cid, name: session.name };
 
     const body = await req.json();
-    const { action, user_cid, module, capability, access_level, expires_at } = body;
+    const { action, user_cid, module, capability, access_level, expires_at } =
+      body;
 
     if (!action || !user_cid) {
-      return NextResponse.json({ success: false, error: "action and user_cid are required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "action and user_cid are required" },
+        { status: 400 },
+      );
     }
 
     await initDb();
@@ -143,12 +177,17 @@ export async function PUT(req) {
         args: [user_cid],
       });
       await logPermissionAudit({
-        actorCid: actor.cid, actorName: actor.name,
-        targetCid: user_cid, targetName,
+        actorCid: actor.cid,
+        actorName: actor.name,
+        targetCid: user_cid,
+        targetName,
         action: "role_changed",
         details: `Promoted to super_admin`,
       });
-      return NextResponse.json({ success: true, message: "User promoted to Super Admin" });
+      return NextResponse.json({
+        success: true,
+        message: "User promoted to Super Admin",
+      });
     }
 
     if (action === "remove_super_admin") {
@@ -157,16 +196,24 @@ export async function PUT(req) {
         args: [user_cid],
       });
       await logPermissionAudit({
-        actorCid: actor.cid, actorName: actor.name,
-        targetCid: user_cid, targetName,
+        actorCid: actor.cid,
+        actorName: actor.name,
+        targetCid: user_cid,
+        targetName,
         action: "role_changed",
         details: "Super Admin status removed",
       });
-      return NextResponse.json({ success: true, message: "Super Admin status removed" });
+      return NextResponse.json({
+        success: true,
+        message: "Super Admin status removed",
+      });
     }
 
     if (!module || !capability) {
-      return NextResponse.json({ success: false, error: "module and capability are required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "module and capability are required" },
+        { status: 400 },
+      );
     }
 
     switch (action) {
@@ -175,9 +222,28 @@ export async function PUT(req) {
           sql: `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by, expires_at)
                 VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT (user_cid, module, capability) DO UPDATE SET access_level = ?, granted_by = ?, expires_at = ?`,
-          args: [user_cid, module, capability, access_level || 1, actor.cid, expires_at || null, access_level || 1, actor.cid, expires_at || null],
+          args: [
+            user_cid,
+            module,
+            capability,
+            access_level || 1,
+            actor.cid,
+            expires_at || null,
+            access_level || 1,
+            actor.cid,
+            expires_at || null,
+          ],
         });
-        await logPermissionAudit({ actorCid: actor.cid, actorName: actor.name, targetCid: user_cid, targetName, action: "granted", module, capability, newValue: String(access_level || 1) });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "granted",
+          module,
+          capability,
+          newValue: String(access_level || 1),
+        });
         break;
 
       case "revoke":
@@ -185,7 +251,15 @@ export async function PUT(req) {
           sql: "DELETE FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ?",
           args: [user_cid, module, capability],
         });
-        await logPermissionAudit({ actorCid: actor.cid, actorName: actor.name, targetCid: user_cid, targetName, action: "revoked", module, capability });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "revoked",
+          module,
+          capability,
+        });
         break;
 
       case "restrict":
@@ -193,9 +267,25 @@ export async function PUT(req) {
           sql: `INSERT INTO user_capability_restrictions (user_cid, module, capability, restricted_by, expires_at)
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT (user_cid, module, capability) DO UPDATE SET restricted_by = ?, expires_at = ?`,
-          args: [user_cid, module, capability, actor.cid, expires_at || null, actor.cid, expires_at || null],
+          args: [
+            user_cid,
+            module,
+            capability,
+            actor.cid,
+            expires_at || null,
+            actor.cid,
+            expires_at || null,
+          ],
         });
-        await logPermissionAudit({ actorCid: actor.cid, actorName: actor.name, targetCid: user_cid, targetName, action: "restricted", module, capability });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "restricted",
+          module,
+          capability,
+        });
         break;
 
       case "unrestrict":
@@ -203,7 +293,15 @@ export async function PUT(req) {
           sql: "DELETE FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND capability = ?",
           args: [user_cid, module, capability],
         });
-        await logPermissionAudit({ actorCid: actor.cid, actorName: actor.name, targetCid: user_cid, targetName, action: "unrestricted", module, capability });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "unrestricted",
+          module,
+          capability,
+        });
         break;
 
       case "set_role_default":
@@ -211,9 +309,24 @@ export async function PUT(req) {
           sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT (role, module, capability) DO UPDATE SET access_level = ?`,
-          args: [body.role, module, capability, access_level || 0, access_level || 0],
+          args: [
+            body.role,
+            module,
+            capability,
+            access_level || 0,
+            access_level || 0,
+          ],
         });
-        await logPermissionAudit({ actorCid: actor.cid, actorName: actor.name, targetCid: user_cid, targetName, action: "role_changed", module, capability, newValue: String(access_level || 0) });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "role_changed",
+          module,
+          capability,
+          newValue: String(access_level || 0),
+        });
         break;
 
       case "set_group_default":
@@ -221,17 +334,29 @@ export async function PUT(req) {
           sql: `INSERT INTO group_capabilities (group_name, module, capability, access_level)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT (group_name, module, capability) DO UPDATE SET access_level = ?`,
-          args: [body.group_name, module, capability, access_level || 0, access_level || 0],
+          args: [
+            body.group_name,
+            module,
+            capability,
+            access_level || 0,
+            access_level || 0,
+          ],
         });
         break;
 
       default:
-        return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
+        return NextResponse.json(
+          { success: false, error: `Unknown action: ${action}` },
+          { status: 400 },
+        );
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[Permissions] PUT error:", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 },
+    );
   }
 }
