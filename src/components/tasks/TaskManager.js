@@ -925,6 +925,36 @@ export default function TaskManager({
                     onChange={(e) =>
                       setEditForm((p) => ({ ...p, start_date: e.target.value }))
                     }
+                    min={(() => {
+                      if (
+                        !editTaskModal.created_week ||
+                        !editTaskModal.created_year
+                      )
+                        return "";
+                      const jan1 = new Date(editTaskModal.created_year, 0, 1);
+                      const days = (editTaskModal.created_week - 1) * 7;
+                      const monday = new Date(jan1);
+                      monday.setDate(
+                        jan1.getDate() + days + (1 - jan1.getDay()),
+                      );
+                      return monday.toISOString().split("T")[0];
+                    })()}
+                    max={(() => {
+                      if (
+                        !editTaskModal.created_week ||
+                        !editTaskModal.created_year
+                      )
+                        return "";
+                      const jan1 = new Date(editTaskModal.created_year, 0, 1);
+                      const days = (editTaskModal.created_week - 1) * 7;
+                      const monday = new Date(jan1);
+                      monday.setDate(
+                        jan1.getDate() + days + (1 - jan1.getDay()),
+                      );
+                      const sunday = new Date(monday);
+                      sunday.setDate(monday.getDate() + 6);
+                      return sunday.toISOString().split("T")[0];
+                    })()}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none"
                   />
                 </div>
@@ -938,6 +968,7 @@ export default function TaskManager({
                     onChange={(e) =>
                       setEditForm((p) => ({ ...p, due_date: e.target.value }))
                     }
+                    min={editForm.start_date || ""}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none"
                   />
                 </div>
