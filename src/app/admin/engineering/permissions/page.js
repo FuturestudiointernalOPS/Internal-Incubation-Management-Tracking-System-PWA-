@@ -879,11 +879,4 @@ const ACCESS_COLORS = {
   4: "text-red-400",
   5: "text-purple-400",
 };
-const ACCESS_LABELS = {
-  0: "None",
-  1: "View",
-  2: "Create",
-  3: "Edit",
-  4: "Delete",
-  5: "Full",
-};
+
