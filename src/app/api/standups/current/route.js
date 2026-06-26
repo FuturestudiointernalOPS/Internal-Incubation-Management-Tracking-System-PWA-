@@ -7,7 +7,8 @@ import { requireAuth } from "@/lib/auth";
  *
  * Returns the current week's standup data:
  * - Existing standup report (if submitted)
- * - Active tasks (in_progress, blocked, carried_over) with blockers
+ * - Weekly tasks (pending, in_progress, blocked, carried_over) with blockers
+ * - Tasks are scoped to the given week/year
  */
 export async function GET(req) {
   try {
@@ -39,11 +40,21 @@ export async function GET(req) {
       if (reportRes.rows.length > 0) report = reportRes.rows[0];
     }
 
-    // Fetch carry-over tasks (in_progress, blocked, carried_over)
-    const taskRes = await db.execute({
-      sql: "SELECT * FROM tasks WHERE user_id = ? AND status IN ('in_progress', 'blocked', 'carried_over') ORDER BY created_at DESC",
-      args: [user_id],
-    });
+    // Fetch weekly tasks: pending, in_progress, blocked, carried_over
+    // Scoped to the given week/year so the standup shows "What am I working on this week?"
+    let taskSql = "SELECT * FROM tasks WHERE user_id = ?";
+    const taskArgs = [user_id];
+
+    if (w && y) {
+      taskSql += " AND created_week = ? AND created_year = ?";
+      taskArgs.push(w, y);
+    }
+
+    taskSql += " AND status NOT IN ('completed', 'archived')";
+    taskSql +=
+      " ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, created_at ASC";
+
+    const taskRes = await db.execute({ sql: taskSql, args: taskArgs });
 
     // Attach blockers to tasks
     const tasks = await Promise.all(
