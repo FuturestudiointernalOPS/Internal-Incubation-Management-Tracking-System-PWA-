@@ -60,6 +60,7 @@ const softAuthPaths = [
   "/api/notifications",
   "/api/dashboard",
   "/api/engineering",
+  "/api/user-groups",
   "/api/migrate",
   "/finance",
   "/api/finance",

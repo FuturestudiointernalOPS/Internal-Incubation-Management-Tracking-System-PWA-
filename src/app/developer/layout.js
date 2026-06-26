@@ -6,10 +6,13 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * DEVELOPER LAYOUT — Role Guard
+ * DEVELOPER LAYOUT — Role + Group Guard
  *
- * Blocks non-developer/intern users from accessing /developer/* routes
- * and redirects them to their appropriate dashboard.
+ * Allows access to:
+ *   - Users with role: developer, super_admin
+ *   - Users who belong to the "FUTURE STUDIO INTERNS" group (even if role is staff)
+ *
+ * Redirects everyone else to their appropriate dashboard.
  */
 export default function DeveloperLayout({ children }) {
   const router = useRouter();
@@ -23,10 +26,28 @@ export default function DeveloperLayout({ children }) {
         const data = await res.json();
         if (data.authenticated && data.user) {
           const role = data.user.role;
-          if (role === "developer" || role === "intern" || role === "super_admin") {
+
+          // Check group membership for interns
+          let userGroups = [];
+          try {
+            const groupsRes = await fetch(
+              `/api/user-groups?user_cid=${data.user.cid}`,
+            );
+            const groupsData = await groupsRes.json();
+            if (groupsData.success) userGroups = groupsData.groups;
+          } catch (_) {}
+
+          const isIntern = userGroups.some(
+            (g) =>
+              g.toUpperCase() === "FUTURE STUDIO INTERNS" ||
+              g.toUpperCase() === "INTERN",
+          );
+
+          if (role === "developer" || role === "super_admin" || isIntern) {
             setAuthorized(true);
             return;
           }
+
           // Redirect non-developer users to their correct dashboard
           const redirectMap = {
             staff: "/staff",
@@ -45,7 +66,14 @@ export default function DeveloperLayout({ children }) {
         const saved = localStorage.getItem("user");
         if (saved) {
           const u = JSON.parse(saved);
-          if (u.role === "developer" || u.role === "intern" || u.role === "super_admin") {
+          const groups = u.groups || [];
+          const isIntern = groups.some(
+            (g) =>
+              g.toUpperCase() === "FUTURE STUDIO INTERNS" ||
+              g.toUpperCase() === "INTERN",
+          );
+
+          if (u.role === "developer" || u.role === "super_admin" || isIntern) {
             setAuthorized(true);
             return;
           }
@@ -66,7 +94,6 @@ export default function DeveloperLayout({ children }) {
     checkAccess();
   }, [router]);
 
-  // Show nothing while checking
   if (!authorized) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center">
