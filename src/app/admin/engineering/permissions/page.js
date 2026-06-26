@@ -58,6 +58,7 @@ const MODULE_CATEGORIES = [
 export default function PermissionManager() {
   const [activeTab, setActiveTab] = useState("search");
   const [searchQuery, setSearchQuery] = useState("");
+  const [allUsers, setAllUsers] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -72,6 +73,13 @@ export default function PermissionManager() {
     fetchModules();
   }, []);
 
+  // Load all users when search tab is active
+  useEffect(() => {
+    if (activeTab === "search" && searchResults.length === 0 && !selectedUser) {
+      fetchAllUsers();
+    }
+  }, [activeTab]);
+
   const fetchModules = async () => {
     try {
       const res = await fetch("/api/engineering/permissions");
@@ -82,20 +90,42 @@ export default function PermissionManager() {
     }
   };
 
-  const searchUsers = async () => {
-    if (!searchQuery.trim()) return;
+  const fetchAllUsers = async () => {
     setSearching(true);
     try {
-      const res = await fetch(
-        `/api/contacts?search=${encodeURIComponent(searchQuery)}`,
-      );
+      const res = await fetch("/api/contacts");
       const data = await res.json();
-      if (data.success) setSearchResults(data.contacts || []);
+      if (data.success) {
+        // Sort: active first, then by name
+        const sorted = (data.contacts || []).sort((a, b) => {
+          if (a.status === "active" && b.status !== "active") return -1;
+          if (a.status !== "active" && b.status === "active") return 1;
+          return (a.name || "").localeCompare(b.name || "");
+        });
+        setAllUsers(sorted);
+        setSearchResults(sorted);
+      }
     } catch (e) {
-      console.error("Search failed", e);
+      console.error("Failed to fetch users", e);
     } finally {
       setSearching(false);
     }
+  };
+
+  const searchUsers = (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults(allUsers);
+      return;
+    }
+    const q = query.toLowerCase();
+    const filtered = allUsers.filter(
+      (u) =>
+        (u.name || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.cid || "").toLowerCase().includes(q),
+    );
+    setSearchResults(filtered);
   };
 
   const selectUser = async (user) => {
@@ -145,6 +175,81 @@ export default function PermissionManager() {
   const handleQuickAction = async (action, module, capability, level) => {
     setActionMsg("");
     setActionError("");
+
+    // Optimistic update — apply change immediately to local state
+    const prevPerms = { ...userPerms };
+    const newPerms = JSON.parse(JSON.stringify(userPerms));
+
+    if (action === "grant") {
+      // Add to individual grants
+      const existing = newPerms.individualGrants || [];
+      const idx = existing.findIndex(
+        (g) => g.module === module && g.capability === capability,
+      );
+      if (idx >= 0) {
+        existing[idx].access_level = level;
+      } else {
+        existing.push({
+          module,
+          capability,
+          access_level: level,
+          granted_by: "self",
+        });
+      }
+      newPerms.individualGrants = existing;
+      // Update effective permissions
+      if (!newPerms.effectivePermissions[module])
+        newPerms.effectivePermissions[module] = {};
+      newPerms.effectivePermissions[module][capability] = level;
+      // Remove from restrictions if present
+      newPerms.individualRestrictions = (
+        newPerms.individualRestrictions || []
+      ).filter((r) => !(r.module === module && r.capability === capability));
+    }
+
+    if (action === "revoke") {
+      newPerms.individualGrants = (newPerms.individualGrants || []).filter(
+        (g) => !(g.module === module && g.capability === capability),
+      );
+      // Revert effective to 0 (or re-calculate by removing from effective)
+      if (newPerms.effectivePermissions[module]) {
+        delete newPerms.effectivePermissions[module][capability];
+      }
+    }
+
+    if (action === "restrict") {
+      newPerms.individualRestrictions = newPerms.individualRestrictions || [];
+      if (
+        !newPerms.individualRestrictions.some(
+          (r) => r.module === module && r.capability === capability,
+        )
+      ) {
+        newPerms.individualRestrictions.push({
+          module,
+          capability,
+          restricted_by: "self",
+        });
+      }
+      if (newPerms.effectivePermissions[module]) {
+        delete newPerms.effectivePermissions[module][capability];
+      }
+    }
+
+    if (action === "unrestrict") {
+      newPerms.individualRestrictions = (
+        newPerms.individualRestrictions || []
+      ).filter((r) => !(r.module === module && r.capability === capability));
+      // Restore default level (will be corrected by background refresh)
+      if (newPerms.effectivePermissions[module]) {
+        newPerms.effectivePermissions[module][capability] = level || 1;
+      }
+    }
+
+    // Apply optimistic update immediately
+    setUserPerms(newPerms);
+    setActionMsg(`${action} — updating...`);
+
+    // Fire API in background
     try {
       const res = await fetch("/api/engineering/permissions", {
         method: "PUT",
@@ -160,13 +265,27 @@ export default function PermissionManager() {
       const data = await res.json();
       if (data.success) {
         setActionMsg(`${action} successful`);
-        selectUser(selectedUser);
+        // Quietly refresh in background
+        refreshUserPerms();
       } else {
+        // Revert on failure
+        setUserPerms(prevPerms);
         setActionError(data.error || "Action failed");
       }
     } catch (e) {
+      setUserPerms(prevPerms);
       setActionError("Network error");
     }
+  };
+
+  const refreshUserPerms = async () => {
+    try {
+      const res = await fetch(
+        `/api/engineering/permissions?user_cid=${selectedUser.cid}`,
+      );
+      const data = await res.json();
+      if (data.success) setUserPerms(data);
+    } catch (_) {}
   };
 
   return (
@@ -220,22 +339,19 @@ export default function PermissionManager() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                 <input
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && searchUsers()}
+                  onChange={(e) => searchUsers(e.target.value)}
                   placeholder="Search by name, email, or CID..."
                   className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
                 />
               </div>
               <button
-                onClick={searchUsers}
-                disabled={searching}
-                className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchResults(allUsers);
+                }}
+                className="px-4 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                {searching ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Search"
-                )}
+                Clear
               </button>
             </div>
 
@@ -879,4 +995,3 @@ const ACCESS_COLORS = {
   4: "text-red-400",
   5: "text-purple-400",
 };
-
