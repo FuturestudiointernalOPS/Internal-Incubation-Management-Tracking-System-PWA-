@@ -834,10 +834,6 @@ function RoleDefaultsView() {
   const [roleDefaults, setRoleDefaults] = useState([]);
   const [loading, setLoading] = useState(true);
 
-function RoleDefaultsView() {
-  const [roleDefaults, setRoleDefaults] = useState([]);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const loadDefaults = async () => {
       try {
@@ -853,6 +849,7 @@ function RoleDefaultsView() {
       }
     };
     loadDefaults();
+  }, []);
 
   if (loading)
     return (
