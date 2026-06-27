@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Calendar,
   Shield,
+  BarChart3,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -231,6 +232,22 @@ export default function EngineeringOperations() {
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
                     {data?.activeTasks?.length || 0} active tasks
+                  </p>
+                </div>
+              </button>
+              <button
+                onClick={() => router.push("/admin/engineering/reports")}
+                className="ios-card !p-6 flex items-center gap-4 hover:border-emerald-500/30 transition-all text-left"
+              >
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-500/10">
+                  <BarChart3 className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                    Reports
+                  </p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                    Error trends, resolution metrics, dev velocity
                   </p>
                 </div>
               </button>
