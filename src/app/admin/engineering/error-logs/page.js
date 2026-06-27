@@ -434,7 +434,7 @@ export default function EngineeringErrorLogs() {
                       <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1 whitespace-nowrap">
                         <Calendar className="w-3 h-3" />{" "}
                         {error.created_at
-                          ? new Date(error.created_at).toLocaleDateString()
+                          ? new Date(error.created_at).toLocaleString()
                           : "—"}
                       </span>
                     </div>
