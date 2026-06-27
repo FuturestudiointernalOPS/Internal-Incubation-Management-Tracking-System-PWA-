@@ -66,10 +66,17 @@ export default function RootLayout({ children }) {
 
         // Report 4xx and 5xx responses
         if (!response.ok && response.status >= 400) {
+          let userRole = "";
+          try {
+            const saved = localStorage.getItem("user");
+            if (saved) userRole = JSON.parse(saved).role || "";
+          } catch (_) {}
+
           const payload = JSON.stringify({
             message: `API ${method} ${url} returned ${response.status}`,
             url: window.location.href,
             user_agent: navigator.userAgent,
+            user_role: userRole,
             severity: response.status >= 500 ? "error" : "warning",
             status_code: response.status,
             method: method,
