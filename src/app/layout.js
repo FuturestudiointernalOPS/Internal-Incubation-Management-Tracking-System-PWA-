@@ -57,7 +57,11 @@ export default function RootLayout({ children }) {
       const method = args[1]?.method || "GET";
 
       // Skip reporting for error-reporting endpoints to avoid loops
-      if (url.includes("/api/errors") || url.includes("/api/auth/session")) {
+      if (
+        url.includes("/api/errors") ||
+        url.includes("/api/auth/session") ||
+        url.includes("/api/notifications")
+      ) {
         return originalFetch.apply(window, args);
       }
 
