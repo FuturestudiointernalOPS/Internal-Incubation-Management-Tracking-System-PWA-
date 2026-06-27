@@ -176,3 +176,104 @@ export async function POST(request) {
     );
   }
 }
+
+/**
+ * GET /api/errors — Returns error logs with optional filtering.
+ */
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const severity = searchParams.get("severity");
+    const resolved = searchParams.get("resolved");
+    const category = searchParams.get("category");
+    const search = searchParams.get("search");
+
+    await initDb();
+
+    let sql = "SELECT * FROM error_logs WHERE 1=1";
+    const args = [];
+
+    if (severity) {
+      sql += " AND severity = ?";
+      args.push(severity);
+    }
+
+    if (resolved === "true") {
+      sql += " AND resolved = true";
+    } else if (resolved === "false") {
+      sql += " AND (resolved IS NULL OR resolved = false)";
+    }
+
+    if (category) {
+      sql += " AND category = ?";
+      args.push(category);
+    }
+
+    if (search) {
+      sql += " AND message ILIKE ?";
+      args.push(`%${search}%`);
+    }
+
+    sql += " ORDER BY created_at DESC";
+
+    const result = await db.execute({ sql, args });
+
+    return NextResponse.json({ success: true, errors: result.rows });
+  } catch (err) {
+    console.error("[API errors] GET failed:", err);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PATCH /api/errors — Updates an error log's status.
+ */
+export async function PATCH(request) {
+  try {
+    const { id, resolved, resolution_notes, task_id } = await request.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "id is required" },
+        { status: 400 },
+      );
+    }
+
+    await initDb();
+
+    if (typeof resolved === "boolean") {
+      await db.execute({
+        sql: "UPDATE error_logs SET resolved = ?, resolution_notes = ?, resolved_at = CASE WHEN ? THEN NOW() ELSE NULL END WHERE id = ?",
+        args: [
+          resolved ? 1 : 0,
+          resolution_notes || null,
+          resolved ? 1 : 0,
+          id,
+        ],
+      });
+    } else if (resolution_notes !== undefined) {
+      await db.execute({
+        sql: "UPDATE error_logs SET resolution_notes = ? WHERE id = ?",
+        args: [resolution_notes, id],
+      });
+    }
+
+    if (task_id !== undefined) {
+      await db.execute({
+        sql: "UPDATE error_logs SET task_id = ? WHERE id = ?",
+        args: [task_id, id],
+      });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("[API errors] PATCH failed:", err);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
