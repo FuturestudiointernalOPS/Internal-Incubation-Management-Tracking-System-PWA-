@@ -322,7 +322,7 @@ export default function EngineeringOperations() {
                             {err.page && `${err.page}`}
                             {err.user_name && ` — ${err.user_name}`}
                             {err.created_at &&
-                              ` — ${new Date(err.created_at).toLocaleDateString()}`}
+                              ` — ${new Date(err.created_at).toLocaleString()}`}}
                           </p>
                         </div>
                         <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] shrink-0 ml-2" />
