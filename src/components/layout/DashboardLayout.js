@@ -627,13 +627,23 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     } catch (_) {}
   }, []);
 
+  // Listen for manual refresh events from approve actions
+  useEffect(() => {
+    const onRefresh = () => {
+      fetchNotifications();
+      fetchSubmissionCount();
+    };
+    window.addEventListener("notifications:refresh", onRefresh);
+    return () => window.removeEventListener("notifications:refresh", onRefresh);
+  }, [fetchNotifications, fetchSubmissionCount]);
+
   useEffect(() => {
     fetchNotifications();
     fetchSubmissionCount();
     const interval = setInterval(() => {
       fetchNotifications();
       fetchSubmissionCount();
-    }, 60000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [fetchNotifications, fetchSubmissionCount]);
 

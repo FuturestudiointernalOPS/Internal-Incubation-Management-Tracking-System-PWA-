@@ -87,6 +87,7 @@ export default function DevelopersPage() {
       const data = await res.json();
       if (data.success) {
         fetchDevelopers();
+        window.dispatchEvent(new CustomEvent("notifications:refresh"));
       }
     } catch (e) {
       console.error("Failed to activate", e);
@@ -257,12 +258,18 @@ export default function DevelopersPage() {
               </div>
 
               <p className="text-xs font-bold text-[var(--text-secondary)]">
-                Select a new role for <strong className="text-[var(--text-primary)]">{showPromoteModal.name}</strong>:
+                Select a new role for{" "}
+                <strong className="text-[var(--text-primary)]">
+                  {showPromoteModal.name}
+                </strong>
+                :
               </p>
 
               <div className="space-y-3">
                 <button
-                  onClick={() => handlePromote(showPromoteModal.cid, "developer")}
+                  onClick={() =>
+                    handlePromote(showPromoteModal.cid, "developer")
+                  }
                   disabled={actionLoading}
                   className="w-full p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-all text-left"
                 >
@@ -270,7 +277,8 @@ export default function DevelopersPage() {
                     Developer
                   </p>
                   <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-1">
-                    Full developer access. Can standup, manage tasks, view projects.
+                    Full developer access. Can standup, manage tasks, view
+                    projects.
                   </p>
                 </button>
                 <button
@@ -282,14 +290,17 @@ export default function DevelopersPage() {
                     Intern
                   </p>
                   <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-1">
-                    Restricted view. Can only see their tasks and submit standups.
+                    Restricted view. Can only see their tasks and submit
+                    standups.
                   </p>
                 </button>
               </div>
 
               {actionMsg && (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <p className="text-[10px] font-bold text-emerald-400">{actionMsg}</p>
+                  <p className="text-[10px] font-bold text-emerald-400">
+                    {actionMsg}
+                  </p>
                 </div>
               )}
 
