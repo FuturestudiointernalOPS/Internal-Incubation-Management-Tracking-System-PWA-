@@ -23,6 +23,7 @@ import {
   FileText,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useRouter } from "next/navigation";
 
 const SEVERITY_CONFIG = {
   critical: { color: "#ef4444", bg: "rgba(239,68,68,0.1)", label: "Critical" },
