@@ -1,4 +1,3 @@
-import { supabaseAdmin } from "@/lib/supabase-admin";
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
@@ -47,15 +46,23 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const recipientId = searchParams.get("recipient_id") || "sa";
 
-    // Use db.execute instead of supabaseAdmin for consistency
-    const result = await db.execute({
-      sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? AND (is_read = 0 OR is_read IS NULL) ORDER BY created_at DESC",
-      args: [recipientId],
-    });
+    let rows = [];
+    try {
+      const result = await db.execute({
+        sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? ORDER BY created_at DESC LIMIT 50",
+        args: [recipientId],
+      });
+      rows = result.rows || [];
+      // Filter unread in JS to avoid type mismatch on is_read column
+      rows = rows.filter((r) => r.is_read == 0 || r.is_read == null);
+    } catch (_) {
+      // Table or column may not exist in all environments
+      rows = [];
+    }
 
     return NextResponse.json({
       success: true,
-      notifications: result.rows || [],
+      notifications: rows,
     });
   } catch (error) {
     console.error("GET Notifications Error:", error);
@@ -68,17 +75,16 @@ export async function GET(req) {
 
 export async function PATCH(req) {
   try {
+    await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
     const { id, action } = await req.json();
 
     if (action === "read") {
-      const { error } = await supabaseAdmin
-        .from("v2_notifications")
-        .update({ is_read: true })
-        .eq("id", id);
-
-      if (error) throw error;
+      await db.execute({
+        sql: "UPDATE v2_notifications SET is_read = 1 WHERE id = ?",
+        args: [id],
+      });
       return NextResponse.json({ success: true });
     }
 
