@@ -112,6 +112,7 @@ export default function EngineeringErrorLogs() {
       if (filterSeverity !== "all") params.set("severity", filterSeverity);
       if (filterResolved === "resolved") params.set("resolved", "true");
       else if (filterResolved === "unresolved") params.set("resolved", "false");
+      if (filterCategory !== "all") params.set("category", filterCategory);
       if (search) params.set("search", search);
 
       const res = await fetch(`/api/errors?${params.toString()}`);
