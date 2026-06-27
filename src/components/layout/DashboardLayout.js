@@ -340,8 +340,8 @@ const NAVIGATION_MATRIX = {
       href: "/admin/metrics",
     },
     {
-      id: "rituals",
-      name: "RITUALS",
+      id: "standups_retros",
+      name: "STANDUPS & RETROS",
       icon: MessageSquare,
       subItems: [
         { id: "standup", name: "STANDUP", href: "/staff/op-report" },
