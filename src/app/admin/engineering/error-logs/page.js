@@ -7,25 +7,19 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
-  AlertCircle,
   CheckCircle2,
-  User,
-  Calendar,
-  Wrench,
   Copy,
   CheckSquare,
   Square,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
-const SEVERITY_CONFIG = {
+const SEV = {
   critical: { color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
-  fatal: { color: "#ef4444", bg: "rgba(239,68,68,0.15)" },
   error: { color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
   warning: { color: "#3b82f6", bg: "rgba(59,130,246,0.1)" },
-  info: { color: "#6b7280", bg: "rgba(107,114,128,0.1)" },
 };
-const CATEGORY_CONFIG = {
+const CAT = {
   server_error: {
     color: "#ef4444",
     bg: "rgba(239,68,68,0.1)",
@@ -37,29 +31,14 @@ const CATEGORY_CONFIG = {
     label: "Runtime",
   },
   api_error: { color: "#3b82f6", bg: "rgba(59,130,246,0.1)", label: "API" },
-  auth_error: { color: "#8b5cf6", bg: "rgba(139,92,246,0.1)", label: "Auth" },
   network_error: {
     color: "#06b6d4",
     bg: "rgba(6,182,212,0.1)",
     label: "Network",
   },
-  validation_error: {
-    color: "#f97316",
-    bg: "rgba(249,115,22,0.1)",
-    label: "Validation",
-  },
-  database_error: {
-    color: "#ec4899",
-    bg: "rgba(236,72,153,0.1)",
-    label: "Database",
-  },
-  not_found: {
-    color: "#64748b",
-    bg: "rgba(100,116,139,0.1)",
-    label: "Not Found",
-  },
-  timeout: { color: "#84cc16", bg: "rgba(132,204,22,0.1)", label: "Timeout" },
-  build_error: { color: "#a855f7", bg: "rgba(168,85,247,0.1)", label: "Build" },
+  auth_error: { color: "#8b5cf6", bg: "rgba(139,92,246,0.1)", label: "Auth" },
+  database_error: { color: "#ec4899", bg: "rgba(236,72,153,0.1)", label: "DB" },
+  not_found: { color: "#64748b", bg: "rgba(100,116,139,0.1)", label: "404" },
   uncategorized: {
     color: "#64748b",
     bg: "rgba(100,116,139,0.05)",
@@ -70,60 +49,49 @@ const CATEGORY_CONFIG = {
 export default function EngineeringErrorLogs() {
   const [errors, setErrors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterSeverity, setFilterSeverity] = useState("all");
-  const [filterResolved, setFilterResolved] = useState("all");
-  const [filterCategory, setFilterCategory] = useState("all");
-  const [search, setSearch] = useState("");
+  const [tab, setTab] = useState("unresolved");
+  const [sev, setSev] = useState("all");
+  const [cat, setCat] = useState("all");
+  const [q, setQ] = useState("");
   const [expandedId, setExpandedId] = useState(null);
-  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [sel, setSel] = useState(new Set());
   const [copied, setCopied] = useState(false);
-  const [resolving, setResolving] = useState(false);
 
   const fetchErrors = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (filterSeverity !== "all") params.set("severity", filterSeverity);
-      if (filterResolved === "resolved") params.set("resolved", "true");
-      else if (filterResolved === "unresolved") params.set("resolved", "false");
-      if (filterCategory !== "all") params.set("category", filterCategory);
-      if (search) params.set("search", search);
-      const res = await fetch(`/api/errors?${params.toString()}`);
-      const data = await res.json();
-      if (data.success) setErrors(data.errors || []);
+      const p = new URLSearchParams();
+      if (sev !== "all") p.set("severity", sev);
+      if (tab === "resolved") p.set("resolved", "true");
+      else if (tab === "unresolved") p.set("resolved", "false");
+      if (cat !== "all") p.set("category", cat);
+      if (q) p.set("search", q);
+      const res = await fetch(`/api/errors?${p.toString()}`);
+      const d = await res.json();
+      if (d.success) setErrors(d.errors || []);
     } catch (e) {
-      console.error("Failed to fetch errors", e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [filterSeverity, filterResolved, filterCategory, search]);
+  }, [sev, tab, cat, q]);
 
   useEffect(() => {
     fetchErrors();
   }, [fetchErrors]);
 
-  const allSelected = errors.length > 0 && selectedIds.size === errors.length;
-  const toggleSelect = (id) => {
-    const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedIds(next);
-  };
-  const toggleSelectAll = () => {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(errors.map((e) => e.id)));
-  };
+  const allSel = errors.length > 0 && sel.size === errors.length;
 
   const copySelected = async () => {
-    const selected = errors.filter((e) => selectedIds.has(e.id));
-    if (selected.length === 0) return;
-    const body = selected
+    const items = errors.filter((e) => sel.has(e.id));
+    if (!items.length) return;
+    const body = items
       .map(
         (e) =>
-          `---\nError ID: #${e.id}\nOccurrences: ${e.occurrence_count || 1}x\nSeverity: ${e.severity}\nUser: ${e.user_name || "Unknown"} (Role: ${e.user_role || "N/A"})\nPage: ${e.page || "N/A"}\nAction: ${e.action_attempted || "N/A"}\nEndpoint: ${e.endpoint || "N/A"}\nStatus: ${e.status_code || "N/A"}\nTime: ${e.created_at ? new Date(e.created_at).toLocaleString() : "N/A"}\nMessage: ${e.message || "N/A"}\nStack: ${e.stack || "N/A"}\n`,
+          `---\nID: #${e.id}\nSev: ${e.severity}\nUser: ${e.user_name || "?"} (${e.user_role || "?"})\nPage: ${e.page || "?"}\nAction: ${e.action_attempted || "?"}\nStatus: ${e.status_code || "?"}\nWhen: ${e.created_at ? new Date(e.created_at).toLocaleString() : "?"}\nMsg: ${e.message || "?"}\nStack: ${e.stack || "?"}\n`,
       )
       .join("\n");
-    const full = `Error Report — ${selected.length} error(s)\nGenerated: ${new Date().toLocaleString()}\n\n${body}`;
+    const full = `${items.length} error(s) - ${new Date().toLocaleString()}\n${body}`;
     try {
       await navigator.clipboard.writeText(full);
     } catch {
@@ -138,47 +106,29 @@ export default function EngineeringErrorLogs() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const toggleExpand = (id) =>
-    setExpandedId((prev) => (prev === id ? null : id));
-
-  const handleToggleResolved = async (id, currentlyResolved) => {
-    try {
-      setResolving(true);
-      const res = await fetch("/api/errors", {
+  const bulkResolve = async () => {
+    for (const id of sel) {
+      await fetch("/api/errors", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, resolved: !currentlyResolved }),
-      });
-      const data = await res.json();
-      if (!data.success) console.error("Resolve failed:", data.error);
-    } catch (e) {
-      console.error("Resolve error:", e);
-    } finally {
-      setResolving(false);
+        body: JSON.stringify({ id, resolved: true }),
+      }).catch(() => {});
     }
+    setSel(new Set());
     fetchErrors();
   };
 
-  const handleBulkResolve = async () => {
-    setResolving(true);
-    for (const id of selectedIds) {
-      try {
-        await fetch("/api/errors", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, resolved: true }),
-        });
-      } catch (e) {
-        console.error("Bulk resolve error for", id, e);
-      }
-    }
-    setSelectedIds(new Set());
-    setResolving(false);
+  const toggleResolve = async (id, now) => {
+    await fetch("/api/errors", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, resolved: !now }),
+    }).catch(() => {});
     fetchErrors();
   };
 
-  const totalOccurrences = errors.reduce(
-    (sum, e) => sum + (parseInt(e.occurrence_count) || 1),
+  const totalOcc = errors.reduce(
+    (s, e) => s + (parseInt(e.occurrence_count) || 1),
     0,
   );
 
@@ -197,26 +147,24 @@ export default function EngineeringErrorLogs() {
               Error Logs
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              {errors.length} unique · {totalOccurrences} total
+              {errors.length} unique · {totalOcc} total
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {selectedIds.size > 0 && (
+            {sel.size > 0 && (
               <>
                 <button
-                  onClick={handleBulkResolve}
-                  disabled={resolving}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+                  onClick={bulkResolve}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Resolve{" "}
-                  {selectedIds.size}
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Resolve {sel.size}
                 </button>
                 <button
                   onClick={copySelected}
                   className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
                 >
                   <Copy className="w-3.5 h-3.5" />{" "}
-                  {copied ? "Copied!" : `Copy ${selectedIds.size} to AI`}
+                  {copied ? "Copied!" : `Copy ${sel.size}`}
                 </button>
               </>
             )}
@@ -229,42 +177,56 @@ export default function EngineeringErrorLogs() {
           </div>
         </header>
 
+        {/* Status tabs */}
+        <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
+          <button
+            onClick={() => setTab("unresolved")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${tab === "unresolved" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-400" /> Open
+          </button>
+          <button
+            onClick={() => setTab("resolved")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${tab === "resolved" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400" /> Resolved
+          </button>
+          <button
+            onClick={() => setTab("all")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${tab === "all" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            All
+          </button>
+        </div>
+
+        {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
               placeholder="Search..."
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
             />
           </div>
           <select
-            value={filterSeverity}
-            onChange={(e) => setFilterSeverity(e.target.value)}
+            value={sev}
+            onChange={(e) => setSev(e.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
-            <option value="all">All Severity</option>
+            <option value="all">Severity</option>
             <option value="critical">Critical</option>
             <option value="error">Error</option>
             <option value="warning">Warning</option>
           </select>
           <select
-            value={filterResolved}
-            onChange={(e) => setFilterResolved(e.target.value)}
+            value={cat}
+            onChange={(e) => setCat(e.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
-            <option value="all">All Status</option>
-            <option value="unresolved">Unresolved</option>
-            <option value="resolved">Resolved</option>
-          </select>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
-          >
-            <option value="all">All Categories</option>
-            {Object.entries(CATEGORY_CONFIG).map(([k, v]) => (
+            <option value="all">Category</option>
+            {Object.entries(CAT).map(([k, v]) => (
               <option key={k} value={k}>
                 {v.label}
               </option>
@@ -286,7 +248,7 @@ export default function EngineeringErrorLogs() {
           <div className="py-20 text-center opacity-40">
             <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
-              No errors
+              No {tab} errors
             </p>
           </div>
         ) : (
@@ -294,19 +256,22 @@ export default function EngineeringErrorLogs() {
             <div className="flex items-center justify-between px-5 py-3 bg-tertiary/30 border-b border-[var(--border-primary)]">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={toggleSelectAll}
+                  onClick={() => {
+                    if (allSel) setSel(new Set());
+                    else setSel(new Set(errors.map((e) => e.id)));
+                  }}
                   className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
                 >
-                  {allSelected ? (
+                  {allSel ? (
                     <CheckSquare className="w-4 h-4" />
                   ) : (
                     <Square className="w-4 h-4" />
                   )}
-                  {allSelected ? "Deselect All" : "Select All"}
+                  {allSel ? "Deselect" : "Select All"}
                 </button>
-                {selectedIds.size > 0 && (
+                {sel.size > 0 && (
                   <span className="text-[9px] font-bold text-[var(--brand-orange)]">
-                    {selectedIds.size} selected
+                    {sel.size} selected
                   </span>
                 )}
               </div>
@@ -316,7 +281,7 @@ export default function EngineeringErrorLogs() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--border-primary)]">
-                    <th className="w-10 px-2 py-3"></th>
+                    <th className="w-8 px-2 py-3"></th>
                     <th className="text-left px-2 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
                       Sev
                     </th>
@@ -336,10 +301,7 @@ export default function EngineeringErrorLogs() {
                       Time
                     </th>
                     <th className="text-center px-2 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Status
-                    </th>
-                    <th className="text-center px-2 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Resolve
+                      Fix
                     </th>
                   </tr>
                 </thead>
@@ -347,14 +309,19 @@ export default function EngineeringErrorLogs() {
                   {errors.map((error) => (
                     <React.Fragment key={error.id}>
                       <tr
-                        className={`border-b border-[var(--border-primary)]/50 hover:bg-tertiary/20 transition-all ${selectedIds.has(error.id) ? "bg-[var(--brand-orange)]/5" : ""} ${!error.resolved ? "border-l-2 border-l-amber-500" : ""}`}
+                        className={`border-b border-[var(--border-primary)]/50 hover:bg-tertiary/20 transition-all ${sel.has(error.id) ? "bg-[var(--brand-orange)]/5" : ""} ${tab !== "resolved" ? "border-l-2 border-l-amber-500" : ""}`}
                       >
                         <td className="px-2 py-2.5">
                           <button
-                            onClick={() => toggleSelect(error.id)}
+                            onClick={() => {
+                              const n = new Set(sel);
+                              if (n.has(error.id)) n.delete(error.id);
+                              else n.add(error.id);
+                              setSel(n);
+                            }}
                             className="p-1 hover:bg-tertiary rounded transition-all"
                           >
-                            {selectedIds.has(error.id) ? (
+                            {sel.has(error.id) ? (
                               <CheckSquare className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
                             ) : (
                               <Square className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
@@ -365,8 +332,8 @@ export default function EngineeringErrorLogs() {
                           <span
                             className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded"
                             style={{
-                              color: SEVERITY_CONFIG[error.severity]?.color,
-                              background: SEVERITY_CONFIG[error.severity]?.bg,
+                              color: SEV[error.severity]?.color,
+                              background: SEV[error.severity]?.bg,
                             }}
                           >
                             {error.severity}
@@ -375,17 +342,21 @@ export default function EngineeringErrorLogs() {
                             <span
                               className="text-[7px] font-bold px-1 py-0.5 rounded uppercase tracking-wider ml-1 hidden lg:inline"
                               style={{
-                                color: CATEGORY_CONFIG[error.category]?.color,
-                                background: CATEGORY_CONFIG[error.category]?.bg,
+                                color: CAT[error.category]?.color,
+                                background: CAT[error.category]?.bg,
                               }}
                             >
-                              {CATEGORY_CONFIG[error.category]?.label}
+                              {CAT[error.category]?.label}
                             </span>
                           )}
                         </td>
                         <td className="px-2 py-2.5 max-w-[240px]">
                           <button
-                            onClick={() => toggleExpand(error.id)}
+                            onClick={() =>
+                              setExpandedId((p) =>
+                                p === error.id ? null : error.id,
+                              )
+                            }
                             className="text-[9px] font-bold text-[var(--text-primary)] truncate block w-full text-left hover:text-[var(--brand-orange)] transition-all"
                           >
                             {expandedId === error.id ? (
@@ -393,17 +364,17 @@ export default function EngineeringErrorLogs() {
                             ) : (
                               <ChevronRight className="w-3 h-3 inline mr-1" />
                             )}
-                            {error.message || "—"}
+                            {error.message || "\u2014"}
                           </button>
                         </td>
                         <td className="px-2 py-2.5">
                           <span className="text-[8px] font-bold text-slate-500 max-w-[100px] truncate block">
-                            {error.page || "—"}
+                            {error.page || "\u2014"}
                           </span>
                         </td>
                         <td className="px-2 py-2.5">
                           <span className="text-[8px] font-bold text-slate-500">
-                            {error.user_name || error.user_role || "—"}
+                            {error.user_name || error.user_role || "\u2014"}
                           </span>
                         </td>
                         <td className="px-2 py-2.5 text-center">
@@ -419,39 +390,28 @@ export default function EngineeringErrorLogs() {
                           <span className="text-[8px] font-bold text-slate-500 whitespace-nowrap">
                             {error.created_at
                               ? new Date(error.created_at).toLocaleString()
-                              : "—"}
+                              : "\u2014"}
                           </span>
                         </td>
                         <td className="px-2 py-2.5 text-center">
-                          {error.resolved ? (
-                            <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">
-                              Done
-                            </span>
-                          ) : error.task_id ? (
-                            <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
-                              Task
-                            </span>
-                          ) : (
-                            <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
-                              Open
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-2 py-2.5 text-center">
-                          {!error.resolved ? (
+                          {tab !== "resolved" ? (
                             <button
-                              onClick={() =>
-                                handleToggleResolved(error.id, false)
-                              }
+                              onClick={() => toggleResolve(error.id, false)}
                               className="p-1.5 rounded-lg hover:bg-emerald-500/10 transition-all"
-                              title="Mark Resolved"
+                              title="Resolve"
                             >
                               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                             </button>
                           ) : (
-                            <span className="text-emerald-400 text-xs font-black">
-                              ✓
-                            </span>
+                            <button
+                              onClick={() => toggleResolve(error.id, true)}
+                              className="p-1.5 rounded-lg hover:bg-amber-500/10 transition-all"
+                              title="Reopen"
+                            >
+                              <span className="text-[10px] font-black text-amber-400">
+                                \u21BA
+                              </span>
+                            </button>
                           )}
                         </td>
                       </tr>
@@ -462,65 +422,41 @@ export default function EngineeringErrorLogs() {
                             className="px-5 py-4 bg-tertiary/30 border-b border-[var(--border-primary)]"
                           >
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                              {error.page && (
-                                <Detail label="Page" value={error.page} />
-                              )}
+                              {error.page && <F label="Page" v={error.page} />}
                               {error.action_attempted && (
-                                <Detail
-                                  label="Action"
-                                  value={error.action_attempted}
-                                />
+                                <F label="Action" v={error.action_attempted} />
                               )}
                               {error.user_name && (
-                                <Detail label="User" value={error.user_name} />
+                                <F label="User" v={error.user_name} />
                               )}
                               {error.user_role && (
-                                <Detail label="Role" value={error.user_role} />
+                                <F label="Role" v={error.user_role} />
                               )}
                               {error.method && (
-                                <Detail label="Method" value={error.method} />
+                                <F label="Method" v={error.method} />
                               )}
                               {error.endpoint && (
-                                <Detail
-                                  label="Endpoint"
-                                  value={error.endpoint}
-                                />
+                                <F label="Endpoint" v={error.endpoint} />
                               )}
                               {error.status_code && (
-                                <Detail
+                                <F
                                   label="Status"
-                                  value={String(error.status_code)}
-                                />
-                              )}
-                              {error.category && (
-                                <Detail
-                                  label="Category"
-                                  value={
-                                    CATEGORY_CONFIG[error.category]?.label ||
-                                    error.category
-                                  }
+                                  v={String(error.status_code)}
                                 />
                               )}
                             </div>
                             {error.stack && (
-                              <div className="mb-3">
-                                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                                  Stack
-                                </p>
-                                <pre className="text-[7px] font-mono text-[var(--text-secondary)] bg-primary rounded-lg p-2.5 overflow-x-auto whitespace-pre-wrap max-h-24 border border-[var(--border-primary)]">
-                                  {error.stack}
-                                </pre>
-                              </div>
+                              <pre className="text-[7px] font-mono text-[var(--text-secondary)] bg-primary rounded-lg p-2.5 overflow-x-auto whitespace-pre-wrap max-h-24 border border-[var(--border-primary)] mb-3">
+                                {error.stack}
+                              </pre>
                             )}
                             <button
                               onClick={() =>
-                                handleToggleResolved(error.id, !!error.resolved)
+                                toggleResolve(error.id, !!error.resolved)
                               }
                               className="text-[8px] font-black uppercase tracking-widest px-3 py-2 rounded-lg transition-all bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
                             >
-                              {error.resolved
-                                ? "Mark Unresolved"
-                                : "Mark Resolved"}
+                              {error.resolved ? "Reopen" : "Mark Resolved"}
                             </button>
                           </td>
                         </tr>
@@ -537,14 +473,14 @@ export default function EngineeringErrorLogs() {
   );
 }
 
-function Detail({ label, value }) {
+function F({ label, v }) {
   return (
     <div className="p-2.5 rounded-lg bg-primary border border-[var(--border-primary)]">
       <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
         {label}
       </p>
       <p className="text-[9px] font-bold mt-0.5 text-[var(--text-primary)] break-all">
-        {value}
+        {v}
       </p>
     </div>
   );
