@@ -527,6 +527,8 @@ export default function AdminDashboard() {
       }
       // Refresh — approved user and their notification will be gone from both places
       fetchDashboardData();
+      // Also trigger header notification refresh
+      window.dispatchEvent(new CustomEvent("notifications:refresh"));
     } catch (e) {
       console.error("Approval Failed:", e);
     } finally {
