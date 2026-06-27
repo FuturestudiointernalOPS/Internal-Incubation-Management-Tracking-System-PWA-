@@ -87,20 +87,40 @@ export async function POST(request) {
     const category = categorizeError(body);
     const fingerprint = buildFingerprint(body);
 
-    // Dedup: check if same fingerprint exists within last 24 hours and is unresolved
-    const existing = await db.execute({
-      sql: `SELECT id, occurrence_count FROM error_logs
-            WHERE fingerprint = ?
-              AND created_at > NOW() - INTERVAL '24 hours'
-              AND (resolved IS NULL OR resolved = false)
-            ORDER BY created_at DESC
-            LIMIT 1`,
-      args: [fingerprint],
-    });
+    // Dedup: check if same error exists within last 24 hours and is unresolved
+    let existing = null;
+    try {
+      const result = await db.execute({
+        sql: `SELECT id, occurrence_count FROM error_logs
+              WHERE fingerprint = ?
+                AND created_at > NOW() - INTERVAL '24 hours'
+                AND (resolved IS NULL OR resolved = false)
+              ORDER BY created_at DESC
+              LIMIT 1`,
+        args: [fingerprint],
+      });
+      existing = result.rows[0] || null;
+    } catch (_) {
+      // fingerprint column may not exist yet — fallback to message+page matching
+      try {
+        const result = await db.execute({
+          sql: `SELECT id, occurrence_count FROM error_logs
+                WHERE message = ? AND COALESCE(page, '') = COALESCE(?, '')
+                  AND created_at > NOW() - INTERVAL '24 hours'
+                  AND (resolved IS NULL OR resolved = false)
+                ORDER BY created_at DESC
+                LIMIT 1`,
+          args: [message, page || ""],
+        });
+        existing = result.rows[0] || null;
+      } catch (_) {
+        existing = null;
+      }
+    }
 
-    if (existing.rows.length > 0) {
+    if (existing) {
       // Increment occurrence count
-      const err = existing.rows[0];
+      const err = existing;
       const newCount = (parseInt(err.occurrence_count) || 1) + 1;
       await db.execute({
         sql: `UPDATE error_logs
