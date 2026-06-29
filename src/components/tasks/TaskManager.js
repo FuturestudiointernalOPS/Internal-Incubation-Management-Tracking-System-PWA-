@@ -129,6 +129,7 @@ export default function TaskManager({
     due_date: "",
     start_time: "",
     due_time: "",
+    link: "",
   });
 
   // Sync taskList into local state when it changes
@@ -192,6 +193,7 @@ export default function TaskManager({
           created_year: week.year || 0,
           start_date: taskData.start_date || null,
           end_date: taskData.due_date || null,
+          link: taskData.link || null,
         }),
       });
       return await res.json();
@@ -216,6 +218,7 @@ export default function TaskManager({
       parent_task_id: pendingParentTaskId || null,
       start_date: form.start_date || null,
       due_date: form.due_date || null,
+    link: form.link || null,
     });
 
     if (data.success) {
@@ -271,9 +274,15 @@ export default function TaskManager({
       project_id: subTaskModal.project_id || null,
       category: subTaskModal.category || null,
       parent_task_id: subTaskModal.id,
+      start_date: subTaskStartDate || null,
+      due_date: subTaskEndDate || null,
+      link: subTaskLink || null,
     });
     if (data.success) {
       setSubTaskInput("");
+      setSubTaskStartDate("");
+      setSubTaskEndDate("");
+      setSubTaskLink("");
       setSubTaskSuccess("Sub-task added!");
       setTimeout(() => setSubTaskSuccess(""), 2000);
       if (onTasksChange) onTasksChange();
@@ -850,6 +859,15 @@ export default function TaskManager({
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
                 autoFocus
               />
+              <div className="grid grid-cols-2 gap-2">
+                <input type="date" value={subTaskStartDate} onChange={(e) => setSubTaskStartDate(e.target.value)}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+                <input type="date" value={subTaskEndDate} onChange={(e) => setSubTaskEndDate(e.target.value)}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+              </div>
+              <input type="url" value={subTaskLink} onChange={(e) => setSubTaskLink(e.target.value)}
+                placeholder="Link (optional)..."
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
               <div className="flex gap-2">
                 <button
                   onClick={addSubTaskFromModal}

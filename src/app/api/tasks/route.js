@@ -226,6 +226,7 @@ export async function POST(req) {
       start_date,
       end_date,
       assigned_to,
+      link,
     } = body;
 
     if (!user_id || !title || !created_week || !created_year) {
@@ -312,8 +313,8 @@ export async function POST(req) {
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id, category,
          created_week, created_year, carried_over_from_task_id,
-          parent_task_id, start_date, end_date, assigned_to)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          parent_task_id, start_date, end_date, assigned_to, link)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         user_id,
         user_name || "",
@@ -329,6 +330,7 @@ export async function POST(req) {
         finalStartDate,
         finalEndDate,
         finalAssignedTo,
+        link || null,
       ],
     });
 
@@ -421,6 +423,26 @@ export async function POST(req) {
       console.error("Standup upsert failed (non-blocking):", e.message);
     }
 
+    // ─── Sync parent end_date if subtask extends further ───
+    if (parent_task_id && finalEndDate) {
+      try {
+        const parentEndRes = await db.execute({
+          sql: "SELECT end_date FROM tasks WHERE id = ?",
+          args: [parseInt(parent_task_id)],
+        });
+        if (parentEndRes.rows.length > 0 && parentEndRes.rows[0].end_date) {
+          const parentEnd = new Date(parentEndRes.rows[0].end_date);
+          const subEnd = new Date(finalEndDate);
+          if (subEnd > parentEnd) {
+            await db.execute({
+              sql: "UPDATE tasks SET end_date = ? WHERE id = ?",
+              args: [finalEndDate, parseInt(parent_task_id)],
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
     return NextResponse.json({
       success: true,
       id: taskId,
@@ -461,6 +483,7 @@ export async function PUT(req) {
       start_date,
       end_date,
       assigned_to,
+      link,
       force_complete,
     } = body;
 
@@ -488,6 +511,11 @@ export async function PUT(req) {
     const locked = await isTaskLocked(id);
 
     // Ownership enforcement: only the task creator or super_admin can change status
+    if (link !== undefined && link !== task.link) {
+      updateFields.push("link = ?");
+      updateArgs.push(link || null);
+      changes.push("link updated");
+    }
     if (status !== undefined && status !== task.status) {
       const effectiveUserId = user_id || session.cid;
       if (
@@ -885,6 +913,29 @@ export async function PUT(req) {
       } catch (e) {
         console.error("Standup rebuild failed (non-blocking):", e.message);
       }
+    }
+
+    // ─── Sync parent end_date if this (sub)task extends further ───
+    if (task.parent_task_id && (end_date !== undefined || start_date !== undefined)) {
+      try {
+        const effEnd = end_date || task.end_date;
+        if (effEnd) {
+          const pEndRes = await db.execute({
+            sql: "SELECT end_date FROM tasks WHERE id = ?",
+            args: [task.parent_task_id],
+          });
+          if (pEndRes.rows.length > 0 && pEndRes.rows[0].end_date) {
+            const pEnd = new Date(pEndRes.rows[0].end_date);
+            const sEnd = new Date(effEnd);
+            if (sEnd > pEnd) {
+              await db.execute({
+                sql: "UPDATE tasks SET end_date = ? WHERE id = ?",
+                args: [effEnd, task.parent_task_id],
+              });
+            }
+          }
+        }
+      } catch (_) {}
     }
 
     return NextResponse.json({
