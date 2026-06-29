@@ -944,6 +944,7 @@ export default function StaffOpReport() {
                   </div>
                   <button
                     onClick={() => {
+                      if (new Date().getDay() !== 1) return;
                       setShowStandupModal(true);
                       setWeekInfo(getCurrentWeek());
                       // Always load tasks — regardless of whether a standup report exists
@@ -1011,17 +1012,7 @@ export default function StaffOpReport() {
                     }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                   >
-                    {existingReport && weekInfo.week === getCurrentWeek().week && weekInfo.year === getCurrentWeek().year ? (
-                      <>
-                        <ChevronRight className="w-4 h-4" />{" "}
-                        {t("staff.opReport.continueStandup")}
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-4 h-4" />{" "}
-                        {t("staff.opReport.createNewStandup")}
-                      </>
-                    )}
+                    <><Plus className="w-4 h-4" /> Create New Standup</>
                   </button>
                 </div>
 
@@ -1433,22 +1424,13 @@ export default function StaffOpReport() {
                             </p>
                             <button
                               onClick={() => {
+                                if (new Date().getDay() !== 1) return;
                                 setShowStandupModal(true);
                                 setWeekInfo(getCurrentWeek());
                               }}
                               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                             >
-                              {existingReport && weekInfo.week === getCurrentWeek().week && weekInfo.year === getCurrentWeek().year ? (
-                                <>
-                                  <ChevronRight className="w-4 h-4" />{" "}
-                                  {t("staff.opReport.continueStandup")}
-                                </>
-                              ) : (
-                                <>
-                                  <Plus className="w-4 h-4" />{" "}
-                                  {t("staff.opReport.createStandup")}
-                                </>
-                              )}
+                              <><Plus className="w-4 h-4" /> Create New Standup</>
                             </button>
                           </td>
                         </tr>
