@@ -949,9 +949,13 @@ export default function StaffOpReport() {
                       setWeekInfo(getCurrentWeek());
                       // Always load tasks — regardless of whether a standup report exists
                       const currentWeekData = getCurrentWeek();
-                      // Show all active tasks — incomplete tasks carry forward
+                      // Only load non-completed tasks from previous week (carry-over)
+                      const prevWeek = getWeekNumber(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000));
+                      const prevYear = prevWeek > getWeekNumber(new Date()) ? new Date().getFullYear() - 1 : new Date().getFullYear();
                       const weekTasks = tasks.filter(
                         (t) =>
+                          t.created_week === prevWeek &&
+                          t.created_year === prevYear &&
                           !["archived", "completed"].includes(t.status) &&
                           !t.parent_task_id,
                       );
