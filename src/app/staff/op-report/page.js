@@ -951,7 +951,8 @@ export default function StaffOpReport() {
                       // Show all active tasks — incomplete tasks carry forward
                       const weekTasks = tasks.filter(
                         (t) =>
-                          !["archived"].includes(t.status) && !t.parent_task_id,
+                          !["archived", "completed"].includes(t.status) &&
+                          !t.parent_task_id,
                       );
                       // Flatten subtasks into the task rows array
                       const allTaskRows = [];
@@ -1130,9 +1131,11 @@ export default function StaffOpReport() {
                                               // Load tasks for that week into taskRows
                                               const weekTasks = tasks.filter(
                                                 (t) =>
-                                                  !["archived"].includes(
-                                                    t.status,
-                                                  ) && !t.parent_task_id,
+                                                  [
+                                                    "archived",
+                                                    "completed",
+                                                  ].includes(t.status) &&
+                                                  !t.parent_task_id,
                                               );
                                               const allTaskRows = [];
                                               for (const t of weekTasks) {
