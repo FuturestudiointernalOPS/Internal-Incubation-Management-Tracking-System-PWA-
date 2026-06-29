@@ -2,11 +2,16 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  MessageSquare,
+  Trophy,
   Send,
-  RefreshCw,
   CheckCircle2,
   Loader2,
+  Plus,
+  X,
+  AlertTriangle,
+  Star,
+  ArrowRight,
+  ListTodo,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -15,11 +20,22 @@ export default function DeveloperRetro() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const [retroData, setRetroData] = useState({
-    went_well: "",
-    to_improve: "",
-    action_items: "",
-  });
+  const [weekInfo, setWeekInfo] = useState({ week: 0, year: 0 });
+
+  // Structured retro fields
+  const [completedWork, setCompletedWork] = useState([]);
+  const [newCompleted, setNewCompleted] = useState("");
+  const [unfinishedTasks, setUnfinishedTasks] = useState([]);
+  const [newUnfinished, setNewUnfinished] = useState("");
+  const [weekStatus, setWeekStatus] = useState("");
+  const [hadBlockers, setHadBlockers] = useState(null);
+  const [blockerDesc, setBlockerDesc] = useState("");
+  const [wins, setWins] = useState([]);
+  const [newWin, setNewWin] = useState("");
+  const [majorAchievement, setMajorAchievement] = useState("");
+  const [carryoverItems, setCarryoverItems] = useState([]);
+  const [newCarryover, setNewCarryover] = useState("");
+  const [retroNotes, setRetroNotes] = useState("");
 
   useEffect(() => {
     try {
@@ -29,7 +45,20 @@ export default function DeveloperRetro() {
         setUserRole(u.role || "developer");
       }
     } catch (_) {}
+    const now = new Date();
+    setWeekInfo({ week: getWeekNumber(now), year: now.getFullYear() });
   }, []);
+
+  const addBullet = (list, setter, input, setInput) => {
+    if (input.trim()) {
+      setter([...list, input.trim()]);
+      setInput("");
+    }
+  };
+
+  const removeBullet = (list, setter, index) => {
+    setter(list.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,16 +89,35 @@ export default function DeveloperRetro() {
           report_type: "retro",
           week_number: weekNumber,
           year,
-          accomplishments: retroData.went_well,
-          plans: retroData.to_improve,
-          blockers: retroData.action_items,
+          // Map retro fields to the existing standups/submit API fields
+          accomplishments: JSON.stringify(completedWork),
+          plans: JSON.stringify(unfinishedTasks),
+          blockers: blockerDesc,
+          // Additional context stored in additional_notes
+          additional_notes: JSON.stringify({
+            week_status: weekStatus,
+            had_blockers: hadBlockers,
+            wins,
+            major_achievement: majorAchievement,
+            carryover_items: carryoverItems,
+            retro_notes: retroNotes,
+          }),
         }),
       });
 
       const data = await res.json();
       if (data.success) {
         setSubmitted(true);
-        setRetroData({ went_well: "", to_improve: "", action_items: "" });
+        // Reset form
+        setCompletedWork([]);
+        setUnfinishedTasks([]);
+        setWeekStatus("");
+        setHadBlockers(null);
+        setBlockerDesc("");
+        setWins([]);
+        setMajorAchievement("");
+        setCarryoverItems([]);
+        setRetroNotes("");
         setTimeout(() => setSubmitted(false), 3000);
       } else {
         setError(data.error || "Failed to submit retro");
@@ -81,90 +129,359 @@ export default function DeveloperRetro() {
     }
   };
 
+  const inputClass =
+    "w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all";
+  const labelClass =
+    "text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5";
+
   return (
     <DashboardLayout role={userRole} activeTab="retro">
       <div className="space-y-8 pb-20">
         <header className="border-b border-[var(--border-primary)] pb-8">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-[var(--brand-orange)]" />
+              <Trophy className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Developer Workspace
+                Weekly Retro
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
               Retro
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              Weekly retrospective
+              Week {weekInfo.week}, {weekInfo.year} — Reflect on the week and
+              plan next steps
             </p>
           </div>
         </header>
 
-        <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
+        <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
           {error && (
             <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
               <p className="text-[10px] font-bold text-red-400">{error}</p>
             </div>
           )}
-
           {submitted && (
             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <p className="text-[10px] font-bold text-emerald-400">Retro submitted successfully!</p>
+              <p className="text-[10px] font-bold text-emerald-400">
+                Retro submitted successfully!
+              </p>
             </div>
           )}
 
-          <div>
-            <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-2">
-              What went well?
+          {/* Completed Work */}
+          <div className="space-y-3">
+            <label className={labelClass}>
+              What did you complete this week?
             </label>
+            <div className="space-y-2">
+              {completedWork.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1">
+                    {item}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      removeBullet(completedWork, setCompletedWork, i)
+                    }
+                    className="p-1 hover:bg-red-500/10 rounded transition-all"
+                  >
+                    <X className="w-3 h-3 text-red-400" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={newCompleted}
+                onChange={(e) => setNewCompleted(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" &&
+                  (e.preventDefault(),
+                  addBullet(
+                    completedWork,
+                    setCompletedWork,
+                    newCompleted,
+                    setNewCompleted,
+                  ))
+                }
+                placeholder="Add completed item..."
+                className={inputClass}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  addBullet(
+                    completedWork,
+                    setCompletedWork,
+                    newCompleted,
+                    setNewCompleted,
+                  )
+                }
+                className="px-4 py-3 rounded-xl bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Unfinished Tasks */}
+          <div className="space-y-3">
+            <label className={labelClass}>What tasks remain unfinished?</label>
+            <div className="space-y-2">
+              {unfinishedTasks.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1">
+                    {item}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      removeBullet(unfinishedTasks, setUnfinishedTasks, i)
+                    }
+                    className="p-1 hover:bg-red-500/10 rounded transition-all"
+                  >
+                    <X className="w-3 h-3 text-red-400" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={newUnfinished}
+                onChange={(e) => setNewUnfinished(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" &&
+                  (e.preventDefault(),
+                  addBullet(
+                    unfinishedTasks,
+                    setUnfinishedTasks,
+                    newUnfinished,
+                    setNewUnfinished,
+                  ))
+                }
+                placeholder="Add unfinished task..."
+                className={inputClass}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  addBullet(
+                    unfinishedTasks,
+                    setUnfinishedTasks,
+                    newUnfinished,
+                    setNewUnfinished,
+                  )
+                }
+                className="px-4 py-3 rounded-xl bg-amber-500/10 text-amber-400 text-[9px] font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Carryover Items */}
+          <div className="space-y-3">
+            <label className={labelClass}>
+              What carries over to next week?
+            </label>
+            <p className="text-[8px] font-bold text-slate-500 -mt-1">
+              These items will appear in next week's standup
+            </p>
+            <div className="space-y-2">
+              {carryoverItems.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 p-2.5 rounded-lg bg-indigo-500/5 border border-indigo-500/10"
+                >
+                  <ArrowRight className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1">
+                    {item}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      removeBullet(carryoverItems, setCarryoverItems, i)
+                    }
+                    className="p-1 hover:bg-red-500/10 rounded transition-all"
+                  >
+                    <X className="w-3 h-3 text-red-400" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={newCarryover}
+                onChange={(e) => setNewCarryover(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" &&
+                  (e.preventDefault(),
+                  addBullet(
+                    carryoverItems,
+                    setCarryoverItems,
+                    newCarryover,
+                    setNewCarryover,
+                  ))
+                }
+                placeholder="Add carryover item..."
+                className={inputClass}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  addBullet(
+                    carryoverItems,
+                    setCarryoverItems,
+                    newCarryover,
+                    setNewCarryover,
+                  )
+                }
+                className="px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Wins */}
+          <div className="space-y-3">
+            <label className={labelClass}>Wins this week</label>
+            <div className="space-y-2">
+              {wins.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10"
+                >
+                  <Star className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1">
+                    {item}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeBullet(wins, setWins, i)}
+                    className="p-1 hover:bg-red-500/10 rounded transition-all"
+                  >
+                    <X className="w-3 h-3 text-red-400" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={newWin}
+                onChange={(e) => setNewWin(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" &&
+                  (e.preventDefault(),
+                  addBullet(wins, setWins, newWin, setNewWin))
+                }
+                placeholder="Add a win..."
+                className={inputClass}
+              />
+              <button
+                type="button"
+                onClick={() => addBullet(wins, setWins, newWin, setNewWin)}
+                className="px-4 py-3 rounded-xl bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase tracking-widest hover:bg-blue-500/20 transition-all shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Major Achievement */}
+          <div className="space-y-3">
+            <label className={labelClass}>Major achievement this week</label>
             <textarea
-              value={retroData.went_well}
-              onChange={(e) => setRetroData({ ...retroData, went_well: e.target.value })}
-              rows={4}
-              placeholder="What went well this week..."
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all resize-none"
-              required
+              value={majorAchievement}
+              onChange={(e) => setMajorAchievement(e.target.value)}
+              rows={2}
+              placeholder="What was your biggest accomplishment?"
+              className={inputClass + " resize-none"}
             />
           </div>
 
-          <div>
-            <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-2">
-              What could be improved?
-            </label>
+          {/* Week Status */}
+          <div className="space-y-3">
+            <label className={labelClass}>How was your week overall?</label>
             <textarea
-              value={retroData.to_improve}
-              onChange={(e) => setRetroData({ ...retroData, to_improve: e.target.value })}
-              rows={4}
-              placeholder="What could be better..."
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all resize-none"
-              required
+              value={weekStatus}
+              onChange={(e) => setWeekStatus(e.target.value)}
+              rows={2}
+              placeholder="Reflection on the week..."
+              className={inputClass + " resize-none"}
             />
           </div>
 
-          <div>
-            <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-2">
-              Action Items
-            </label>
+          {/* Blockers */}
+          <div className="space-y-3">
+            <label className={labelClass}>Did you have any blockers?</label>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setHadBlockers(true)}
+                className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${hadBlockers === true ? "bg-red-500/10 text-red-400 border border-red-500/30" : "bg-secondary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setHadBlockers(false);
+                  setBlockerDesc("");
+                }}
+                className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${hadBlockers === false ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-secondary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
+              >
+                No
+              </button>
+            </div>
+            {hadBlockers === true && (
+              <textarea
+                value={blockerDesc}
+                onChange={(e) => setBlockerDesc(e.target.value)}
+                rows={2}
+                placeholder="Describe the blockers..."
+                className={inputClass + " resize-none"}
+              />
+            )}
+          </div>
+
+          {/* Retro Notes */}
+          <div className="space-y-3">
+            <label className={labelClass}>Additional notes</label>
             <textarea
-              value={retroData.action_items}
-              onChange={(e) => setRetroData({ ...retroData, action_items: e.target.value })}
+              value={retroNotes}
+              onChange={(e) => setRetroNotes(e.target.value)}
               rows={3}
-              placeholder="Action items for next week..."
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all resize-none"
+              placeholder="Anything else to note..."
+              className={inputClass + " resize-none"}
             />
           </div>
 
+          {/* Submit */}
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-8 py-4 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
           >
             {submitting ? (
-              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...</>
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...
+              </>
             ) : (
-              <><Send className="w-3.5 h-3.5" /> Submit Retro</>
+              <>
+                <Send className="w-3.5 h-3.5" /> Submit Retro
+              </>
             )}
           </button>
         </form>
@@ -178,5 +495,13 @@ function getWeekNumber(date) {
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
   const week1 = new Date(d.getFullYear(), 0, 4);
-  return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return (
+    1 +
+    Math.round(
+      ((d.getTime() - week1.getTime()) / 86400000 -
+        3 +
+        ((week1.getDay() + 6) % 7)) /
+        7,
+    )
+  );
 }
