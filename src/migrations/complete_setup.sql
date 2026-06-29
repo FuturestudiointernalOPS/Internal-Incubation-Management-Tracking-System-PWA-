@@ -152,3 +152,7 @@ DELETE FROM error_logs
 WHERE id NOT IN (
   SELECT MIN(id) FROM error_logs GROUP BY message, page
 );
+
+
+-- ─── 9. Task Link Column ───
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS link TEXT;
