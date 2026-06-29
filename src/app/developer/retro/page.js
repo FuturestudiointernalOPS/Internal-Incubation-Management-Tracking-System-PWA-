@@ -11,7 +11,7 @@ import {
   AlertTriangle,
   Star,
   ArrowRight,
-  ListTodo,
+  Lightbulb,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -22,7 +22,6 @@ export default function DeveloperRetro() {
   const [error, setError] = useState("");
   const [weekInfo, setWeekInfo] = useState({ week: 0, year: 0 });
 
-  // Structured retro fields
   const [completedWork, setCompletedWork] = useState([]);
   const [newCompleted, setNewCompleted] = useState("");
   const [unfinishedTasks, setUnfinishedTasks] = useState([]);
@@ -35,6 +34,7 @@ export default function DeveloperRetro() {
   const [majorAchievement, setMajorAchievement] = useState("");
   const [carryoverItems, setCarryoverItems] = useState([]);
   const [newCarryover, setNewCarryover] = useState("");
+  const [lessonsLearned, setLessonsLearned] = useState("");
   const [retroNotes, setRetroNotes] = useState("");
 
   useEffect(() => {
@@ -55,60 +55,50 @@ export default function DeveloperRetro() {
       setInput("");
     }
   };
-
-  const removeBullet = (list, setter, index) => {
+  const removeBullet = (list, setter, index) =>
     setter(list.filter((_, i) => i !== index));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setError("");
-
     try {
-      const sessionRes = await fetch("/api/auth/session");
-      const sessionData = await sessionRes.json();
-      if (!sessionData.authenticated) {
+      const s = await fetch("/api/auth/session");
+      const sd = await s.json();
+      if (!sd.authenticated) {
         setError("Session expired");
         setSubmitting(false);
         return;
       }
-
-      const userId = sessionData.user.cid;
-      const userName = sessionData.user.name;
       const now = new Date();
-      const weekNumber = getWeekNumber(now);
-      const year = now.getFullYear();
-
+      const wn = getWeekNumber(now);
+      const yr = now.getFullYear();
       const res = await fetch("/api/standups/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          user_name: userName,
+          user_id: sd.user.cid,
+          user_name: sd.user.name,
           report_type: "retro",
-          week_number: weekNumber,
-          year,
-          // Map retro fields to the existing standups/submit API fields
+          week_number: wn,
+          year: yr,
           accomplishments: JSON.stringify(completedWork),
           plans: JSON.stringify(unfinishedTasks),
           blockers: blockerDesc,
-          // Additional context stored in additional_notes
           additional_notes: JSON.stringify({
             week_status: weekStatus,
             had_blockers: hadBlockers,
             wins,
             major_achievement: majorAchievement,
             carryover_items: carryoverItems,
+            lessons_learned: lessonsLearned,
             retro_notes: retroNotes,
           }),
         }),
       });
-
-      const data = await res.json();
-      if (data.success) {
+      const d = await res.json();
+      if (d.success) {
         setSubmitted(true);
-        // Reset form
         setCompletedWork([]);
         setUnfinishedTasks([]);
         setWeekStatus("");
@@ -117,11 +107,10 @@ export default function DeveloperRetro() {
         setWins([]);
         setMajorAchievement("");
         setCarryoverItems([]);
+        setLessonsLearned("");
         setRetroNotes("");
         setTimeout(() => setSubmitted(false), 3000);
-      } else {
-        setError(data.error || "Failed to submit retro");
-      }
+      } else setError(d.error || "Failed");
     } catch (e) {
       setError("Network error");
     } finally {
@@ -129,9 +118,9 @@ export default function DeveloperRetro() {
     }
   };
 
-  const inputClass =
+  const iC =
     "w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all";
-  const labelClass =
+  const lC =
     "text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5";
 
   return (
@@ -149,8 +138,7 @@ export default function DeveloperRetro() {
               Retro
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              Week {weekInfo.week}, {weekInfo.year} — Reflect on the week and
-              plan next steps
+              Week {weekInfo.week}, {weekInfo.year}
             </p>
           </div>
         </header>
@@ -165,16 +153,14 @@ export default function DeveloperRetro() {
             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               <p className="text-[10px] font-bold text-emerald-400">
-                Retro submitted successfully!
+                Retro submitted!
               </p>
             </div>
           )}
 
           {/* Completed Work */}
           <div className="space-y-3">
-            <label className={labelClass}>
-              What did you complete this week?
-            </label>
+            <label className={lC}>What did you complete this week?</label>
             <div className="space-y-2">
               {completedWork.map((item, i) => (
                 <div
@@ -212,7 +198,7 @@ export default function DeveloperRetro() {
                   ))
                 }
                 placeholder="Add completed item..."
-                className={inputClass}
+                className={iC}
               />
               <button
                 type="button"
@@ -233,7 +219,7 @@ export default function DeveloperRetro() {
 
           {/* Unfinished Tasks */}
           <div className="space-y-3">
-            <label className={labelClass}>What tasks remain unfinished?</label>
+            <label className={lC}>What tasks remain unfinished?</label>
             <div className="space-y-2">
               {unfinishedTasks.map((item, i) => (
                 <div
@@ -271,7 +257,7 @@ export default function DeveloperRetro() {
                   ))
                 }
                 placeholder="Add unfinished task..."
-                className={inputClass}
+                className={iC}
               />
               <button
                 type="button"
@@ -290,13 +276,11 @@ export default function DeveloperRetro() {
             </div>
           </div>
 
-          {/* Carryover Items */}
+          {/* Carryover */}
           <div className="space-y-3">
-            <label className={labelClass}>
-              What carries over to next week?
-            </label>
+            <label className={lC}>What carries over to next week?</label>
             <p className="text-[8px] font-bold text-slate-500 -mt-1">
-              These items will appear in next week's standup
+              These will appear in next week's standup
             </p>
             <div className="space-y-2">
               {carryoverItems.map((item, i) => (
@@ -334,8 +318,8 @@ export default function DeveloperRetro() {
                     setNewCarryover,
                   ))
                 }
-                placeholder="Add carryover item..."
-                className={inputClass}
+                placeholder="Add carryover..."
+                className={iC}
               />
               <button
                 type="button"
@@ -356,7 +340,7 @@ export default function DeveloperRetro() {
 
           {/* Wins */}
           <div className="space-y-3">
-            <label className={labelClass}>Wins this week</label>
+            <label className={lC}>Wins this week</label>
             <div className="space-y-2">
               {wins.map((item, i) => (
                 <div
@@ -387,7 +371,7 @@ export default function DeveloperRetro() {
                   addBullet(wins, setWins, newWin, setNewWin))
                 }
                 placeholder="Add a win..."
-                className={inputClass}
+                className={iC}
               />
               <button
                 type="button"
@@ -401,31 +385,36 @@ export default function DeveloperRetro() {
 
           {/* Major Achievement */}
           <div className="space-y-3">
-            <label className={labelClass}>Major achievement this week</label>
+            <label className={lC}>Major achievement this week</label>
             <textarea
               value={majorAchievement}
               onChange={(e) => setMajorAchievement(e.target.value)}
               rows={2}
-              placeholder="What was your biggest accomplishment?"
-              className={inputClass + " resize-none"}
+              placeholder="Your biggest accomplishment..."
+              className={iC + " resize-none"}
             />
           </div>
 
           {/* Week Status */}
           <div className="space-y-3">
-            <label className={labelClass}>How was your week overall?</label>
+            <label className={lC}>How was your week?</label>
             <textarea
               value={weekStatus}
               onChange={(e) => setWeekStatus(e.target.value)}
               rows={2}
-              placeholder="Reflection on the week..."
-              className={inputClass + " resize-none"}
+              placeholder="Overall reflection..."
+              className={iC + " resize-none"}
             />
           </div>
 
           {/* Blockers */}
           <div className="space-y-3">
-            <label className={labelClass}>Did you have any blockers?</label>
+            <label className={lC + " text-red-400"}>
+              Blockers — what didn't work?
+            </label>
+            <p className="text-[8px] font-bold text-slate-500 -mt-1">
+              Issues, problems, or obstacles you encountered
+            </p>
             <div className="flex items-center gap-4">
               <button
                 type="button"
@@ -451,24 +440,41 @@ export default function DeveloperRetro() {
                 onChange={(e) => setBlockerDesc(e.target.value)}
                 rows={2}
                 placeholder="Describe the blockers..."
-                className={inputClass + " resize-none"}
+                className={iC + " resize-none"}
               />
             )}
           </div>
 
+          {/* Lessons Learned */}
+          <div className="space-y-3">
+            <label className={lC + " text-emerald-400"}>
+              Lessons learned — what worked or surprised you?
+            </label>
+            <p className="text-[8px] font-bold text-slate-500 -mt-1">
+              Positive discoveries, insights, techniques that worked well, or
+              anything you learned while working
+            </p>
+            <textarea
+              value={lessonsLearned}
+              onChange={(e) => setLessonsLearned(e.target.value)}
+              rows={3}
+              placeholder="e.g. Breaking the task into smaller PRs made reviews faster. The new component library saved me hours. I learned that the API handles pagination differently than expected..."
+              className={iC + " resize-none"}
+            />
+          </div>
+
           {/* Retro Notes */}
           <div className="space-y-3">
-            <label className={labelClass}>Additional notes</label>
+            <label className={lC}>Additional notes</label>
             <textarea
               value={retroNotes}
               onChange={(e) => setRetroNotes(e.target.value)}
               rows={3}
-              placeholder="Anything else to note..."
-              className={inputClass + " resize-none"}
+              placeholder="Anything else..."
+              className={iC + " resize-none"}
             />
           </div>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={submitting}
@@ -494,13 +500,11 @@ function getWeekNumber(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const week1 = new Date(d.getFullYear(), 0, 4);
+  const w1 = new Date(d.getFullYear(), 0, 4);
   return (
     1 +
     Math.round(
-      ((d.getTime() - week1.getTime()) / 86400000 -
-        3 +
-        ((week1.getDay() + 6) % 7)) /
+      ((d.getTime() - w1.getTime()) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) /
         7,
     )
   );
