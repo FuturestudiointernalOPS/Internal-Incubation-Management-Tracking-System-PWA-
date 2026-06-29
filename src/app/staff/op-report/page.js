@@ -1011,7 +1011,7 @@ export default function StaffOpReport() {
                     }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                   >
-                    {existingReport ? (
+                    {existingReport && weekInfo.week === getCurrentWeek().week && weekInfo.year === getCurrentWeek().year ? (
                       <>
                         <ChevronRight className="w-4 h-4" />{" "}
                         {t("staff.opReport.continueStandup")}
@@ -1438,7 +1438,7 @@ export default function StaffOpReport() {
                               }}
                               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                             >
-                              {existingReport ? (
+                              {existingReport && weekInfo.week === getCurrentWeek().week && weekInfo.year === getCurrentWeek().year ? (
                                 <>
                                   <ChevronRight className="w-4 h-4" />{" "}
                                   {t("staff.opReport.continueStandup")}
