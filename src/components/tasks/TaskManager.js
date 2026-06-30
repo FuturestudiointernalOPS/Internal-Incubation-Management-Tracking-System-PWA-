@@ -288,6 +288,7 @@ export default function TaskManager({
       due_date: "",
       start_time: "",
       due_time: "",
+      link: "",
     });
   }, []);
 
@@ -821,6 +822,20 @@ export default function TaskManager({
                 setForm((p) => ({ ...p, due_date: e.target.value }))
               }
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none"
+            />
+          </div>
+
+          {/* Resource Link */}
+          <div>
+            <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              Resource Link (optional)
+            </label>
+            <input
+              type="url"
+              value={form.link}
+              onChange={(e) => setForm((p) => ({ ...p, link: e.target.value }))}
+              placeholder="https://..."
+              className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
 

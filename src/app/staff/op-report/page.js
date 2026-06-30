@@ -952,78 +952,93 @@ export default function StaffOpReport() {
                         </p>
                       </div>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (hasCurrentWeekStandup) return;
                           setShowStandupModal(true);
                           setWeekInfo(getCurrentWeek());
-                          // Always load tasks — regardless of whether a standup report exists
-                          const currentWeekData = getCurrentWeek();
-                          // Only load non-completed tasks from previous week (carry-over)
-                          const prevWeek = getWeekNumber(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000));
-                          const prevYear = prevWeek > getWeekNumber(new Date()) ? new Date().getFullYear() - 1 : new Date().getFullYear();
-                          const weekTasks = tasks.filter(
-                            (t) =>
-                              t.created_week === prevWeek &&
-                              t.created_year === prevYear &&
-                              !["archived", "completed"].includes(t.status) &&
-                              !t.parent_task_id,
-                          );
-                          // Flatten subtasks into the task rows array
-                          const allTaskRows = [];
-                          for (const t of weekTasks) {
-                            allTaskRows.push({
-                              id: t.id,
-                              is_carryover: true,
-                              carried_over_from_task_id: t.id,
-                              name: t.title,
-                              description: t.description || "",
-                              project_id: t.project_id || null,
-                              category: t.category || "",
-                              start_date: t.start_date || "",
-                              start_time: "",
-                              due_date: t.end_date || "",
-                              due_time: "",
-                              blockers:
-                                t.blockers?.map((b) => ({
-                                  id: b.id,
-                                  description: b.title,
-                                  severity: b.severity || "medium",
-                                  status: b.status || "Active",
-                                  created_at: b.created_at,
-                                })) || [],
-                              parent_task_id: t.parent_task_id || null,
-                              status: t.status,
-                              collaborators: [],
-                              uncompleted_reason: "",
-                            });
-                            // Append subtasks right after their parent
-                            if (t.subtasks?.length > 0) {
-                              for (const st of t.subtasks) {
+
+                          // ─── Compute previous reporting week ───
+                          const now = new Date();
+                          const curWeek = getWeekNumber(now);
+                          const curYear = now.getFullYear();
+                          let prevWeek = curWeek - 1;
+                          let prevYear = curYear;
+                          if (prevWeek < 1) {
+                            prevWeek = 52;
+                            prevYear = curYear - 1;
+                          }
+
+                          // ─── Fetch previous week incomplete tasks from API ───
+                          const userId = user?.cid || user?.id;
+                          try {
+                            const res = await fetch(
+                              `/api/tasks?user_id=${userId}&week=${prevWeek}&year=${prevYear}&sort=oldest`,
+                            );
+                            const data = await res.json();
+                            const prevWeekTasks = (data.tasks || []).filter(
+                              (t) =>
+                                !["archived", "completed"].includes(t.status) &&
+                                !t.parent_task_id,
+                            );
+
+                            if (prevWeekTasks.length > 0) {
+                              const allTaskRows = [];
+                              for (const t of prevWeekTasks) {
                                 allTaskRows.push({
-                                  id: st.id,
+                                  id: t.id,
                                   is_carryover: true,
-                                  carried_over_from_task_id: st.id,
-                                  name: st.title,
-                                  description: "",
+                                  carried_over_from_task_id: t.id,
+                                  name: t.title,
+                                  description: t.description || "",
                                   project_id: t.project_id || null,
                                   category: t.category || "",
-                                  start_date: "",
+                                  start_date: t.start_date || "",
                                   start_time: "",
-                                  due_date: "",
+                                  due_date: t.end_date || "",
                                   due_time: "",
-                                  blockers: [],
-                                  parent_task_id: t.id,
-                                  status: st.status,
+                                  blockers:
+                                    t.blockers?.map((b) => ({
+                                      id: b.id,
+                                      description: b.title,
+                                      severity: b.severity || "medium",
+                                      status: b.status || "Active",
+                                      created_at: b.created_at,
+                                    })) || [],
+                                  parent_task_id: null,
+                                  status: t.status,
                                   collaborators: [],
                                   uncompleted_reason: "",
                                 });
+                                if (t.subtasks?.length > 0) {
+                                  for (const st of t.subtasks) {
+                                    if (["archived", "completed"].includes(st.status)) continue;
+                                    allTaskRows.push({
+                                      id: st.id,
+                                      is_carryover: true,
+                                      carried_over_from_task_id: st.id,
+                                      name: st.title,
+                                      description: "",
+                                      project_id: t.project_id || null,
+                                      category: t.category || "",
+                                      start_date: "",
+                                      start_time: "",
+                                      due_date: "",
+                                      due_time: "",
+                                      blockers: [],
+                                      parent_task_id: t.id,
+                                      status: st.status,
+                                      collaborators: [],
+                                      uncompleted_reason: "",
+                                    });
+                                  }
+                                }
                               }
+                              setTaskRows(allTaskRows);
+                              setShowTaskForm(false);
+                              return;
                             }
-                          }
-                          if (allTaskRows.length > 0) {
-                            setTaskRows(allTaskRows);
-                            setShowTaskForm(false);
-                            return;
+                          } catch (e) {
+                            console.error("Failed to fetch previous week tasks:", e);
                           }
                           setShowTaskForm(true);
                         }}
