@@ -3,12 +3,16 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
 /**
- * GET /api/standups/current?user_id=X&week=12&year=2026
+ * GET /api/standups/current?user_id=X&week=12&year=2026&show_all=true&carry_over=true
  *
  * Returns the current week's standup data:
  * - Existing standup report (if submitted)
- * - Weekly tasks (pending, in_progress, blocked, carried_over) with blockers
- * - Tasks are scoped to the given week/year
+ * - Weekly tasks with blockers
+ *
+ * Query params:
+ *   user_id, week, year — required
+ *   show_all=true  — include completed + archived tasks (for same-week view)
+ *   carry_over=true — fetch non-completed tasks from previous week instead
  */
 export async function GET(req) {
   try {
@@ -19,6 +23,8 @@ export async function GET(req) {
     const user_id = searchParams.get("user_id");
     const week_number = searchParams.get("week");
     const year = searchParams.get("year");
+    const showAll = searchParams.get("show_all") === "true";
+    const carryOver = searchParams.get("carry_over") === "true";
 
     if (!user_id) {
       return NextResponse.json(
@@ -40,8 +46,50 @@ export async function GET(req) {
       if (reportRes.rows.length > 0) report = reportRes.rows[0];
     }
 
-    // Fetch weekly tasks: pending, in_progress, blocked, carried_over
-    // Scoped to the given week/year so the standup shows "What am I working on this week?"
+    // ── CARRY-OVER MODE: Fetch non-completed tasks from previous week ──
+    if (carryOver && w && y) {
+      // Calculate previous week
+      let prevWeek = w - 1;
+      let prevYear = y;
+      if (prevWeek < 1) {
+        prevWeek = 52; // approximate; real week count would need year check
+        prevYear = y - 1;
+      }
+
+      const taskSql = `SELECT * FROM tasks
+        WHERE user_id = ?
+        AND created_week = ? AND created_year = ?
+        AND status NOT IN ('completed', 'archived')
+        ORDER BY CASE priority
+          WHEN 'critical' THEN 0 WHEN 'high' THEN 1
+          WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4
+        END, created_at ASC`;
+
+      const taskRes = await db.execute({
+        sql: taskSql,
+        args: [user_id, prevWeek, prevYear],
+      });
+
+      // Attach blockers
+      const tasks = await Promise.all(
+        taskRes.rows.map(async (task) => {
+          const blockerRes = await db.execute({
+            sql: "SELECT id, title, status, severity FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
+            args: [task.id],
+          });
+          return { ...task, blockers: blockerRes.rows || [] };
+        }),
+      );
+
+      return NextResponse.json({
+        success: true,
+        report,
+        tasks,
+        carryOverFrom: { week: prevWeek, year: prevYear },
+      });
+    }
+
+    // ── NORMAL MODE: Fetch tasks for the requested week ──
     let taskSql = "SELECT * FROM tasks WHERE user_id = ?";
     const taskArgs = [user_id];
 
@@ -50,7 +98,11 @@ export async function GET(req) {
       taskArgs.push(w, y);
     }
 
-    taskSql += " AND status NOT IN ('completed', 'archived')";
+    // show_all includes completed; otherwise filter them out
+    if (!showAll) {
+      taskSql += " AND status NOT IN ('completed', 'archived')";
+    }
+
     taskSql +=
       " ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, created_at ASC";
 

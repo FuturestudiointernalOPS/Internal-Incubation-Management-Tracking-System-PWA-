@@ -156,3 +156,58 @@ WHERE id NOT IN (
 
 -- ─── 9. Task Link Column ───
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS link TEXT;
+
+-- ─── 10. Access Profiles System ───
+CREATE TABLE IF NOT EXISTS access_profiles (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT DEFAULT '',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS access_profile_capabilities (
+    id SERIAL PRIMARY KEY,
+    profile_id INTEGER NOT NULL REFERENCES access_profiles(id) ON DELETE CASCADE,
+    module TEXT NOT NULL,
+    capability TEXT NOT NULL,
+    access_level INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(profile_id, module, capability)
+);
+
+CREATE TABLE IF NOT EXISTS role_access_profile_defaults (
+    id SERIAL PRIMARY KEY,
+    role_name TEXT NOT NULL UNIQUE,
+    access_profile_id INTEGER NOT NULL REFERENCES access_profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS access_profile_id INTEGER REFERENCES access_profiles(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_profile_caps_lookup ON access_profile_capabilities(profile_id, module, capability);
+
+-- ─── 11. Responsibilities System ───
+CREATE TABLE IF NOT EXISTS responsibilities (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    key TEXT NOT NULL UNIQUE,
+    description TEXT DEFAULT '',
+    icon TEXT DEFAULT '',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_responsibilities (
+    id SERIAL PRIMARY KEY,
+    user_cid TEXT NOT NULL REFERENCES contacts(cid) ON DELETE CASCADE,
+    responsibility_id INTEGER NOT NULL REFERENCES responsibilities(id) ON DELETE CASCADE,
+    assigned_by TEXT,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_cid, responsibility_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_resp_cid ON user_responsibilities(user_cid);
+CREATE INDEX IF NOT EXISTS idx_user_resp_id ON user_responsibilities(responsibility_id);

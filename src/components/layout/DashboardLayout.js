@@ -352,7 +352,19 @@ const NAVIGATION_MATRIX = {
       id: "engineering",
       name: "ENGINEERING",
       icon: Wrench,
-      href: "/admin/engineering",
+      subItems: [
+        {
+          id: "engineering_dashboard",
+          name: "DASHBOARD",
+          href: "/admin/engineering",
+        },
+        {
+          id: "permissions",
+          name: "PERMISSIONS",
+          href: "/admin/engineering/permissions",
+        },
+        { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
+      ],
     },
   ],
   admin: [
@@ -582,6 +594,98 @@ const NAVIGATION_MATRIX = {
   ],
 };
 
+// =============================================================================
+// RESPONSIBILITY-GATED NAVIGATION
+// =============================================================================
+// Maps nav item IDs to the responsibility key required to see them.
+// Items not listed here are visible to everyone with that role.
+// Super Admin always sees everything.
+// =============================================================================
+
+const NAV_RESPONSIBILITY_MAP = {
+  // Super Admin / Admin
+  programs: "program_management",
+  all_programs: "program_management",
+  create_program: "program_management",
+  progress: "program_management",
+  program_reports: "program_management",
+  submissions: "program_management",
+  all_projects: "project_ownership",
+  create_project: "project_ownership",
+  internal_ops_board: "operations",
+  internal_reports: "reporting",
+  my_projects: "project_ownership",
+  communication: "communications",
+  messages: "communications",
+  campaigns: "communications",
+  forms: "communications",
+  all_contacts: "communications",
+  pending_users: "communications",
+  bulk_upload: "communications",
+  groups: "communications",
+  knowledge: "knowledge_base",
+  intelligence: "intelligence",
+  finance: "finance",
+  metrics: "reporting",
+  engineering: "engineering",
+  standups_retros: "engineering",
+  standup: "engineering",
+  retro: "engineering",
+  my_tasks: "engineering",
+  assigned_tasks: "engineering",
+  rituals: "engineering",
+  personnel: "user_management",
+  logs: "user_management",
+  reports: "reporting",
+  permissions: "user_management",
+  // Nav sections with custom naming
+  internal_ops: "operations",
+};
+
+// Roles that bypass responsibility filtering entirely
+const RESPONSIBILITY_BYPASS_ROLES = ["super_admin"];
+
+/**
+ * Filter nav items based on a user's responsibilities.
+ * Recursively handles subItems.
+ */
+function filterNavByResponsibilities(items, userResponsibilities, bypass) {
+  if (bypass) return items;
+
+  // If no responsibilities assigned yet, don't filter — backward compatible.
+  // Users who haven't been seeded with responsibilities see full role-based nav.
+  if (!userResponsibilities || userResponsibilities.length === 0) return items;
+
+  const respKeys = new Set(userResponsibilities.map((r) => r.key));
+
+  return items.reduce((acc, item) => {
+    // Check if this item has a responsibility requirement
+    const required = NAV_RESPONSIBILITY_MAP[item.id];
+
+    // If it has a required responsibility and user doesn't have it, skip
+    if (required && !respKeys.has(required)) {
+      return acc;
+    }
+
+    // If no requirement, always include it
+    // Process subItems if any
+    if (item.subItems) {
+      const filteredSubItems = item.subItems.filter((sub) => {
+        const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
+        return !subRequired || respKeys.has(subRequired);
+      });
+      if (filteredSubItems.length > 0) {
+        acc.push({ ...item, subItems: filteredSubItems });
+      }
+      // If no subItems remain, don't include the parent
+      return acc;
+    }
+
+    acc.push(item);
+    return acc;
+  }, []);
+}
+
 export default function DashboardLayout({ children, role = "admin", modals }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -592,6 +696,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
+  const [userResponsibilities, setUserResponsibilities] = useState([]);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -700,6 +805,17 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
               };
               setUser(updatedUser);
               localStorage.setItem("user", JSON.stringify(updatedUser));
+            }
+          } catch (_) {}
+
+          // Fetch user responsibilities for dynamic dashboard
+          try {
+            const respRes = await fetch(
+              `/api/responsibilities?user_cid=${sessionData.user.cid}`,
+            );
+            const respData = await respRes.json();
+            if (respData.success) {
+              setUserResponsibilities(respData.responsibilities || []);
             }
           } catch (_) {}
         } else {
@@ -846,8 +962,11 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
         };
       }
     }
-    return items;
-  }, [user.role, user.groups, role, pmPrograms]);
+
+    // Filter by responsibilities (if not super_admin and not intern)
+    const bypass = RESPONSIBILITY_BYPASS_ROLES.includes(activeRole);
+    return filterNavByResponsibilities(items, userResponsibilities, bypass);
+  }, [user.role, user.groups, role, pmPrograms, userResponsibilities]);
 
   const handleLogout = async () => {
     try {

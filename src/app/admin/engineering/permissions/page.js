@@ -16,6 +16,13 @@ import {
   Loader2,
   RefreshCw,
   Info,
+  Layers,
+  Copy,
+  EyeOff,
+  UserCheck,
+  Settings,
+  Award,
+  SwitchCamera,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -338,6 +345,18 @@ export default function PermissionManager() {
           >
             Initialize
           </button>
+          <button
+            onClick={() => setActiveTab("profiles")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "profiles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            Access Profiles
+          </button>
+          <button
+            onClick={() => setActiveTab("responsibilities")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "responsibilities" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            Responsibilities
+          </button>
         </div>
 
         {activeTab === "search" && (
@@ -420,6 +439,20 @@ export default function PermissionManager() {
                             {g}
                           </span>
                         ))}
+                        {userPerms.effectiveProfile && (
+                          <span
+                            className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                              userPerms.effectiveProfile.source === "user"
+                                ? "bg-purple-500/10 text-purple-400"
+                                : userPerms.effectiveProfile.source === "role"
+                                  ? "bg-teal-500/10 text-teal-400"
+                                  : "bg-slate-500/10 text-slate-400"
+                            }`}
+                            title={`Source: ${userPerms.effectiveProfile.source}${userPerms.effectiveProfile.profileName ? ` — ${userPerms.effectiveProfile.profileName}` : " — legacy role_capabilities"}`}
+                          >
+                            {userPerms.effectiveProfile.profileName || "Legacy"}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -825,6 +858,8 @@ export default function PermissionManager() {
 
         {activeTab === "roles" && <RoleDefaultsView />}
         {activeTab === "seed" && <SeedView />}
+        {activeTab === "profiles" && <AccessProfilesView />}
+        {activeTab === "responsibilities" && <ResponsibilitiesView />}
       </div>
     </DashboardLayout>
   );
@@ -992,6 +1027,1046 @@ function SeedView() {
       {actionError && (
         <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
           <p className="text-[10px] font-bold text-red-400">{actionError}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AccessProfilesView() {
+  const [profiles, setProfiles] = useState([]);
+  const [roleDefaults, setRoleDefaults] = useState({});
+  const [allRoles, setAllRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [profileCaps, setProfileCaps] = useState([]);
+  const [actionMsg, setActionMsg] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showAssignForm, setShowAssignForm] = useState(false);
+  const [showRoleDefaultForm, setShowRoleDefaultForm] = useState(false);
+  const [newProfile, setNewProfile] = useState({ name: "", description: "" });
+  const [assignData, setAssignData] = useState({
+    user_cid: "",
+    profile_id: "",
+  });
+  const [roleDefaultData, setRoleDefaultData] = useState({
+    role_name: "",
+    profile_id: "",
+  });
+  const [editingCap, setEditingCap] = useState(null);
+  const [editValue, setEditValue] = useState(0);
+
+  const fetchProfiles = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/access-profiles");
+      const data = await res.json();
+      if (data.success) {
+        setProfiles(data.profiles || []);
+        setRoleDefaults(data.roleDefaults || {});
+        // Collect roles that have defaults
+        setAllRoles(Object.keys(data.roleDefaults || {}));
+      }
+    } catch (e) {
+      console.error("Failed to load profiles", e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfiles();
+  }, [fetchProfiles]);
+
+  const selectProfile = async (profile) => {
+    setSelectedProfile(profile);
+    try {
+      const res = await fetch(`/api/access-profiles?id=${profile.id}`);
+      const data = await res.json();
+      if (data.success) {
+        setProfileCaps(data.capabilities || []);
+      }
+    } catch (e) {
+      console.error("Failed to load profile capabilities", e);
+    }
+  };
+
+  const createProfile = async () => {
+    if (!newProfile.name.trim()) return;
+    setActionMsg("");
+    setActionError("");
+    try {
+      const res = await fetch("/api/access-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newProfile.name.trim(),
+          description: newProfile.description,
+          capabilities: {},
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg(`Profile "${newProfile.name}" created`);
+        setShowCreateForm(false);
+        setNewProfile({ name: "", description: "" });
+        fetchProfiles();
+      } else {
+        setActionError(data.error || "Failed to create");
+      }
+    } catch (e) {
+      setActionError("Network error");
+    }
+  };
+
+  const duplicateProfile = async (profile) => {
+    setActionMsg("");
+    setActionError("");
+    try {
+      // Fetch full profile with capabilities
+      const res = await fetch(`/api/access-profiles?id=${profile.id}`);
+      const data = await res.json();
+      if (!data.success) {
+        setActionError("Failed to fetch source profile");
+        return;
+      }
+
+      // Build capabilities object from response
+      const caps = {};
+      for (const c of data.capabilities) {
+        if (!caps[c.module]) caps[c.module] = {};
+        caps[c.module][c.capability] = c.access_level;
+      }
+
+      // Create copy
+      const createRes = await fetch("/api/access-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `${profile.name} (copy)`,
+          description: profile.description,
+          capabilities: caps,
+        }),
+      });
+      const createData = await createRes.json();
+      if (createData.success) {
+        setActionMsg(`Profile duplicated as "${profile.name} (copy)"`);
+        fetchProfiles();
+      } else {
+        setActionError(createData.error || "Failed to duplicate");
+      }
+    } catch (e) {
+      setActionError("Network error");
+    }
+  };
+
+  const toggleProfileActive = async (profile) => {
+    try {
+      const res = await fetch("/api/access-profiles", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: profile.id,
+          is_active: !profile.is_active,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg(
+          profile.is_active ? "Profile disabled" : "Profile enabled",
+        );
+        fetchProfiles();
+      } else {
+        setActionError(data.error || "Failed to toggle");
+      }
+    } catch (e) {
+      setActionError("Network error");
+    }
+  };
+
+  const updateCapability = async (module, capability, level) => {
+    if (!selectedProfile) return;
+    try {
+      // Fetch current caps
+      const currentCaps = {};
+      for (const c of profileCaps) {
+        if (!currentCaps[c.module]) currentCaps[c.module] = {};
+        currentCaps[c.module][c.capability] = c.access_level;
+      }
+
+      // Update the specific capability
+      if (!currentCaps[module]) currentCaps[module] = {};
+      currentCaps[module][capability] = level;
+
+      const res = await fetch("/api/access-profiles", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedProfile.id,
+          capabilities: currentCaps,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Refresh caps
+        selectProfile(selectedProfile);
+        setEditingCap(null);
+        setActionMsg("Capability updated");
+      } else {
+        setActionError(data.error || "Failed to update");
+      }
+    } catch (e) {
+      setActionError("Network error");
+    }
+  };
+
+  const assignProfileToUser = async () => {
+    if (!assignData.user_cid || !assignData.profile_id) return;
+    try {
+      const res = await fetch("/api/access-profiles/assign", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(assignData),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg(data.message);
+        setShowAssignForm(false);
+        setAssignData({ user_cid: "", profile_id: "" });
+      } else {
+        setActionError(data.error || "Failed to assign");
+      }
+    } catch (e) {
+      setActionError("Network error");
+    }
+  };
+
+  const setRoleDefault = async () => {
+    if (!roleDefaultData.role_name || !roleDefaultData.profile_id) return;
+    try {
+      const res = await fetch("/api/access-profiles/role-defaults", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(roleDefaultData),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg(data.message);
+        setShowRoleDefaultForm(false);
+        setRoleDefaultData({ role_name: "", profile_id: "" });
+        fetchProfiles();
+      } else {
+        setActionError(data.error || "Failed to set default");
+      }
+    } catch (e) {
+      setActionError("Network error");
+    }
+  };
+
+  // Build module/capability list from PERMISSION_MODULES (from API response)
+  const availableModules = window.availableModules || {
+    projects: {
+      name: "Projects",
+      capabilities: ["view", "create", "edit", "delete", "archive"],
+    },
+    programs: {
+      name: "Programs",
+      capabilities: ["view", "create", "edit", "delete", "publish"],
+    },
+    users: {
+      name: "Users",
+      capabilities: [
+        "view",
+        "create",
+        "edit",
+        "suspend",
+        "delete",
+        "assign_roles",
+      ],
+    },
+    reports: {
+      name: "Reports",
+      capabilities: ["view", "create", "export", "delete"],
+    },
+    messaging: { name: "Messaging", capabilities: ["view", "send", "delete"] },
+    internal_comms: {
+      name: "Internal Communication",
+      capabilities: ["view", "create_announcements", "moderate"],
+    },
+    contacts: {
+      name: "Contacts",
+      capabilities: ["view", "create", "edit", "delete", "import", "export"],
+    },
+    permissions: {
+      name: "Permissions",
+      capabilities: [
+        "view_matrix",
+        "grant",
+        "revoke",
+        "assign_capabilities",
+        "assign_groups",
+        "assign_responsibilities",
+        "promote_super_admin",
+        "remove_super_admin",
+      ],
+    },
+    engineering: {
+      name: "Engineering Operations",
+      capabilities: [
+        "view",
+        "manage_tasks",
+        "manage_errors",
+        "manage_developers",
+      ],
+    },
+    finance: {
+      name: "Finance",
+      capabilities: ["view", "create", "edit", "delete", "export"],
+    },
+    settings: { name: "System Settings", capabilities: ["view", "edit"] },
+  };
+
+  // Fetch actual modules from API
+  useEffect(() => {
+    fetch("/api/engineering/permissions")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.modules) window.availableModules = d.modules;
+      })
+      .catch(() => {});
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <div
+          className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+          style={{
+            borderColor: "rgba(255,102,0,0.1)",
+            borderTopColor: "var(--brand-orange)",
+          }}
+        />
+      </div>
+    );
+  }
+
+  // ─── DETAIL VIEW ───
+  if (selectedProfile) {
+    const getLevel = (mod, cap) => {
+      const found = profileCaps.find(
+        (c) => c.module === mod && c.capability === cap,
+      );
+      return found ? found.access_level : 0;
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setSelectedProfile(null);
+                setProfileCaps([]);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+            >
+              ← Back
+            </button>
+            <div>
+              <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">
+                {selectedProfile.name}
+              </h3>
+              {selectedProfile.description && (
+                <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-0.5">
+                  {selectedProfile.description}
+                </p>
+              )}
+            </div>
+          </div>
+          <span
+            className={`text-[9px] font-black px-2 py-1 rounded ${
+              selectedProfile.is_active
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "bg-red-500/10 text-red-400"
+            }`}
+          >
+            {selectedProfile.is_active ? "Active" : "Disabled"}
+          </span>
+        </div>
+
+        {actionMsg && (
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <p className="text-[10px] font-bold text-emerald-400">
+              {actionMsg}
+            </p>
+          </div>
+        )}
+        {actionError && (
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <p className="text-[10px] font-bold text-red-400">{actionError}</p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {Object.entries(availableModules).map(([modKey, mod]) => (
+            <div
+              key={modKey}
+              className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden"
+            >
+              <div className="px-5 py-3 bg-tertiary/30 border-b border-[var(--border-primary)]">
+                <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+                  {mod.name}
+                </h4>
+              </div>
+              <div className="p-3">
+                <div className="flex flex-wrap gap-2">
+                  {mod.capabilities.map((cap) => {
+                    const level = getLevel(modKey, cap);
+                    const isEditing = editingCap === `${modKey}:${cap}`;
+                    return (
+                      <div key={cap} className="relative group">
+                        <button
+                          onClick={() => {
+                            if (isEditing) {
+                              updateCapability(modKey, cap, editValue);
+                            } else {
+                              setEditingCap(`${modKey}:${cap}`);
+                              setEditValue(level);
+                            }
+                          }}
+                          className={`px-3 py-2 rounded-lg border text-[8px] font-black uppercase tracking-wider transition-all ${
+                            level > 0
+                              ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/30 text-[var(--brand-orange)]"
+                              : "bg-secondary border-[var(--border-primary)] text-slate-500 opacity-50 hover:opacity-100"
+                          }`}
+                        >
+                          {cap.replace(/_/g, " ")}
+                          <span
+                            className={`ml-1.5 ${ACCESS_COLORS[level] || "text-slate-500"}`}
+                          >
+                            {ACCESS_SHORT[level] || "—"}
+                          </span>
+                        </button>
+                        {isEditing && (
+                          <div className="absolute top-full left-0 mt-2 p-2 bg-secondary border border-[var(--border-primary)] rounded-xl shadow-xl z-10 flex gap-1">
+                            {LEVELS_ORDER.map((l) => (
+                              <button
+                                key={l}
+                                onClick={() => {
+                                  setEditValue(l);
+                                  updateCapability(modKey, cap, l);
+                                }}
+                                className={`w-7 h-7 rounded text-[8px] font-black transition-all ${
+                                  editValue === l
+                                    ? "bg-[var(--brand-orange)] text-black"
+                                    : "bg-tertiary text-[var(--text-secondary)] hover:bg-[var(--brand-orange)]/30"
+                                }`}
+                              >
+                                {ACCESS_SHORT[l]}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── LIST VIEW ───
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-[var(--text-secondary)]">
+          Access Profiles define what capabilities a user gets. Each role has a
+          default profile; users can be assigned a specific profile to override
+          the role default.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowRoleDefaultForm(!showRoleDefaultForm)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+          >
+            <Settings className="w-3 h-3" /> Role Default
+          </button>
+          <button
+            onClick={() => setShowAssignForm(!showAssignForm)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+          >
+            <UserCheck className="w-3 h-3" /> Assign
+          </button>
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+          >
+            <Plus className="w-3 h-3" /> New Profile
+          </button>
+        </div>
+      </div>
+
+      {actionMsg && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <p className="text-[10px] font-bold text-emerald-400">{actionMsg}</p>
+        </div>
+      )}
+      {actionError && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <p className="text-[10px] font-bold text-red-400">{actionError}</p>
+        </div>
+      )}
+
+      {/* Create Form */}
+      {showCreateForm && (
+        <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
+          <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+            New Access Profile
+          </h4>
+          <div className="space-y-3">
+            <input
+              value={newProfile.name}
+              onChange={(e) =>
+                setNewProfile({ ...newProfile, name: e.target.value })
+              }
+              placeholder="Profile name (e.g. QA Engineer)"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+            />
+            <input
+              value={newProfile.description}
+              onChange={(e) =>
+                setNewProfile({ ...newProfile, description: e.target.value })
+              }
+              placeholder="Description (optional)"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={createProfile}
+                disabled={!newProfile.name.trim()}
+                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+              >
+                Create
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setNewProfile({ name: "", description: "" });
+                }}
+                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Form */}
+      {showAssignForm && (
+        <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
+          <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+            Assign Profile to User
+          </h4>
+          <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+            This overrides the user's role default profile. Set profile to empty
+            to remove the override.
+          </p>
+          <div className="space-y-3">
+            <input
+              value={assignData.user_cid}
+              onChange={(e) =>
+                setAssignData({ ...assignData, user_cid: e.target.value })
+              }
+              placeholder="User CID"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+            />
+            <select
+              value={assignData.profile_id}
+              onChange={(e) =>
+                setAssignData({ ...assignData, profile_id: e.target.value })
+              }
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+            >
+              <option value="">
+                -- Select profile (leave empty to remove override) --
+              </option>
+              {profiles
+                .filter((p) => p.is_active)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              <option value="">Clear override (revert to role default)</option>
+            </select>
+            <div className="flex gap-2">
+              <button
+                onClick={assignProfileToUser}
+                disabled={!assignData.user_cid}
+                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+              >
+                Assign
+              </button>
+              <button
+                onClick={() => {
+                  setShowAssignForm(false);
+                  setAssignData({ user_cid: "", profile_id: "" });
+                }}
+                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Default Form */}
+      {showRoleDefaultForm && (
+        <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
+          <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+            Set Role Default Profile
+          </h4>
+          <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+            Choose which access profile a role uses by default. All users with
+            that role (who don't have an individual override) will use this
+            profile.
+          </p>
+          <div className="space-y-3">
+            <select
+              value={roleDefaultData.role_name}
+              onChange={(e) =>
+                setRoleDefaultData({
+                  ...roleDefaultData,
+                  role_name: e.target.value,
+                })
+              }
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+            >
+              <option value="">-- Select role --</option>
+              {[
+                "super_admin",
+                "staff",
+                "participant",
+                "developer",
+                "program_manager",
+                "teacher",
+                "admin",
+                "investor",
+                "mentor",
+              ].map((r) => (
+                <option key={r} value={r}>
+                  {r.replace(/_/g, " ")}
+                  {roleDefaults[r]
+                    ? ` (current: ${roleDefaults[r].profileName})`
+                    : ""}
+                </option>
+              ))}
+            </select>
+            <select
+              value={roleDefaultData.profile_id}
+              onChange={(e) =>
+                setRoleDefaultData({
+                  ...roleDefaultData,
+                  profile_id: e.target.value,
+                })
+              }
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+            >
+              <option value="">-- Select profile --</option>
+              {profiles
+                .filter((p) => p.is_active)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+            </select>
+            <div className="flex gap-2">
+              <button
+                onClick={setRoleDefault}
+                disabled={
+                  !roleDefaultData.role_name || !roleDefaultData.profile_id
+                }
+                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+              >
+                Set Default
+              </button>
+              <button
+                onClick={() => {
+                  setShowRoleDefaultForm(false);
+                  setRoleDefaultData({ role_name: "", profile_id: "" });
+                }}
+                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile List */}
+      {profiles.length === 0 ? (
+        <div className="py-10 text-center opacity-40">
+          <Layers className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+          <p className="text-sm font-black text-[var(--text-primary)] uppercase">
+            No access profiles
+          </p>
+          <p className="text-[10px] font-bold text-slate-500 mt-1">
+            Create one or run the Access Profile seed from the Initialize tab
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {profiles.map((profile) => {
+            const isDefaultFor = Object.entries(roleDefaults)
+              .filter(([, v]) => v.profileId === profile.id)
+              .map(([role]) => role);
+
+            return (
+              <div
+                key={profile.id}
+                className={`ios-card !p-0 border-[var(--border-primary)] overflow-hidden transition-all ${
+                  !profile.is_active ? "opacity-50" : ""
+                }`}
+              >
+                <div className="p-4 flex items-center justify-between">
+                  <button
+                    onClick={() => selectProfile(profile)}
+                    className="flex-1 text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Layers className="w-4 h-4 text-[var(--brand-orange)]" />
+                      <div>
+                        <h4 className="text-xs font-black text-[var(--text-primary)] uppercase">
+                          {profile.name}
+                        </h4>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="text-[8px] font-bold text-[var(--text-secondary)]">
+                            {profile.capability_count || 0} capabilities
+                          </span>
+                          {isDefaultFor.length > 0 && (
+                            <span className="text-[8px] font-bold text-blue-400">
+                              Default for: {isDefaultFor.join(", ")}
+                            </span>
+                          )}
+                          {profile.description && (
+                            <span className="text-[8px] font-bold text-slate-500 truncate max-w-[200px]">
+                              {profile.description}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => duplicateProfile(profile)}
+                      title="Duplicate profile"
+                      className="p-2 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => toggleProfileActive(profile)}
+                      title={
+                        profile.is_active ? "Disable profile" : "Enable profile"
+                      }
+                      className="p-2 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    >
+                      {profile.is_active ? (
+                        <EyeOff className="w-3.5 h-3.5" />
+                      ) : (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResponsibilitiesView() {
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [responsibilities, setResponsibilities] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [actionMsg, setActionMsg] = useState("");
+  const [actionError, setActionError] = useState("");
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("/api/contacts");
+      const data = await res.json();
+      if (data.success) {
+        const sorted = (data.contacts || []).sort((a, b) =>
+          (a.name || "").localeCompare(b.name || ""),
+        );
+        setAllUsers(sorted);
+        setSearchResults(sorted);
+      }
+    } catch (e) {
+      console.error("Failed to fetch users", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const selectUser = async (user) => {
+    setSelectedUser(user);
+    setLoading(true);
+    setActionMsg("");
+    setActionError("");
+    try {
+      const res = await fetch(
+        `/api/responsibilities/assign?user_cid=${user.cid}`,
+      );
+      const data = await res.json();
+      if (data.success) {
+        setResponsibilities(data.responsibilities || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch responsibilities", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleResponsibility = async (resp) => {
+    setActionMsg("");
+    setActionError("");
+    const action = resp.assigned ? "remove" : "assign";
+
+    // Optimistic update
+    setResponsibilities((prev) =>
+      prev.map((r) => (r.id === resp.id ? { ...r, assigned: !r.assigned } : r)),
+    );
+
+    try {
+      const res = await fetch("/api/responsibilities/assign", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_cid: selectedUser.cid,
+          responsibility_id: resp.id,
+          action,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg(data.message);
+      } else {
+        // Revert
+        setResponsibilities((prev) =>
+          prev.map((r) =>
+            r.id === resp.id ? { ...r, assigned: !r.assigned } : r,
+          ),
+        );
+        setActionError(data.error || "Action failed");
+      }
+    } catch (e) {
+      setResponsibilities((prev) =>
+        prev.map((r) =>
+          r.id === resp.id ? { ...r, assigned: !r.assigned } : r,
+        ),
+      );
+      setActionError("Network error");
+    }
+  };
+
+  const searchUsers = (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults(allUsers);
+      return;
+    }
+    const q = query.toLowerCase();
+    setSearchResults(
+      allUsers.filter(
+        (u) =>
+          (u.name || "").toLowerCase().includes(q) ||
+          (u.email || "").toLowerCase().includes(q) ||
+          (u.cid || "").toLowerCase().includes(q),
+      ),
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs font-bold text-[var(--text-secondary)]">
+        Responsibilities define operational ownership — what dashboards,
+        navigation, and reports a user sees. They are NOT permissions.
+      </p>
+
+      {/* User Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+        <input
+          value={searchQuery}
+          onChange={(e) => searchUsers(e.target.value)}
+          placeholder="Search user by name, email, or CID..."
+          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+        />
+      </div>
+
+      {/* User List */}
+      {!selectedUser && (
+        <div className="space-y-1 max-w-md">
+          {searchResults.slice(0, 20).map((u) => (
+            <button
+              key={u.cid}
+              onClick={() => selectUser(u)}
+              className="w-full ios-card !p-3 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                  <User className="w-4 h-4 text-[var(--brand-orange)]" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-black text-[var(--text-primary)] uppercase">
+                    {u.name}
+                  </p>
+                  <p className="text-[8px] font-bold text-[var(--text-secondary)]">
+                    {u.role}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+            </button>
+          ))}
+          {searchResults.length === 0 && (
+            <p className="text-[10px] font-bold text-slate-500 py-4 text-center">
+              No users found
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Selected User Responsibilities */}
+      {selectedUser && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setSelectedUser(null);
+                  setResponsibilities([]);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+              >
+                ← Back
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                  <User className="w-5 h-5 text-[var(--brand-orange)]" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[var(--text-primary)] uppercase">
+                    {selectedUser.name}
+                  </p>
+                  <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                    {selectedUser.role} · {selectedUser.email}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {actionMsg && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <p className="text-[10px] font-bold text-emerald-400">
+                {actionMsg}
+              </p>
+            </div>
+          )}
+          {actionError && (
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+              <p className="text-[10px] font-bold text-red-400">
+                {actionError}
+              </p>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <div
+                className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+                style={{
+                  borderColor: "rgba(255,102,0,0.1)",
+                  borderTopColor: "var(--brand-orange)",
+                }}
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {responsibilities.map((resp) => (
+                <button
+                  key={resp.id}
+                  onClick={() => toggleResponsibility(resp)}
+                  className={`ios-card !p-4 border transition-all text-left ${
+                    resp.assigned
+                      ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/5"
+                      : "border-[var(--border-primary)] opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <Award
+                        className={`w-4 h-4 ${
+                          resp.assigned
+                            ? "text-[var(--brand-orange)]"
+                            : "text-slate-500"
+                        }`}
+                      />
+                      <div>
+                        <p
+                          className={`text-[10px] font-black uppercase tracking-wider ${
+                            resp.assigned
+                              ? "text-[var(--brand-orange)]"
+                              : "text-[var(--text-primary)]"
+                          }`}
+                        >
+                          {resp.name}
+                        </p>
+                        {resp.description && (
+                          <p className="text-[8px] font-bold text-[var(--text-secondary)] mt-0.5">
+                            {resp.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shrink-0 ${
+                        resp.assigned
+                          ? "bg-[var(--brand-orange)] border-[var(--brand-orange)]"
+                          : "border-slate-500"
+                      }`}
+                    >
+                      {resp.assigned && (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-black" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

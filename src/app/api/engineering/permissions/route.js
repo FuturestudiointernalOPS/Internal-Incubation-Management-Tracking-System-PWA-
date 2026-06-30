@@ -7,6 +7,7 @@ import {
   ACCESS_LEVELS,
   getUserFullPermissionMatrix,
   getUserGroups,
+  getUserEffectiveProfile,
   logPermissionAudit,
   seedDefaultRoleCapabilities,
 } from "@/lib/auth";
@@ -42,12 +43,36 @@ export async function GET(req) {
         sql: "SELECT * FROM group_capabilities ORDER BY group_name, module, capability",
       });
 
+      // Get access profile defaults
+      let accessProfiles = [];
+      let accessProfileDefaults = {};
+      try {
+        const profiles = await db.execute({
+          sql: "SELECT id, name, description, is_active FROM access_profiles ORDER BY name",
+        });
+        accessProfiles = profiles.rows;
+
+        const roleDefaults = await db.execute({
+          sql: `SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
+                FROM role_access_profile_defaults rpd
+                JOIN access_profiles ap ON ap.id = rpd.access_profile_id`,
+        });
+        for (const row of roleDefaults.rows) {
+          accessProfileDefaults[row.role_name] = {
+            profileId: row.profile_id,
+            profileName: row.profile_name,
+          };
+        }
+      } catch (_) {}
+
       return NextResponse.json({
         success: true,
         modules: PERMISSION_MODULES,
         accessLevels: ACCESS_LEVELS,
         roleDefaults: roleCaps.rows,
         groupDefaults: groupCaps.rows,
+        accessProfiles,
+        accessProfileDefaults,
       });
     }
 
@@ -79,6 +104,12 @@ export async function GET(req) {
         args: [userCid],
       });
 
+      // Get access profile info
+      const effectiveProfile = await getUserEffectiveProfile(
+        userCid,
+        user.role,
+      );
+
       return NextResponse.json({
         success: true,
         user: {
@@ -87,8 +118,10 @@ export async function GET(req) {
           email: user.email,
           role: user.role,
           status: user.status,
+          access_profile_id: user.access_profile_id,
         },
         groups,
+        effectiveProfile,
         effectivePermissions: matrix,
         individualGrants: grants.rows,
         individualRestrictions: restrictions.rows,
