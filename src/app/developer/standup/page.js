@@ -9,9 +9,7 @@ import {
   CheckCircle2,
   Loader2,
   ListTodo,
-  ChevronRight,
   Calendar,
-  AlertCircle,
   AlertTriangle,
   PlusCircle,
 } from "lucide-react";
@@ -32,7 +30,6 @@ export default function DeveloperStandup() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [weekInfo, setWeekInfo] = useState({ week: 0, year: 0 });
-  const [isMonday, setIsMonday] = useState(false);
   const [formActive, setFormActive] = useState(false);
   const [carryOverFrom, setCarryOverFrom] = useState(null);
 
@@ -44,11 +41,6 @@ export default function DeveloperStandup() {
         setUserRole(u.role || "staff");
       }
     } catch (_) {}
-  }, []);
-
-  useEffect(() => {
-    const day = new Date().getDay();
-    setIsMonday(day === 1); // 1 = Monday
   }, []);
 
   const fetchStandup = useCallback(
@@ -101,9 +93,8 @@ export default function DeveloperStandup() {
     fetchStandup(false, false);
   }, [fetchStandup]);
 
-  // When "Create New Standup" is clicked — Monday only, loads carry-over
+  // When "Create New Standup" is clicked — loads carry-over from previous week
   const handleCreateStandup = () => {
-    if (!isMonday) return;
     setFormActive(true);
     setStandupData({ accomplishments: "", plans: "", blockers: "" });
     fetchStandup(false, true); // carry_over=true
@@ -191,21 +182,13 @@ export default function DeveloperStandup() {
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
               Week {weekInfo.week}, {weekInfo.year}
               {existingReport ? " — Update your report" : ""}
-              {!isMonday && !existingReport && !formActive
-                ? " — Standup available on Mondays"
-                : ""}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {!formActive && !existingReport && (
+            {!formActive && !existingReport && !loading && (
               <button
                 onClick={handleCreateStandup}
-                disabled={!isMonday}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all ${
-                  isMonday
-                    ? "bg-[var(--brand-orange)] text-black hover:opacity-90"
-                    : "bg-secondary border border-[var(--border-primary)] text-slate-500 cursor-not-allowed"
-                }`}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all bg-[var(--brand-orange)] text-black hover:opacity-90"
               >
                 <PlusCircle className="w-4 h-4" />
                 Create New Standup
@@ -226,14 +209,10 @@ export default function DeveloperStandup() {
           <div className="text-center py-20">
             <MessageSquare className="w-12 h-12 text-slate-500 mx-auto mb-4 opacity-30" />
             <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider opacity-40">
-              {isMonday
-                ? "Ready for your weekly standup?"
-                : "Standups are submitted on Mondays"}
+              Ready for your weekly standup?
             </p>
             <p className="text-[10px] font-bold text-slate-500 mt-2">
-              {isMonday
-                ? "Click Create New Standup to start"
-                : "Come back on Monday to submit your weekly report"}
+              Click Create New Standup to start
             </p>
           </div>
         )}
