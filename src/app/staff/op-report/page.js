@@ -933,92 +933,108 @@ export default function StaffOpReport() {
             {reportType === "standup" ? (
               <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                      {t("reports.mondayStandup")}
-                    </h2>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      {t("staff.opReport.manageWeeklyPlans")}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (new Date().getDay() !== 1) return;
-                      setShowStandupModal(true);
-                      setWeekInfo(getCurrentWeek());
-                      // Always load tasks — regardless of whether a standup report exists
-                      const currentWeekData = getCurrentWeek();
-                      // Only load non-completed tasks from previous week (carry-over)
-                      const prevWeek = getWeekNumber(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000));
-                      const prevYear = prevWeek > getWeekNumber(new Date()) ? new Date().getFullYear() - 1 : new Date().getFullYear();
-                      const weekTasks = tasks.filter(
-                        (t) =>
-                          t.created_week === prevWeek &&
-                          t.created_year === prevYear &&
-                          !["archived", "completed"].includes(t.status) &&
-                          !t.parent_task_id,
-                      );
-                      // Flatten subtasks into the task rows array
-                      const allTaskRows = [];
-                      for (const t of weekTasks) {
-                        allTaskRows.push({
-                          id: t.id,
-                          name: t.title,
-                          description: t.description || "",
-                          project_id: t.project_id || null,
-                          category: t.category || "",
-                          start_date: t.start_date || "",
-                          start_time: "",
-                          due_date: t.end_date || "",
-                          due_time: "",
-                          blockers:
-                            t.blockers?.map((b) => ({
-                              id: b.id,
-                              description: b.title,
-                              severity: b.severity || "medium",
-                              status: b.status || "Active",
-                              created_at: b.created_at,
-                            })) || [],
-                          parent_task_id: t.parent_task_id || null,
-                          status: t.status,
-                          collaborators: [],
-                          uncompleted_reason: "",
-                        });
-                        // Append subtasks right after their parent
-                        if (t.subtasks?.length > 0) {
-                          for (const st of t.subtasks) {
+                {(() => {
+                  const cw = getCurrentWeek();
+                  const hasCurrentWeekStandup = history.some(
+                    (r) =>
+                      r.report_type === "standup" &&
+                      r.week_number === cw.week &&
+                      r.year === cw.year
+                  );
+                  return (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                          {t("reports.mondayStandup")}
+                        </h2>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {t("staff.opReport.manageWeeklyPlans")}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (hasCurrentWeekStandup) return;
+                          setShowStandupModal(true);
+                          setWeekInfo(getCurrentWeek());
+                          // Always load tasks — regardless of whether a standup report exists
+                          const currentWeekData = getCurrentWeek();
+                          // Only load non-completed tasks from previous week (carry-over)
+                          const prevWeek = getWeekNumber(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000));
+                          const prevYear = prevWeek > getWeekNumber(new Date()) ? new Date().getFullYear() - 1 : new Date().getFullYear();
+                          const weekTasks = tasks.filter(
+                            (t) =>
+                              t.created_week === prevWeek &&
+                              t.created_year === prevYear &&
+                              !["archived", "completed"].includes(t.status) &&
+                              !t.parent_task_id,
+                          );
+                          // Flatten subtasks into the task rows array
+                          const allTaskRows = [];
+                          for (const t of weekTasks) {
                             allTaskRows.push({
-                              id: st.id,
-                              name: st.title,
-                              description: "",
+                              id: t.id,
+                              name: t.title,
+                              description: t.description || "",
                               project_id: t.project_id || null,
                               category: t.category || "",
-                              start_date: "",
+                              start_date: t.start_date || "",
                               start_time: "",
-                              due_date: "",
+                              due_date: t.end_date || "",
                               due_time: "",
-                              blockers: [],
-                              parent_task_id: t.id,
-                              status: st.status,
+                              blockers:
+                                t.blockers?.map((b) => ({
+                                  id: b.id,
+                                  description: b.title,
+                                  severity: b.severity || "medium",
+                                  status: b.status || "Active",
+                                  created_at: b.created_at,
+                                })) || [],
+                              parent_task_id: t.parent_task_id || null,
+                              status: t.status,
                               collaborators: [],
                               uncompleted_reason: "",
                             });
+                            // Append subtasks right after their parent
+                            if (t.subtasks?.length > 0) {
+                              for (const st of t.subtasks) {
+                                allTaskRows.push({
+                                  id: st.id,
+                                  name: st.title,
+                                  description: "",
+                                  project_id: t.project_id || null,
+                                  category: t.category || "",
+                                  start_date: "",
+                                  start_time: "",
+                                  due_date: "",
+                                  due_time: "",
+                                  blockers: [],
+                                  parent_task_id: t.id,
+                                  status: st.status,
+                                  collaborators: [],
+                                  uncompleted_reason: "",
+                                });
+                              }
+                            }
                           }
-                        }
-                      }
-                      if (allTaskRows.length > 0) {
-                        setTaskRows(allTaskRows);
-                        setShowTaskForm(false);
-                        return;
-                      }
-                      setShowTaskForm(true);
-                    }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
-                  >
-                    <><Plus className="w-4 h-4" /> Create New Standup</>
-                  </button>
-                </div>
+                          if (allTaskRows.length > 0) {
+                            setTaskRows(allTaskRows);
+                            setShowTaskForm(false);
+                            return;
+                          }
+                          setShowTaskForm(true);
+                        }}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[10px] font-semibold transition-all ${
+                          hasCurrentWeekStandup
+                            ? "bg-slate-200 text-slate-400 cursor-not-allowed opacity-50"
+                            : "bg-[var(--brand-orange)] text-black hover:brightness-110"
+                        }`}
+                        disabled={hasCurrentWeekStandup}
+                      >
+                        <><Plus className="w-4 h-4" /> Create New Standup</>
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* Standups Table */}
                 <div className="overflow-hidden rounded-xl border border-[var(--border-primary)]">
