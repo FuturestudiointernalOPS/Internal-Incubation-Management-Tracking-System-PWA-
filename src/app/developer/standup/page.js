@@ -177,7 +177,10 @@ export default function DeveloperStandup() {
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Standup
+              Standup{" "}
+              <span className="text-[10px] font-black px-2 py-0.5 rounded bg-[var(--brand-orange)]/20 text-[var(--brand-orange)] align-middle">
+                v2
+              </span>
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
               Week {weekInfo.week}, {weekInfo.year} — Mon–Fri reporting window
