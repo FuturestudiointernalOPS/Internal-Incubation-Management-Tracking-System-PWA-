@@ -427,10 +427,14 @@ export default function AdminDashboard() {
   const handleResolveBlocker = async (blockerId) => {
     setResolvingBlocker(blockerId);
     try {
-      await fetch("/api/admin/blockers", {
+      await fetch("/api/blockers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: blockerId, resolved_by: "sa" }),
+        body: JSON.stringify({
+          id: blockerId,
+          status: "resolved",
+          resolved_by: "sa",
+        }),
       });
       fetchWidgetData();
     } catch (e) {

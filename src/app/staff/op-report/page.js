@@ -3273,7 +3273,7 @@ export default function StaffOpReport() {
                           </p>
                         )}
                       </div>
-                      {b.status === "Active" ? (
+                      {b.status?.toLowerCase() === "active" ? (
                         <button
                           onClick={async () => {
                             if (blockerModal.type === "api") {
