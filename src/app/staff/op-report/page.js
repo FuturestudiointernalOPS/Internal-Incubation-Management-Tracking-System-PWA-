@@ -1583,7 +1583,13 @@ export default function StaffOpReport() {
                                                     b.status === "completed"
                                                   )
                                                     return -1;
-                                                  return 0;
+                                                    
+                                                  const aCarryover = a.carried_over_from_task_id !== null || a.status === "carried_over";
+                                                  const bCarryover = b.carried_over_from_task_id !== null || b.status === "carried_over";
+                                                  if (aCarryover && !bCarryover) return -1;
+                                                  if (!aCarryover && bCarryover) return 1;
+
+                                                  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
                                                 })
                                                 .map((task) => {
                                                   const cfg =
@@ -1722,6 +1728,11 @@ export default function StaffOpReport() {
                                                             >
                                                               {task.title}
                                                             </span>
+                                                            {(task.carried_over_from_task_id !== null || task.status === "carried_over") && (
+                                                              <span className="flex items-center gap-1 text-[8px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider ml-2">
+                                                                <Shield className="w-2.5 h-2.5" /> Carryover
+                                                              </span>
+                                                            )}
                                                             {task.subtasks
                                                               ?.length > 0 && (
                                                               <span
