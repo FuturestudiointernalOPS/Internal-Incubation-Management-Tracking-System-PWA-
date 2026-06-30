@@ -190,13 +190,22 @@ export async function PUT(req) {
 
     const blocker = blockerCheck.rows[0];
 
-    // Resolving a blocker: only the creator can resolve
+    // Resolving a blocker: the creator OR the task owner can resolve
     if (status === "resolved") {
-      if (resolved_by && resolved_by !== blocker.user_id) {
+      // Fetch the linked task to check task ownership
+      const taskCheck = await db.execute({
+        sql: "SELECT user_id FROM tasks WHERE id = ?",
+        args: [blocker.task_id],
+      });
+      const isTaskOwner =
+        taskCheck.rows.length > 0 && taskCheck.rows[0].user_id === resolved_by;
+
+      if (resolved_by && resolved_by !== blocker.user_id && !isTaskOwner) {
         return NextResponse.json(
           {
             success: false,
-            error: "Only the blocker creator can mark it as resolved",
+            error:
+              "Only the blocker creator or task owner can mark it as resolved",
           },
           { status: 403 },
         );
