@@ -172,6 +172,21 @@ async function init() {
     // Step 5: Seed users
     await seedUsers();
 
+    // Step 6: Fixup — missing tables/columns not in schema SQL
+    console.log("\n🔧 Applying fixups...");
+    await pool.query("CREATE TABLE IF NOT EXISTS families (id SERIAL PRIMARY KEY, name TEXT NOT NULL, registration_id TEXT, program_id TEXT, type TEXT DEFAULT 'individual', shared_email TEXT, shared_password_read TEXT, shared_password_edit TEXT, description TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())");
+    console.log("   ✅ families table");
+    await pool.query("ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS assigned_assistant_id TEXT");
+    console.log("   ✅ v2_programs.assigned_assistant_id");
+    await pool.query("ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
+    console.log("   ✅ v2_programs.is_archived");
+    await pool.query("ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'");
+    console.log("   ✅ v2_programs.status");
+    await pool.query("ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS note_id TEXT");
+    console.log("   ✅ v2_programs.note_id");
+    await pool.query("CREATE TABLE IF NOT EXISTS participant_programs (id SERIAL PRIMARY KEY, participant_id TEXT NOT NULL, program_id TEXT NOT NULL, enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), UNIQUE(participant_id, program_id))");
+    console.log("   ✅ participant_programs table");
+
     console.log("\n🎉 Staging database initialized!");
   } catch (err) {
     console.error("\n❌ Fatal:", err.message);
