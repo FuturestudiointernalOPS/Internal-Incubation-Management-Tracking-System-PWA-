@@ -24,6 +24,8 @@ import {
   CheckCircle2,
   Edit3,
   Trash2,
+  Link as LinkIcon,
+  Copy,
 } from "lucide-react";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -101,6 +103,10 @@ export default function TaskManager({
     due_date: "",
     status: "",
   });
+
+  const [addResourceTaskId, setAddResourceTaskId] = useState(null);
+  const [resourceForm, setResourceForm] = useState({ name: "", url: "" });
+  const [resourceAdding, setResourceAdding] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const projectDropdownRef = useRef(null);
@@ -136,6 +142,39 @@ export default function TaskManager({
   useEffect(() => {
     setTasks(taskList || []);
   }, [taskList]);
+
+  const handleAddResource = async (taskId) => {
+    if (!resourceForm.url.trim()) return;
+    setResourceAdding(true);
+    try {
+      const res = await fetch("/api/tasks/resources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task_id: taskId, name: resourceForm.name, url: resourceForm.url })
+      });
+      if (res.ok) {
+        if (onTasksChange) onTasksChange();
+        setAddResourceTaskId(null);
+        setResourceForm({ name: "", url: "" });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResourceAdding(false);
+    }
+  };
+
+  const handleDeleteResource = async (resourceId) => {
+    if (!window.confirm("Delete this resource link?")) return;
+    try {
+      const res = await fetch(`/api/tasks/resources?id=${resourceId}`, { method: "DELETE" });
+      if (res.ok) {
+        if (onTasksChange) onTasksChange();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // ── API: Update task status ──
   const updateStatus = useCallback(
@@ -530,23 +569,59 @@ export default function TaskManager({
           )}
         </div>
 
+        {/* Resources Section */}
+        {task.resources && task.resources.length > 0 && (
+          <div className={`mt-1 flex flex-col gap-1 ${isSub ? "ml-10" : "ml-8"}`}>
+            {task.resources.map(r => (
+              <div key={r.id} className="flex items-center gap-2 group">
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--brand-orange)] hover:underline flex items-center gap-1 max-w-[200px] truncate">
+                  <LinkIcon className="w-2.5 h-2.5 shrink-0" />
+                  {r.name || r.url}
+                </a>
+                <button onClick={() => { navigator.clipboard.writeText(r.url); alert("URL copied!"); }} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-emerald-400 transition-opacity" title="Copy URL">
+                  <Copy className="w-2.5 h-2.5" />
+                </button>
+                <button onClick={() => handleDeleteResource(r.id)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity" title="Remove URL">
+                  <Trash2 className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {addResourceTaskId === task.id && (
+          <div className={`mt-1 p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] flex flex-col gap-2 ${isSub ? "ml-10" : "ml-8"} w-fit min-w-[250px]`}>
+            <input type="text" placeholder="Resource Name (optional)" value={resourceForm.name} onChange={e => setResourceForm(p => ({...p, name: e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none" />
+            <input type="url" placeholder="https://..." value={resourceForm.url} onChange={e => setResourceForm(p => ({...p, url: e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none" autoFocus />
+            <div className="flex gap-1 justify-end">
+              <button onClick={() => setAddResourceTaskId(null)} className="px-2 py-1 text-[8px] font-bold text-slate-500 uppercase">Cancel</button>
+              <button onClick={() => handleAddResource(task.id)} disabled={!resourceForm.url || resourceAdding} className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase">{resourceAdding ? "Saving" : "Save"}</button>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons Row */}
+        <div className={`mt-1 flex items-center gap-3 ${isSub ? "ml-10" : "ml-8"}`}>
+          <button onClick={() => setAddResourceTaskId(task.id)} className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors">
+            <Plus className="w-2.5 h-2.5" /> Resource
+          </button>
+          {!isSub && (
+            <button
+              onClick={() =>
+                openSubTask(task.id, task.project_id, task.category, task.title)
+              }
+              className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-all"
+            >
+              <Plus className="w-2.5 h-2.5" /> Sub-task
+            </button>
+          )}
+        </div>
+
         {/* Sub-tasks — always visible under parent */}
         {!isSub && task.subtasks?.length > 0 && (
           <div className="mt-1 ml-4 pl-3 border-l-2 border-indigo-500/20 space-y-0.5">
             {task.subtasks.map((st) => renderTaskRow(st, true))}
           </div>
-        )}
-
-        {/* Add sub-task button (parent tasks only) */}
-        {!isSub && (
-          <button
-            onClick={() =>
-              openSubTask(task.id, task.project_id, task.category, task.title)
-            }
-            className="ml-8 mt-0.5 flex items-center gap-1 px-2 py-0.5 text-[7px] font-black uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-all"
-          >
-            <Plus className="w-2.5 h-2.5" /> Sub-task
-          </button>
         )}
       </div>
     );
@@ -978,7 +1053,7 @@ export default function TaskManager({
                 </div>
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Due Date
+                    End Date
                   </label>
                   <input
                     type="date"

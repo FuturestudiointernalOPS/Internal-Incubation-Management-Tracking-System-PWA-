@@ -150,6 +150,7 @@ export async function GET(req) {
     const taskIds = result.rows.map((t) => t.id);
     let blockersByTask = {};
     let subtasksByTask = {};
+    let resourcesByTask = {};
 
     if (taskIds.length > 0) {
       // Single batch query for all blockers
@@ -186,6 +187,25 @@ export async function GET(req) {
       } catch (e) {
         // parent_task_id column may not exist yet
       }
+
+      // Single batch query for all resources
+      try {
+        const resourceRes = await db.execute({
+          sql: `SELECT id, name, url, task_id FROM task_resources WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
+          args: taskIds,
+        });
+        for (const r of resourceRes.rows || []) {
+          const tid = r.task_id;
+          if (!resourcesByTask[tid]) resourcesByTask[tid] = [];
+          resourcesByTask[tid].push({
+            id: r.id,
+            name: r.name,
+            url: r.url,
+          });
+        }
+      } catch (e) {
+        // task_resources table may not exist yet in some environments
+      }
     }
 
     // Map results
@@ -193,6 +213,7 @@ export async function GET(req) {
       ...task,
       blockers: blockersByTask[task.id] || [],
       subtasks: subtasksByTask[task.id] || [],
+      resources: resourcesByTask[task.id] || [],
     }));
 
     return NextResponse.json({ success: true, tasks: tasksWithBlockers });
@@ -761,6 +782,37 @@ export async function PUT(req) {
       sql: `UPDATE tasks SET ${updateFields.join(", ")} WHERE id = ?`,
       args: updateArgs,
     });
+
+    // ─── Sync parent end_date if subtask extends further ───
+    if (task.parent_task_id && end_date !== undefined) {
+      try {
+        const parentEndRes = await db.execute({
+          sql: "SELECT end_date FROM tasks WHERE id = ?",
+          args: [parseInt(task.parent_task_id)],
+        });
+        if (parentEndRes.rows.length > 0) {
+          const subEnd = new Date(end_date || task.end_date);
+          const currentParentEndStr = parentEndRes.rows[0].end_date;
+          let shouldUpdateParent = false;
+          
+          if (!currentParentEndStr) {
+            shouldUpdateParent = true;
+          } else {
+            const parentEnd = new Date(currentParentEndStr);
+            if (subEnd > parentEnd) {
+              shouldUpdateParent = true;
+            }
+          }
+
+          if (shouldUpdateParent) {
+            await db.execute({
+              sql: "UPDATE tasks SET end_date = ? WHERE id = ?",
+              args: [end_date || task.end_date, parseInt(task.parent_task_id)],
+            });
+          }
+        }
+      } catch (_) {}
+    }
 
     // ─── Auto-complete sub-tasks when parent is completed ───
     if (status === "completed" && status !== task.status) {
