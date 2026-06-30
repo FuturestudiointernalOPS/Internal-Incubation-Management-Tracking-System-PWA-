@@ -24,6 +24,8 @@ import {
   CheckCircle2,
   Edit3,
   Trash2,
+  Link as LinkIcon,
+  Copy,
 } from "lucide-react";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -101,8 +103,28 @@ export default function TaskManager({
     due_date: "",
     status: "",
   });
+
+  const [addResourceTaskId, setAddResourceTaskId] = useState(null);
+  const [resourceForm, setResourceForm] = useState({ name: "", url: "" });
+  const [resourceAdding, setResourceAdding] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const projectDropdownRef = useRef(null);
+
+  // Close project dropdown on outside click
+  useEffect(() => {
+    if (!showProjectDropdown) return;
+    const handler = (e) => {
+      if (
+        projectDropdownRef.current &&
+        !projectDropdownRef.current.contains(e.target)
+      ) {
+        setShowProjectDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showProjectDropdown]);
 
   // Form state
   const [form, setForm] = useState({
@@ -113,12 +135,46 @@ export default function TaskManager({
     due_date: "",
     start_time: "",
     due_time: "",
+    link: "",
   });
 
   // Sync taskList into local state when it changes
   useEffect(() => {
     setTasks(taskList || []);
   }, [taskList]);
+
+  const handleAddResource = async (taskId) => {
+    if (!resourceForm.url.trim()) return;
+    setResourceAdding(true);
+    try {
+      const res = await fetch("/api/tasks/resources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task_id: taskId, name: resourceForm.name, url: resourceForm.url })
+      });
+      if (res.ok) {
+        if (onTasksChange) onTasksChange();
+        setAddResourceTaskId(null);
+        setResourceForm({ name: "", url: "" });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResourceAdding(false);
+    }
+  };
+
+  const handleDeleteResource = async (resourceId) => {
+    if (!window.confirm("Delete this resource link?")) return;
+    try {
+      const res = await fetch(`/api/tasks/resources?id=${resourceId}`, { method: "DELETE" });
+      if (res.ok) {
+        if (onTasksChange) onTasksChange();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // ── API: Update task status ──
   const updateStatus = useCallback(
@@ -176,6 +232,7 @@ export default function TaskManager({
           created_year: week.year || 0,
           start_date: taskData.start_date || null,
           end_date: taskData.due_date || null,
+          link: taskData.link || null,
         }),
       });
       return await res.json();
@@ -184,10 +241,15 @@ export default function TaskManager({
   );
 
   // ── Submit new task from form ──
+  const [creating, setCreating] = useState(false);
+  const [addedCount, setAddedCount] = useState(0);
+
   const handleAddTask = useCallback(async () => {
+    if (creating) return;
     if (!form.name.trim()) return;
     if (!form.project_id && !form.category) return;
 
+    setCreating(true);
     const data = await createTask({
       title: form.name.trim(),
       project_id: form.project_id || null,
@@ -195,23 +257,40 @@ export default function TaskManager({
       parent_task_id: pendingParentTaskId || null,
       start_date: form.start_date || null,
       due_date: form.due_date || null,
+    link: form.link || null,
     });
 
     if (data.success) {
-      setForm({
+      setForm((p) => ({
+        ...p,
         name: "",
-        project_id: "",
-        category: "",
         start_date: "",
         due_date: "",
         start_time: "",
         due_time: "",
-      });
+      }));
       setPendingParentTaskId(null);
-      setShowTaskForm(false);
+      setAddedCount((c) => c + 1);
       if (onTasksChange) onTasksChange();
     }
-  }, [form, pendingParentTaskId, createTask, onTasksChange]);
+    setCreating(false);
+  }, [form, pendingParentTaskId, createTask, onTasksChange, creating]);
+
+  const handleCloseForm = useCallback(() => {
+    setShowTaskForm(false);
+    setPendingParentTaskId(null);
+    setAddedCount(0);
+    setForm({
+      name: "",
+      project_id: "",
+      category: "",
+      start_date: "",
+      due_date: "",
+      start_time: "",
+      due_time: "",
+      link: "",
+    });
+  }, []);
 
   // ── Open sub-task popup modal ──
   const openSubTask = useCallback(
@@ -235,9 +314,15 @@ export default function TaskManager({
       project_id: subTaskModal.project_id || null,
       category: subTaskModal.category || null,
       parent_task_id: subTaskModal.id,
+      start_date: subTaskStartDate || null,
+      due_date: subTaskEndDate || null,
+      link: subTaskLink || null,
     });
     if (data.success) {
       setSubTaskInput("");
+      setSubTaskStartDate("");
+      setSubTaskEndDate("");
+      setSubTaskLink("");
       setSubTaskSuccess("Sub-task added!");
       setTimeout(() => setSubTaskSuccess(""), 2000);
       if (onTasksChange) onTasksChange();
@@ -254,24 +339,41 @@ export default function TaskManager({
   });
 
   // ── Tasks grouped by relevance ──
+  const filteredTasks = useMemo(() => {
+    if (mode === "standup" && weekInfo) {
+      return tasks.filter(
+        (t) =>
+          t.created_week === weekInfo.week && t.created_year === weekInfo.year,
+      );
+    }
+    return tasks;
+  }, [tasks, mode, weekInfo]);
+
   const carryOverTasks = useMemo(
-    () => tasks.filter((t) => t.status === "carried_over" && !t.parent_task_id),
-    [tasks],
+    () =>
+      filteredTasks.filter(
+        (t) =>
+          (t.carried_over_from_task_id !== null || t.status === "carried_over") &&
+          !t.parent_task_id,
+      ),
+    [filteredTasks],
   );
 
   const activeTasks = useMemo(
     () =>
-      tasks
+      filteredTasks
         .filter(
           (t) =>
-            !["completed", "archived", "carried_over"].includes(t.status) &&
+            t.carried_over_from_task_id === null &&
+            t.status !== "carried_over" &&
+            t.status !== "archived" &&
             !t.parent_task_id,
         )
         .sort(
           (a, b) =>
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         ),
-    [tasks],
+    [filteredTasks],
   );
 
   // Move task up or down in the active list
@@ -427,8 +529,8 @@ export default function TaskManager({
             </select>
           )}
 
-          {/* Edit button */}
-          {!isSub && (
+          {/* Edit button — parent AND sub tasks */}
+          {
             <button
               onClick={() => {
                 setEditForm({
@@ -447,10 +549,10 @@ export default function TaskManager({
             >
               <Edit3 className="w-3 h-3" />
             </button>
-          )}
+          }
 
-          {/* Delete button */}
-          {!isSub && (
+          {/* Delete button — parent AND sub tasks */}
+          {
             <button
               onClick={async () => {
                 if (!window.confirm(`Delete task "${task.title}"?`)) return;
@@ -462,7 +564,7 @@ export default function TaskManager({
             >
               <Trash2 className="w-3 h-3" />
             </button>
-          )}
+          }
 
           {/* Move up/down buttons */}
           {!isSub && (
@@ -485,23 +587,59 @@ export default function TaskManager({
           )}
         </div>
 
+        {/* Resources Section */}
+        {task.resources && task.resources.length > 0 && (
+          <div className={`mt-1 flex flex-col gap-1 ${isSub ? "ml-10" : "ml-8"}`}>
+            {task.resources.map(r => (
+              <div key={r.id} className="flex items-center gap-2 group">
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--brand-orange)] hover:underline flex items-center gap-1 max-w-[200px] truncate">
+                  <LinkIcon className="w-2.5 h-2.5 shrink-0" />
+                  {r.name || r.url}
+                </a>
+                <button onClick={() => { navigator.clipboard.writeText(r.url); alert("URL copied!"); }} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-emerald-400 transition-opacity" title="Copy URL">
+                  <Copy className="w-2.5 h-2.5" />
+                </button>
+                <button onClick={() => handleDeleteResource(r.id)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity" title="Remove URL">
+                  <Trash2 className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {addResourceTaskId === task.id && (
+          <div className={`mt-1 p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] flex flex-col gap-2 ${isSub ? "ml-10" : "ml-8"} w-fit min-w-[250px]`}>
+            <input type="text" placeholder="Resource Name (optional)" value={resourceForm.name} onChange={e => setResourceForm(p => ({...p, name: e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none" />
+            <input type="url" placeholder="https://..." value={resourceForm.url} onChange={e => setResourceForm(p => ({...p, url: e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none" autoFocus />
+            <div className="flex gap-1 justify-end">
+              <button onClick={() => setAddResourceTaskId(null)} className="px-2 py-1 text-[8px] font-bold text-slate-500 uppercase">Cancel</button>
+              <button onClick={() => handleAddResource(task.id)} disabled={!resourceForm.url || resourceAdding} className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase">{resourceAdding ? "Saving" : "Save"}</button>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons Row */}
+        <div className={`mt-1 flex items-center gap-3 ${isSub ? "ml-10" : "ml-8"}`}>
+          <button onClick={() => setAddResourceTaskId(task.id)} className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors">
+            <Plus className="w-2.5 h-2.5" /> Resource
+          </button>
+          {!isSub && (
+            <button
+              onClick={() =>
+                openSubTask(task.id, task.project_id, task.category, task.title)
+              }
+              className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-all"
+            >
+              <Plus className="w-2.5 h-2.5" /> Sub-task
+            </button>
+          )}
+        </div>
+
         {/* Sub-tasks — always visible under parent */}
         {!isSub && task.subtasks?.length > 0 && (
           <div className="mt-1 ml-4 pl-3 border-l-2 border-indigo-500/20 space-y-0.5">
             {task.subtasks.map((st) => renderTaskRow(st, true))}
           </div>
-        )}
-
-        {/* Add sub-task button (parent tasks only) */}
-        {!isSub && (
-          <button
-            onClick={() =>
-              openSubTask(task.id, task.project_id, task.category, task.title)
-            }
-            className="ml-8 mt-0.5 flex items-center gap-1 px-2 py-0.5 text-[7px] font-black uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-all"
-          >
-            <Plus className="w-2.5 h-2.5" /> Sub-task
-          </button>
         )}
       </div>
     );
@@ -514,7 +652,7 @@ export default function TaskManager({
       {showCarryOver && carryOverTasks.length > 0 && (
         <div>
           <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Shield className="w-3 h-3" /> Carry Over ({carryOverTasks.length})
+            <Shield className="w-3 h-3" /> Carryover Tasks ({carryOverTasks.length})
           </h4>
           <div className="space-y-0.5">
             {carryOverTasks.map((t) => renderTaskRow(t))}
@@ -570,7 +708,7 @@ export default function TaskManager({
           {!pendingParentTaskId && (
             <div className="grid grid-cols-2 gap-2">
               {/* Project picker */}
-              <div className="relative">
+              <div className="relative" ref={projectDropdownRef}>
                 <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Project
                 </label>
@@ -687,25 +825,44 @@ export default function TaskManager({
             />
           </div>
 
+          {/* Resource Link */}
+          <div>
+            <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              Resource Link (optional)
+            </label>
+            <input
+              type="url"
+              value={form.link}
+              onChange={(e) => setForm((p) => ({ ...p, link: e.target.value }))}
+              placeholder="https://..."
+              className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+            />
+          </div>
+
           {/* Actions */}
           <div className="flex gap-2">
             <button
               onClick={handleAddTask}
               disabled={
-                !form.name.trim() || (!form.project_id && !form.category)
+                creating ||
+                !form.name.trim() ||
+                (!form.project_id && !form.category)
               }
               className="flex-1 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition-all"
             >
-              {pendingParentTaskId ? "Add Sub-task" : "Add Task"}
+              {creating
+                ? "Saving..."
+                : pendingParentTaskId
+                  ? "Add Sub-task"
+                  : addedCount > 0
+                    ? "Add Another Task"
+                    : "Add Task"}
             </button>
             <button
-              onClick={() => {
-                setShowTaskForm(false);
-                setPendingParentTaskId(null);
-              }}
+              onClick={handleCloseForm}
               className="px-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[8px] font-black uppercase tracking-wider text-slate-500 hover:text-[var(--text-primary)] transition-all"
             >
-              Cancel
+              {addedCount > 0 ? "Done" : "Cancel"}
             </button>
           </div>
         </div>
@@ -809,6 +966,15 @@ export default function TaskManager({
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
                 autoFocus
               />
+              <div className="grid grid-cols-2 gap-2">
+                <input type="date" value={subTaskStartDate} onChange={(e) => setSubTaskStartDate(e.target.value)}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+                <input type="date" value={subTaskEndDate} onChange={(e) => setSubTaskEndDate(e.target.value)}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+              </div>
+              <input type="url" value={subTaskLink} onChange={(e) => setSubTaskLink(e.target.value)}
+                placeholder="Link (optional)..."
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
               <div className="flex gap-2">
                 <button
                   onClick={addSubTaskFromModal}
@@ -884,12 +1050,42 @@ export default function TaskManager({
                     onChange={(e) =>
                       setEditForm((p) => ({ ...p, start_date: e.target.value }))
                     }
+                    min={(() => {
+                      if (
+                        !editTaskModal.created_week ||
+                        !editTaskModal.created_year
+                      )
+                        return "";
+                      const jan1 = new Date(editTaskModal.created_year, 0, 1);
+                      const days = (editTaskModal.created_week - 1) * 7;
+                      const monday = new Date(jan1);
+                      monday.setDate(
+                        jan1.getDate() + days + (1 - jan1.getDay()),
+                      );
+                      return monday.toISOString().split("T")[0];
+                    })()}
+                    max={(() => {
+                      if (
+                        !editTaskModal.created_week ||
+                        !editTaskModal.created_year
+                      )
+                        return "";
+                      const jan1 = new Date(editTaskModal.created_year, 0, 1);
+                      const days = (editTaskModal.created_week - 1) * 7;
+                      const monday = new Date(jan1);
+                      monday.setDate(
+                        jan1.getDate() + days + (1 - jan1.getDay()),
+                      );
+                      const sunday = new Date(monday);
+                      sunday.setDate(monday.getDate() + 6);
+                      return sunday.toISOString().split("T")[0];
+                    })()}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none"
                   />
                 </div>
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Due Date
+                    End Date
                   </label>
                   <input
                     type="date"
@@ -897,6 +1093,7 @@ export default function TaskManager({
                     onChange={(e) =>
                       setEditForm((p) => ({ ...p, due_date: e.target.value }))
                     }
+                    min={editForm.start_date || ""}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none"
                   />
                 </div>
@@ -907,20 +1104,30 @@ export default function TaskManager({
               <button
                 onClick={async () => {
                   if (!editForm.name.trim()) return;
-                  await fetch("/api/tasks", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      id: editTaskModal.id,
-                      title: editForm.name.trim(),
-                      description: editForm.description || null,
-                      start_date: editForm.start_date || null,
-                      end_date: editForm.due_date || null,
-                      user_id: uid,
-                    }),
-                  });
-                  setEditTaskModal(null);
-                  if (onTasksChange) onTasksChange();
+                  try {
+                    const res = await fetch("/api/tasks", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        id: editTaskModal.id,
+                        title: editForm.name.trim(),
+                        description: editForm.description || null,
+                        start_date: editForm.start_date || null,
+                        end_date: editForm.due_date || null,
+                        user_id: uid,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      setEditTaskModal(null);
+                      if (onTasksChange) onTasksChange();
+                    } else {
+                      alert(data.error || "Failed to save task.");
+                    }
+                  } catch (e) {
+                    alert("Network error saving task.");
+                    console.error(e);
+                  }
                 }}
                 disabled={!editForm.name.trim()}
                 className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40"

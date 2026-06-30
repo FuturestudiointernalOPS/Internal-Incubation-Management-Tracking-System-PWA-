@@ -33,6 +33,7 @@ import {
   UploadCloud,
   ListTodo,
   Wrench,
+  CheckSquare,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -126,7 +127,7 @@ const SidebarContent = ({
         </div>
       )}
 
-      <nav className="flex-1 space-y-2">
+      <nav className="flex-1 space-y-2 overflow-y-auto min-h-0 pr-1">
         {navItems.map((item) => {
           if (item.subItems) {
             const isChildActive = item.subItems.some((sub) =>
@@ -216,7 +217,7 @@ const SidebarContent = ({
           </p>
         )}
         <Link
-          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" ? "developer" : "participant"}/profile`}
+          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" || role === "intern" ? "developer" : "participant"}/profile`}
           className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
         >
           <User className="w-4 h-4 flex-shrink-0" />
@@ -337,6 +338,33 @@ const NAVIGATION_MATRIX = {
       name: "HEALTH",
       icon: Activity,
       href: "/admin/metrics",
+    },
+    {
+      id: "standups_retros",
+      name: "STANDUPS & RETROS",
+      icon: MessageSquare,
+      subItems: [
+        { id: "standup", name: "STANDUP", href: "/staff/op-report" },
+        { id: "retro", name: "RETRO", href: "/staff/op-report" },
+      ],
+    },
+    {
+      id: "engineering",
+      name: "ENGINEERING",
+      icon: Wrench,
+      subItems: [
+        {
+          id: "engineering_dashboard",
+          name: "DASHBOARD",
+          href: "/admin/engineering",
+        },
+        {
+          id: "permissions",
+          name: "PERMISSIONS",
+          href: "/admin/engineering/permissions",
+        },
+        { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
+      ],
     },
   ],
   admin: [
@@ -482,6 +510,54 @@ const NAVIGATION_MATRIX = {
       ],
     },
   ],
+  developer: [
+    {
+      id: "dashboard",
+      name: "DASHBOARD",
+      icon: LayoutDashboard,
+      href: "/developer",
+    },
+    {
+      id: "my_tasks",
+      name: "MY TASKS",
+      icon: CheckSquare,
+      href: "/developer/my-tasks",
+    },
+    {
+      id: "assigned_tasks",
+      name: "ASSIGNED TASKS",
+      icon: ListTodo,
+      href: "/developer/assigned-tasks",
+    },
+    {
+      id: "rituals",
+      name: "STANDUPS & RETROS",
+      icon: MessageSquare,
+      subItems: [
+        { id: "standup", name: "STANDUP", href: "/developer/standup" },
+        { id: "retro", name: "RETRO", href: "/developer/retro" },
+      ],
+    },
+    {
+      id: "projects",
+      name: "PROJECTS",
+      icon: Briefcase,
+      href: "/developer/projects",
+    },
+    {
+      id: "notifications",
+      name: "NOTIFICATIONS",
+      icon: Bell,
+      href: "/developer/notifications",
+    },
+    {
+      id: "messages",
+      name: "MESSAGES",
+      icon: Send,
+      href: "/developer/messages",
+    },
+  ],
+
   participant: [
     {
       id: "dashboard",
@@ -518,6 +594,98 @@ const NAVIGATION_MATRIX = {
   ],
 };
 
+// =============================================================================
+// RESPONSIBILITY-GATED NAVIGATION
+// =============================================================================
+// Maps nav item IDs to the responsibility key required to see them.
+// Items not listed here are visible to everyone with that role.
+// Super Admin always sees everything.
+// =============================================================================
+
+const NAV_RESPONSIBILITY_MAP = {
+  // Super Admin / Admin
+  programs: "program_management",
+  all_programs: "program_management",
+  create_program: "program_management",
+  progress: "program_management",
+  program_reports: "program_management",
+  submissions: "program_management",
+  all_projects: "project_ownership",
+  create_project: "project_ownership",
+  internal_ops_board: "operations",
+  internal_reports: "reporting",
+  my_projects: "project_ownership",
+  communication: "communications",
+  messages: "communications",
+  campaigns: "communications",
+  forms: "communications",
+  all_contacts: "communications",
+  pending_users: "communications",
+  bulk_upload: "communications",
+  groups: "communications",
+  knowledge: "knowledge_base",
+  intelligence: "intelligence",
+  finance: "finance",
+  metrics: "reporting",
+  engineering: "engineering",
+  standups_retros: "engineering",
+  standup: "engineering",
+  retro: "engineering",
+  my_tasks: "engineering",
+  assigned_tasks: "engineering",
+  rituals: "engineering",
+  personnel: "user_management",
+  logs: "user_management",
+  reports: "reporting",
+  permissions: "user_management",
+  // Nav sections with custom naming
+  internal_ops: "operations",
+};
+
+// Roles that bypass responsibility filtering entirely
+const RESPONSIBILITY_BYPASS_ROLES = ["super_admin"];
+
+/**
+ * Filter nav items based on a user's responsibilities.
+ * Recursively handles subItems.
+ */
+function filterNavByResponsibilities(items, userResponsibilities, bypass) {
+  if (bypass) return items;
+
+  // If no responsibilities assigned yet, don't filter — backward compatible.
+  // Users who haven't been seeded with responsibilities see full role-based nav.
+  if (!userResponsibilities || userResponsibilities.length === 0) return items;
+
+  const respKeys = new Set(userResponsibilities.map((r) => r.key));
+
+  return items.reduce((acc, item) => {
+    // Check if this item has a responsibility requirement
+    const required = NAV_RESPONSIBILITY_MAP[item.id];
+
+    // If it has a required responsibility and user doesn't have it, skip
+    if (required && !respKeys.has(required)) {
+      return acc;
+    }
+
+    // If no requirement, always include it
+    // Process subItems if any
+    if (item.subItems) {
+      const filteredSubItems = item.subItems.filter((sub) => {
+        const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
+        return !subRequired || respKeys.has(subRequired);
+      });
+      if (filteredSubItems.length > 0) {
+        acc.push({ ...item, subItems: filteredSubItems });
+      }
+      // If no subItems remain, don't include the parent
+      return acc;
+    }
+
+    acc.push(item);
+    return acc;
+  }, []);
+}
+
 export default function DashboardLayout({ children, role = "admin", modals }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -528,6 +696,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
+  const [userResponsibilities, setUserResponsibilities] = useState([]);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -543,7 +712,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       if (data.success) {
         setNotifications(data.notifications || []);
         setUnreadCount(
-          (data.notifications || []).filter((n) => !n.read).length,
+          (data.notifications || []).filter((n) => !n.is_read).length,
         );
       }
     } catch (e) {}
@@ -572,13 +741,23 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     } catch (_) {}
   }, []);
 
+  // Listen for manual refresh events from approve actions
+  useEffect(() => {
+    const onRefresh = () => {
+      fetchNotifications();
+      fetchSubmissionCount();
+    };
+    window.addEventListener("notifications:refresh", onRefresh);
+    return () => window.removeEventListener("notifications:refresh", onRefresh);
+  }, [fetchNotifications, fetchSubmissionCount]);
+
   useEffect(() => {
     fetchNotifications();
     fetchSubmissionCount();
     const interval = setInterval(() => {
       fetchNotifications();
       fetchSubmissionCount();
-    }, 60000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [fetchNotifications, fetchSubmissionCount]);
 
@@ -612,6 +791,33 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           setUser(userWithFullData);
           // Sync localStorage for components that still read from it
           localStorage.setItem("user", JSON.stringify(userWithFullData));
+
+          // Fetch user groups for group-based navigation
+          try {
+            const groupsRes = await fetch(
+              `/api/user-groups?user_cid=${sessionData.user.cid}`,
+            );
+            const groupsData = await groupsRes.json();
+            if (groupsData.success && groupsData.groups.length > 0) {
+              const updatedUser = {
+                ...userWithFullData,
+                groups: groupsData.groups,
+              };
+              setUser(updatedUser);
+              localStorage.setItem("user", JSON.stringify(updatedUser));
+            }
+          } catch (_) {}
+
+          // Fetch user responsibilities for dynamic dashboard
+          try {
+            const respRes = await fetch(
+              `/api/responsibilities?user_cid=${sessionData.user.cid}`,
+            );
+            const respData = await respRes.json();
+            if (respData.success) {
+              setUserResponsibilities(respData.responsibilities || []);
+            }
+          } catch (_) {}
         } else {
           // Session API failed — fallback to localStorage
           const savedUser = localStorage.getItem("user");
@@ -672,24 +878,53 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   const navItems = useMemo(() => {
     // Priority: user.role (from session) > role (from prop) > fallback 'admin'
     const activeRole = user.role || role || "admin";
+
+    // Check if user belongs to Future Studio Interns group
+    const userGroups = user.groups || [];
+    const isIntern = userGroups.some(
+      (g) =>
+        g.toUpperCase() === "FUTURE STUDIO INTERNS" ||
+        g.toUpperCase() === "INTERN",
+    );
+
+    if (isIntern) {
+      // Interns get restricted navigation regardless of their role
+      return [
+        {
+          id: "dashboard",
+          name: "DASHBOARD",
+          icon: LayoutDashboard,
+          href: "/developer",
+        },
+        {
+          id: "standup",
+          name: "STAND-UP",
+          icon: MessageSquare,
+          href: "/developer/standup",
+        },
+        {
+          id: "my_tasks",
+          name: "MY TASKS",
+          icon: CheckSquare,
+          href: "/developer/my-tasks",
+        },
+        {
+          id: "projects",
+          name: "MY PROJECTS",
+          icon: Briefcase,
+          href: "/developer/projects",
+        },
+        {
+          id: "messages",
+          name: "MESSAGING",
+          icon: Send,
+          href: "/developer/messages",
+        },
+      ];
+    }
+
     const matrix = NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin;
     const items = [...matrix];
-
-    // Inject developer tools for gwyn's account
-    if (user.email === "gwyn.ukoha@gmail.com") {
-      items.splice(1, 0, {
-        id: "developer_tools",
-        name: "DEVELOPER",
-        icon: Wrench,
-        subItems: [
-          {
-            id: "error_logs",
-            name: "ERROR LOGS",
-            href: "/developer/errors",
-          },
-        ],
-      });
-    }
 
     if (
       (activeRole === "program_manager" || activeRole === "super_admin") &&
@@ -727,8 +962,11 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
         };
       }
     }
-    return items;
-  }, [user.role, role, pmPrograms]);
+
+    // Filter by responsibilities (if not super_admin and not intern)
+    const bypass = RESPONSIBILITY_BYPASS_ROLES.includes(activeRole);
+    return filterNavByResponsibilities(items, userResponsibilities, bypass);
+  }, [user.role, user.groups, role, pmPrograms, userResponsibilities]);
 
   const handleLogout = async () => {
     try {
@@ -764,7 +1002,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       <div className="flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)]">
         <aside
           style={{ width: collapsed ? 64 : 260 }}
-          className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden z-[100] transition-[width] duration-150"
+          className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden min-h-0 z-[100] transition-[width] duration-150"
         >
           <SidebarContent {...commonProps} />
         </aside>
@@ -885,13 +1123,13 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                                 setShowNotifications(false);
                               }
                             }}
-                            className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.read ? "bg-[var(--brand-orange)]/5" : ""}`}
+                            className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.is_read ? "bg-[var(--brand-orange)]/5" : ""}`}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">
                                 {n.title}
                               </p>
-                              {!n.read && (
+                              {!n.is_read && (
                                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
                               )}
                             </div>

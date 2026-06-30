@@ -527,6 +527,8 @@ export default function AdminDashboard() {
       }
       // Refresh — approved user and their notification will be gone from both places
       fetchDashboardData();
+      // Also trigger header notification refresh
+      window.dispatchEvent(new CustomEvent("notifications:refresh"));
     } catch (e) {
       console.error("Approval Failed:", e);
     } finally {
@@ -940,11 +942,11 @@ export default function AdminDashboard() {
           )}
 
         {/* ──────── PENDING APPROVALS (not messages) ──────── */}
-        {notifications.filter((n) => !n.read && n.type === "verification")
+        {notifications.filter((n) => !n.is_read && n.type === "verification")
           .length > 0 && (
           <div className="space-y-4">
             {notifications
-              .filter((n) => !n.read && n.type === "verification")
+              .filter((n) => !n.is_read && n.type === "verification")
               .map((notif) => (
                 <div
                   key={notif.id}

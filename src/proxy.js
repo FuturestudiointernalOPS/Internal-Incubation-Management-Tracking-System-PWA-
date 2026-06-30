@@ -46,6 +46,7 @@ const publicApiPaths = [
   "/api/auth/invite-family",
   "/api/contacts",
   "/api/invites",
+  "/api/migrate",
 ];
 
 // Soft-auth paths: let client-side handle auth via localStorage fallback.
@@ -57,6 +58,10 @@ const softAuthPaths = [
   "/participant",
   "/api/participant",
   "/api/notifications",
+  "/api/dashboard",
+  "/api/engineering",
+  "/api/user-groups",
+  "/api/migrate",
   "/finance",
   "/api/finance",
 ];

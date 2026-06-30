@@ -64,7 +64,7 @@ export default function AdminProjects() {
   const [newProject, setNewProject] = useState({
     name: "",
     description: "",
-    lead: "",
+    leads: [],
     conceptNoteUrl: "",
     conceptNoteUrlInput: "",
   });
@@ -89,7 +89,7 @@ export default function AdminProjects() {
     type: "",
     description: "",
     status: "Active",
-    lead: "",
+    leads: [],
     conceptNoteUrl: "",
   });
   const [editConceptFile, setEditConceptFile] = useState(null);
@@ -184,7 +184,7 @@ export default function AdminProjects() {
           description: editProject.description || null,
           concept_note_url: editProject.conceptNoteUrl || null,
           status: editProject.status,
-          assigned_pm_id: editProject.lead || null,
+          assigned_pm_ids: editProject.leads,
         }),
       });
       fetchData();
@@ -207,7 +207,7 @@ export default function AdminProjects() {
           description: newProject.description || null,
           concept_note_url:
             newProject.conceptNoteUrl || newProject.conceptNoteUrlInput || null,
-          assigned_pm_id: newProject.lead || null,
+          assigned_pm_ids: newProject.leads,
           status: "Active",
         }),
       });
@@ -234,7 +234,7 @@ export default function AdminProjects() {
         setNewProject({
           name: "",
           description: "",
-          lead: "",
+          leads: [],
           conceptNoteUrl: "",
           conceptNoteUrlInput: "",
         });
@@ -537,7 +537,7 @@ export default function AdminProjects() {
                           name: project.name || "",
                           description: project.meta?.description || "",
                           status: project.status || "Active",
-                          lead: project.assigned_pm_id || "",
+                          leads: project.meta?.assigned_pm_ids || (project.assigned_pm_id ? [project.assigned_pm_id] : []),
                           conceptNoteUrl: project.meta?.concept_note_url || "",
                         });
                         fetchMembers(project.id);
@@ -683,23 +683,42 @@ export default function AdminProjects() {
                 </select>
               </div>
               <div className="col-span-2">
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Project Lead
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Project Leads
                 </label>
-                <select
-                  value={editProject.lead}
-                  onChange={(e) =>
-                    setEditProject((p) => ({ ...p, lead: e.target.value }))
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
-                >
-                  <option value="">No lead</option>
-                  {allStaff.map((s) => (
-                    <option key={s.cid || s.id} value={s.cid || s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
+                  {allStaff.map((s) => {
+                    const isSelected = editProject.leads.includes(s.cid || s.id);
+                    return (
+                      <label
+                        key={s.cid || s.id}
+                        className="flex items-center gap-2 p-1.5 hover:bg-white/5 rounded cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditProject((p) => ({
+                                ...p,
+                                leads: [...p.leads, s.cid || s.id],
+                              }));
+                            } else {
+                              setEditProject((p) => ({
+                                ...p,
+                                leads: p.leads.filter((id) => id !== (s.cid || s.id)),
+                              }));
+                            }
+                          }}
+                          className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-[var(--brand-orange)]/50"
+                        />
+                        <span className="text-[10px] text-[var(--text-primary)]">
+                          {s.name}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -1015,22 +1034,41 @@ export default function AdminProjects() {
               </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Project Lead
+                  Project Leads
                 </label>
-                <select
-                  value={newProject.lead}
-                  onChange={(e) =>
-                    setNewProject((p) => ({ ...p, lead: e.target.value }))
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
-                >
-                  <option value="">No lead</option>
-                  {allStaff.map((s) => (
-                    <option key={s.cid || s.id} value={s.cid || s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
+                  {allStaff.map((s) => {
+                    const isSelected = newProject.leads.includes(s.cid || s.id);
+                    return (
+                      <label
+                        key={s.cid || s.id}
+                        className="flex items-center gap-2 p-1.5 hover:bg-white/5 rounded cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewProject((p) => ({
+                                ...p,
+                                leads: [...p.leads, s.cid || s.id],
+                              }));
+                            } else {
+                              setNewProject((p) => ({
+                                ...p,
+                                leads: p.leads.filter((id) => id !== (s.cid || s.id)),
+                              }));
+                            }
+                          }}
+                          className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-[var(--brand-orange)]/50"
+                        />
+                        <span className="text-[10px] text-[var(--text-primary)]">
+                          {s.name}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">

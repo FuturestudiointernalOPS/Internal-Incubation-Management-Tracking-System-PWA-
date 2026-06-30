@@ -126,6 +126,10 @@ export async function GET(req) {
       case "updated":
         sql += " ORDER BY updated_at DESC";
         break;
+      case "priority":
+        sql +=
+          " ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, created_at DESC";
+        break;
       default:
         sql += " ORDER BY created_at DESC";
     }
@@ -146,6 +150,7 @@ export async function GET(req) {
     const taskIds = result.rows.map((t) => t.id);
     let blockersByTask = {};
     let subtasksByTask = {};
+    let resourcesByTask = {};
 
     if (taskIds.length > 0) {
       // Single batch query for all blockers
@@ -182,6 +187,25 @@ export async function GET(req) {
       } catch (e) {
         // parent_task_id column may not exist yet
       }
+
+      // Single batch query for all resources
+      try {
+        const resourceRes = await db.execute({
+          sql: `SELECT id, name, url, task_id FROM task_resources WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
+          args: taskIds,
+        });
+        for (const r of resourceRes.rows || []) {
+          const tid = r.task_id;
+          if (!resourcesByTask[tid]) resourcesByTask[tid] = [];
+          resourcesByTask[tid].push({
+            id: r.id,
+            name: r.name,
+            url: r.url,
+          });
+        }
+      } catch (e) {
+        // task_resources table may not exist yet in some environments
+      }
     }
 
     // Map results
@@ -189,6 +213,7 @@ export async function GET(req) {
       ...task,
       blockers: blockersByTask[task.id] || [],
       subtasks: subtasksByTask[task.id] || [],
+      resources: resourcesByTask[task.id] || [],
     }));
 
     return NextResponse.json({ success: true, tasks: tasksWithBlockers });
@@ -222,6 +247,7 @@ export async function POST(req) {
       start_date,
       end_date,
       assigned_to,
+      link,
     } = body;
 
     if (!user_id || !title || !created_week || !created_year) {
@@ -300,29 +326,16 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // Phase 2: Check project assignment if project_id provided
+    // Phase 2: All Future Studio staff can add tasks to any project — skip membership check
     let finalStatus = status || "in_progress";
     let pendingApproval = false;
-
-    if (finalProjectId) {
-      const memberCheck = await db.execute({
-        sql: "SELECT id FROM project_members WHERE project_id = ? AND user_cid = ?",
-        args: [finalProjectId, user_id],
-      });
-
-      if (memberCheck.rows.length === 0) {
-        // Staff not assigned to this project — flag for approval
-        finalStatus = "pending_project_approval";
-        pendingApproval = true;
-      }
-    }
 
     const result = await db.execute({
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id, category,
          created_week, created_year, carried_over_from_task_id,
-          parent_task_id, start_date, end_date, assigned_to)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          parent_task_id, start_date, end_date, assigned_to, link)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         user_id,
         user_name || "",
@@ -338,57 +351,11 @@ export async function POST(req) {
         finalStartDate,
         finalEndDate,
         finalAssignedTo,
+        link || null,
       ],
     });
 
     const taskId = Number(result.lastInsertRowid);
-
-    // Phase 2: Create approval request + notification if pending
-    if (pendingApproval && finalProjectId) {
-      // Create approval request record
-      await db.execute({
-        sql: `INSERT INTO project_approval_requests
-          (task_id, requester_id, requester_name, project_id, status)
-          VALUES (?, ?, ?, ?, 'pending')`,
-        args: [taskId, user_id, user_name || "", finalProjectId],
-      });
-
-      // Notify project owner (or Super Admin as fallback)
-      try {
-        const projectInfo = await db.execute({
-          sql: "SELECT name FROM v2_projects WHERE id = ?",
-          args: [finalProjectId],
-        });
-        const projectName =
-          projectInfo.rows[0]?.name || `Project #${finalProjectId}`;
-
-        // Get project leads/members to notify
-        const leads = await db.execute({
-          sql: "SELECT user_cid FROM project_members WHERE project_id = ? AND role = 'lead'",
-          args: [finalProjectId],
-        });
-        const notifyIds =
-          leads.rows.length > 0 ? leads.rows.map((r) => r.user_cid) : ["sa"];
-
-        for (const recipient_id of notifyIds) {
-          await fetch(`${req.nextUrl.origin}/api/notifications`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipient_id,
-              title: "Project Contribution Request",
-              message: `${user_name || user_id} wants to link task "${title}" to "${projectName}". Please review and approve.`,
-              type: "approval",
-            }),
-          });
-        }
-      } catch (notifErr) {
-        console.error(
-          "Failed to send approval notification:",
-          notifErr.message,
-        );
-      }
-    }
 
     // Audit log: Task Created
     await logAuditEvent({
@@ -477,6 +444,26 @@ export async function POST(req) {
       console.error("Standup upsert failed (non-blocking):", e.message);
     }
 
+    // ─── Sync parent end_date if subtask extends further ───
+    if (parent_task_id && finalEndDate) {
+      try {
+        const parentEndRes = await db.execute({
+          sql: "SELECT end_date FROM tasks WHERE id = ?",
+          args: [parseInt(parent_task_id)],
+        });
+        if (parentEndRes.rows.length > 0 && parentEndRes.rows[0].end_date) {
+          const parentEnd = new Date(parentEndRes.rows[0].end_date);
+          const subEnd = new Date(finalEndDate);
+          if (subEnd > parentEnd) {
+            await db.execute({
+              sql: "UPDATE tasks SET end_date = ? WHERE id = ?",
+              args: [finalEndDate, parseInt(parent_task_id)],
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
     return NextResponse.json({
       success: true,
       id: taskId,
@@ -517,6 +504,7 @@ export async function PUT(req) {
       start_date,
       end_date,
       assigned_to,
+      link,
       force_complete,
     } = body;
 
@@ -543,9 +531,18 @@ export async function PUT(req) {
     const task = currentTask.rows[0];
     const locked = await isTaskLocked(id);
 
-    // Ownership enforcement: only the task creator can change status
+    // Ownership enforcement: only the task creator or super_admin can change status
+    if (link !== undefined && link !== task.link) {
+      updateFields.push("link = ?");
+      updateArgs.push(link || null);
+      changes.push("link updated");
+    }
     if (status !== undefined && status !== task.status) {
-      if (String(user_id) !== String(task.user_id)) {
+      const effectiveUserId = user_id || session.cid;
+      if (
+        session.role !== "super_admin" &&
+        String(effectiveUserId) !== String(task.user_id)
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -786,6 +783,37 @@ export async function PUT(req) {
       args: updateArgs,
     });
 
+    // ─── Sync parent end_date if subtask extends further ───
+    if (task.parent_task_id && end_date !== undefined) {
+      try {
+        const parentEndRes = await db.execute({
+          sql: "SELECT end_date FROM tasks WHERE id = ?",
+          args: [parseInt(task.parent_task_id)],
+        });
+        if (parentEndRes.rows.length > 0) {
+          const subEnd = new Date(end_date || task.end_date);
+          const currentParentEndStr = parentEndRes.rows[0].end_date;
+          let shouldUpdateParent = false;
+          
+          if (!currentParentEndStr) {
+            shouldUpdateParent = true;
+          } else {
+            const parentEnd = new Date(currentParentEndStr);
+            if (subEnd > parentEnd) {
+              shouldUpdateParent = true;
+            }
+          }
+
+          if (shouldUpdateParent) {
+            await db.execute({
+              sql: "UPDATE tasks SET end_date = ? WHERE id = ?",
+              args: [end_date || task.end_date, parseInt(task.parent_task_id)],
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
     // ─── Auto-complete sub-tasks when parent is completed ───
     if (status === "completed" && status !== task.status) {
       try {
@@ -937,6 +965,29 @@ export async function PUT(req) {
       } catch (e) {
         console.error("Standup rebuild failed (non-blocking):", e.message);
       }
+    }
+
+    // ─── Sync parent end_date if this (sub)task extends further ───
+    if (task.parent_task_id && (end_date !== undefined || start_date !== undefined)) {
+      try {
+        const effEnd = end_date || task.end_date;
+        if (effEnd) {
+          const pEndRes = await db.execute({
+            sql: "SELECT end_date FROM tasks WHERE id = ?",
+            args: [task.parent_task_id],
+          });
+          if (pEndRes.rows.length > 0 && pEndRes.rows[0].end_date) {
+            const pEnd = new Date(pEndRes.rows[0].end_date);
+            const sEnd = new Date(effEnd);
+            if (sEnd > pEnd) {
+              await db.execute({
+                sql: "UPDATE tasks SET end_date = ? WHERE id = ?",
+                args: [effEnd, task.parent_task_id],
+              });
+            }
+          }
+        }
+      } catch (_) {}
     }
 
     return NextResponse.json({
