@@ -368,10 +368,12 @@ export async function GET(req) {
                 WHERE b.status = 'active'
                 GROUP BY t.project_id
               ) b_stats ON p.id = b_stats.project_id
-              WHERE p.owner_id = ?
+              WHERE (p.owner_id = ? OR EXISTS (
+                SELECT 1 FROM project_members pm WHERE pm.project_id::text = p.id::text AND pm.user_cid = ? AND pm.role = 'lead'
+              ))
                  OR ? IN ('super_admin', 'admin')
               ORDER BY p.created_at DESC`,
-        args: [userId, role],
+        args: [userId, userId, role],
       });
 
       // Collaborator: user is in project_members but not owner

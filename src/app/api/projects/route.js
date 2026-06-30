@@ -28,7 +28,8 @@ export async function POST(req) {
       description,
       concept_note,
       concept_note_url,
-      assigned_pm_id,
+      assigned_pm_id, // keep for backwards compatibility if needed
+      assigned_pm_ids = [], // new array format
     } = body;
 
     if (!name) {
@@ -38,12 +39,22 @@ export async function POST(req) {
       );
     }
 
+    // If single lead was passed, add to array
+    const leadsToAssign = [...assigned_pm_ids];
+    if (assigned_pm_id && !leadsToAssign.includes(assigned_pm_id)) {
+      leadsToAssign.push(assigned_pm_id);
+    }
+
+    // Assign the first lead as the primary owner_id for legacy compatibility
+    const primaryOwnerId = leadsToAssign.length > 0 ? leadsToAssign[0] : null;
+
     // Build meta with all extra fields
     const meta = JSON.stringify({
       description: description || null,
       concept_note: concept_note || null,
       concept_note_url: concept_note_url || null,
-      assigned_pm_id: assigned_pm_id || null,
+      assigned_pm_id: primaryOwnerId, // legacy fallback
+      assigned_pm_ids: leadsToAssign,
     });
 
     const result = await db.execute({
@@ -53,17 +64,17 @@ export async function POST(req) {
         name,
         status || "Active",
         meta,
-        assigned_pm_id || null,
+        primaryOwnerId,
       ],
     });
 
     const projectId = result.rows[0]?.id || result.lastInsertRowid;
 
-    // If a PM lead was assigned, add them as a project member with lead role
-    if (assigned_pm_id) {
+    // If PM leads were assigned, add them as project members with lead role
+    for (const leadId of leadsToAssign) {
       await db.execute({
         sql: "INSERT INTO project_members (project_id, user_cid, role) VALUES (?, ?, 'lead') ON CONFLICT (project_id, user_cid) DO UPDATE SET role = 'lead'",
-        args: [String(projectId), assigned_pm_id],
+        args: [String(projectId), leadId],
       });
     }
 
@@ -189,6 +200,7 @@ export async function PUT(req) {
       concept_note,
       concept_note_url,
       assigned_pm_id,
+      assigned_pm_ids,
     } = body;
 
     if (!id) {
@@ -215,7 +227,8 @@ export async function PUT(req) {
       description !== undefined ||
       concept_note !== undefined ||
       concept_note_url !== undefined ||
-      assigned_pm_id !== undefined
+      assigned_pm_id !== undefined ||
+      assigned_pm_ids !== undefined
     ) {
       // Fetch current meta
       const current = await db.execute({
@@ -227,21 +240,28 @@ export async function PUT(req) {
         ? JSON.parse(current.rows[0].meta)
         : {};
 
+      let leadsToAssign = assigned_pm_ids;
+      if (assigned_pm_ids === undefined && assigned_pm_id !== undefined) {
+         leadsToAssign = assigned_pm_id ? [assigned_pm_id] : [];
+      }
+      
+      const primaryOwnerId = leadsToAssign && leadsToAssign.length > 0 ? leadsToAssign[0] : null;
+
       const newMeta = JSON.stringify({
         ...currentMeta,
         ...(description !== undefined ? { description } : {}),
         ...(concept_note !== undefined ? { concept_note } : {}),
         ...(concept_note_url !== undefined ? { concept_note_url } : {}),
-        ...(assigned_pm_id !== undefined ? { assigned_pm_id } : {}),
+        ...(leadsToAssign !== undefined ? { assigned_pm_id: primaryOwnerId, assigned_pm_ids: leadsToAssign } : {}),
       });
 
       updateFields.push("meta = ?");
       updateArgs.push(newMeta);
 
       // Also sync owner_id column with assigned_pm_id
-      if (assigned_pm_id !== undefined) {
+      if (leadsToAssign !== undefined) {
         updateFields.push("owner_id = ?");
-        updateArgs.push(assigned_pm_id || null);
+        updateArgs.push(primaryOwnerId);
       }
     }
 
@@ -259,19 +279,20 @@ export async function PUT(req) {
       args: updateArgs,
     });
 
-    // Update project lead in members table if provided
-    if (assigned_pm_id !== undefined) {
+    // Update project leads in members table if provided
+    if (assigned_pm_ids !== undefined || assigned_pm_id !== undefined) {
+      const leadsToAssign = assigned_pm_ids !== undefined ? assigned_pm_ids : (assigned_pm_id ? [assigned_pm_id] : []);
       // Remove existing lead(s)
       await db.execute({
         sql: "DELETE FROM project_members WHERE project_id::text = ? AND role = 'lead'",
         args: [String(id)],
       });
 
-      // Assign new lead if provided
-      if (assigned_pm_id) {
+      // Assign new leads if provided
+      for (const leadId of leadsToAssign) {
         await db.execute({
           sql: "INSERT INTO project_members (project_id, user_cid, role) VALUES (?, ?, 'lead') ON CONFLICT (project_id, user_cid) DO UPDATE SET role = 'lead'",
-          args: [String(id), assigned_pm_id],
+          args: [String(id), leadId],
         });
       }
     }
