@@ -507,8 +507,8 @@ export default function StaffOpReport() {
       });
       for (const row of sortedRows) {
         if (!row.name.trim()) continue;
-        // Skip rows that already exist in DB (they have a status from the database)
-        if (row.status !== null && row.status !== undefined) continue;
+        // Skip rows that already exist in DB unless they are carryovers waiting to be created for the new week
+        if (row.status !== null && row.status !== undefined && !row.is_carryover) continue;
 
         // Resolve the real parent_task_id: if the parent was just created in this batch,
         // use the real DB ID; otherwise use the provided parent_task_id as-is
@@ -527,7 +527,7 @@ export default function StaffOpReport() {
             category: row.category || null,
             user_id: userId,
             user_name: user.name || "",
-            status: "in_progress",
+            status: row.is_carryover ? (row.status || "in_progress") : "in_progress",
             created_week: weekData.week,
             created_year: weekData.year,
             parent_task_id: resolvedParentId,
@@ -537,7 +537,7 @@ export default function StaffOpReport() {
             end_date: row.due_date
               ? `${row.due_date}${row.due_time ? `T${row.due_time}:00` : ""}`
               : null,
-            carried_over_from_task_id: null,
+            carried_over_from_task_id: row.carried_over_from_task_id || null,
           }),
         });
         const taskData = await taskRes.json();
@@ -973,6 +973,8 @@ export default function StaffOpReport() {
                           for (const t of weekTasks) {
                             allTaskRows.push({
                               id: t.id,
+                              is_carryover: true,
+                              carried_over_from_task_id: t.id,
                               name: t.title,
                               description: t.description || "",
                               project_id: t.project_id || null,
@@ -999,6 +1001,8 @@ export default function StaffOpReport() {
                               for (const st of t.subtasks) {
                                 allTaskRows.push({
                                   id: st.id,
+                                  is_carryover: true,
+                                  carried_over_from_task_id: st.id,
                                   name: st.title,
                                   description: "",
                                   project_id: t.project_id || null,

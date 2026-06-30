@@ -338,24 +338,41 @@ export default function TaskManager({
   });
 
   // ── Tasks grouped by relevance ──
+  const filteredTasks = useMemo(() => {
+    if (mode === "standup" && weekInfo) {
+      return tasks.filter(
+        (t) =>
+          t.created_week === weekInfo.week && t.created_year === weekInfo.year,
+      );
+    }
+    return tasks;
+  }, [tasks, mode, weekInfo]);
+
   const carryOverTasks = useMemo(
-    () => tasks.filter((t) => t.status === "carried_over" && !t.parent_task_id),
-    [tasks],
+    () =>
+      filteredTasks.filter(
+        (t) =>
+          (t.carried_over_from_task_id !== null || t.status === "carried_over") &&
+          !t.parent_task_id,
+      ),
+    [filteredTasks],
   );
 
   const activeTasks = useMemo(
     () =>
-      tasks
+      filteredTasks
         .filter(
           (t) =>
-            !["archived", "carried_over"].includes(t.status) &&
+            t.carried_over_from_task_id === null &&
+            t.status !== "carried_over" &&
+            t.status !== "archived" &&
             !t.parent_task_id,
         )
         .sort(
           (a, b) =>
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         ),
-    [tasks],
+    [filteredTasks],
   );
 
   // Move task up or down in the active list
@@ -634,7 +651,7 @@ export default function TaskManager({
       {showCarryOver && carryOverTasks.length > 0 && (
         <div>
           <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Shield className="w-3 h-3" /> Carry Over ({carryOverTasks.length})
+            <Shield className="w-3 h-3" /> Carryover Tasks ({carryOverTasks.length})
           </h4>
           <div className="space-y-0.5">
             {carryOverTasks.map((t) => renderTaskRow(t))}
