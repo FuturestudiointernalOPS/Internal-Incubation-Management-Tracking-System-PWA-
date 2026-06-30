@@ -180,7 +180,7 @@ export default function DeveloperStandup() {
               Standup
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              Week {weekInfo.week}, {weekInfo.year}
+              Week {weekInfo.week}, {weekInfo.year} — Mon–Fri reporting window
               {existingReport ? " — Update your report" : ""}
             </p>
           </div>
