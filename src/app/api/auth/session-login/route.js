@@ -130,9 +130,9 @@ export async function POST(req) {
       });
 
       const activeTeammateAssignment = await db.execute({
-        sql: `SELECT id FROM v2_programs WHERE assigned_assistant_id LIKE ?
+        sql: `SELECT id::text FROM v2_programs WHERE assigned_assistant_id LIKE ?
               UNION
-              SELECT id FROM v2_teams WHERE handler_id = ?
+              SELECT id::text FROM v2_teams WHERE handler_id = ?
               LIMIT 1`,
         args: [`%${userCid}%`, userCid],
       });
