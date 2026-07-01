@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
-import { getSummary } from "@/lib/finance";
+import { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
+import { getSummary } from "@/lib/finance/queries";
 
 export async function GET(req) {
   try {
+    await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
+
     const { searchParams } = new URL(req.url);
-    const project = searchParams.get("project") || null;
-    const summary = await getSummary(project);
+    const dataSourceId = searchParams.get("dataSourceId") || null;
+    const year = searchParams.get("year") || null;
+
+    const summary = await getSummary(dataSourceId, year);
     return NextResponse.json({ success: true, ...summary });
   } catch (error) {
     return NextResponse.json(

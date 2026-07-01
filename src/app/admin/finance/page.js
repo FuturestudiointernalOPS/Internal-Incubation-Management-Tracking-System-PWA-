@@ -1,33 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  BarChart3,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-  DollarSign,
-  Filter,
-} from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { useState, useEffect, useCallback } from "react";
+import { BarChart3 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import DataSourceSelector from "@/components/finance/DataSourceSelector";
+import SummaryCard from "@/components/finance/SummaryCard";
+import BudgetExecutionGauge from "@/components/finance/BudgetExecutionGauge";
+import MonthlyTrendChart from "@/components/finance/MonthlyTrendChart";
+import LastSyncedDisplay from "@/components/finance/LastSyncedDisplay";
+import { t } from "@/lib/i18n";
 
-const PROJECTS = [
-  "All Projects",
-  "Future Studio",
-  "MTN Innovation Lab",
-  "Sème City",
-];
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatCurrency(val) {
+function formatXOF(val) {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency: "XAF",
@@ -35,91 +20,175 @@ function formatCurrency(val) {
   }).format(val || 0);
 }
 
-function StatCard({ title, value, icon: Icon, color }) {
-  return (
-    <div className="card !p-6 flex items-center gap-5">
-      <div className={`p-4 rounded-2xl ${color}/10`}>
-        <Icon className={`w-6 h-6 ${color}`} />
-      </div>
-      <div>
-        <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-          {title}
-        </p>
-        <p className="text-xl font-black text-[var(--text-primary)] mt-1">
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
+// ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function AdminFinanceDashboard() {
-  const [summary, setSummary] = useState({
-    totalPlanned: 0,
-    totalActual: 0,
-    remaining: 0,
-    rate: 0,
-  });
-  const [transactions, setTransactions] = useState([]);
-  const [monthly, setMonthly] = useState([]);
-  const [budgetLines, setBudgetLines] = useState([]);
-  const [selectedProject, setSelectedProject] = useState("All Projects");
+export default function FinanceDashboard() {
+  // Data sources
+  const [dataSources, setDataSources] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [sourcesLoading, setSourcesLoading] = useState(true);
+
+  // Dashboard data
+  const [summary, setSummary] = useState(null);
+  const [monthlyData, setMonthlyData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState({ from: "", to: "" });
 
-  const fetchData = useCallback(async () => {
+  // Sync
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+
+  // Errors
+  const [authError, setAuthError] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
+
+  // ── Fetch data sources on mount ──────────────────────────────────────────
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/finance/data-sources");
+        if (res.status === 401) {
+          setAuthError(true);
+          setSourcesLoading(false);
+          return;
+        }
+        const json = await res.json();
+        if (json.success && json.dataSources?.length) {
+          // Filter to active external sources for the selector
+          const active = json.dataSources.filter(
+            (ds) => ds.status === "active" && ds.sourceType !== "internal",
+          );
+          setDataSources(active);
+          if (!selectedId && active.length) {
+            setSelectedId(active[0].id);
+          }
+        }
+      } catch {
+        setFetchError(t("finance.error.networkError"));
+      } finally {
+        setSourcesLoading(false);
+      }
+    })();
+  }, []);
+
+  // ── Fetch dashboard data when selectedId changes ────────────────────────
+
+  const fetchDashboard = useCallback(async (dataSourceId) => {
+    if (!dataSourceId) return;
+
     setLoading(true);
-    try {
-      const projectParam =
-        selectedProject === "All Projects" ? "all" : selectedProject;
+    setFetchError(null);
+    setAuthError(false);
 
-      const [sumRes, txRes, monRes, budRes] = await Promise.all([
-        fetch(
-          `/api/finance/summary?project=${encodeURIComponent(projectParam)}`,
-        ),
-        fetch(
-          `/api/finance/transactions?project=${encodeURIComponent(projectParam)}`,
-        ),
-        fetch(
-          `/api/finance/monthly?project=${encodeURIComponent(projectParam)}`,
-        ),
-        fetch(
-          `/api/finance/budget-lines?project=${encodeURIComponent(selectedProject === "All Projects" ? "Future Studio" : selectedProject)}`,
-        ),
+    try {
+      const [sumRes, monRes] = await Promise.all([
+        fetch(`/api/finance/summary?dataSourceId=${dataSourceId}`),
+        fetch(`/api/finance/monthly?dataSourceId=${dataSourceId}`),
       ]);
 
-      const sum = await sumRes.json();
-      const tx = await txRes.json();
-      const mon = await monRes.json();
-      const bud = await budRes.json();
+      if (sumRes.status === 401 || monRes.status === 401) {
+        setAuthError(true);
+        return;
+      }
 
-      if (sum.success) setSummary(sum);
-      if (tx.success) setTransactions(tx.transactions || []);
-      if (mon.success) setMonthly(mon.monthly || []);
-      if (bud.success) setBudgetLines(bud.lines || []);
-    } catch (e) {
-      console.error("Finance fetch error:", e);
+      if (!sumRes.ok || !monRes.ok) {
+        setFetchError(t("finance.error.serverError"));
+        return;
+      }
+
+      const sumJson = await sumRes.json();
+      const monJson = await monRes.json();
+
+      if (sumJson.success) setSummary(sumJson);
+      if (monJson.success) setMonthlyData(monJson);
+    } catch {
+      setFetchError(t("finance.error.networkError"));
     } finally {
       setLoading(false);
     }
-  }, [selectedProject]);
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (selectedId) {
+      fetchDashboard(selectedId);
+    }
+  }, [selectedId, fetchDashboard]);
 
-  // Filter transactions by date range
-  const filteredTransactions = transactions.filter((t) => {
-    if (dateRange.from && t.date < dateRange.from) return false;
-    if (dateRange.to && t.date > dateRange.to) return false;
-    return true;
-  });
+  // ── Handle data source change ──────────────────────────────────────────
 
-  if (loading) {
+  const handleDataSourceChange = (id) => {
+    setSelectedId(id);
+  };
+
+  // ── Handle sync ─────────────────────────────────────────────────────────
+
+  const handleSync = useCallback(async () => {
+    if (!selectedId) return;
+
+    setSyncing(true);
+    setSyncError(null);
+
+    try {
+      const res = await fetch(
+        `/api/finance/sync?dataSourceId=${selectedId}`,
+        { method: "POST" },
+      );
+
+      if (res.status === 401) {
+        setAuthError(true);
+        return;
+      }
+
+      if (res.status === 429) {
+        const json = await res.json();
+        setSyncError(json.error || t("finance.dashboard.syncRateLimited", { seconds: 60 }));
+        return;
+      }
+
+      if (res.ok) {
+        // Re-fetch dashboard data after successful sync
+        await fetchDashboard(selectedId);
+      } else {
+        setSyncError(t("finance.dashboard.syncError"));
+      }
+    } catch {
+      setSyncError(t("finance.error.networkError"));
+    } finally {
+      setSyncing(false);
+    }
+  }, [selectedId, fetchDashboard]);
+
+  // ── Compute card statuses ──────────────────────────────────────────────
+
+  const consumedStatus =
+    !summary
+      ? "blue"
+      : summary.executionRate < 80
+        ? "green"
+        : summary.executionRate <= 100
+          ? "amber"
+          : "red";
+
+  const remainingStatus =
+    !summary
+      ? "blue"
+      : summary.remainingBudget >= 0
+        ? "green"
+        : "red";
+
+  // ── Render ─────────────────────────────────────────────────────────────
+
+  // Auth error — show message instead of dashboard
+  if (authError) {
     return (
       <DashboardLayout role="super_admin">
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="w-10 h-10 border-4 border-t-[var(--brand-orange)] rounded-full animate-spin" />
+        <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4">
+          <p
+            className="text-sm font-bold"
+            style={{ color: "var(--red)" }}
+          >
+            {t("finance.error.notAuth")}
+          </p>
         </div>
       </DashboardLayout>
     );
@@ -127,270 +196,231 @@ export default function AdminFinanceDashboard() {
 
   return (
     <DashboardLayout role="super_admin">
-      <div className="space-y-8 pb-20">
-        {/* Header */}
-        <header className="flex items-center justify-between border-b border-[var(--border-primary)] pb-6">
+      <div className="space-y-6 pb-20">
+        {/* ═══ Header ═══ */}
+        <header
+          className="flex flex-wrap items-center justify-between gap-4 border-b pb-5"
+          style={{ borderColor: "var(--border-primary)" }}
+        >
           <div className="flex items-center gap-3">
-            <BarChart3 className="w-6 h-6 text-[var(--brand-orange)]" />
+            <BarChart3
+              className="w-6 h-6"
+              style={{ color: "var(--brand-orange)" }}
+            />
             <div>
-              <h1 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)]">
-                Finance Dashboard
+              <h1
+                className="text-2xl font-black uppercase tracking-tight"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {t("finance.dashboard.title")}
               </h1>
-              <p className="text-[10px] text-[var(--text-secondary)]">
-                {selectedProject === "All Projects"
-                  ? "All projects — master overview"
-                  : `Project: ${selectedProject}`}
+              <p
+                className="text-[10px]"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {t("finance.dashboard.subtitle")}
               </p>
             </div>
           </div>
 
-          {/* Project Filter */}
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-[var(--text-secondary)]" />
-            <select
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-              className="bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-            >
-              {PROJECTS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-wrap items-center gap-4">
+            <DataSourceSelector
+              sources={dataSources}
+              selectedId={selectedId}
+              onSelect={handleDataSourceChange}
+              loading={sourcesLoading}
+            />
+            <LastSyncedDisplay
+              lastSyncAt={summary?.lastSyncAt}
+              syncing={syncing}
+              onSync={handleSync}
+              syncError={syncError}
+            />
           </div>
         </header>
 
-        {/* Summary Cards — react to project filter */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Budget"
-            value={formatCurrency(summary.totalPlanned)}
-            icon={Wallet}
-            color="text-blue-500"
-          />
-          <StatCard
-            title="Total Spent"
-            value={formatCurrency(summary.totalActual)}
-            icon={TrendingUp}
-            color="text-[var(--brand-orange)]"
-          />
-          <StatCard
-            title="Remaining"
-            value={formatCurrency(summary.remaining)}
-            icon={DollarSign}
-            color="text-emerald-500"
-          />
-          <StatCard
-            title="Consumption Rate"
-            value={`${summary.rate}%`}
-            icon={TrendingDown}
-            color="text-purple-500"
-          />
-        </div>
-
-        {/* Monthly Trend Chart — reacts to project filter */}
-        <div className="card !p-6">
-          <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] mb-4">
-            {selectedProject === "All Projects"
-              ? "Monthly Spend Trend"
-              : `${selectedProject} — Monthly Trend`}
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthly}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="var(--border-primary)"
-              />
-              <XAxis
-                dataKey="month"
-                stroke="var(--text-secondary)"
-                fontSize={12}
-              />
-              <YAxis stroke="var(--text-secondary)" fontSize={12} />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--surface-1)",
-                  border: "1px solid var(--border-primary)",
-                  borderRadius: "12px",
-                }}
-                formatter={(value) => formatCurrency(value)}
-              />
-              <Line
-                type="monotone"
-                dataKey="amount"
-                stroke="#FF6600"
-                strokeWidth={2}
-                dot={{ fill: "#FF6600" }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Budget Tracker — already filtered by project */}
-        <div className="card !p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-              Budget Tracker
-            </h3>
-            <span className="text-[9px] text-[var(--text-secondary)]">
-              {selectedProject === "All Projects"
-                ? "Showing: Future Studio"
-                : selectedProject}
+        {/* ═══ Fetch Error Banner ═══ */}
+        {fetchError && !loading && (
+          <div
+            className="rounded-xl p-4 flex items-center justify-between"
+            style={{
+              background: "rgba(239,68,68,0.1)",
+              border: "1px solid rgba(239,68,68,0.2)",
+            }}
+          >
+            <span
+              className="text-xs font-bold"
+              style={{ color: "var(--red)" }}
+            >
+              {fetchError}
             </span>
+            <button
+              onClick={() => fetchDashboard(selectedId)}
+              className="rounded-lg px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider"
+              style={{
+                background: "var(--red)",
+                color: "#fff",
+              }}
+            >
+              {t("finance.dashboard.retry")}
+            </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-[var(--border-primary)]">
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Line Item
-                  </th>
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest text-right">
-                    Planned
-                  </th>
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest text-right">
-                    Actual
-                  </th>
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest text-right">
-                    Variance
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {budgetLines.map((line, i) => (
-                  <tr
-                    key={i}
-                    className="border-b border-[var(--border-primary)]/50 hover:bg-white/5"
-                  >
-                    <td className="p-3 text-xs font-bold text-[var(--text-primary)]">
-                      {line.name}
-                    </td>
-                    <td className="p-3 text-xs font-bold text-[var(--text-primary)] text-right">
-                      {formatCurrency(line.planned)}
-                    </td>
-                    <td className="p-3 text-xs font-bold text-[var(--text-primary)] text-right">
-                      {formatCurrency(line.actual)}
-                    </td>
-                    <td
-                      className={`p-3 text-xs font-bold text-right ${line.variance >= 0 ? "text-emerald-500" : "text-rose-500"}`}
-                    >
-                      {formatCurrency(line.variance)}
-                    </td>
-                  </tr>
-                ))}
-                {budgetLines.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="p-8 text-center text-[10px] text-[var(--text-secondary)] italic"
-                    >
-                      No budget data for this project
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        )}
 
-        {/* Transaction Ledger — reacts to project filter */}
-        <div className="card !p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-              Transaction Ledger
-            </h3>
-
-            {/* Date range filter */}
-            <div className="flex items-center gap-3">
-              <input
-                type="date"
-                value={dateRange.from}
-                onChange={(e) =>
-                  setDateRange({ ...dateRange, from: e.target.value })
-                }
-                className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+        {/* ═══ Loading: Skeleton ═══ */}
+        {loading && !summary && (
+          <div className="space-y-6">
+            {/* Card skeletons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="card !p-5 animate-pulse"
+                >
+                  <div
+                    className="h-3 w-20 rounded mb-3"
+                    style={{ background: "var(--surface-2)" }}
+                  />
+                  <div
+                    className="h-7 w-32 rounded"
+                    style={{ background: "var(--surface-2)" }}
+                  />
+                </div>
+              ))}
+            </div>
+            {/* Gauge skeleton */}
+            <div
+              className="card !p-6 animate-pulse flex items-center justify-center"
+              style={{ minHeight: 260 }}
+            >
+              <div
+                className="w-48 h-48 rounded-full"
+                style={{ background: "var(--surface-2)" }}
               />
-              <span className="text-[9px] text-[var(--text-secondary)]">
-                to
-              </span>
-              <input
-                type="date"
-                value={dateRange.to}
-                onChange={(e) =>
-                  setDateRange({ ...dateRange, to: e.target.value })
-                }
-                className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+            </div>
+            {/* Chart skeleton */}
+            <div
+              className="card !p-6 animate-pulse"
+              style={{ minHeight: 300 }}
+            >
+              <div
+                className="h-4 w-40 rounded mb-6"
+                style={{ background: "var(--surface-2)" }}
+              />
+              <div
+                className="h-52 w-full rounded"
+                style={{ background: "var(--surface-2)" }}
               />
             </div>
           </div>
+        )}
 
-          <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="w-full text-left">
-              <thead className="sticky top-0 bg-primary">
-                <tr className="border-b border-[var(--border-primary)]">
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Date
-                  </th>
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Supplier
-                  </th>
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Description
-                  </th>
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Category
-                  </th>
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest text-right">
-                    Amount Spent
-                  </th>
-                  <th className="p-3 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest text-right">
-                    Amount Received
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.map((t, i) => (
-                  <tr
-                    key={i}
-                    className="border-b border-[var(--border-primary)]/50 hover:bg-white/5"
-                  >
-                    <td className="p-3 text-[11px] text-[var(--text-primary)]">
-                      {t.date}
-                    </td>
-                    <td className="p-3 text-[11px] font-bold text-[var(--text-primary)]">
-                      {t.supplier}
-                    </td>
-                    <td className="p-3 text-[11px] text-[var(--text-secondary)]">
-                      {t.description}
-                    </td>
-                    <td className="p-3 text-[11px] text-[var(--text-primary)]">
-                      {t.category}
-                    </td>
-                    <td className="p-3 text-[11px] font-bold text-right text-rose-500">
-                      {t.amountSpent ? formatCurrency(t.amountSpent) : "—"}
-                    </td>
-                    <td className="p-3 text-[11px] font-bold text-right text-emerald-500">
-                      {t.amountReceived
-                        ? formatCurrency(t.amountReceived)
-                        : "—"}
-                    </td>
-                  </tr>
-                ))}
-                {filteredTransactions.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="p-8 text-center text-[10px] text-[var(--text-secondary)] italic"
-                    >
-                      No transactions match the current filters
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        {/* ═══ No Data State ═══ */}
+        {!loading && !summary && !fetchError && (
+          <div
+            className="card !p-12 flex flex-col items-center justify-center gap-4 text-center"
+            style={{ minHeight: 300 }}
+          >
+            <BarChart3
+              className="w-12 h-12 opacity-30"
+              style={{ color: "var(--text-secondary)" }}
+            />
+            <p
+              className="text-sm font-bold"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {t("finance.dashboard.noData")}
+            </p>
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="rounded-lg px-6 py-2 text-xs font-bold uppercase tracking-wider"
+              style={{
+                background: "var(--brand-orange)",
+                color: "#fff",
+              }}
+            >
+              {syncing ? t("finance.dashboard.syncing") : t("finance.dashboard.syncNow")}
+            </button>
           </div>
-        </div>
+        )}
+
+        {/* ═══ Summary Cards ═══ */}
+        {summary && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <SummaryCard
+              title={t("finance.summary.revenue")}
+              value={formatXOF(summary.totalActualRevenue)}
+              status="green"
+              subtext={t("finance.summary.revenueSubtext")}
+              icon="💰"
+            />
+            <SummaryCard
+              title={t("finance.summary.budget")}
+              value={formatXOF(summary.totalPlannedBudget)}
+              status="blue"
+              subtext={t("finance.summary.budgetSubtext", {
+                year: dataSources.find((ds) => ds.id === selectedId)?.fiscalYear || "2025-2026",
+              })}
+              icon="📋"
+            />
+            <SummaryCard
+              title={t("finance.summary.consumed")}
+              value={formatXOF(summary.totalActualSpending)}
+              status={consumedStatus}
+              subtext={t("finance.summary.consumedSubtext")}
+              icon="📊"
+            />
+            <SummaryCard
+              title={t("finance.summary.remaining")}
+              value={formatXOF(summary.remainingBudget)}
+              status={remainingStatus}
+              subtext={
+                summary.remainingBudget >= 0
+                  ? t("finance.summary.remainingSubtext")
+                  : t("finance.summary.remainingNegative")
+              }
+              icon={summary.remainingBudget >= 0 ? "✅" : "⚠️"}
+            />
+          </div>
+        )}
+
+        {/* ═══ Gauge + Chart ═══ */}
+        {summary && (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Gauge — 2 cols on desktop */}
+            <div className="lg:col-span-2">
+              <BudgetExecutionGauge
+                percentage={summary.executionRate}
+                targetMin={90}
+                targetMax={100}
+                size={220}
+              />
+            </div>
+
+            {/* Chart — 3 cols on desktop */}
+            <div className="lg:col-span-3">
+              <MonthlyTrendChart
+                monthlyData={monthlyData?.data || []}
+                totalBudget={summary.totalPlannedBudget}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ═══ Sync success toast (auto-dismiss) ═══ */}
+        {syncError && !syncing && (
+          <div
+            className="fixed bottom-6 right-6 rounded-xl px-5 py-3 shadow-lg z-50 text-xs font-bold animate-in slide-in-from-right"
+            style={{
+              background: "var(--red)",
+              color: "#fff",
+              opacity: 0.95,
+            }}
+          >
+            {syncError}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

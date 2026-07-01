@@ -1014,7 +1014,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     }
 
     // Filter by responsibilities (if not super_admin and not intern)
-    const bypass = RESPONSIBILITY_BYPASS_ROLES.includes(activeRole);
     return filterNavByResponsibilities(items, userResponsibilities, bypass);
   }, [user.role, user.groups, role, pmPrograms, userResponsibilities]);
 
