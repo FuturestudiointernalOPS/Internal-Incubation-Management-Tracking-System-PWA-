@@ -100,9 +100,14 @@ export async function POST(req) {
       priority,
     } = await req.json();
 
-    // SECURITY: Sender must match the authenticated user
+    // SECURITY: Sender must match the authenticated user.
+    // Default to the authenticated user when sender_id is missing/falsy —
+    // otherwise a null sender_id reaches the INSERT and leaks a raw SQL
+    // error as a 500 (NOT NULL constraint), since the super_admin branch
+    // below never re-validates it.
     const sessionCid = session.cid;
-    if (sender_id !== sessionCid && session.role !== "super_admin") {
+    const effectiveSenderId = sender_id || sessionCid;
+    if (effectiveSenderId !== sessionCid && session.role !== "super_admin") {
       return NextResponse.json(
         { success: false, error: "Cannot send messages as another user." },
         { status: 403 },
@@ -130,7 +135,7 @@ export async function POST(req) {
     await db.execute({
       sql: "INSERT INTO v2_messages (sender_id, recipient_id, target_type, target_id, subject, body, priority, is_read) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       args: [
-        sender_id,
+        effectiveSenderId,
         recipient_id || null,
         target_type || "individual",
         target_id || null,
@@ -142,11 +147,11 @@ export async function POST(req) {
     });
 
     // Get sender name for notification
-    let senderName = sender_id;
+    let senderName = effectiveSenderId;
     try {
       const senderRes = await db.execute({
         sql: "SELECT name FROM contacts WHERE cid = ? OR id = ?",
-        args: [sender_id, sender_id],
+        args: [effectiveSenderId, effectiveSenderId],
       });
       if (senderRes.rows.length > 0) senderName = senderRes.rows[0].name;
     } catch (_) {}
@@ -175,7 +180,7 @@ export async function POST(req) {
           [dbRole],
         );
         for (const m of members.rows) {
-          if (m.cid === sender_id) continue;
+          if (m.cid === effectiveSenderId) continue;
           await db.execute({
             sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
             args: [m.cid, notifTitle, notifMessage, "message"],

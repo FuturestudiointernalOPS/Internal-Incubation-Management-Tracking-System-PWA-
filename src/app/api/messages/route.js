@@ -60,8 +60,12 @@ export async function POST(req) {
     const { program_id, sender_id, recipient_id, subject, body } =
       await req.json();
 
-    // SECURITY: Sender must match the authenticated user
-    if (sender_id !== session.cid && session.role !== "super_admin") {
+    // SECURITY: Sender must match the authenticated user.
+    // Default to the authenticated user when sender_id is missing/falsy —
+    // otherwise a null sender_id reaches the INSERT and leaks a raw SQL
+    // error as a 500 (NOT NULL constraint) for the super_admin branch.
+    const effectiveSenderId = sender_id || session.cid;
+    if (effectiveSenderId !== session.cid && session.role !== "super_admin") {
       return NextResponse.json(
         { success: false, error: "Cannot send messages as another user." },
         { status: 403 },
@@ -83,7 +87,7 @@ export async function POST(req) {
     const result = await db.execute({
       sql: `INSERT INTO v2_messages (sender_id, recipient_id, subject, body)
             VALUES (?, ?, ?, ?) RETURNING *`,
-      args: [sender_id, recipient_id === "all" ? null : recipient_id, subject, body],
+      args: [effectiveSenderId, recipient_id === "all" ? null : recipient_id, subject, body],
     });
 
     // NOTIFICATION BRIDGE
