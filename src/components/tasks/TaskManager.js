@@ -76,26 +76,6 @@ export default function TaskManager({
   weekInfo = null, // { week, year } for standup mode
   showCarryOver = true, // show carry-over tasks section
 }) {
-  // Compute current week info as fallback for archive vs delete logic
-  const effectiveWeekInfo =
-    weekInfo ||
-    (() => {
-      const now = new Date();
-      const d = new Date(now);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-      const week1 = new Date(d.getFullYear(), 0, 4);
-      const week =
-        1 +
-        Math.round(
-          ((d.getTime() - week1.getTime()) / 86400000 -
-            3 +
-            ((week1.getDay() + 6) % 7)) /
-            7,
-        );
-      return { week, year: now.getFullYear() };
-    })();
-
   const uid = userId;
   // Get current logged-in user for permission checks
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -111,9 +91,18 @@ export default function TaskManager({
   const effectiveWeekInfo = useMemo(() => {
     if (weekInfo?.week && weekInfo?.year) return weekInfo;
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const days = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
-    const week = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    const week =
+      1 +
+      Math.round(
+        ((d.getTime() - week1.getTime()) / 86400000 -
+          3 +
+          ((week1.getDay() + 6) % 7)) /
+          7,
+      );
     return { week, year: now.getFullYear() };
   }, [weekInfo]);
 
