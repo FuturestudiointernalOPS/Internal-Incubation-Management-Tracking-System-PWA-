@@ -23,6 +23,7 @@ import {
   Settings,
   Award,
   SwitchCamera,
+  ArrowLeft,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -89,6 +90,21 @@ export default function PermissionManager() {
   const [expandedModules, setExpandedModules] = useState({});
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
+
+  // Panel section states
+  const [editingRole, setEditingRole] = useState(false);
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [newRole, setNewRole] = useState("");
+  const [newStatus, setNewStatus] = useState("");
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [newProfileId, setNewProfileId] = useState("");
+  const [groupInput, setGroupInput] = useState("");
+  const [allResponsibilities, setAllResponsibilities] = useState([]);
+  const [userRespLoading, setUserRespLoading] = useState(false);
+  const [programs, setPrograms] = useState([]);
+  const [programsLoading, setProgramsLoading] = useState(false);
+  const [showProgramInput, setShowProgramInput] = useState(false);
+  const [activePanelSection, setActivePanelSection] = useState("general");
 
   useEffect(() => {
     fetchModules();
@@ -199,22 +215,37 @@ export default function PermissionManager() {
     setLoadingPerms(true);
     setActionMsg("");
     setActionError("");
+    setActivePanelSection("general");
     try {
-      const res = await fetch(
-        `/api/engineering/permissions?user_cid=${user.cid}`,
-      );
-      const data = await res.json();
+      const [permRes, profilesRes, respRes, progRes] = await Promise.all([
+        fetch(`/api/engineering/permissions?user_cid=${user.cid}`),
+        fetch("/api/engineering/permissions"),
+        fetch(`/api/responsibilities/assign?user_cid=${user.cid}`),
+        fetch(`/api/participant-programs?participant_id=${user.cid}`),
+      ]);
+      const data = await permRes.json();
+      const profilesData = await profilesRes.json();
+      const respData = await respRes.json();
+      const progData = await progRes.json();
       if (data.success) {
         setUserPerms(data);
-        // Auto-expand all modules
         const expanded = {};
         Object.keys(data.effectivePermissions || {}).forEach((key) => {
           expanded[key] = true;
         });
         setExpandedModules(expanded);
       }
+      if (profilesData.success) {
+        setAvailableProfiles(profilesData.accessProfiles || []);
+      }
+      if (respData.success) {
+        setAllResponsibilities(respData.responsibilities || []);
+      }
+      if (progData.success) {
+        setPrograms(progData.assignments || []);
+      }
     } catch (e) {
-      console.error("Failed to fetch user permissions", e);
+      console.error("Failed to fetch user data", e);
     } finally {
       setLoadingPerms(false);
     }
@@ -353,6 +384,114 @@ export default function PermissionManager() {
       if (data.success) setUserPerms(data);
     } catch (_) {}
   };
+
+  // ── Panel section helper functions ──
+
+  const handleChangeRole = async () => {
+    if (!newRole || !selectedUser) return;
+    const res = await fetch("/api/engineering/permissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set_role", user_cid: selectedUser.cid, role: newRole }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Role updated"); setEditingRole(false); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+  };
+
+  const handleChangeStatus = async () => {
+    if (!newStatus || !selectedUser) return;
+    const res = await fetch("/api/engineering/permissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set_status", user_cid: selectedUser.cid, status: newStatus }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Status updated"); setEditingStatus(false); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+  };
+
+  const handleChangeProfile = async () => {
+    if (!selectedUser) return;
+    const profileId = newProfileId ? parseInt(newProfileId) : null;
+    const res = await fetch("/api/engineering/permissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set_access_profile", user_cid: selectedUser.cid, access_profile_id: profileId }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Access profile updated"); setEditingProfile(false); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+  };
+
+  const handleAddGroup = async () => {
+    if (!groupInput.trim() || !selectedUser) return;
+    const res = await fetch("/api/user-groups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_cid: selectedUser.cid, group_name: groupInput.trim() }),
+    });
+    const data = await res.json();
+    if (data.success) { setGroupInput(""); setActionMsg("Group added"); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+  };
+
+  const handleRemoveGroup = async (groupName) => {
+    if (!selectedUser) return;
+    const res = await fetch("/api/user-groups", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_cid: selectedUser.cid, group_name: groupName }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Group removed"); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+  };
+
+  const handleToggleResponsibility = async (respId, currentlyAssigned) => {
+    if (!selectedUser) return;
+    setUserRespLoading(true);
+    const action = currentlyAssigned ? "remove" : "assign";
+    const res = await fetch("/api/responsibilities/assign", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_cid: selectedUser.cid, responsibility_id: respId, action }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Update local state
+      setAllResponsibilities((prev) =>
+        prev.map((r) =>
+          r.id === respId ? { ...r, assigned: !currentlyAssigned } : r,
+        ),
+      );
+      setActionMsg(data.message);
+    } else setActionError(data.error || "Failed");
+    setUserRespLoading(false);
+  };
+
+  const handleRemoveProgram = async (programId) => {
+    if (!selectedUser) return;
+    setProgramsLoading(true);
+    const res = await fetch("/api/participant-programs", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participant_id: selectedUser.cid, program_id: programId }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Program assignment removed"); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+    setProgramsLoading(false);
+  };
+
+  const panelSections = [
+    { id: "general", label: "General Information" },
+    { id: "profile", label: "Access Profile" },
+    { id: "groups", label: "Groups" },
+    { id: "responsibilities", label: "Responsibilities" },
+    { id: "programs", label: "Assigned Programs" },
+    { id: "overrides", label: "Permission Overrides" },
+  ];
 
   return (
     <DashboardLayout role="super_admin" activeTab="engineering">
@@ -684,155 +823,291 @@ export default function PermissionManager() {
         {/* User Detail Panel — preserved for Module 2 */}
         {activeTab === "search" && selectedUser && userPerms && (
           <div className="space-y-6">
-            {/* User info bar */}
-            <div className="ios-card !p-5 border-[var(--border-primary)] flex items-center justify-between bg-secondary/50">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
-                  <User className="w-7 h-7 text-[var(--brand-orange)]" />
-                </div>
-                <div>
-                  <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    {userPerms.user.name}
-                  </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                    {userPerms.user.email}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
-                      {userPerms.user.role}
-                    </span>
-                    {(userPerms.groups || []).map((g) => (
-                      <span
-                        key={g}
-                        className="text-[8px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
-                      >
-                        {g}
-                      </span>
-                    ))}
-                    {userPerms.effectiveProfile && (
-                      <span
-                        className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                          userPerms.effectiveProfile.source === "user"
-                            ? "bg-purple-500/10 text-purple-400"
-                            : userPerms.effectiveProfile.source === "role"
-                              ? "bg-teal-500/10 text-teal-400"
-                              : "bg-slate-500/10 text-slate-400"
-                        }`}
-                        title={`Source: ${userPerms.effectiveProfile.source}${userPerms.effectiveProfile.profileName ? ` \u2014 ${userPerms.effectiveProfile.profileName}` : " \u2014 legacy role_capabilities"}`}
-                      >
-                        {userPerms.effectiveProfile.profileName || "Legacy"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {userPerms.user.role !== "super_admin" ? (
-                  <button
-                    onClick={async () => {
-                      setActionMsg("");
-                      setActionError("");
-                      try {
-                        const res = await fetch(
-                          "/api/engineering/permissions",
-                          {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              action: "promote_super_admin",
-                              user_cid: selectedUser.cid,
-                            }),
-                          },
-                        );
-                        const data = await res.json();
-                        if (data.success) {
-                          setActionMsg("Promoted to Super Admin");
-                          selectUser(selectedUser);
-                        } else setActionError(data.error || "Failed");
-                      } catch (e) {
-                        setActionError("Network error");
-                      }
-                    }}
-                    className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all"
-                  >
-                    <Shield className="w-3 h-3 inline mr-1" />
-                    Make Super Admin
-                  </button>
-                ) : (
-                  <button
-                    onClick={async () => {
-                      setActionMsg("");
-                      setActionError("");
-                      try {
-                        const res = await fetch(
-                          "/api/engineering/permissions",
-                          {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              action: "remove_super_admin",
-                              user_cid: selectedUser.cid,
-                            }),
-                          },
-                        );
-                        const data = await res.json();
-                        if (data.success) {
-                          setActionMsg("Super Admin status removed");
-                          selectUser(selectedUser);
-                        } else setActionError(data.error || "Failed");
-                      } catch (e) {
-                        setActionError("Network error");
-                      }
-                    }}
-                    className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
-                  >
-                    <Shield className="w-3 h-3 inline mr-1" />
-                    Remove Super Admin
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    setSelectedUser(null);
-                    setUserPerms(null);
-                  }}
-                  className="p-2 hover:bg-tertiary rounded-lg transition-all"
-                >
-                  <X className="w-4 h-4 text-[var(--text-secondary)]" />
-                </button>
-              </div>
+            {/* Header bar */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setSelectedUser(null);
+                  setUserPerms(null);
+                  fetchUsers();
+                }}
+                className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
+              >
+                <ArrowLeft className="w-3 h-3" /> Back to Users
+              </button>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                {userPerms.user.name} — {userPerms.user.email}
+              </span>
             </div>
 
             {/* Status messages */}
             {actionMsg && (
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <p className="text-[10px] font-bold text-emerald-400">
-                  {actionMsg}
-                </p>
+                <p className="text-[10px] font-bold text-emerald-400">{actionMsg}</p>
               </div>
             )}
             {actionError && (
               <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                <p className="text-[10px] font-bold text-red-400">
-                  {actionError}
-                </p>
+                <p className="text-[10px] font-bold text-red-400">{actionError}</p>
               </div>
             )}
 
-                {/* Legend */}
-                <div className="flex items-center gap-4 text-[8px] font-bold text-slate-500 uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-slate-400" />{" "}
-                    Inherited
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
-                    Individual Grant
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-red-400" />{" "}
-                    Restricted
-                  </span>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+              {/* Section Navigation */}
+              <div className="lg:col-span-1">
+                <div className="card !p-2 space-y-1">
+                  {panelSections.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setActivePanelSection(s.id)}
+                      className={`w-full text-left px-4 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                        activePanelSection === s.id
+                          ? "bg-[var(--brand-orange)] text-black"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              {/* Section Content */}
+              <div className="lg:col-span-3 space-y-6">
+
+                {/* ── General Information ── */}
+                {activePanelSection === "general" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      General Information
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Name</p>
+                        <p className="text-sm font-bold text-[var(--text-primary)]">{userPerms.user.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Email</p>
+                        <p className="text-sm font-bold text-[var(--text-primary)]">{userPerms.user.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">CID</p>
+                        <p className="text-xs font-bold text-[var(--text-primary)]">{userPerms.user.cid}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Status</p>
+                        {editingStatus ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={newStatus}
+                              onChange={(e) => setNewStatus(e.target.value)}
+                              className="bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold outline-none"
+                            >
+                              <option value="active">Active</option>
+                              <option value="pending">Pending</option>
+                              <option value="inactive">Inactive</option>
+                            </select>
+                            <button onClick={handleChangeStatus} className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[8px] font-black">Save</button>
+                            <button onClick={() => setEditingStatus(false)} className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-[8px] font-black">Cancel</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${userPerms.user.status === "active" ? "bg-emerald-500/10 text-emerald-500" : userPerms.user.status === "pending" ? "bg-amber-500/10 text-amber-500" : "bg-rose-500/10 text-rose-500"}`}>
+                              {userPerms.user.status}
+                            </span>
+                            <button onClick={() => { setNewStatus(userPerms.user.status); setEditingStatus(true); }} className="text-[8px] text-slate-500 hover:text-[var(--brand-orange)]">Edit</button>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Role</p>
+                        {editingRole ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={newRole}
+                              onChange={(e) => setNewRole(e.target.value)}
+                              className="bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold outline-none"
+                            >
+                              <option value="super_admin">Super Admin</option>
+                              <option value="staff">Staff</option>
+                              <option value="developer">Developer</option>
+                              <option value="program_manager">Program Manager</option>
+                              <option value="teacher">Teacher</option>
+                              <option value="mentor">Mentor</option>
+                              <option value="participant">Participant</option>
+                            </select>
+                            <button onClick={handleChangeRole} className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[8px] font-black">Save</button>
+                            <button onClick={() => setEditingRole(false)} className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-[8px] font-black">Cancel</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
+                              {userPerms.user.role}
+                            </span>
+                            <button onClick={() => { setNewRole(userPerms.user.role); setEditingRole(true); }} className="text-[8px] text-slate-500 hover:text-[var(--brand-orange)]">Edit</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Access Profile ── */}
+                {activePanelSection === "profile" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Access Profile
+                    </h3>
+                    <p className="text-[9px] text-[var(--text-secondary)]">
+                      Current:{ " " }
+                      <span className={`font-bold ${userPerms.effectiveProfile?.source === "user" ? "text-purple-400" : userPerms.effectiveProfile?.source === "role" ? "text-teal-400" : "text-slate-400"}`}>
+                        {userPerms.effectiveProfile?.profileName || "Legacy (role_capabilities)"}
+                      </span>
+                      <span className="text-slate-500"> ({userPerms.effectiveProfile?.source || "legacy"})</span>
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Change Profile</p>
+                        <select
+                          value={editingProfile ? newProfileId : ""}
+                          onChange={(e) => setNewProfileId(e.target.value)}
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                        >
+                          <option value="">None (use role default)</option>
+                          {availableProfiles.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!editingProfile) { setEditingProfile(true); return; }
+                          handleChangeProfile();
+                        }}
+                        className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90"
+                      >
+                        {editingProfile ? "Save" : "Change"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Groups ── */}
+                {activePanelSection === "groups" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Groups
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {(userPerms.groups || []).length === 0 ? (
+                        <span className="text-[10px] text-slate-500 italic">No groups assigned</span>
+                      ) : (
+                        (userPerms.groups || []).map((g) => (
+                          <span key={g} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 text-[8px] font-bold uppercase tracking-wider">
+                            {g}
+                            <button onClick={() => handleRemoveGroup(g)} className="hover:text-rose-400 transition-all">
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={groupInput}
+                        onChange={(e) => setGroupInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAddGroup()}
+                        placeholder="Enter group name..."
+                        className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)]/50"
+                      />
+                      <button onClick={handleAddGroup} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90">
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Responsibilities ── */}
+                {activePanelSection === "responsibilities" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Responsibilities
+                    </h3>
+                    {allResponsibilities.length === 0 ? (
+                      <p className="text-[10px] text-slate-500 italic">Loading responsibilities...</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {allResponsibilities.map((r) => (
+                          <label
+                            key={r.id}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${
+                              r.assigned
+                                ? "bg-emerald-500/10 border-emerald-500/30"
+                                : "bg-secondary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={r.assigned}
+                              disabled={userRespLoading}
+                              onChange={() => handleToggleResponsibility(r.id, r.assigned)}
+                              className="w-4 h-4 rounded accent-[var(--brand-orange)]"
+                            />
+                            <div>
+                              <p className="text-[10px] font-bold text-[var(--text-primary)]">{r.name}</p>
+                              <p className="text-[7px] text-[var(--text-secondary)]">{r.key}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Assigned Programs ── */}
+                {activePanelSection === "programs" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Assigned Programs
+                    </h3>
+                    {programs.length === 0 ? (
+                      <p className="text-[10px] text-slate-500 italic">No program assignments</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {programs.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-secondary border border-[var(--border-primary)]">
+                            <div>
+                              <p className="text-[10px] font-bold text-[var(--text-primary)]">{p.program_name}</p>
+                              <p className="text-[7px] text-slate-500">{p.status || "active"}</p>
+                            </div>
+                            <button
+                              disabled={programsLoading}
+                              onClick={() => handleRemoveProgram(p.program_id)}
+                              className="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 text-[8px] font-black hover:bg-rose-500/20 transition-all disabled:opacity-30"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Permission Overrides (existing matrix) ── */}
+                {activePanelSection === "overrides" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                        Permission Overrides
+                      </h3>
+                      {/* Legend */}
+                      <div className="flex items-center gap-4 text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" /> Inherited</span>
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /> Grant</span>
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" /> Restricted</span>
+                      </div>
+                    </div>
 
                 {/* Permission Tables */}
                 {loadingPerms ? (

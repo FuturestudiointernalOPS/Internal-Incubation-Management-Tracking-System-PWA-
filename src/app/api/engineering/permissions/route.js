@@ -462,6 +462,63 @@ export async function PUT(req) {
         });
         break;
 
+      case "set_access_profile":
+        await db.execute({
+          sql: "UPDATE contacts SET access_profile_id = ? WHERE cid = ?",
+          args: [body.access_profile_id || null, user_cid],
+        });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "access_profile_changed",
+          details: `Access profile set to ID ${body.access_profile_id || "none"}`,
+        });
+        break;
+
+      case "set_role":
+        if (!body.role) {
+          return NextResponse.json(
+            { success: false, error: "role is required" },
+            { status: 400 },
+          );
+        }
+        await db.execute({
+          sql: "UPDATE contacts SET role = ? WHERE cid = ?",
+          args: [body.role, user_cid],
+        });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "role_changed",
+          details: `Role changed to ${body.role}`,
+        });
+        break;
+
+      case "set_status":
+        if (!body.status) {
+          return NextResponse.json(
+            { success: false, error: "status is required" },
+            { status: 400 },
+          );
+        }
+        await db.execute({
+          sql: "UPDATE contacts SET status = ? WHERE cid = ?",
+          args: [body.status, user_cid],
+        });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "status_changed",
+          details: `Status changed to ${body.status}`,
+        });
+        break;
+
       default:
         return NextResponse.json(
           { success: false, error: `Unknown action: ${action}` },
