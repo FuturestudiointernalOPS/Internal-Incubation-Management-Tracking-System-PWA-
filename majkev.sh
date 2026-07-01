@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# majkev: sync branch Kev with main. No push.
+# majkev: sync branch Kev with dev. No push.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -16,11 +16,11 @@ fi
 echo "Pulling origin/$BRANCH..."
 git pull origin "$BRANCH"
 
-echo "Fetching origin/main..."
-git fetch origin main
+echo "Fetching origin/dev..."
+git fetch origin dev
 
-echo "Merging origin/main into $BRANCH..."
-git merge origin/main -m "merge: sync $BRANCH with main"
+echo "Merging origin/dev into $BRANCH..."
+git merge origin/dev -m "merge: sync $BRANCH with dev"
 
 echo ""
 echo "=== majkev done ==="
