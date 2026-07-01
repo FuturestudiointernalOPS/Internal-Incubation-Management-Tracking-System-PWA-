@@ -92,6 +92,9 @@ export default function TaskManager({
   const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
   const [subTaskModal, setSubTaskModal] = useState(null); // { id, project_id, category, title } or null
   const [subTaskInput, setSubTaskInput] = useState("");
+  const [subTaskStartDate, setSubTaskStartDate] = useState("");
+  const [subTaskEndDate, setSubTaskEndDate] = useState("");
+  const [subTaskLink, setSubTaskLink] = useState("");
   const [subTaskSuccess, setSubTaskSuccess] = useState("");
   const [editTaskModal, setEditTaskModal] = useState(null); // task object or null
   const [editForm, setEditForm] = useState({
