@@ -186,6 +186,36 @@ async function init() {
     console.log("   ✅ v2_programs.note_id");
     await pool.query("CREATE TABLE IF NOT EXISTS participant_programs (id SERIAL PRIMARY KEY, participant_id TEXT NOT NULL, program_id TEXT NOT NULL, enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), UNIQUE(participant_id, program_id))");
     console.log("   ✅ participant_programs table");
+    // Additional tables referenced by API routes but missing from schema SQL
+    const extraTables = [
+      'CREATE TABLE IF NOT EXISTS campaigns (id SERIAL PRIMARY KEY, name TEXT NOT NULL, status TEXT DEFAULT \'draft\', form_id TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS campaign_steps (id SERIAL PRIMARY KEY, campaign_id INTEGER NOT NULL, step_order INTEGER NOT NULL, subject TEXT, body TEXT, delay_hours INTEGER DEFAULT 0, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS campaign_contacts (id SERIAL PRIMARY KEY, campaign_id INTEGER NOT NULL, contact_cid TEXT NOT NULL, status TEXT DEFAULT \'pending\', sent_at TIMESTAMP WITH TIME ZONE, UNIQUE(campaign_id, contact_cid))',
+      'CREATE TABLE IF NOT EXISTS forms (id SERIAL PRIMARY KEY, name TEXT NOT NULL, target_group TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS form_responses (id SERIAL PRIMARY KEY, form_id INTEGER NOT NULL, respondent_cid TEXT, respondent_name TEXT, respondent_group TEXT, data JSONB, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS kpi_progress (id SERIAL PRIMARY KEY, program_id TEXT, kpi_name TEXT NOT NULL, target REAL, current REAL, updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS participant_program_audit (id SERIAL PRIMARY KEY, participant_id TEXT NOT NULL, program_id TEXT NOT NULL, action TEXT NOT NULL, performed_by TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS password_setup_tokens (id SERIAL PRIMARY KEY, contact_cid TEXT NOT NULL, token TEXT NOT NULL UNIQUE, used INTEGER DEFAULT 0, expires_at TIMESTAMP WITH TIME ZONE NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS project_approval_requests (id SERIAL PRIMARY KEY, project_id TEXT NOT NULL, requested_by TEXT, request_type TEXT, status TEXT DEFAULT \'pending\', created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS project_members (id SERIAL PRIMARY KEY, project_id TEXT NOT NULL, user_cid TEXT NOT NULL, role TEXT DEFAULT \'collaborator\', UNIQUE(project_id, user_cid))',
+      'CREATE TABLE IF NOT EXISTS segments (id SERIAL PRIMARY KEY, name TEXT NOT NULL, criteria JSONB, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS task_audit_logs (id SERIAL PRIMARY KEY, task_id INTEGER NOT NULL, user_cid TEXT, action TEXT NOT NULL, old_value TEXT, new_value TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS task_resources (id SERIAL PRIMARY KEY, task_id INTEGER NOT NULL, name TEXT, url TEXT NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS v2_attendance (id SERIAL PRIMARY KEY, session_id INTEGER, participant_id TEXT, status TEXT DEFAULT \'present\', created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS v2_checkins (id SERIAL PRIMARY KEY, participant_id TEXT NOT NULL, program_id TEXT, checkin_date DATE DEFAULT CURRENT_DATE, status TEXT DEFAULT \'checked_in\', notes TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS v2_invitations (id SERIAL PRIMARY KEY, email TEXT NOT NULL, token TEXT NOT NULL UNIQUE, role TEXT DEFAULT \'participant\', group_name TEXT, program_id TEXT, team_id TEXT, used INTEGER DEFAULT 0, expires_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS v2_project_staff (id SERIAL PRIMARY KEY, project_id TEXT NOT NULL, staff_cid TEXT NOT NULL, role TEXT DEFAULT \'member\', UNIQUE(project_id, staff_cid))',
+      'CREATE TABLE IF NOT EXISTS v2_project_updates (id SERIAL PRIMARY KEY, project_id TEXT NOT NULL, user_cid TEXT, overall_status TEXT, accomplishments TEXT, current_focus TEXT, blockers TEXT, next_steps TEXT, created_week INTEGER, created_year INTEGER, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS v2_reflections (id SERIAL PRIMARY KEY, user_id TEXT NOT NULL, user_name TEXT, content TEXT, week_number INTEGER, year INTEGER, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS v2_retros (id SERIAL PRIMARY KEY, user_id TEXT NOT NULL, user_name TEXT, week_number INTEGER, year INTEGER, status TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS v2_standups (id SERIAL PRIMARY KEY, user_id TEXT NOT NULL, user_name TEXT, week_number INTEGER, year INTEGER, status TEXT DEFAULT \'submitted\', created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS v2_standard_types (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+      'CREATE TABLE IF NOT EXISTS work_categories (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())',
+    ];
+    for (const sql of extraTables) {
+      await pool.query(sql);
+    }
+    console.log("   ✅ 23 additional tables (campaigns, forms, projects, standups, retros, etc.)");
 
     console.log("\n🎉 Staging database initialized!");
   } catch (err) {
