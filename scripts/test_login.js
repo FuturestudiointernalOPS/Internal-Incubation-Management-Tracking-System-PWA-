@@ -16,8 +16,12 @@ const pool = new Pool({
 });
 
 async function test() {
-  const email = "superadmin@impactos.staging";
-  const password = "ImpactOS2026!";
+  const email = process.env.TEST_LOGIN_EMAIL;
+  const password = process.env.TEST_LOGIN_PASSWORD;
+  if (!email || !password) {
+    console.error("Set TEST_LOGIN_EMAIL / TEST_LOGIN_PASSWORD (e.g. in .env.local)");
+    process.exit(1);
+  }
 
   const res = await pool.query(
     "SELECT cid, name, email, role, password, status FROM contacts WHERE email = $1 AND deleted = 0",

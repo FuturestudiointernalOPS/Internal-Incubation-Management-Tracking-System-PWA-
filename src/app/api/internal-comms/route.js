@@ -35,11 +35,18 @@ export async function GET(req) {
     // Use the validated CID
     const targetCid = cid || requestingCid;
 
+    // Ensure is_deleted column exists (safe migration)
+    try {
+      await db.execute(
+        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS is_deleted INTEGER DEFAULT 0",
+      );
+    } catch (_) {}
+
     let query = "SELECT * FROM v2_messages";
     let args = [];
 
     query +=
-      " WHERE (recipient_id = ? OR sender_id = ?) AND target_type != 'all'";
+      " WHERE (recipient_id = ? OR sender_id = ?) AND target_type != 'all' AND (is_deleted IS NULL OR is_deleted = 0)";
     args = [targetCid, targetCid];
 
     // Super admins can also see broadcast messages
@@ -48,7 +55,7 @@ export async function GET(req) {
       args = [];
       if (targetCid) {
         query +=
-          " WHERE recipient_id = ? OR sender_id = ? OR target_type = 'all'";
+          " WHERE (recipient_id = ? OR sender_id = ? OR target_type = 'all') AND (is_deleted IS NULL OR is_deleted = 0)";
         args = [targetCid, targetCid];
       }
     }
@@ -98,6 +105,17 @@ export async function POST(req) {
     if (sender_id !== sessionCid && session.role !== "super_admin") {
       return NextResponse.json(
         { success: false, error: "Cannot send messages as another user." },
+        { status: 403 },
+      );
+    }
+
+    // SECURITY: Broadcast to all users is reserved to super_admin
+    if (target_type === "all" && session.role !== "super_admin") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Only super admins can broadcast to all users.",
+        },
         { status: 403 },
       );
     }
@@ -234,6 +252,77 @@ export async function PUT(req) {
         args: [conversationWith.senderId, conversationWith.recipientId],
       });
     }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(req) {
+  try {
+    await initDb();
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
+    if (authError) return authError;
+
+    const { searchParams } = new URL(req.url);
+    const messageId = searchParams.get("id");
+    if (!messageId) {
+      return NextResponse.json(
+        { success: false, error: "Query param required: id" },
+        { status: 400 },
+      );
+    }
+
+    // Ensure is_deleted column exists (safe migration)
+    try {
+      await db.execute(
+        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS is_deleted INTEGER DEFAULT 0",
+      );
+    } catch (_) {}
+
+    const msgRes = await db.execute({
+      sql: "SELECT sender_id FROM v2_messages WHERE id = ?",
+      args: [messageId],
+    });
+    if (msgRes.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Message not found." },
+        { status: 404 },
+      );
+    }
+
+    // SECURITY: Only the sender (or super_admin) can delete a message
+    if (
+      msgRes.rows[0].sender_id !== session.cid &&
+      session.role !== "super_admin"
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Cannot delete a message you did not send." },
+        { status: 403 },
+      );
+    }
+
+    await db.execute({
+      sql: "UPDATE v2_messages SET is_deleted = 1 WHERE id = ?",
+      args: [messageId],
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -6,7 +6,7 @@ import { getDataSources } from "@/lib/finance/queries";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const rows = await getDataSources();

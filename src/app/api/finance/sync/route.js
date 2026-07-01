@@ -7,7 +7,7 @@ import { syncDataSource } from "@/lib/finance/ingest";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
