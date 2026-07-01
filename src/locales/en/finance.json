@@ -1,0 +1,59 @@
+{
+  "dashboard": {
+    "title": "Finance Dashboard",
+    "subtitle": "Master overview — all projects",
+    "subtitleProject": "Project: {project}",
+    "lastSynced": "Last synced {time} ago",
+    "lastSyncedJustNow": "Last synced just now",
+    "syncNow": "Sync Now",
+    "syncing": "Syncing...",
+    "syncSuccess": "Data synced successfully!",
+    "syncError": "Sync failed. Please try again.",
+    "syncRateLimited": "Sync is rate-limited. Please wait {seconds}s.",
+    "syncNotAuth": "Not authenticated. Please log in.",
+    "noData": "No data available. Please sync first.",
+    "retry": "Try Again",
+    "loading": "Loading..."
+  },
+  "summary": {
+    "revenue": "Revenue Received",
+    "revenueSubtext": "Year-to-date",
+    "budget": "Total Approved Budget",
+    "budgetSubtext": "{year} allocation",
+    "consumed": "Budget Consumed",
+    "consumedSubtext": "Current year-to-date",
+    "remaining": "Remaining Budget",
+    "remainingSubtext": "Available to spend",
+    "remainingNegative": "Over budget"
+  },
+  "gauge": {
+    "title": "Budget Execution Rate",
+    "target": "Target: {min}–{max}%",
+    "onTrack": "On track",
+    "warning": "Warning",
+    "concern": "Concern"
+  },
+  "chart": {
+    "title": "Monthly Spend Trend",
+    "planned": "Planned",
+    "actual": "Actual",
+    "tooltipMonth": "Month",
+    "tooltipPlanned": "Planned",
+    "tooltipActual": "Actual",
+    "tooltipVariance": "Variance"
+  },
+  "selector": {
+    "label": "Fiscal Year",
+    "loading": "Loading..."
+  },
+  "status": {
+    "synced": "Synced",
+    "stale": "Stale data",
+    "notSynced": "Not synced"
+  },
+  "error": {
+    "notAuth": "Not authenticated. Please log in.",
+    "serverError": "Something went wrong. Please try again.",
+    "networkError": "Network error. Check your connection."
+  }
+}

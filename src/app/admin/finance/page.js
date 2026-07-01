@@ -8,7 +8,7 @@ import SummaryCard from "@/components/finance/SummaryCard";
 import BudgetExecutionGauge from "@/components/finance/BudgetExecutionGauge";
 import MonthlyTrendChart from "@/components/finance/MonthlyTrendChart";
 import LastSyncedDisplay from "@/components/finance/LastSyncedDisplay";
-import { t } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -23,6 +23,7 @@ function formatXOF(val) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function FinanceDashboard() {
+  const { t } = useI18n();
   // Data sources
   const [dataSources, setDataSources] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
