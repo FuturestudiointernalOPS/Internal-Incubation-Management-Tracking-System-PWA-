@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Shield,
   Search,
@@ -23,6 +23,7 @@ import {
   Settings,
   Award,
   SwitchCamera,
+  ArrowLeft,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -73,10 +74,15 @@ const MODULE_CATEGORIES = [
 
 export default function PermissionManager() {
   const [activeTab, setActiveTab] = useState("search");
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [allUsers, setAllUsers] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
+  const [sortField, setSortField] = useState("name");
+  const [sortDir, setSortDir] = useState("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPerms, setUserPerms] = useState(null);
   const [loadingPerms, setLoadingPerms] = useState(false);
@@ -85,16 +91,99 @@ export default function PermissionManager() {
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
 
+  // Panel section states
+  const [editingRole, setEditingRole] = useState(false);
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [newRole, setNewRole] = useState("");
+  const [newStatus, setNewStatus] = useState("");
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [newProfileId, setNewProfileId] = useState("");
+  const [groupInput, setGroupInput] = useState("");
+  const [allResponsibilities, setAllResponsibilities] = useState([]);
+  const [userRespLoading, setUserRespLoading] = useState(false);
+  const [programs, setPrograms] = useState([]);
+  const [programsLoading, setProgramsLoading] = useState(false);
+  const [showProgramInput, setShowProgramInput] = useState(false);
+  const [activePanelSection, setActivePanelSection] = useState("general");
+
   useEffect(() => {
     fetchModules();
   }, []);
 
   // Load all users when search tab is active
   useEffect(() => {
-    if (activeTab === "search" && searchResults.length === 0 && !selectedUser) {
-      fetchAllUsers();
+    if (activeTab === "search" && users.length === 0 && !selectedUser) {
+      fetchUsers();
     }
   }, [activeTab]);
+
+  // Filtered, sorted, paginated users
+  const filteredUsers = useMemo(() => {
+    let result = [...users];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (u) =>
+          (u.name || "").toLowerCase().includes(q) ||
+          (u.email || "").toLowerCase().includes(q) ||
+          (u.cid || "").toLowerCase().includes(q),
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      result = result.filter((u) => u.status === statusFilter);
+    }
+
+    // Role filter
+    if (roleFilter !== "all") {
+      result = result.filter((u) => u.role === roleFilter);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let aVal, bVal;
+      if (sortField === "name") {
+        aVal = (a.name || "").toLowerCase();
+        bVal = (b.name || "").toLowerCase();
+      } else if (sortField === "email") {
+        aVal = (a.email || "").toLowerCase();
+        bVal = (b.email || "").toLowerCase();
+      } else if (sortField === "status") {
+        aVal = a.status || "";
+        bVal = b.status || "";
+      } else if (sortField === "role") {
+        aVal = a.role || "";
+        bVal = b.role || "";
+      } else if (sortField === "access_profile") {
+        aVal = (a.access_profile?.name || "").toLowerCase();
+        bVal = (b.access_profile?.name || "").toLowerCase();
+      } else if (sortField === "groups") {
+        aVal = (a.groups?.[0] || "").toLowerCase();
+        bVal = (b.groups?.[0] || "").toLowerCase();
+      } else if (sortField === "responsibilities") {
+        aVal = (a.responsibilities?.[0]?.name || "").toLowerCase();
+        bVal = (b.responsibilities?.[0]?.name || "").toLowerCase();
+      } else {
+        aVal = a[sortField] || "";
+        bVal = b[sortField] || "";
+      }
+      if (typeof aVal === "string") {
+        return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+    });
+
+    return result;
+  }, [users, searchQuery, statusFilter, roleFilter, sortField, sortDir]);
+
+  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+  const pagedUsers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredUsers.slice(start, start + pageSize);
+  }, [filteredUsers, currentPage, pageSize]);
 
   const fetchModules = async () => {
     try {
@@ -106,42 +195,19 @@ export default function PermissionManager() {
     }
   };
 
-  const fetchAllUsers = async () => {
-    setSearching(true);
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
     try {
-      const res = await fetch("/api/contacts");
+      const res = await fetch("/api/engineering/permissions?users=true");
       const data = await res.json();
       if (data.success) {
-        // Sort: active first, then by name
-        const sorted = (data.contacts || []).sort((a, b) => {
-          if (a.status === "active" && b.status !== "active") return -1;
-          if (a.status !== "active" && b.status === "active") return 1;
-          return (a.name || "").localeCompare(b.name || "");
-        });
-        setAllUsers(sorted);
-        setSearchResults(sorted);
+        setUsers(data.users || []);
       }
     } catch (e) {
-      console.error("Failed to fetch users", e);
+      console.error("Failed to fetch enriched users", e);
     } finally {
-      setSearching(false);
+      setLoadingUsers(false);
     }
-  };
-
-  const searchUsers = (query) => {
-    setSearchQuery(query);
-    if (!query.trim()) {
-      setSearchResults(allUsers);
-      return;
-    }
-    const q = query.toLowerCase();
-    const filtered = allUsers.filter(
-      (u) =>
-        (u.name || "").toLowerCase().includes(q) ||
-        (u.email || "").toLowerCase().includes(q) ||
-        (u.cid || "").toLowerCase().includes(q),
-    );
-    setSearchResults(filtered);
   };
 
   const selectUser = async (user) => {
@@ -149,22 +215,37 @@ export default function PermissionManager() {
     setLoadingPerms(true);
     setActionMsg("");
     setActionError("");
+    setActivePanelSection("general");
     try {
-      const res = await fetch(
-        `/api/engineering/permissions?user_cid=${user.cid}`,
-      );
-      const data = await res.json();
+      const [permRes, profilesRes, respRes, progRes] = await Promise.all([
+        fetch(`/api/engineering/permissions?user_cid=${user.cid}`),
+        fetch("/api/engineering/permissions"),
+        fetch(`/api/responsibilities/assign?user_cid=${user.cid}`),
+        fetch(`/api/participant-programs?participant_id=${user.cid}`),
+      ]);
+      const data = await permRes.json();
+      const profilesData = await profilesRes.json();
+      const respData = await respRes.json();
+      const progData = await progRes.json();
       if (data.success) {
         setUserPerms(data);
-        // Auto-expand all modules
         const expanded = {};
         Object.keys(data.effectivePermissions || {}).forEach((key) => {
           expanded[key] = true;
         });
         setExpandedModules(expanded);
       }
+      if (profilesData.success) {
+        setAvailableProfiles(profilesData.accessProfiles || []);
+      }
+      if (respData.success) {
+        setAllResponsibilities(respData.responsibilities || []);
+      }
+      if (progData.success) {
+        setPrograms(progData.assignments || []);
+      }
     } catch (e) {
-      console.error("Failed to fetch user permissions", e);
+      console.error("Failed to fetch user data", e);
     } finally {
       setLoadingPerms(false);
     }
@@ -304,6 +385,141 @@ export default function PermissionManager() {
     } catch (_) {}
   };
 
+  // ── Panel section helper functions ──
+
+  const handleChangeRole = async () => {
+    if (!newRole || !selectedUser) return;
+    const res = await fetch("/api/engineering/permissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set_role", user_cid: selectedUser.cid, role: newRole }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Role updated"); setEditingRole(false); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+  };
+
+  const handleChangeStatus = async () => {
+    if (!newStatus || !selectedUser) return;
+    const res = await fetch("/api/engineering/permissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set_status", user_cid: selectedUser.cid, status: newStatus }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Status updated"); setEditingStatus(false); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+  };
+
+  const handleChangeProfile = async () => {
+    if (!selectedUser) return;
+    const profileId = newProfileId ? parseInt(newProfileId) : null;
+    const res = await fetch("/api/engineering/permissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set_access_profile", user_cid: selectedUser.cid, access_profile_id: profileId }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Access profile updated"); setEditingProfile(false); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+  };
+
+  const handleAddGroup = async () => {
+    if (!groupInput.trim() || !selectedUser) return;
+    const groupName = groupInput.trim().toUpperCase();
+    const res = await fetch("/api/user-groups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_cid: selectedUser.cid, group_name: groupName }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setGroupInput("");
+      // Apply group defaults
+      try {
+        const gRes = await fetch(`/api/groups?name=${encodeURIComponent(groupName)}`);
+        const gData = await gRes.json();
+        if (gData.success) {
+          const g = gData.group;
+          if (g.access_profile_id) {
+            await fetch("/api/engineering/permissions", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "set_access_profile", user_cid: selectedUser.cid, access_profile_id: g.access_profile_id }),
+            });
+          }
+          for (const resp of (g.default_responsibilities || [])) {
+            await fetch("/api/responsibilities/assign", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ user_cid: selectedUser.cid, responsibility_id: resp.id, action: "assign" }),
+            });
+          }
+        }
+      } catch (_) {}
+      setActionMsg(`Added to ${groupName} with defaults applied`);
+      selectUser(selectedUser);
+    } else setActionError(data.error || "Failed");
+  };
+
+  const handleRemoveGroup = async (groupName) => {
+    if (!selectedUser) return;
+    const res = await fetch("/api/user-groups", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_cid: selectedUser.cid, group_name: groupName }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Group removed"); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+  };
+
+  const handleToggleResponsibility = async (respId, currentlyAssigned) => {
+    if (!selectedUser) return;
+    setUserRespLoading(true);
+    const action = currentlyAssigned ? "remove" : "assign";
+    const res = await fetch("/api/responsibilities/assign", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_cid: selectedUser.cid, responsibility_id: respId, action }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Update local state
+      setAllResponsibilities((prev) =>
+        prev.map((r) =>
+          r.id === respId ? { ...r, assigned: !currentlyAssigned } : r,
+        ),
+      );
+      setActionMsg(data.message);
+    } else setActionError(data.error || "Failed");
+    setUserRespLoading(false);
+  };
+
+  const handleRemoveProgram = async (programId) => {
+    if (!selectedUser) return;
+    setProgramsLoading(true);
+    const res = await fetch("/api/participant-programs", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participant_id: selectedUser.cid, program_id: programId }),
+    });
+    const data = await res.json();
+    if (data.success) { setActionMsg("Program assignment removed"); selectUser(selectedUser); }
+    else setActionError(data.error || "Failed");
+    setProgramsLoading(false);
+  };
+
+  const panelSections = [
+    { id: "general", label: "General Information" },
+    { id: "supervisor", label: "Supervisor" },
+    { id: "profile", label: "Access Profile" },
+    { id: "groups", label: "Groups" },
+    { id: "responsibilities", label: "Responsibilities" },
+    { id: "programs", label: "Assigned Programs" },
+    { id: "overrides", label: "Permission Overrides" },
+  ];
+
   return (
     <DashboardLayout role="super_admin" activeTab="engineering">
       <div className="space-y-8 pb-20">
@@ -357,212 +573,633 @@ export default function PermissionManager() {
           >
             Responsibilities
           </button>
+          <button
+            onClick={() => setActiveTab("groups")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "groups" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            Groups
+          </button>
         </div>
 
-        {activeTab === "search" && (
+        {activeTab === "search" && !selectedUser && (
           <div className="space-y-6">
-            {/* Search */}
-            <div className="flex gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => searchUsers(e.target.value)}
-                  placeholder="Search by name, email, or CID..."
-                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-20">
+                <div
+                  className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+                  style={{
+                    borderColor: "rgba(255,102,0,0.1)",
+                    borderTopColor: "var(--brand-orange)",
+                  }}
                 />
               </div>
+            ) : (
+              <>
+                {/* Filters Row */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative flex-1 min-w-[250px] max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                    <input
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      placeholder="Search by name, email, or CID..."
+                      className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[var(--text-primary)] font-bold text-xs outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => {
+                      setRoleFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[var(--text-primary)] font-bold text-xs outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  >
+                    <option value="all">All Roles</option>
+                    {[...new Set(users.map((u) => u.role).filter(Boolean))].sort().map((r) => (
+                      <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
+                    {filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                {/* Table */}
+                <div className="card !p-0 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-[var(--border-primary)]">
+                          {[
+                            { key: "name", label: "Name" },
+                            { key: "email", label: "Email" },
+                            { key: "status", label: "Status" },
+                            { key: "role", label: "Role" },
+                            { key: "access_profile", label: "Access Profile" },
+                            { key: "groups", label: "Groups" },
+                            { key: "responsibilities", label: "Responsibilities" },
+                          ].map((col) => (
+                            <th
+                              key={col.key}
+                              onClick={() => {
+                                if (sortField === col.key) {
+                                  setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                                } else {
+                                  setSortField(col.key);
+                                  setSortDir("asc");
+                                }
+                              }}
+                              className="text-left p-4 text-[8px] font-black uppercase tracking-widest cursor-pointer hover:opacity-80 transition-all"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              {col.label}
+                              {sortField === col.key && (
+                                <span className="ml-1">{sortDir === "asc" ? "\u25B2" : "\u25BC"}</span>
+                              )}
+                            </th>
+                          ))}
+                          <th
+                            className="text-center p-4 text-[8px] font-black uppercase tracking-widest"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedUsers.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={8}
+                              className="p-12 text-center text-[10px] font-bold text-[var(--text-secondary)]"
+                            >
+                              No users found matching your filters.
+                            </td>
+                          </tr>
+                        ) : (
+                          pagedUsers.map((u) => (
+                            <tr
+                              key={u.cid}
+                              onClick={() => selectUser(u)}
+                              className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                            >
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                                    <User className="w-4 h-4 text-[var(--brand-orange)]" />
+                                  </div>
+                                  <span className="text-xs font-bold text-[var(--text-primary)]">
+                                    {u.name}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span className="text-[10px] text-[var(--text-secondary)]">
+                                  {u.email}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <span
+                                  className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                                    u.status === "active"
+                                      ? "bg-emerald-500/10 text-emerald-500"
+                                      : u.status === "pending"
+                                        ? "bg-amber-500/10 text-amber-500"
+                                        : "bg-rose-500/10 text-rose-500"
+                                  }`}
+                                >
+                                  {u.status}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <span className="text-[10px] font-bold uppercase tracking-tight text-[var(--text-primary)]">
+                                  {u.role?.replace(/_/g, " ")}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                {u.access_profile ? (
+                                  <span
+                                    className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                      u.access_profile.source === "user"
+                                        ? "bg-purple-500/10 text-purple-400"
+                                        : "bg-teal-500/10 text-teal-400"
+                                    }`}
+                                  >
+                                    {u.access_profile.name}
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] text-slate-500 italic">
+                                    Legacy
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-4">
+                                <div className="flex flex-wrap gap-1">
+                                  {u.groups?.length > 0 ? (
+                                    u.groups.slice(0, 2).map((g) => (
+                                      <span
+                                        key={g}
+                                        className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
+                                      >
+                                        {g.length > 14 ? g.substring(0, 14) + "\u2026" : g}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-[7px] text-slate-500">\u2014</span>
+                                  )}
+                                  {u.groups?.length > 2 && (
+                                    <span className="text-[7px] text-slate-500">+{u.groups.length - 2}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex flex-wrap gap-1">
+                                  {u.responsibilities?.length > 0 ? (
+                                    u.responsibilities.slice(0, 2).map((r) => (
+                                      <span
+                                        key={r.id}
+                                        className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 uppercase tracking-wider"
+                                      >
+                                        {r.name.length > 14 ? r.name.substring(0, 14) + "\u2026" : r.name}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-[7px] text-slate-500">\u2014</span>
+                                  )}
+                                  {u.responsibilities?.length > 2 && (
+                                    <span className="text-[7px] text-slate-500">+{u.responsibilities.length - 2}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="text-center p-4">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    selectUser(u);
+                                  }}
+                                  className="text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black hover:opacity-90 transition-all"
+                                >
+                                  Manage
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-30"
+                      >
+                        Prev
+                      </button>
+                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                        const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+                        const page = start + i;
+                        if (page > totalPages) return null;
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-8 h-8 rounded-lg text-[9px] font-black transition-all ${
+                              page === currentPage
+                                ? "bg-[var(--brand-orange)] text-black"
+                                : "bg-secondary border border-[var(--border-primary)] hover:bg-tertiary"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-30"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* User Detail Panel — preserved for Module 2 */}
+        {activeTab === "search" && selectedUser && userPerms && (
+          <div className="space-y-6">
+            {/* Header bar */}
+            <div className="flex items-center justify-between">
               <button
                 onClick={() => {
-                  setSearchQuery("");
-                  setSearchResults(allUsers);
+                  setSelectedUser(null);
+                  setUserPerms(null);
+                  fetchUsers();
                 }}
-                className="px-4 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
               >
-                Clear
+                <ArrowLeft className="w-3 h-3" /> Back to Users
               </button>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                {userPerms.user.name} — {userPerms.user.email}
+              </span>
             </div>
 
-            {/* Results */}
-            {searchResults.length > 0 && !selectedUser && (
-              <div className="space-y-1">
-                {searchResults.map((u) => (
-                  <button
-                    key={u.cid}
-                    onClick={() => selectUser(u)}
-                    className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                        <User className="w-5 h-5 text-[var(--brand-orange)]" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                          {u.name}
-                        </p>
-                        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {u.email} · {u.role} · {u.status}
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-                  </button>
-                ))}
+            {/* Status messages */}
+            {actionMsg && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <p className="text-[10px] font-bold text-emerald-400">{actionMsg}</p>
+              </div>
+            )}
+            {actionError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                <p className="text-[10px] font-bold text-red-400">{actionError}</p>
               </div>
             )}
 
-            {/* User Permission Panel */}
-            {selectedUser && userPerms && (
-              <div className="space-y-6">
-                {/* User info bar */}
-                <div className="ios-card !p-5 border-[var(--border-primary)] flex items-center justify-between bg-secondary/50">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
-                      <User className="w-7 h-7 text-[var(--brand-orange)]" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
-                        {userPerms.user.name}
-                      </p>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                        {userPerms.user.email}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
-                          {userPerms.user.role}
-                        </span>
-                        {(userPerms.groups || []).map((g) => (
-                          <span
-                            key={g}
-                            className="text-[8px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
-                          >
-                            {g}
-                          </span>
-                        ))}
-                        {userPerms.effectiveProfile && (
-                          <span
-                            className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                              userPerms.effectiveProfile.source === "user"
-                                ? "bg-purple-500/10 text-purple-400"
-                                : userPerms.effectiveProfile.source === "role"
-                                  ? "bg-teal-500/10 text-teal-400"
-                                  : "bg-slate-500/10 text-slate-400"
-                            }`}
-                            title={`Source: ${userPerms.effectiveProfile.source}${userPerms.effectiveProfile.profileName ? ` — ${userPerms.effectiveProfile.profileName}` : " — legacy role_capabilities"}`}
-                          >
-                            {userPerms.effectiveProfile.profileName || "Legacy"}
-                          </span>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+              {/* Section Navigation */}
+              <div className="lg:col-span-1">
+                <div className="card !p-2 space-y-1">
+                  {panelSections.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setActivePanelSection(s.id)}
+                      className={`w-full text-left px-4 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                        activePanelSection === s.id
+                          ? "bg-[var(--brand-orange)] text-black"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section Content */}
+              <div className="lg:col-span-3 space-y-6">
+
+                {/* ── General Information ── */}
+                {activePanelSection === "general" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      General Information
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Name</p>
+                        <p className="text-sm font-bold text-[var(--text-primary)]">{userPerms.user.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Email</p>
+                        <p className="text-sm font-bold text-[var(--text-primary)]">{userPerms.user.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">CID</p>
+                        <p className="text-xs font-bold text-[var(--text-primary)]">{userPerms.user.cid}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Status</p>
+                        {editingStatus ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={newStatus}
+                              onChange={(e) => setNewStatus(e.target.value)}
+                              className="bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold outline-none"
+                            >
+                              <option value="active">Active</option>
+                              <option value="pending">Pending</option>
+                              <option value="inactive">Inactive</option>
+                            </select>
+                            <button onClick={handleChangeStatus} className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[8px] font-black">Save</button>
+                            <button onClick={() => setEditingStatus(false)} className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-[8px] font-black">Cancel</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${userPerms.user.status === "active" ? "bg-emerald-500/10 text-emerald-500" : userPerms.user.status === "pending" ? "bg-amber-500/10 text-amber-500" : "bg-rose-500/10 text-rose-500"}`}>
+                              {userPerms.user.status}
+                            </span>
+                            <button onClick={() => { setNewStatus(userPerms.user.status); setEditingStatus(true); }} className="text-[8px] text-slate-500 hover:text-[var(--brand-orange)]">Edit</button>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Role</p>
+                        {editingRole ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={newRole}
+                              onChange={(e) => setNewRole(e.target.value)}
+                              className="bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold outline-none"
+                            >
+                              <option value="super_admin">Super Admin</option>
+                              <option value="staff">Staff</option>
+                              <option value="developer">Developer</option>
+                              <option value="program_manager">Program Manager</option>
+                              <option value="teacher">Teacher</option>
+                              <option value="mentor">Mentor</option>
+                              <option value="participant">Participant</option>
+                            </select>
+                            <button onClick={handleChangeRole} className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[8px] font-black">Save</button>
+                            <button onClick={() => setEditingRole(false)} className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-[8px] font-black">Cancel</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
+                              {userPerms.user.role}
+                            </span>
+                            <button onClick={() => { setNewRole(userPerms.user.role); setEditingRole(true); }} className="text-[8px] text-slate-500 hover:text-[var(--brand-orange)]">Edit</button>
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {userPerms.user.role !== "super_admin" ? (
-                      <button
-                        onClick={async () => {
-                          setActionMsg("");
-                          setActionError("");
-                          try {
-                            const res = await fetch(
-                              "/api/engineering/permissions",
-                              {
+                )}
+
+                {/* ── Supervisor ── */}
+                {activePanelSection === "supervisor" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Supervisor Assignment
+                    </h3>
+                    <p className="text-[8px] text-slate-500">
+                      Assign a supervisor who can manage this user\'s access, review tasks, and monitor progress.
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Current Supervisor</p>
+                        <p className="text-xs font-bold text-[var(--text-primary)]">
+                          {userPerms.user.supervisor_cid || "\u2014"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Set Supervisor (CID)</p>
+                        <input
+                          id="supervisor-input"
+                          placeholder="Enter supervisor CID..."
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)]/50"
+                          onKeyDown={async (e) => {
+                            if (e.key === "Enter" && e.target.value.trim()) {
+                              const res = await fetch("/api/engineering/permissions", {
                                 method: "PUT",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  action: "promote_super_admin",
-                                  user_cid: selectedUser.cid,
-                                }),
-                              },
-                            );
-                            const data = await res.json();
-                            if (data.success) {
-                              setActionMsg("Promoted to Super Admin");
-                              selectUser(selectedUser);
-                            } else setActionError(data.error || "Failed");
-                          } catch (e) {
-                            setActionError("Network error");
-                          }
+                                body: JSON.stringify({ action: "set_supervisor", user_cid: selectedUser.cid, supervisor_cid: e.target.value.trim() }),
+                              });
+                              const data = await res.json();
+                              if (data.success) { setActionMsg("Supervisor assigned"); selectUser(selectedUser); }
+                              else setActionError(data.error || "Failed");
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const input = document.getElementById("supervisor-input");
+                          if (!input?.value?.trim()) return;
+                          const res = await fetch("/api/engineering/permissions", {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "set_supervisor", user_cid: selectedUser.cid, supervisor_cid: input.value.trim() }),
+                          });
+                          const data = await res.json();
+                          if (data.success) { setActionMsg("Supervisor assigned"); selectUser(selectedUser); }
+                          else setActionError(data.error || "Failed");
                         }}
-                        className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all"
+                        className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90"
                       >
-                        <Shield className="w-3 h-3 inline mr-1" />
-                        Make Super Admin
+                        Assign
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Access Profile ── */}
+                {activePanelSection === "profile" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Access Profile
+                    </h3>
+                    <p className="text-[9px] text-[var(--text-secondary)]">
+                      Current:{ " " }
+                      <span className={`font-bold ${userPerms.effectiveProfile?.source === "user" ? "text-purple-400" : userPerms.effectiveProfile?.source === "role" ? "text-teal-400" : "text-slate-400"}`}>
+                        {userPerms.effectiveProfile?.profileName || "Legacy (role_capabilities)"}
+                      </span>
+                      <span className="text-slate-500"> ({userPerms.effectiveProfile?.source || "legacy"})</span>
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Change Profile</p>
+                        <select
+                          value={editingProfile ? newProfileId : ""}
+                          onChange={(e) => setNewProfileId(e.target.value)}
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                        >
+                          <option value="">None (use role default)</option>
+                          {availableProfiles.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!editingProfile) { setEditingProfile(true); return; }
+                          handleChangeProfile();
+                        }}
+                        className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90"
+                      >
+                        {editingProfile ? "Save" : "Change"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Groups ── */}
+                {activePanelSection === "groups" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Groups
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {(userPerms.groups || []).length === 0 ? (
+                        <span className="text-[10px] text-slate-500 italic">No groups assigned</span>
+                      ) : (
+                        (userPerms.groups || []).map((g) => (
+                          <span key={g} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 text-[8px] font-bold uppercase tracking-wider">
+                            {g}
+                            <button onClick={() => handleRemoveGroup(g)} className="hover:text-rose-400 transition-all">
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={groupInput}
+                        onChange={(e) => setGroupInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAddGroup()}
+                        placeholder="Enter group name..."
+                        className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)]/50"
+                      />
+                      <button onClick={handleAddGroup} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90">
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Responsibilities ── */}
+                {activePanelSection === "responsibilities" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Responsibilities
+                    </h3>
+                    {allResponsibilities.length === 0 ? (
+                      <p className="text-[10px] text-slate-500 italic">Loading responsibilities...</p>
                     ) : (
-                      <button
-                        onClick={async () => {
-                          setActionMsg("");
-                          setActionError("");
-                          try {
-                            const res = await fetch(
-                              "/api/engineering/permissions",
-                              {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  action: "remove_super_admin",
-                                  user_cid: selectedUser.cid,
-                                }),
-                              },
-                            );
-                            const data = await res.json();
-                            if (data.success) {
-                              setActionMsg("Super Admin status removed");
-                              selectUser(selectedUser);
-                            } else setActionError(data.error || "Failed");
-                          } catch (e) {
-                            setActionError("Network error");
-                          }
-                        }}
-                        className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
-                      >
-                        <Shield className="w-3 h-3 inline mr-1" />
-                        Remove Super Admin
-                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {allResponsibilities.map((r) => (
+                          <label
+                            key={r.id}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${
+                              r.assigned
+                                ? "bg-emerald-500/10 border-emerald-500/30"
+                                : "bg-secondary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={r.assigned}
+                              disabled={userRespLoading}
+                              onChange={() => handleToggleResponsibility(r.id, r.assigned)}
+                              className="w-4 h-4 rounded accent-[var(--brand-orange)]"
+                            />
+                            <div>
+                              <p className="text-[10px] font-bold text-[var(--text-primary)]">{r.name}</p>
+                              <p className="text-[7px] text-[var(--text-secondary)]">{r.key}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                     )}
-                    <button
-                      onClick={() => {
-                        setSelectedUser(null);
-                        setUserPerms(null);
-                      }}
-                      className="p-2 hover:bg-tertiary rounded-lg transition-all"
-                    >
-                      <X className="w-4 h-4 text-[var(--text-secondary)]" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Status messages */}
-                {actionMsg && (
-                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                    <p className="text-[10px] font-bold text-emerald-400">
-                      {actionMsg}
-                    </p>
-                  </div>
-                )}
-                {actionError && (
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                    <p className="text-[10px] font-bold text-red-400">
-                      {actionError}
-                    </p>
                   </div>
                 )}
 
-                {/* Legend */}
-                <div className="flex items-center gap-4 text-[8px] font-bold text-slate-500 uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-slate-400" />{" "}
-                    Inherited
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
-                    Individual Grant
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-red-400" />{" "}
-                    Restricted
-                  </span>
-                </div>
+                {/* ── Assigned Programs ── */}
+                {activePanelSection === "programs" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Assigned Programs
+                    </h3>
+                    {programs.length === 0 ? (
+                      <p className="text-[10px] text-slate-500 italic">No program assignments</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {programs.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-secondary border border-[var(--border-primary)]">
+                            <div>
+                              <p className="text-[10px] font-bold text-[var(--text-primary)]">{p.program_name}</p>
+                              <p className="text-[7px] text-slate-500">{p.status || "active"}</p>
+                            </div>
+                            <button
+                              disabled={programsLoading}
+                              onClick={() => handleRemoveProgram(p.program_id)}
+                              className="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 text-[8px] font-black hover:bg-rose-500/20 transition-all disabled:opacity-30"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Permission Overrides (existing matrix) ── */}
+                {activePanelSection === "overrides" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                        Permission Overrides
+                      </h3>
+                      {/* Legend */}
+                      <div className="flex items-center gap-4 text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" /> Inherited</span>
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /> Grant</span>
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" /> Restricted</span>
+                      </div>
+                    </div>
 
                 {/* Permission Tables */}
                 {loadingPerms ? (
@@ -860,6 +1497,7 @@ export default function PermissionManager() {
         {activeTab === "seed" && <SeedView />}
         {activeTab === "profiles" && <AccessProfilesView />}
         {activeTab === "responsibilities" && <ResponsibilitiesView />}
+        {activeTab === "groups" && <GroupsView />}
       </div>
     </DashboardLayout>
   );
@@ -2067,8 +2705,329 @@ function ResponsibilitiesView() {
               ))}
             </div>
           )}
+            </div>
+          )}
         </div>
-      )}
-    </div>
-  );
-}
+      );
+    }
+
+    function GroupsView() {
+      const [groups, setGroups] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [selectedGroup, setSelectedGroup] = useState(null);
+      const [groupDetail, setGroupDetail] = useState(null);
+      const [allProfiles, setAllProfiles] = useState([]);
+      const [allResponsibilities, setAllResponsibilities] = useState([]);
+      const [editName, setEditName] = useState("");
+      const [editDesc, setEditDesc] = useState("");
+      const [editProfileId, setEditProfileId] = useState("");
+      const [editRespIds, setEditRespIds] = useState([]);
+      const [saving, setSaving] = useState(false);
+      const [msg, setMsg] = useState("");
+      const [err, setErr] = useState("");
+      const [showCreate, setShowCreate] = useState(false);
+      const [newName, setNewName] = useState("");
+      const [newDesc, setNewDesc] = useState("");
+      const [newProfileId, setNewProfileId] = useState("");
+      const [creating, setCreating] = useState(false);
+
+      const fetchGroups = useCallback(async () => {
+        setLoading(true);
+        try {
+          const [gRes, pRes, rRes] = await Promise.all([
+            fetch("/api/groups"),
+            fetch("/api/engineering/permissions"),
+            fetch("/api/responsibilities"),
+          ]);
+          const gData = await gRes.json();
+          const pData = await pRes.json();
+          const rData = await rRes.json();
+          if (gData.success) setGroups(gData.groups || []);
+          if (pData.success) setAllProfiles(pData.accessProfiles || []);
+          if (rData.success) setAllResponsibilities(rData.responsibilities || []);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      useEffect(() => { fetchGroups(); }, [fetchGroups]);
+
+      const selectGroup = async (group) => {
+        setSelectedGroup(group);
+        try {
+          const res = await fetch(`/api/groups?id=${group.id}`);
+          const data = await res.json();
+          if (data.success) {
+            setGroupDetail(data.group);
+            setEditName(data.group.name);
+            setEditDesc(data.group.description || "");
+            setEditProfileId(data.group.access_profile_id ? String(data.group.access_profile_id) : "");
+            setEditRespIds(data.group.default_responsibilities?.map((r) => r.id) || []);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      const handleSave = async () => {
+        if (!selectedGroup) return;
+        setSaving(true);
+        setMsg("");
+        setErr("");
+        try {
+          const res = await fetch("/api/groups", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: selectedGroup.id,
+              name: editName,
+              description: editDesc,
+              access_profile_id: editProfileId ? parseInt(editProfileId) : null,
+              default_responsibilities: editRespIds,
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setMsg("Group saved");
+            selectGroup({ id: selectedGroup.id });
+            fetchGroups();
+          } else setErr(data.error || "Failed");
+        } catch (e) {
+          setErr("Network error");
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const handleCreate = async () => {
+        if (!newName.trim()) return;
+        setCreating(true);
+        setErr("");
+        try {
+          const res = await fetch("/api/groups", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: newName.trim(),
+              description: newDesc,
+              access_profile_id: newProfileId ? parseInt(newProfileId) : null,
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setNewName("");
+            setNewDesc("");
+            setNewProfileId("");
+            setShowCreate(false);
+            fetchGroups();
+          } else setErr(data.error || "Failed");
+        } catch (e) {
+          setErr("Network error");
+        } finally {
+          setCreating(false);
+        }
+      };
+
+      const toggleResp = (respId) => {
+        setEditRespIds((prev) =>
+          prev.includes(respId)
+            ? prev.filter((id) => id !== respId)
+            : [...prev, respId],
+        );
+      };
+
+      return (
+        <div className="space-y-6">
+          {msg && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <p className="text-[10px] font-bold text-emerald-400">{msg}</p>
+            </div>
+          )}
+          {err && (
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+              <p className="text-[10px] font-bold text-red-400">{err}</p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider">
+              Group Management
+            </h2>
+            <button
+              onClick={() => setShowCreate(!showCreate)}
+              className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90"
+            >
+              {showCreate ? "Cancel" : "+ New Group"}
+            </button>
+          </div>
+
+          {showCreate && (
+            <div className="card space-y-4">
+              <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Create Group</h3>
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Group name (will be uppercased)"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+              />
+              <input
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                placeholder="Description (optional)"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+              />
+              <select
+                value={newProfileId}
+                onChange={(e) => setNewProfileId(e.target.value)}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+              >
+                <option value="">No default access profile</option>
+                {allProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleCreate}
+                disabled={creating || !newName.trim()}
+                className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-30"
+              >
+                {creating ? "Creating..." : "Create Group"}
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin" style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Group List */}
+              <div className="lg:col-span-1">
+                <div className="card !p-2 space-y-1">
+                  {groups.length === 0 ? (
+                    <p className="p-4 text-[10px] text-slate-500 italic text-center">No groups created yet</p>
+                  ) : (
+                    groups.map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => selectGroup(g)}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                          selectedGroup?.id === g.id
+                            ? "bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30"
+                            : "hover:bg-tertiary"
+                        }`}
+                      >
+                        <p className="text-[10px] font-bold text-[var(--text-primary)]">{g.name}</p>
+                        <p className="text-[7px] text-slate-500">{g.member_count} members · {g.is_active ? "active" : "inactive"}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Group Detail */}
+              <div className="lg:col-span-2 space-y-6">
+                {!selectedGroup ? (
+                  <div className="card py-20 text-center">
+                    <p className="text-[10px] text-slate-500 italic">Select a group to configure</p>
+                  </div>
+                ) : !groupDetail ? (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin" style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
+                  </div>
+                ) : (
+                  <>
+                    {/* General */}
+                    <div className="card space-y-4">
+                      <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Group Settings</h3>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Name</p>
+                        <input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Description</p>
+                        <input
+                          value={editDesc}
+                          onChange={(e) => setEditDesc(e.target.value)}
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Default Access Profile</p>
+                        <select
+                          value={editProfileId}
+                          onChange={(e) => setEditProfileId(e.target.value)}
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                        >
+                          <option value="">None (inherit from role)</option>
+                          {allProfiles.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Default Responsibilities */}
+                    <div className="card space-y-4">
+                      <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Default Responsibilities</h3>
+                      <p className="text-[8px] text-slate-500">Assigned automatically when a user joins this group.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {allResponsibilities.map((r) => (
+                          <label
+                            key={r.id}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${
+                              editRespIds.includes(r.id)
+                                ? "bg-emerald-500/10 border-emerald-500/30"
+                                : "bg-secondary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editRespIds.includes(r.id)}
+                              onChange={() => toggleResp(r.id)}
+                              className="w-4 h-4 rounded accent-[var(--brand-orange)]"
+                            />
+                            <div>
+                              <p className="text-[10px] font-bold text-[var(--text-primary)]">{r.name}</p>
+                              <p className="text-[7px] text-[var(--text-secondary)]">{r.key}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Members */}
+                    <div className="card space-y-4">
+                      <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                        Members ({groupDetail.member_count})
+                      </h3>
+                      <p className="text-[8px] text-slate-500">
+                        Members are managed via the User Search tab. Select a user and use the Groups section to assign or remove groups.
+                      </p>
+                    </div>
+
+                    {/* Save */}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-30"
+                      >
+                        {saving ? "Saving..." : "Save Group Configuration"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
