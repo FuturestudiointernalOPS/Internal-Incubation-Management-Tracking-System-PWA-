@@ -252,6 +252,48 @@ Confirmé exact : GAP1, GAP2, GAP3, GAP4, GAP5, GAP6, schéma (`v2_messages`/`v2
 
 Corrigé : GAP7/A2 citait `target_type="all"` pour `/api/messages/route.js` — faux, ce champ n'existe pas dans cet endpoint (seulement dans `internal-comms`). Le vrai champ est `recipient_id`. En plus, `messages/route.js` n'appelle jamais `getSession()` — `requireAuth()` valide le rôle mais jamais l'identité → `sender_id` du body totalement non vérifié (usurpation possible), pire que ce que disait le plan initial.
 
+### Re-vérification post `majkevgraph` (01/07/2026, suite)
+
+`majkevgraph` exécuté : `Kev` sync avec `origin/dev` (merge `ebea1e3`, apporte modules Finance + Permission Manager + Group Management — aucun rapport avec M7) + rebuild graphe (`325c096` : 987 nodes, 192 communities, 0€ coût AST-only).
+
+Vérif ciblée : `git diff --stat` entre avant/après merge sur tous les chemins M7 (`internal-comms/`, `messages/`, `contacts/full-state/`, `components/messaging/`, `developer/messages/`, `v2_schema_init.sql`) → **aucune ligne changée**. Le merge dev n'a rien touché côté messagerie, gaps ci-dessus toujours valides tels quels.
+
+Confirmation croisée via graphe (requête locale sur `graphify-out/graph.json`, 0 appel LLM) : node `app_api_internal_comms_route_js` n'expose que `get/post/put` (pas de `delete` → confirme GAP3), node `app_api_messages_route_js` n'expose que `post` (pas de `get` → confirme GAP8/B4 indépendamment du grep initial).
+
+---
+
+## 7. Division du travail — 2 lots parallèles
+
+Découpage par **fichiers disjoints** (zéro fichier partagé entre les 2 lots → zéro conflit de merge possible, travail 100% parallélisable sans point de sync intermédiaire).
+
+### 🔵 Lot 1 — Core Messaging API + Delete (charge la plus lourde)
+Fichiers : `src/app/api/internal-comms/route.js` · `supabase/v2_schema_init.sql` + migration · `src/components/messaging/MessagingChat.js`
+
+| Tâche | Action | Effort |
+|---|---|---|
+| B2 | Migration `ALTER TABLE v2_messages ADD COLUMN is_deleted INTEGER DEFAULT 0` | 5 min |
+| A1 | Guard `target_type="all"` → 403 si non-SA | 5 min |
+| B1 | Endpoint `DELETE` (soft-delete, check `sender_id === session.cid` sauf SA) | 30 min |
+| B3 | UI bouton supprimer (icône poubelle, confirm dialog) | 40 min |
+
+Sous-total : ~1h20. Cohérent de garder B1+B3 ensemble (même personne définit le contrat API et l'UI qui le consomme → pas d'attente cross-lot).
+
+### 🟠 Lot 2 — Sécurité périphérique + bug legacy (charge plus légère mais 3 fichiers indépendants)
+Fichiers : `src/app/api/messages/route.js` · `src/app/api/contacts/full-state/route.js` · `src/app/developer/messages/page.js`
+
+| Tâche | Action | Effort |
+|---|---|---|
+| A3 | `requireAuth(["staff","super_admin"])` sur `/api/contacts/full-state` | 10 min |
+| A2 | Guard `recipient_id="all"` → 403 si non-SA dans `/api/messages/route.js` | 10 min |
+| A4 | Ajouter `getSession()` + check `sender_id === session.cid` (même fichier que A2, à faire ensemble) | 5 min |
+| B4 | Fix bug 405 : `/developer/messages` bascule sur `GET /api/internal-comms?cid=` | 20 min |
+| C4 | (bonus si temps) Décommissionner `/api/messages` une fois B4 fait et plus d'appelant confirmé | 30-60 min |
+
+Sous-total : ~45 min (+ C4 optionnel). Pas équitable en charge (~1h20 vs ~45 min) mais **zéro dépendance croisée** : Lot 2 peut finir, valider (checklist §5) et enchaîner sur C4 pendant que Lot 1 termine le delete + UI.
+
+### Point de sync unique
+Aucun requis avant merge — fichiers disjoints. Seul recoupement : checklist §5 (validation croisée DM/groupe/programme/broadcast) à rejouer une fois les 2 lots mergés dans `Kev`, pas avant.
+
 Ajouté : GAP8 — `/developer/messages/page.js:29` fetch un `GET /api/messages` qui n'existe pas (route n'exporte que `POST`) → 405 silencieux, page toujours vide. Bug réel non détecté par l'investigation initiale. Ajouté comme B4.
 
 ---
