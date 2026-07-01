@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+        "sync-finance": "node scripts/sync-finance.js --syncAll"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
