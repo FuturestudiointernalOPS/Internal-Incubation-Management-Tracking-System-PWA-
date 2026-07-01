@@ -512,6 +512,7 @@ export default function PermissionManager() {
 
   const panelSections = [
     { id: "general", label: "General Information" },
+    { id: "supervisor", label: "Supervisor" },
     { id: "profile", label: "Access Profile" },
     { id: "groups", label: "Groups" },
     { id: "responsibilities", label: "Responsibilities" },
@@ -980,6 +981,65 @@ export default function PermissionManager() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Supervisor ── */}
+                {activePanelSection === "supervisor" && (
+                  <div className="card space-y-4">
+                    <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                      Supervisor Assignment
+                    </h3>
+                    <p className="text-[8px] text-slate-500">
+                      Assign a supervisor who can manage this user\'s access, review tasks, and monitor progress.
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Current Supervisor</p>
+                        <p className="text-xs font-bold text-[var(--text-primary)]">
+                          {userPerms.user.supervisor_cid || "\u2014"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Set Supervisor (CID)</p>
+                        <input
+                          id="supervisor-input"
+                          placeholder="Enter supervisor CID..."
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)]/50"
+                          onKeyDown={async (e) => {
+                            if (e.key === "Enter" && e.target.value.trim()) {
+                              const res = await fetch("/api/engineering/permissions", {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ action: "set_supervisor", user_cid: selectedUser.cid, supervisor_cid: e.target.value.trim() }),
+                              });
+                              const data = await res.json();
+                              if (data.success) { setActionMsg("Supervisor assigned"); selectUser(selectedUser); }
+                              else setActionError(data.error || "Failed");
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const input = document.getElementById("supervisor-input");
+                          if (!input?.value?.trim()) return;
+                          const res = await fetch("/api/engineering/permissions", {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "set_supervisor", user_cid: selectedUser.cid, supervisor_cid: input.value.trim() }),
+                          });
+                          const data = await res.json();
+                          if (data.success) { setActionMsg("Supervisor assigned"); selectUser(selectedUser); }
+                          else setActionError(data.error || "Failed");
+                        }}
+                        className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90"
+                      >
+                        Assign
+                      </button>
                     </div>
                   </div>
                 )}

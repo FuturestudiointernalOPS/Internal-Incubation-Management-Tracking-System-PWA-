@@ -185,6 +185,8 @@ CREATE TABLE IF NOT EXISTS role_access_profile_defaults (
 );
 
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS access_profile_id INTEGER REFERENCES access_profiles(id) ON DELETE SET NULL;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS supervisor_cid TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS profile_completed INTEGER NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_profile_caps_lookup ON access_profile_capabilities(profile_id, module, capability);
 

@@ -498,6 +498,21 @@ export async function PUT(req) {
         });
         break;
 
+      case "set_supervisor":
+        await db.execute({
+          sql: "UPDATE contacts SET supervisor_cid = ? WHERE cid = ?",
+          args: [body.supervisor_cid || null, user_cid],
+        });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "supervisor_assigned",
+          details: `Supervisor set to ${body.supervisor_cid || "none"}`,
+        });
+        break;
+
       case "set_status":
         if (!body.status) {
           return NextResponse.json(
