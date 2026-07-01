@@ -175,6 +175,7 @@ export default function StaffOpReport() {
 
   // Task integration state (Phase 4)
   const [tasks, setTasks] = useState([]);
+  const [carryoverTasks, setCarryoverTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [taskCreationOpen, setTaskCreationOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -964,28 +965,23 @@ export default function StaffOpReport() {
                           setShowStandupModal(true);
                           setWeekInfo(getCurrentWeek());
 
-                          // ─── Compute previous reporting week ───
+                          // ─── Compute current reporting week ───
                           const now = new Date();
                           const curWeek = getWeekNumber(now);
                           const curYear = now.getFullYear();
-                          let prevWeek = curWeek - 1;
-                          let prevYear = curYear;
-                          if (prevWeek < 1) {
-                            prevWeek = 52;
-                            prevYear = curYear - 1;
-                          }
 
-                          // ─── Fetch previous week incomplete tasks from API ───
+                          // ─── Fetch ALL tasks for user and filter past incomplete tasks ───
                           const userId = user?.cid || user?.id;
                           try {
                             const res = await fetch(
-                              `/api/tasks?user_id=${userId}&week=${prevWeek}&year=${prevYear}&sort=oldest`,
+                              `/api/tasks?user_id=${userId}&sort=oldest`,
                             );
                             const data = await res.json();
                             const prevWeekTasks = (data.tasks || []).filter(
                               (t) =>
                                 !["archived", "completed"].includes(t.status) &&
-                                !t.parent_task_id,
+                                !t.parent_task_id &&
+                                (t.created_week !== curWeek || t.created_year !== curYear)
                             );
 
                             if (prevWeekTasks.length > 0) {
@@ -1049,6 +1045,7 @@ export default function StaffOpReport() {
                               setShowTaskForm(false);
                               return;
                             }
+                            setShowTaskForm(false);
                           } catch (e) {
                             console.error(
                               "Failed to fetch previous week tasks:",
@@ -1656,7 +1653,13 @@ export default function StaffOpReport() {
                                                     b.status === "completed"
                                                   )
                                                     return -1;
-                                                  return 0;
+                                                    
+                                                  const aCarryover = a.carried_over_from_task_id !== null || a.status === "carried_over";
+                                                  const bCarryover = b.carried_over_from_task_id !== null || b.status === "carried_over";
+                                                  if (aCarryover && !bCarryover) return -1;
+                                                  if (!aCarryover && bCarryover) return 1;
+
+                                                  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
                                                 })
                                                 .map((task) => {
                                                   const cfg =
@@ -1795,6 +1798,11 @@ export default function StaffOpReport() {
                                                             >
                                                               {task.title}
                                                             </span>
+                                                            {(task.carried_over_from_task_id !== null || task.status === "carried_over") && (
+                                                              <span className="flex items-center gap-1 text-[8px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider ml-2">
+                                                                <Shield className="w-2.5 h-2.5" /> Carryover
+                                                              </span>
+                                                            )}
                                                             {task.subtasks
                                                               ?.length > 0 && (
                                                               <span
@@ -3064,15 +3072,13 @@ export default function StaffOpReport() {
                   <ChevronRight className="w-3.5 h-3.5" />{" "}
                   {t("staff.opReport.carryOverTasks")}
                 </h3>
-                {tasks.filter((t) => t.status === "carried_over").length ===
-                0 ? (
+                {carryoverTasks.length === 0 ? (
                   <p className="text-[10px] text-slate-600 italic py-2">
                     {t("staff.opReport.noCarryOverTasks")}
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {tasks
-                      .filter((t) => t.status === "carried_over")
+                    {carryoverTasks
                       .map((task) => (
                         <div
                           key={task.id}
@@ -3105,17 +3111,37 @@ export default function StaffOpReport() {
                           <div className="flex gap-1 shrink-0">
                             <button
                               onClick={async () => {
+                                // Update old task to 'carried_over'
                                 await fetch("/api/tasks", {
                                   method: "PUT",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
+                                  headers: { "Content-Type": "application/json" },
                                   body: JSON.stringify({
                                     id: task.id,
-                                    status: "in_progress",
+                                    status: "carried_over",
                                     user_id: user?.cid || user?.id,
                                   }),
                                 });
+                                // Clone task to current week
+                                await fetch("/api/tasks", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    title: task.title,
+                                    description: task.description || null,
+                                    project_id: task.project_id || null,
+                                    category: task.category || null,
+                                    user_id: user?.cid || user?.id,
+                                    user_name: user?.name || "",
+                                    status: "in_progress",
+                                    created_week: weekInfo.week,
+                                    created_year: weekInfo.year,
+                                    parent_task_id: null,
+                                    start_date: task.start_date || null,
+                                    end_date: task.end_date || null,
+                                    carried_over_from_task_id: task.id,
+                                  }),
+                                });
+                                setCarryoverTasks(prev => prev.filter(t => t.id !== task.id));
                                 fetchTasks();
                               }}
                               className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
