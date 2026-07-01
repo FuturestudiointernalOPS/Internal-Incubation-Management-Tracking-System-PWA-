@@ -1676,95 +1676,22 @@ export default function StaffOpReport() {
                                                     >
                                                       <td className="px-3 py-2.5 text-center">
                                                         <button
-                                                          onClick={async () => {
-                                                            if (
-                                                              updatingTasks[
-                                                                task.id
-                                                              ]
-                                                            )
-                                                              return;
-                                                            setUpdatingTasks(
-                                                              (p) => ({
-                                                                ...p,
-                                                                [task.id]: true,
+                                                          onClick={() => {
+                                                            setReconciledTasks(
+                                                              (prev) => ({
+                                                                ...prev,
+                                                                [task.id]:
+                                                                  !prev[
+                                                                    task.id
+                                                                  ],
                                                               }),
                                                             );
-                                                            try {
-                                                              const newStatus =
-                                                                task.status ===
-                                                                "completed"
-                                                                  ? "in_progress"
-                                                                  : "completed";
-                                                              // If completing parent, cascade to all sub-tasks
-                                                              if (
-                                                                newStatus ===
-                                                                  "completed" &&
-                                                                task.subtasks
-                                                                  ?.length > 0
-                                                              ) {
-                                                                await Promise.all(
-                                                                  task.subtasks.map(
-                                                                    (st) =>
-                                                                      fetch(
-                                                                        "/api/tasks",
-                                                                        {
-                                                                          method:
-                                                                            "PUT",
-                                                                          headers:
-                                                                            {
-                                                                              "Content-Type":
-                                                                                "application/json",
-                                                                            },
-                                                                          body: JSON.stringify(
-                                                                            {
-                                                                              id: st.id,
-                                                                              status:
-                                                                                "completed",
-                                                                            },
-                                                                          ),
-                                                                        },
-                                                                      ),
-                                                                  ),
-                                                                );
-                                                              }
-                                                              await fetch(
-                                                                "/api/tasks",
-                                                                {
-                                                                  method: "PUT",
-                                                                  headers: {
-                                                                    "Content-Type":
-                                                                      "application/json",
-                                                                  },
-                                                                  body: JSON.stringify(
-                                                                    {
-                                                                      id: task.id,
-                                                                      status:
-                                                                        newStatus,
-                                                                    },
-                                                                  ),
-                                                                },
-                                                              );
-                                                              fetchTasks();
-                                                            } catch (e) {
-                                                              console.error(e);
-                                                            } finally {
-                                                              setUpdatingTasks(
-                                                                (p) => ({
-                                                                  ...p,
-                                                                  [task.id]: false,
-                                                                }),
-                                                              );
-                                                            }
                                                           }}
-                                                          disabled={
-                                                            updatingTasks[
-                                                              task.id
-                                                            ]
-                                                          }
-                                                          className={`w-4 h-4 rounded-full border-2 mx-auto cursor-pointer transition-all hover:scale-110 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"} ${updatingTasks[task.id] ? "opacity-50 animate-pulse" : ""}`}
+                                                          className={`w-4 h-4 rounded-full border-2 mx-auto cursor-pointer transition-all hover:scale-110 ${reconciledTasks[task.id] ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"}`}
                                                         >
-                                                          {task.status ===
-                                                            "completed" && (
+                                                          {reconciledTasks[
+                                                            task.id
+                                                          ] && (
                                                             <CheckCircle2 className="w-3 h-3 text-white" />
                                                           )}
                                                         </button>
@@ -2074,6 +2001,26 @@ export default function StaffOpReport() {
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Retro Submit Buttons */}
+                <div className="flex gap-3 pt-6 border-t border-[var(--border-primary)]">
+                  <button
+                    onClick={() => handleSubmit("draft")}
+                    disabled={saving}
+                    className="flex-1 btn btn-secondary gap-2 py-4"
+                  >
+                    <Save className="w-4 h-4" />
+                    {saving ? t("common.saving") : t("reports.saveDraft")}
+                  </button>
+                  <button
+                    onClick={() => handleSubmit("submitted")}
+                    disabled={saving}
+                    className="flex-1 btn btn-primary gap-2 py-4"
+                  >
+                    <Send className="w-4 h-4" />
+                    {saving ? "Saving..." : "Submit Retro"}
+                  </button>
                 </div>
               </div>
             ) : (
