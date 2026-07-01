@@ -31,6 +31,91 @@ export async function GET(req) {
     const userCid = searchParams.get("user_cid");
     const role = searchParams.get("role");
     const group = searchParams.get("group");
+    const users = searchParams.get("users");
+
+    // Return enriched user list for the table view
+    if (users === "true") {
+      // Fetch all contacts with their enriched data
+      const contactsRes = await db.execute({
+        sql: "SELECT cid, name, email, role, status, access_profile_id, group_name, created_at, invited_at FROM contacts ORDER BY name ASC",
+      });
+
+      // Fetch all user_groups
+      const groupsRes = await db.execute({
+        sql: "SELECT user_cid, group_name FROM user_groups",
+      });
+      const groupMap = {};
+      for (const row of groupsRes.rows) {
+        if (!groupMap[row.user_cid]) groupMap[row.user_cid] = [];
+        groupMap[row.user_cid].push(row.group_name);
+      }
+
+      // Fetch all user responsibilities
+      const respRes = await db.execute({
+        sql: `SELECT ur.user_cid, r.id, r.name, r.key, r.icon
+              FROM user_responsibilities ur
+              JOIN responsibilities r ON r.id = ur.responsibility_id
+              WHERE r.is_active = 1`,
+      });
+      const respMap = {};
+      for (const row of respRes.rows) {
+        if (!respMap[row.user_cid]) respMap[row.user_cid] = [];
+        respMap[row.user_cid].push({ id: row.id, name: row.name, key: row.key, icon: row.icon });
+      }
+
+      // Fetch all access profiles
+      const profileRes = await db.execute({
+        sql: "SELECT id, name, description FROM access_profiles WHERE is_active = 1",
+      });
+      const profileMap = {};
+      for (const row of profileRes.rows) {
+        profileMap[row.id] = row;
+      }
+
+      // Fetch role-to-profile defaults
+      const roleProfileRes = await db.execute({
+        sql: `SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
+              FROM role_access_profile_defaults rpd
+              JOIN access_profiles ap ON ap.id = rpd.access_profile_id`,
+      });
+      const roleProfileMap = {};
+      for (const row of roleProfileRes.rows) {
+        roleProfileMap[row.role_name] = { id: row.profile_id, name: row.profile_name };
+      }
+
+      // Build enriched users
+      const enrichedUsers = contactsRes.rows.map((u) => {
+        let profile = null;
+        // Check explicit profile assignment
+        if (u.access_profile_id && profileMap[u.access_profile_id]) {
+          profile = { id: u.access_profile_id, name: profileMap[u.access_profile_id].name, source: "user" };
+        }
+        // Fall back to role default
+        if (!profile && roleProfileMap[u.role]) {
+          profile = { id: roleProfileMap[u.role].id, name: roleProfileMap[u.role].name, source: "role" };
+        }
+        // Merge groups from user_groups + legacy group_name
+        const groups = groupMap[u.cid] || [];
+        if (u.group_name && !groups.includes(u.group_name)) {
+          groups.unshift(u.group_name);
+        }
+
+        return {
+          cid: u.cid,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          status: u.status,
+          access_profile: profile,
+          groups,
+          responsibilities: respMap[u.cid] || [],
+          created_at: u.created_at,
+          invited_at: u.invited_at,
+        };
+      });
+
+      return NextResponse.json({ success: true, users: enrichedUsers });
+    }
 
     // Return full modules definition
     if (!userCid && !role && !group) {

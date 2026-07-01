@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Edit3,
   Trash2,
+  Archive,
   Link as LinkIcon,
   Copy,
 } from "lucide-react";
@@ -85,6 +86,17 @@ export default function TaskManager({
         setCurrentUserId(JSON.parse(saved).cid || JSON.parse(saved).id || null);
     } catch (_) {}
   }, []);
+
+  // Compute effective week info — fallback to current ISO week if not provided
+  const effectiveWeekInfo = useMemo(() => {
+    if (weekInfo?.week && weekInfo?.year) return weekInfo;
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const days = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
+    const week = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+    return { week, year: now.getFullYear() };
+  }, [weekInfo]);
+
   const [tasks, setTasks] = useState([]);
   const [expandedTasks, setExpandedTasks] = useState({});
   const [updatingTasks, setUpdatingTasks] = useState({});
@@ -153,7 +165,11 @@ export default function TaskManager({
       const res = await fetch("/api/tasks/resources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task_id: taskId, name: resourceForm.name, url: resourceForm.url })
+        body: JSON.stringify({
+          task_id: taskId,
+          name: resourceForm.name,
+          url: resourceForm.url,
+        }),
       });
       if (res.ok) {
         if (onTasksChange) onTasksChange();
@@ -170,7 +186,9 @@ export default function TaskManager({
   const handleDeleteResource = async (resourceId) => {
     if (!window.confirm("Delete this resource link?")) return;
     try {
-      const res = await fetch(`/api/tasks/resources?id=${resourceId}`, { method: "DELETE" });
+      const res = await fetch(`/api/tasks/resources?id=${resourceId}`, {
+        method: "DELETE",
+      });
       if (res.ok) {
         if (onTasksChange) onTasksChange();
       }
@@ -219,7 +237,7 @@ export default function TaskManager({
   // ── API: Create task ──
   const createTask = useCallback(
     async (taskData) => {
-      const week = weekInfo || { week: 0, year: 0 };
+      const week = effectiveWeekInfo || { week: 0, year: 0 };
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -240,7 +258,7 @@ export default function TaskManager({
       });
       return await res.json();
     },
-    [uid, userName, weekInfo],
+    [uid, userName, effectiveWeekInfo],
   );
 
   // ── Submit new task from form ──
@@ -260,7 +278,7 @@ export default function TaskManager({
       parent_task_id: pendingParentTaskId || null,
       start_date: form.start_date || null,
       due_date: form.due_date || null,
-    link: form.link || null,
+      link: form.link || null,
     });
 
     if (data.success) {
@@ -343,20 +361,22 @@ export default function TaskManager({
 
   // ── Tasks grouped by relevance ──
   const filteredTasks = useMemo(() => {
-    if (mode === "standup" && weekInfo) {
+    if (mode === "standup" && effectiveWeekInfo) {
       return tasks.filter(
         (t) =>
-          t.created_week === weekInfo.week && t.created_year === weekInfo.year,
+          t.created_week === effectiveWeekInfo.week &&
+          t.created_year === effectiveWeekInfo.year,
       );
     }
     return tasks;
-  }, [tasks, mode, weekInfo]);
+  }, [tasks, mode, effectiveWeekInfo]);
 
   const carryOverTasks = useMemo(
     () =>
       filteredTasks.filter(
         (t) =>
-          (t.carried_over_from_task_id !== null || t.status === "carried_over") &&
+          (t.carried_over_from_task_id !== null ||
+            t.status === "carried_over") &&
           !t.parent_task_id,
       ),
     [filteredTasks],
@@ -554,20 +574,52 @@ export default function TaskManager({
             </button>
           }
 
-          {/* Delete button — parent AND sub tasks */}
-          {
-            <button
-              onClick={async () => {
-                if (!window.confirm(`Delete task "${task.title}"?`)) return;
-                await fetch(`/api/tasks?id=${task.id}`, { method: "DELETE" });
-                if (onTasksChange) onTasksChange();
-              }}
-              className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
-              title="Delete task"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          }
+          {/* Archive button for past-week tasks, Delete for current week */}
+          {(() => {
+            const isPastWeek =
+              effectiveWeekInfo &&
+              (task.created_week !== effectiveWeekInfo.week ||
+                task.created_year !== effectiveWeekInfo.year);
+
+            if (isPastWeek) {
+              return (
+                <button
+                  onClick={async () => {
+                    if (
+                      !window.confirm(
+                        `Archive task "${task.title}"? This will hide it from active views.`,
+                      )
+                    )
+                      return;
+                    await fetch(`/api/tasks?id=${task.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: "archived" }),
+                    });
+                    if (onTasksChange) onTasksChange();
+                  }}
+                  className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
+                  title="Archive task"
+                >
+                  <Archive className="w-3 h-3" />
+                </button>
+              );
+            }
+
+            return (
+              <button
+                onClick={async () => {
+                  if (!window.confirm(`Delete task "${task.title}"?`)) return;
+                  await fetch(`/api/tasks?id=${task.id}`, { method: "DELETE" });
+                  if (onTasksChange) onTasksChange();
+                }}
+                className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
+                title="Delete task"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            );
+          })()}
 
           {/* Move up/down buttons */}
           {!isSub && (
@@ -592,17 +644,35 @@ export default function TaskManager({
 
         {/* Resources Section */}
         {task.resources && task.resources.length > 0 && (
-          <div className={`mt-1 flex flex-col gap-1 ${isSub ? "ml-10" : "ml-8"}`}>
-            {task.resources.map(r => (
+          <div
+            className={`mt-1 flex flex-col gap-1 ${isSub ? "ml-10" : "ml-8"}`}
+          >
+            {task.resources.map((r) => (
               <div key={r.id} className="flex items-center gap-2 group">
-                <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--brand-orange)] hover:underline flex items-center gap-1 max-w-[200px] truncate">
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-[var(--brand-orange)] hover:underline flex items-center gap-1 max-w-[200px] truncate"
+                >
                   <LinkIcon className="w-2.5 h-2.5 shrink-0" />
                   {r.name || r.url}
                 </a>
-                <button onClick={() => { navigator.clipboard.writeText(r.url); alert("URL copied!"); }} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-emerald-400 transition-opacity" title="Copy URL">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(r.url);
+                    alert("URL copied!");
+                  }}
+                  className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-emerald-400 transition-opacity"
+                  title="Copy URL"
+                >
                   <Copy className="w-2.5 h-2.5" />
                 </button>
-                <button onClick={() => handleDeleteResource(r.id)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity" title="Remove URL">
+                <button
+                  onClick={() => handleDeleteResource(r.id)}
+                  className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity"
+                  title="Remove URL"
+                >
                   <Trash2 className="w-2.5 h-2.5" />
                 </button>
               </div>
@@ -611,19 +681,54 @@ export default function TaskManager({
         )}
 
         {addResourceTaskId === task.id && (
-          <div className={`mt-1 p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] flex flex-col gap-2 ${isSub ? "ml-10" : "ml-8"} w-fit min-w-[250px]`}>
-            <input type="text" placeholder="Resource Name (optional)" value={resourceForm.name} onChange={e => setResourceForm(p => ({...p, name: e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none" />
-            <input type="url" placeholder="https://..." value={resourceForm.url} onChange={e => setResourceForm(p => ({...p, url: e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none" autoFocus />
+          <div
+            className={`mt-1 p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] flex flex-col gap-2 ${isSub ? "ml-10" : "ml-8"} w-fit min-w-[250px]`}
+          >
+            <input
+              type="text"
+              placeholder="Resource Name (optional)"
+              value={resourceForm.name}
+              onChange={(e) =>
+                setResourceForm((p) => ({ ...p, name: e.target.value }))
+              }
+              className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+            />
+            <input
+              type="url"
+              placeholder="https://..."
+              value={resourceForm.url}
+              onChange={(e) =>
+                setResourceForm((p) => ({ ...p, url: e.target.value }))
+              }
+              className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+              autoFocus
+            />
             <div className="flex gap-1 justify-end">
-              <button onClick={() => setAddResourceTaskId(null)} className="px-2 py-1 text-[8px] font-bold text-slate-500 uppercase">Cancel</button>
-              <button onClick={() => handleAddResource(task.id)} disabled={!resourceForm.url || resourceAdding} className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase">{resourceAdding ? "Saving" : "Save"}</button>
+              <button
+                onClick={() => setAddResourceTaskId(null)}
+                className="px-2 py-1 text-[8px] font-bold text-slate-500 uppercase"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleAddResource(task.id)}
+                disabled={!resourceForm.url || resourceAdding}
+                className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase"
+              >
+                {resourceAdding ? "Saving" : "Save"}
+              </button>
             </div>
           </div>
         )}
 
         {/* Action Buttons Row */}
-        <div className={`mt-1 flex items-center gap-3 ${isSub ? "ml-10" : "ml-8"}`}>
-          <button onClick={() => setAddResourceTaskId(task.id)} className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors">
+        <div
+          className={`mt-1 flex items-center gap-3 ${isSub ? "ml-10" : "ml-8"}`}
+        >
+          <button
+            onClick={() => setAddResourceTaskId(task.id)}
+            className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors"
+          >
             <Plus className="w-2.5 h-2.5" /> Resource
           </button>
           {!isSub && (
@@ -655,7 +760,8 @@ export default function TaskManager({
       {showCarryOver && carryOverTasks.length > 0 && (
         <div>
           <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Shield className="w-3 h-3" /> Carryover Tasks ({carryOverTasks.length})
+            <Shield className="w-3 h-3" /> Carryover Tasks (
+            {carryOverTasks.length})
           </h4>
           <div className="space-y-0.5">
             {carryOverTasks.map((t) => renderTaskRow(t))}
@@ -970,14 +1076,26 @@ export default function TaskManager({
                 autoFocus
               />
               <div className="grid grid-cols-2 gap-2">
-                <input type="date" value={subTaskStartDate} onChange={(e) => setSubTaskStartDate(e.target.value)}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
-                <input type="date" value={subTaskEndDate} onChange={(e) => setSubTaskEndDate(e.target.value)}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+                <input
+                  type="date"
+                  value={subTaskStartDate}
+                  onChange={(e) => setSubTaskStartDate(e.target.value)}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+                <input
+                  type="date"
+                  value={subTaskEndDate}
+                  onChange={(e) => setSubTaskEndDate(e.target.value)}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
               </div>
-              <input type="url" value={subTaskLink} onChange={(e) => setSubTaskLink(e.target.value)}
+              <input
+                type="url"
+                value={subTaskLink}
+                onChange={(e) => setSubTaskLink(e.target.value)}
                 placeholder="Link (optional)..."
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+              />
               <div className="flex gap-2">
                 <button
                   onClick={addSubTaskFromModal}

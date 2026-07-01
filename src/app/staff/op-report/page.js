@@ -508,7 +508,12 @@ export default function StaffOpReport() {
       for (const row of sortedRows) {
         if (!row.name.trim()) continue;
         // Skip rows that already exist in DB unless they are carryovers waiting to be created for the new week
-        if (row.status !== null && row.status !== undefined && !row.is_carryover) continue;
+        if (
+          row.status !== null &&
+          row.status !== undefined &&
+          !row.is_carryover
+        )
+          continue;
 
         // Resolve the real parent_task_id: if the parent was just created in this batch,
         // use the real DB ID; otherwise use the provided parent_task_id as-is
@@ -527,7 +532,9 @@ export default function StaffOpReport() {
             category: row.category || null,
             user_id: userId,
             user_name: user.name || "",
-            status: row.is_carryover ? (row.status || "in_progress") : "in_progress",
+            status: row.is_carryover
+              ? row.status || "in_progress"
+              : "in_progress",
             created_week: weekData.week,
             created_year: weekData.year,
             parent_task_id: resolvedParentId,
@@ -939,7 +946,7 @@ export default function StaffOpReport() {
                     (r) =>
                       r.report_type === "standup" &&
                       r.week_number === cw.week &&
-                      r.year === cw.year
+                      r.year === cw.year,
                   );
                   return (
                     <div className="flex items-center justify-between">
@@ -1011,7 +1018,12 @@ export default function StaffOpReport() {
                                 });
                                 if (t.subtasks?.length > 0) {
                                   for (const st of t.subtasks) {
-                                    if (["archived", "completed"].includes(st.status)) continue;
+                                    if (
+                                      ["archived", "completed"].includes(
+                                        st.status,
+                                      )
+                                    )
+                                      continue;
                                     allTaskRows.push({
                                       id: st.id,
                                       is_carryover: true,
@@ -1038,7 +1050,10 @@ export default function StaffOpReport() {
                               return;
                             }
                           } catch (e) {
-                            console.error("Failed to fetch previous week tasks:", e);
+                            console.error(
+                              "Failed to fetch previous week tasks:",
+                              e,
+                            );
                           }
                           setShowTaskForm(true);
                         }}
@@ -1049,7 +1064,9 @@ export default function StaffOpReport() {
                         }`}
                         disabled={hasCurrentWeekStandup}
                       >
-                        <><Plus className="w-4 h-4" /> Create New Standup</>
+                        <>
+                          <Plus className="w-4 h-4" /> Create New Standup
+                        </>
                       </button>
                     </div>
                   );
@@ -1469,7 +1486,9 @@ export default function StaffOpReport() {
                               }}
                               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                             >
-                              <><Plus className="w-4 h-4" /> Create New Standup</>
+                              <>
+                                <Plus className="w-4 h-4" /> Create New Standup
+                              </>
                             </button>
                           </td>
                         </tr>
@@ -3298,7 +3317,7 @@ export default function StaffOpReport() {
                           </p>
                         )}
                       </div>
-                      {b.status === "Active" ? (
+                      {b.status?.toLowerCase() === "active" ? (
                         <button
                           onClick={async () => {
                             if (blockerModal.type === "api") {

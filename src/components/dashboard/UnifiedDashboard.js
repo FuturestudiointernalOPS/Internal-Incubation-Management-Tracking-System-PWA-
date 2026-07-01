@@ -325,11 +325,12 @@ export default function UnifiedDashboard({ role: propRole }) {
   const handleResolveBlocker = async (blockerId) => {
     setResolvingBlocker(blockerId);
     try {
-      await fetch("/api/admin/blockers", {
+      await fetch("/api/blockers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: blockerId,
+          status: "resolved",
           resolved_by: user.cid || user.id,
         }),
       });
@@ -781,7 +782,14 @@ export default function UnifiedDashboard({ role: propRole }) {
                   {attention.overdueTasks.slice(0, 5).map((t) => (
                     <div
                       key={t.id}
-                      onClick={() => { const r = user?.role === "super_admin" || user?.role === "developer" ? "admin" : "staff"; router.push("/" + r + "/op-report"); }}
+                      onClick={() => {
+                        const r =
+                          user?.role === "super_admin" ||
+                          user?.role === "developer"
+                            ? "admin"
+                            : "staff";
+                        router.push("/" + r + "/op-report");
+                      }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 cursor-pointer hover:brightness-110 transition-all"
                     >
                       <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
@@ -864,7 +872,14 @@ export default function UnifiedDashboard({ role: propRole }) {
                   {attention.dueToday.map((t) => (
                     <div
                       key={t.id}
-                      onClick={() => { const r = user?.role === "super_admin" || user?.role === "developer" ? "admin" : "staff"; router.push("/" + r + "/op-report"); }}
+                      onClick={() => {
+                        const r =
+                          user?.role === "super_admin" ||
+                          user?.role === "developer"
+                            ? "admin"
+                            : "staff";
+                        router.push("/" + r + "/op-report");
+                      }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 cursor-pointer hover:brightness-110 transition-all"
                     >
                       <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
@@ -1008,7 +1023,14 @@ export default function UnifiedDashboard({ role: propRole }) {
                     {quickAccess.tasks?.slice(0, 6).map((t) => (
                       <div
                         key={t.id}
-                        onClick={() => { const r = user?.role === "super_admin" || user?.role === "developer" ? "admin" : "staff"; router.push("/" + r + "/op-report"); }}
+                        onClick={() => {
+                          const r =
+                            user?.role === "super_admin" ||
+                            user?.role === "developer"
+                              ? "admin"
+                              : "staff";
+                          router.push("/" + r + "/op-report");
+                        }}
                         className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
                       >
                         <div

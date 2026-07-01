@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Shield,
   Search,
@@ -73,10 +73,15 @@ const MODULE_CATEGORIES = [
 
 export default function PermissionManager() {
   const [activeTab, setActiveTab] = useState("search");
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [allUsers, setAllUsers] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
+  const [sortField, setSortField] = useState("name");
+  const [sortDir, setSortDir] = useState("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPerms, setUserPerms] = useState(null);
   const [loadingPerms, setLoadingPerms] = useState(false);
@@ -91,10 +96,78 @@ export default function PermissionManager() {
 
   // Load all users when search tab is active
   useEffect(() => {
-    if (activeTab === "search" && searchResults.length === 0 && !selectedUser) {
-      fetchAllUsers();
+    if (activeTab === "search" && users.length === 0 && !selectedUser) {
+      fetchUsers();
     }
   }, [activeTab]);
+
+  // Filtered, sorted, paginated users
+  const filteredUsers = useMemo(() => {
+    let result = [...users];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (u) =>
+          (u.name || "").toLowerCase().includes(q) ||
+          (u.email || "").toLowerCase().includes(q) ||
+          (u.cid || "").toLowerCase().includes(q),
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      result = result.filter((u) => u.status === statusFilter);
+    }
+
+    // Role filter
+    if (roleFilter !== "all") {
+      result = result.filter((u) => u.role === roleFilter);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let aVal, bVal;
+      if (sortField === "name") {
+        aVal = (a.name || "").toLowerCase();
+        bVal = (b.name || "").toLowerCase();
+      } else if (sortField === "email") {
+        aVal = (a.email || "").toLowerCase();
+        bVal = (b.email || "").toLowerCase();
+      } else if (sortField === "status") {
+        aVal = a.status || "";
+        bVal = b.status || "";
+      } else if (sortField === "role") {
+        aVal = a.role || "";
+        bVal = b.role || "";
+      } else if (sortField === "access_profile") {
+        aVal = (a.access_profile?.name || "").toLowerCase();
+        bVal = (b.access_profile?.name || "").toLowerCase();
+      } else if (sortField === "groups") {
+        aVal = (a.groups?.[0] || "").toLowerCase();
+        bVal = (b.groups?.[0] || "").toLowerCase();
+      } else if (sortField === "responsibilities") {
+        aVal = (a.responsibilities?.[0]?.name || "").toLowerCase();
+        bVal = (b.responsibilities?.[0]?.name || "").toLowerCase();
+      } else {
+        aVal = a[sortField] || "";
+        bVal = b[sortField] || "";
+      }
+      if (typeof aVal === "string") {
+        return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+    });
+
+    return result;
+  }, [users, searchQuery, statusFilter, roleFilter, sortField, sortDir]);
+
+  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+  const pagedUsers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredUsers.slice(start, start + pageSize);
+  }, [filteredUsers, currentPage, pageSize]);
 
   const fetchModules = async () => {
     try {
@@ -106,42 +179,19 @@ export default function PermissionManager() {
     }
   };
 
-  const fetchAllUsers = async () => {
-    setSearching(true);
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
     try {
-      const res = await fetch("/api/contacts");
+      const res = await fetch("/api/engineering/permissions?users=true");
       const data = await res.json();
       if (data.success) {
-        // Sort: active first, then by name
-        const sorted = (data.contacts || []).sort((a, b) => {
-          if (a.status === "active" && b.status !== "active") return -1;
-          if (a.status !== "active" && b.status === "active") return 1;
-          return (a.name || "").localeCompare(b.name || "");
-        });
-        setAllUsers(sorted);
-        setSearchResults(sorted);
+        setUsers(data.users || []);
       }
     } catch (e) {
-      console.error("Failed to fetch users", e);
+      console.error("Failed to fetch enriched users", e);
     } finally {
-      setSearching(false);
+      setLoadingUsers(false);
     }
-  };
-
-  const searchUsers = (query) => {
-    setSearchQuery(query);
-    if (!query.trim()) {
-      setSearchResults(allUsers);
-      return;
-    }
-    const q = query.toLowerCase();
-    const filtered = allUsers.filter(
-      (u) =>
-        (u.name || "").toLowerCase().includes(q) ||
-        (u.email || "").toLowerCase().includes(q) ||
-        (u.cid || "").toLowerCase().includes(q),
-    );
-    setSearchResults(filtered);
   };
 
   const selectUser = async (user) => {
@@ -359,194 +409,414 @@ export default function PermissionManager() {
           </button>
         </div>
 
-        {activeTab === "search" && (
+        {activeTab === "search" && !selectedUser && (
           <div className="space-y-6">
-            {/* Search */}
-            <div className="flex gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => searchUsers(e.target.value)}
-                  placeholder="Search by name, email, or CID..."
-                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-20">
+                <div
+                  className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+                  style={{
+                    borderColor: "rgba(255,102,0,0.1)",
+                    borderTopColor: "var(--brand-orange)",
+                  }}
                 />
               </div>
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setSearchResults(allUsers);
-                }}
-                className="px-4 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
-              >
-                Clear
-              </button>
-            </div>
-
-            {/* Results */}
-            {searchResults.length > 0 && !selectedUser && (
-              <div className="space-y-1">
-                {searchResults.map((u) => (
-                  <button
-                    key={u.cid}
-                    onClick={() => selectUser(u)}
-                    className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                        <User className="w-5 h-5 text-[var(--brand-orange)]" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                          {u.name}
-                        </p>
-                        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {u.email} · {u.role} · {u.status}
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* User Permission Panel */}
-            {selectedUser && userPerms && (
-              <div className="space-y-6">
-                {/* User info bar */}
-                <div className="ios-card !p-5 border-[var(--border-primary)] flex items-center justify-between bg-secondary/50">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
-                      <User className="w-7 h-7 text-[var(--brand-orange)]" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
-                        {userPerms.user.name}
-                      </p>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                        {userPerms.user.email}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
-                          {userPerms.user.role}
-                        </span>
-                        {(userPerms.groups || []).map((g) => (
-                          <span
-                            key={g}
-                            className="text-[8px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
-                          >
-                            {g}
-                          </span>
-                        ))}
-                        {userPerms.effectiveProfile && (
-                          <span
-                            className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                              userPerms.effectiveProfile.source === "user"
-                                ? "bg-purple-500/10 text-purple-400"
-                                : userPerms.effectiveProfile.source === "role"
-                                  ? "bg-teal-500/10 text-teal-400"
-                                  : "bg-slate-500/10 text-slate-400"
-                            }`}
-                            title={`Source: ${userPerms.effectiveProfile.source}${userPerms.effectiveProfile.profileName ? ` — ${userPerms.effectiveProfile.profileName}` : " — legacy role_capabilities"}`}
-                          >
-                            {userPerms.effectiveProfile.profileName || "Legacy"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {userPerms.user.role !== "super_admin" ? (
-                      <button
-                        onClick={async () => {
-                          setActionMsg("");
-                          setActionError("");
-                          try {
-                            const res = await fetch(
-                              "/api/engineering/permissions",
-                              {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  action: "promote_super_admin",
-                                  user_cid: selectedUser.cid,
-                                }),
-                              },
-                            );
-                            const data = await res.json();
-                            if (data.success) {
-                              setActionMsg("Promoted to Super Admin");
-                              selectUser(selectedUser);
-                            } else setActionError(data.error || "Failed");
-                          } catch (e) {
-                            setActionError("Network error");
-                          }
-                        }}
-                        className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all"
-                      >
-                        <Shield className="w-3 h-3 inline mr-1" />
-                        Make Super Admin
-                      </button>
-                    ) : (
-                      <button
-                        onClick={async () => {
-                          setActionMsg("");
-                          setActionError("");
-                          try {
-                            const res = await fetch(
-                              "/api/engineering/permissions",
-                              {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  action: "remove_super_admin",
-                                  user_cid: selectedUser.cid,
-                                }),
-                              },
-                            );
-                            const data = await res.json();
-                            if (data.success) {
-                              setActionMsg("Super Admin status removed");
-                              selectUser(selectedUser);
-                            } else setActionError(data.error || "Failed");
-                          } catch (e) {
-                            setActionError("Network error");
-                          }
-                        }}
-                        className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
-                      >
-                        <Shield className="w-3 h-3 inline mr-1" />
-                        Remove Super Admin
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        setSelectedUser(null);
-                        setUserPerms(null);
+            ) : (
+              <>
+                {/* Filters Row */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative flex-1 min-w-[250px] max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                    <input
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setCurrentPage(1);
                       }}
-                      className="p-2 hover:bg-tertiary rounded-lg transition-all"
-                    >
-                      <X className="w-4 h-4 text-[var(--text-secondary)]" />
-                    </button>
+                      placeholder="Search by name, email, or CID..."
+                      className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[var(--text-primary)] font-bold text-xs outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => {
+                      setRoleFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[var(--text-primary)] font-bold text-xs outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  >
+                    <option value="all">All Roles</option>
+                    {[...new Set(users.map((u) => u.role).filter(Boolean))].sort().map((r) => (
+                      <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
+                    {filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                {/* Table */}
+                <div className="card !p-0 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-[var(--border-primary)]">
+                          {[
+                            { key: "name", label: "Name" },
+                            { key: "email", label: "Email" },
+                            { key: "status", label: "Status" },
+                            { key: "role", label: "Role" },
+                            { key: "access_profile", label: "Access Profile" },
+                            { key: "groups", label: "Groups" },
+                            { key: "responsibilities", label: "Responsibilities" },
+                          ].map((col) => (
+                            <th
+                              key={col.key}
+                              onClick={() => {
+                                if (sortField === col.key) {
+                                  setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                                } else {
+                                  setSortField(col.key);
+                                  setSortDir("asc");
+                                }
+                              }}
+                              className="text-left p-4 text-[8px] font-black uppercase tracking-widest cursor-pointer hover:opacity-80 transition-all"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              {col.label}
+                              {sortField === col.key && (
+                                <span className="ml-1">{sortDir === "asc" ? "\u25B2" : "\u25BC"}</span>
+                              )}
+                            </th>
+                          ))}
+                          <th
+                            className="text-center p-4 text-[8px] font-black uppercase tracking-widest"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedUsers.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={8}
+                              className="p-12 text-center text-[10px] font-bold text-[var(--text-secondary)]"
+                            >
+                              No users found matching your filters.
+                            </td>
+                          </tr>
+                        ) : (
+                          pagedUsers.map((u) => (
+                            <tr
+                              key={u.cid}
+                              onClick={() => selectUser(u)}
+                              className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                            >
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                                    <User className="w-4 h-4 text-[var(--brand-orange)]" />
+                                  </div>
+                                  <span className="text-xs font-bold text-[var(--text-primary)]">
+                                    {u.name}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span className="text-[10px] text-[var(--text-secondary)]">
+                                  {u.email}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <span
+                                  className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                                    u.status === "active"
+                                      ? "bg-emerald-500/10 text-emerald-500"
+                                      : u.status === "pending"
+                                        ? "bg-amber-500/10 text-amber-500"
+                                        : "bg-rose-500/10 text-rose-500"
+                                  }`}
+                                >
+                                  {u.status}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <span className="text-[10px] font-bold uppercase tracking-tight text-[var(--text-primary)]">
+                                  {u.role?.replace(/_/g, " ")}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                {u.access_profile ? (
+                                  <span
+                                    className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                      u.access_profile.source === "user"
+                                        ? "bg-purple-500/10 text-purple-400"
+                                        : "bg-teal-500/10 text-teal-400"
+                                    }`}
+                                  >
+                                    {u.access_profile.name}
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] text-slate-500 italic">
+                                    Legacy
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-4">
+                                <div className="flex flex-wrap gap-1">
+                                  {u.groups?.length > 0 ? (
+                                    u.groups.slice(0, 2).map((g) => (
+                                      <span
+                                        key={g}
+                                        className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
+                                      >
+                                        {g.length > 14 ? g.substring(0, 14) + "\u2026" : g}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-[7px] text-slate-500">\u2014</span>
+                                  )}
+                                  {u.groups?.length > 2 && (
+                                    <span className="text-[7px] text-slate-500">+{u.groups.length - 2}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex flex-wrap gap-1">
+                                  {u.responsibilities?.length > 0 ? (
+                                    u.responsibilities.slice(0, 2).map((r) => (
+                                      <span
+                                        key={r.id}
+                                        className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 uppercase tracking-wider"
+                                      >
+                                        {r.name.length > 14 ? r.name.substring(0, 14) + "\u2026" : r.name}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-[7px] text-slate-500">\u2014</span>
+                                  )}
+                                  {u.responsibilities?.length > 2 && (
+                                    <span className="text-[7px] text-slate-500">+{u.responsibilities.length - 2}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="text-center p-4">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    selectUser(u);
+                                  }}
+                                  className="text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black hover:opacity-90 transition-all"
+                                >
+                                  Manage
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
-                {/* Status messages */}
-                {actionMsg && (
-                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                    <p className="text-[10px] font-bold text-emerald-400">
-                      {actionMsg}
-                    </p>
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-30"
+                      >
+                        Prev
+                      </button>
+                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                        const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+                        const page = start + i;
+                        if (page > totalPages) return null;
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-8 h-8 rounded-lg text-[9px] font-black transition-all ${
+                              page === currentPage
+                                ? "bg-[var(--brand-orange)] text-black"
+                                : "bg-secondary border border-[var(--border-primary)] hover:bg-tertiary"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-30"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 )}
-                {actionError && (
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                    <p className="text-[10px] font-bold text-red-400">
-                      {actionError}
-                    </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* User Detail Panel — preserved for Module 2 */}
+        {activeTab === "search" && selectedUser && userPerms && (
+          <div className="space-y-6">
+            {/* User info bar */}
+            <div className="ios-card !p-5 border-[var(--border-primary)] flex items-center justify-between bg-secondary/50">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
+                  <User className="w-7 h-7 text-[var(--brand-orange)]" />
+                </div>
+                <div>
+                  <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
+                    {userPerms.user.name}
+                  </p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    {userPerms.user.email}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
+                      {userPerms.user.role}
+                    </span>
+                    {(userPerms.groups || []).map((g) => (
+                      <span
+                        key={g}
+                        className="text-[8px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
+                      >
+                        {g}
+                      </span>
+                    ))}
+                    {userPerms.effectiveProfile && (
+                      <span
+                        className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                          userPerms.effectiveProfile.source === "user"
+                            ? "bg-purple-500/10 text-purple-400"
+                            : userPerms.effectiveProfile.source === "role"
+                              ? "bg-teal-500/10 text-teal-400"
+                              : "bg-slate-500/10 text-slate-400"
+                        }`}
+                        title={`Source: ${userPerms.effectiveProfile.source}${userPerms.effectiveProfile.profileName ? ` \u2014 ${userPerms.effectiveProfile.profileName}` : " \u2014 legacy role_capabilities"}`}
+                      >
+                        {userPerms.effectiveProfile.profileName || "Legacy"}
+                      </span>
+                    )}
                   </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {userPerms.user.role !== "super_admin" ? (
+                  <button
+                    onClick={async () => {
+                      setActionMsg("");
+                      setActionError("");
+                      try {
+                        const res = await fetch(
+                          "/api/engineering/permissions",
+                          {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              action: "promote_super_admin",
+                              user_cid: selectedUser.cid,
+                            }),
+                          },
+                        );
+                        const data = await res.json();
+                        if (data.success) {
+                          setActionMsg("Promoted to Super Admin");
+                          selectUser(selectedUser);
+                        } else setActionError(data.error || "Failed");
+                      } catch (e) {
+                        setActionError("Network error");
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all"
+                  >
+                    <Shield className="w-3 h-3 inline mr-1" />
+                    Make Super Admin
+                  </button>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      setActionMsg("");
+                      setActionError("");
+                      try {
+                        const res = await fetch(
+                          "/api/engineering/permissions",
+                          {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              action: "remove_super_admin",
+                              user_cid: selectedUser.cid,
+                            }),
+                          },
+                        );
+                        const data = await res.json();
+                        if (data.success) {
+                          setActionMsg("Super Admin status removed");
+                          selectUser(selectedUser);
+                        } else setActionError(data.error || "Failed");
+                      } catch (e) {
+                        setActionError("Network error");
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
+                  >
+                    <Shield className="w-3 h-3 inline mr-1" />
+                    Remove Super Admin
+                  </button>
                 )}
+                <button
+                  onClick={() => {
+                    setSelectedUser(null);
+                    setUserPerms(null);
+                  }}
+                  className="p-2 hover:bg-tertiary rounded-lg transition-all"
+                >
+                  <X className="w-4 h-4 text-[var(--text-secondary)]" />
+                </button>
+              </div>
+            </div>
+
+            {/* Status messages */}
+            {actionMsg && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <p className="text-[10px] font-bold text-emerald-400">
+                  {actionMsg}
+                </p>
+              </div>
+            )}
+            {actionError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                <p className="text-[10px] font-bold text-red-400">
+                  {actionError}
+                </p>
+              </div>
+            )}
 
                 {/* Legend */}
                 <div className="flex items-center gap-4 text-[8px] font-bold text-slate-500 uppercase tracking-wider">
