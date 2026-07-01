@@ -155,6 +155,7 @@ export default function StaffOpReport() {
     // Retro fields (structured)
     completed_work: [],
     unfinished_tasks: [],
+    challenges: "",
     week_status: "",
     had_blockers: null,
     blocker_type: "",
@@ -2397,22 +2398,22 @@ export default function StaffOpReport() {
                               </div>
                               {expanded && (
                                 <div className="space-y-1.5 pt-2 border-t border-[var(--border-primary)]/30">
-                                  {projectTasks.map((t) => {
+                                  {projectTasks.map((projTask) => {
                                     const tCfg =
-                                      STATUS_CONFIG[t.status] ||
+                                      STATUS_CONFIG[projTask.status] ||
                                       STATUS_CONFIG.pending;
                                     return (
                                       <div
-                                        key={t.id}
+                                        key={projTask.id}
                                         className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-tertiary/50"
                                       >
                                         <span className="text-[10px] font-medium text-[var(--text-primary)]">
-                                          {t.title}
+                                          {projTask.title}
                                         </span>
                                         <span
                                           className={`text-[8px] px-1.5 py-0.5 rounded-full ${tCfg.bg} ${tCfg.color}`}
                                         >
-                                          {t(statusLabelKey(t.status))}
+                                          {t(statusLabelKey(projTask.status))}
                                         </span>
                                       </div>
                                     );
@@ -2785,6 +2786,76 @@ export default function StaffOpReport() {
                         );
                       })()}
                     </div>
+
+                    {/* Save Carry-Over Reasons — hidden when no tasks to report */}
+                    {(() => {
+                      const hasCarryOver = summaryTasks.some(
+                        (t) => t.status !== "completed",
+                      );
+                      if (!hasCarryOver) return null;
+                      return (
+                        <div className="flex justify-end pt-4">
+                          <button
+                            onClick={async () => {
+                              const reasonsPayload = Object.entries(taskReasons)
+                                .filter(([, reason]) => reason?.trim())
+                                .map(([taskId, reason]) => ({
+                                  task_id: taskId,
+                                  reason: reason.trim(),
+                                }));
+                              if (reasonsPayload.length === 0) {
+                                notify("No reasons to save", "error");
+                                return;
+                              }
+                              setSaving(true);
+                              try {
+                                const body = {
+                                  user_id: user?.cid || user?.id,
+                                  user_name: user?.name || "",
+                                  user_role: user?.role || "staff",
+                                  report_type: "summary",
+                                  week_number: weekInfo.week,
+                                  year: weekInfo.year,
+                                  status: "submitted",
+                                  carryover_items: JSON.stringify({
+                                    type: "carryover_reasons",
+                                    reasons: reasonsPayload,
+                                  }),
+                                };
+                                const res = await fetch("/api/op-reports", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify(body),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  notify(
+                                    "Carry-over reasons saved!",
+                                    "success",
+                                  );
+                                } else {
+                                  notify(
+                                    data.error || "Failed to save",
+                                    "error",
+                                  );
+                                }
+                              } catch (e) {
+                                notify("Network error", "error");
+                              } finally {
+                                setSaving(false);
+                              }
+                            }}
+                            disabled={saving}
+                            className="btn btn-primary gap-2 py-3 px-6"
+                          >
+                            <Save className="w-4 h-4" />
+                            {saving ? "Saving..." : "Save Carry-Over Reasons"}
+                          </button>
+                        </div>
+                      );
+                    })()}
 
                     {/* ═══════════════════════════════════ */}
                     {/* PHASE 8 — PROJECT OWNER SUMMARY    */}

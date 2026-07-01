@@ -534,6 +534,19 @@ export default function TaskManager({
                     )?.name
                   : task.category || ""}
               </span>
+              {task.end_date && (
+                <span
+                  className="text-slate-500 flex items-center gap-1"
+                  title="Due date"
+                >
+                  <span className="text-[8px]">
+                    {new Date(task.end_date).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "2-digit",
+                    })}
+                  </span>
+                </span>
+              )}
             </div>
           )}
 
