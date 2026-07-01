@@ -388,7 +388,7 @@ export default function AdminDashboard() {
           userId
             ? fetch(`/api/tasks?user_id=${userId}&brief=true`)
             : fetch("/api/tasks?brief=true"),
-          fetch("/api/admin/blockers?status=active"),
+          fetch("/api/blockers?status=active"),
         ]);
         const taskData = await taskRes.json();
         const blockerData = await blockerRes.json();

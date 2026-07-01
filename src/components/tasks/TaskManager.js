@@ -106,6 +106,17 @@ export default function TaskManager({
         setCurrentUserId(JSON.parse(saved).cid || JSON.parse(saved).id || null);
     } catch (_) {}
   }, []);
+
+  // Compute effective week info — fallback to current ISO week if not provided
+  const effectiveWeekInfo = useMemo(() => {
+    if (weekInfo?.week && weekInfo?.year) return weekInfo;
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const days = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
+    const week = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+    return { week, year: now.getFullYear() };
+  }, [weekInfo]);
+
   const [tasks, setTasks] = useState([]);
   const [expandedTasks, setExpandedTasks] = useState({});
   const [updatingTasks, setUpdatingTasks] = useState({});
@@ -113,6 +124,9 @@ export default function TaskManager({
   const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
   const [subTaskModal, setSubTaskModal] = useState(null); // { id, project_id, category, title } or null
   const [subTaskInput, setSubTaskInput] = useState("");
+  const [subTaskStartDate, setSubTaskStartDate] = useState("");
+  const [subTaskEndDate, setSubTaskEndDate] = useState("");
+  const [subTaskLink, setSubTaskLink] = useState("");
   const [subTaskSuccess, setSubTaskSuccess] = useState("");
   const [editTaskModal, setEditTaskModal] = useState(null); // task object or null
   const [editForm, setEditForm] = useState({
@@ -243,7 +257,7 @@ export default function TaskManager({
   // ── API: Create task ──
   const createTask = useCallback(
     async (taskData) => {
-      const week = effectiveWeekInfo;
+      const week = effectiveWeekInfo || { week: 0, year: 0 };
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -583,8 +597,9 @@ export default function TaskManager({
           {/* Delete / Archive button — parent AND sub tasks */}
           {(() => {
             const isPastWeek =
-              task.created_week !== effectiveWeekInfo.week ||
-              task.created_year !== effectiveWeekInfo.year;
+              effectiveWeekInfo &&
+              (task.created_week !== effectiveWeekInfo.week ||
+                task.created_year !== effectiveWeekInfo.year);
             if (isPastWeek) {
               // Past-week tasks can only be archived, not deleted
               return (
@@ -596,13 +611,10 @@ export default function TaskManager({
                       )
                     )
                       return;
-                    await fetch("/api/tasks", {
+                    await fetch(`/api/tasks?id=${task.id}`, {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        id: task.id,
-                        status: "archived",
-                      }),
+                      body: JSON.stringify({ status: "archived" }),
                     });
                     if (onTasksChange) onTasksChange();
                   }}
