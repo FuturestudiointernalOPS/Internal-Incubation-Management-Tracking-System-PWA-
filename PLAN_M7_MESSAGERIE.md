@@ -253,3 +253,70 @@ Confirmé exact : GAP1, GAP2, GAP3, GAP4, GAP5, GAP6, schéma (`v2_messages`/`v2
 Corrigé : GAP7/A2 citait `target_type="all"` pour `/api/messages/route.js` — faux, ce champ n'existe pas dans cet endpoint (seulement dans `internal-comms`). Le vrai champ est `recipient_id`. En plus, `messages/route.js` n'appelle jamais `getSession()` — `requireAuth()` valide le rôle mais jamais l'identité → `sender_id` du body totalement non vérifié (usurpation possible), pire que ce que disait le plan initial.
 
 Ajouté : GAP8 — `/developer/messages/page.js:29` fetch un `GET /api/messages` qui n'existe pas (route n'exporte que `POST`) → 405 silencieux, page toujours vide. Bug réel non détecté par l'investigation initiale. Ajouté comme B4.
+
+---
+
+## 7. Division du Travail
+
+Découpage optimisé pour **parallélisme maximal** avec **zéro conflit de fichiers**.
+
+### 👤 Personne 1 — Backend / API / Sécurité
+
+**Scope :** Toute la couche serveur — routes API, auth, base de données.
+
+| Ordre | N° | Fichier | Action | Effort |
+|---|---|---|---|---|
+| 1 | A1 | `src/app/api/internal-comms/route.js` | Guard : bloquer `target_type="all"` si rôle ≠ super_admin | 5 min |
+| 2 | A2+A4 | `src/app/api/messages/route.js` | Ajouter `getSession()` + bloquer `recipient_id="all"` pour non-SA + valider `sender_id === session.cid` | 15 min |
+| 3 | A3 | `src/app/api/contacts/full-state/route.js` | Ajouter `requireAuth(["staff","super_admin"])` | 10 min |
+| 4 | B2 | `supabase/v2_schema_init.sql` + `src/migrations/` | Ajouter colonne `is_deleted INTEGER DEFAULT 0` à `v2_messages` | 10 min |
+| 5 | B1 | `src/app/api/internal-comms/route.js` | Ajouter endpoint `DELETE` (soft-delete, vérifier `sender_id === session.cid`, SA bypass) | 30 min |
+| 6 | C4 | `src/app/api/messages/route.js` | Vérifier appelants restants → décommissionner si plus utilisé | 15 min |
+
+**Total :** ~1h25 · **Fichiers :** 4 (tous backend, zéro overlap avec Personne 2)
+
+**Logique :**
+- A1→A2→A3 : sécurité pure, indépendants les uns des autres (ordre libre)
+- B2→B1 : migration DB d'abord, puis endpoint DELETE qui l'utilise
+- C4 : après B4 (Personne 2 a migré `/developer/messages`), vérifier si `/api/messages` a d'autres appelants
+
+---
+
+### 👤 Personne 2 — Frontend / UI / Bug fix
+
+**Scope :** Toute la couche client — composants React, pages, UX.
+
+| Ordre | N° | Fichier | Action | Effort |
+|---|---|---|---|---|
+| 1 | B4 | `src/app/developer/messages/page.js` | Remplacer `fetch(GET /api/messages)` → `fetch(GET /api/internal-comms?cid=…)` | 20 min |
+| 2 | B3 | `src/components/messaging/MessagingChat.js` | UI bouton supprimer (icône poubelle au hover, confirmation dialog, appel `DELETE /api/internal-comms`) | 40 min |
+| 3+ | C1-D3 | Améliorations (optionnel, hors Sprint 01) | Websocket, pièces jointes, full-text search, typing indicators, etc. | 2-3j |
+
+**Total :** ~1h (B4+B3) · **Fichiers :** 2 (tous frontend, zéro overlap avec Personne 1)
+
+**Logique :**
+- B4 : indépendant, peut commencer immédiatement (bug fonctionnel, page cassée)
+- B3 : dépend de B1+B2 (API DELETE + migration) → commence après que Personne 1 ait fini B2
+- C1-D3 : améliorations post-Sprint 01, temps restant
+
+---
+
+### Dépendances & Parallélisme
+
+```
+Personne 1                    Personne 2
+──────────                    ──────────
+A1 (guard broadcast)          B4 (fix /developer/messages)
+A2+A4 (fix usurpation)        │
+A3 (auth full-state)          │
+│                             │
+B2 (migration is_deleted)     │  ← B4 terminé, attente B2
+│                             │
+B1 (DELETE endpoint) ◄────────┼── B3 commence (dépend de B1)
+│                             │
+C4 (nettoyage legacy)         B3 (UI delete button)
+```
+
+**Temps total estimé :** ~1h30 en parallèle (vs ~2h50 en série)
+
+**0 conflit de fichiers garanti** — les 2 personnes ne touchent jamais le même fichier.
