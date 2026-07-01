@@ -794,7 +794,7 @@ export async function PUT(req) {
           const subEnd = new Date(end_date || task.end_date);
           const currentParentEndStr = parentEndRes.rows[0].end_date;
           let shouldUpdateParent = false;
-          
+
           if (!currentParentEndStr) {
             shouldUpdateParent = true;
           } else {
@@ -968,7 +968,10 @@ export async function PUT(req) {
     }
 
     // ─── Sync parent end_date if this (sub)task extends further ───
-    if (task.parent_task_id && (end_date !== undefined || start_date !== undefined)) {
+    if (
+      task.parent_task_id &&
+      (end_date !== undefined || start_date !== undefined)
+    ) {
       try {
         const effEnd = end_date || task.end_date;
         if (effEnd) {
@@ -1080,9 +1083,15 @@ export async function DELETE(req) {
       args: [parseInt(id)],
     });
 
-    // Delete associated blockers and audit logs first
+    // Delete associated blockers, subtasks, and audit logs first
     await db.execute({
-      sql: "DELETE FROM blockers WHERE task_id = ?",
+      sql: "DELETE FROM blockers WHERE task_id IN (SELECT id FROM tasks WHERE id = ? OR parent_task_id = ?)",
+      args: [parseInt(id), parseInt(id)],
+    });
+
+    // Delete subtasks first (parent_task_id pointing to this task)
+    await db.execute({
+      sql: "DELETE FROM tasks WHERE parent_task_id = ?",
       args: [parseInt(id)],
     });
 
