@@ -426,14 +426,40 @@ export default function PermissionManager() {
 
   const handleAddGroup = async () => {
     if (!groupInput.trim() || !selectedUser) return;
+    const groupName = groupInput.trim().toUpperCase();
     const res = await fetch("/api/user-groups", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_cid: selectedUser.cid, group_name: groupInput.trim() }),
+      body: JSON.stringify({ user_cid: selectedUser.cid, group_name: groupName }),
     });
     const data = await res.json();
-    if (data.success) { setGroupInput(""); setActionMsg("Group added"); selectUser(selectedUser); }
-    else setActionError(data.error || "Failed");
+    if (data.success) {
+      setGroupInput("");
+      // Apply group defaults
+      try {
+        const gRes = await fetch(`/api/groups?name=${encodeURIComponent(groupName)}`);
+        const gData = await gRes.json();
+        if (gData.success) {
+          const g = gData.group;
+          if (g.access_profile_id) {
+            await fetch("/api/engineering/permissions", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "set_access_profile", user_cid: selectedUser.cid, access_profile_id: g.access_profile_id }),
+            });
+          }
+          for (const resp of (g.default_responsibilities || [])) {
+            await fetch("/api/responsibilities/assign", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ user_cid: selectedUser.cid, responsibility_id: resp.id, action: "assign" }),
+            });
+          }
+        }
+      } catch (_) {}
+      setActionMsg(`Added to ${groupName} with defaults applied`);
+      selectUser(selectedUser);
+    } else setActionError(data.error || "Failed");
   };
 
   const handleRemoveGroup = async (groupName) => {
@@ -545,6 +571,12 @@ export default function PermissionManager() {
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "responsibilities" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
             Responsibilities
+          </button>
+          <button
+            onClick={() => setActiveTab("groups")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "groups" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            Groups
           </button>
         </div>
 
@@ -1405,6 +1437,7 @@ export default function PermissionManager() {
         {activeTab === "seed" && <SeedView />}
         {activeTab === "profiles" && <AccessProfilesView />}
         {activeTab === "responsibilities" && <ResponsibilitiesView />}
+        {activeTab === "groups" && <GroupsView />}
       </div>
     </DashboardLayout>
   );
@@ -2612,8 +2645,329 @@ function ResponsibilitiesView() {
               ))}
             </div>
           )}
+            </div>
+          )}
         </div>
-      )}
-    </div>
-  );
-}
+      );
+    }
+
+    function GroupsView() {
+      const [groups, setGroups] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [selectedGroup, setSelectedGroup] = useState(null);
+      const [groupDetail, setGroupDetail] = useState(null);
+      const [allProfiles, setAllProfiles] = useState([]);
+      const [allResponsibilities, setAllResponsibilities] = useState([]);
+      const [editName, setEditName] = useState("");
+      const [editDesc, setEditDesc] = useState("");
+      const [editProfileId, setEditProfileId] = useState("");
+      const [editRespIds, setEditRespIds] = useState([]);
+      const [saving, setSaving] = useState(false);
+      const [msg, setMsg] = useState("");
+      const [err, setErr] = useState("");
+      const [showCreate, setShowCreate] = useState(false);
+      const [newName, setNewName] = useState("");
+      const [newDesc, setNewDesc] = useState("");
+      const [newProfileId, setNewProfileId] = useState("");
+      const [creating, setCreating] = useState(false);
+
+      const fetchGroups = useCallback(async () => {
+        setLoading(true);
+        try {
+          const [gRes, pRes, rRes] = await Promise.all([
+            fetch("/api/groups"),
+            fetch("/api/engineering/permissions"),
+            fetch("/api/responsibilities"),
+          ]);
+          const gData = await gRes.json();
+          const pData = await pRes.json();
+          const rData = await rRes.json();
+          if (gData.success) setGroups(gData.groups || []);
+          if (pData.success) setAllProfiles(pData.accessProfiles || []);
+          if (rData.success) setAllResponsibilities(rData.responsibilities || []);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      useEffect(() => { fetchGroups(); }, [fetchGroups]);
+
+      const selectGroup = async (group) => {
+        setSelectedGroup(group);
+        try {
+          const res = await fetch(`/api/groups?id=${group.id}`);
+          const data = await res.json();
+          if (data.success) {
+            setGroupDetail(data.group);
+            setEditName(data.group.name);
+            setEditDesc(data.group.description || "");
+            setEditProfileId(data.group.access_profile_id ? String(data.group.access_profile_id) : "");
+            setEditRespIds(data.group.default_responsibilities?.map((r) => r.id) || []);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      const handleSave = async () => {
+        if (!selectedGroup) return;
+        setSaving(true);
+        setMsg("");
+        setErr("");
+        try {
+          const res = await fetch("/api/groups", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: selectedGroup.id,
+              name: editName,
+              description: editDesc,
+              access_profile_id: editProfileId ? parseInt(editProfileId) : null,
+              default_responsibilities: editRespIds,
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setMsg("Group saved");
+            selectGroup({ id: selectedGroup.id });
+            fetchGroups();
+          } else setErr(data.error || "Failed");
+        } catch (e) {
+          setErr("Network error");
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const handleCreate = async () => {
+        if (!newName.trim()) return;
+        setCreating(true);
+        setErr("");
+        try {
+          const res = await fetch("/api/groups", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: newName.trim(),
+              description: newDesc,
+              access_profile_id: newProfileId ? parseInt(newProfileId) : null,
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setNewName("");
+            setNewDesc("");
+            setNewProfileId("");
+            setShowCreate(false);
+            fetchGroups();
+          } else setErr(data.error || "Failed");
+        } catch (e) {
+          setErr("Network error");
+        } finally {
+          setCreating(false);
+        }
+      };
+
+      const toggleResp = (respId) => {
+        setEditRespIds((prev) =>
+          prev.includes(respId)
+            ? prev.filter((id) => id !== respId)
+            : [...prev, respId],
+        );
+      };
+
+      return (
+        <div className="space-y-6">
+          {msg && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <p className="text-[10px] font-bold text-emerald-400">{msg}</p>
+            </div>
+          )}
+          {err && (
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+              <p className="text-[10px] font-bold text-red-400">{err}</p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider">
+              Group Management
+            </h2>
+            <button
+              onClick={() => setShowCreate(!showCreate)}
+              className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90"
+            >
+              {showCreate ? "Cancel" : "+ New Group"}
+            </button>
+          </div>
+
+          {showCreate && (
+            <div className="card space-y-4">
+              <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Create Group</h3>
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Group name (will be uppercased)"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+              />
+              <input
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                placeholder="Description (optional)"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+              />
+              <select
+                value={newProfileId}
+                onChange={(e) => setNewProfileId(e.target.value)}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+              >
+                <option value="">No default access profile</option>
+                {allProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleCreate}
+                disabled={creating || !newName.trim()}
+                className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-30"
+              >
+                {creating ? "Creating..." : "Create Group"}
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin" style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Group List */}
+              <div className="lg:col-span-1">
+                <div className="card !p-2 space-y-1">
+                  {groups.length === 0 ? (
+                    <p className="p-4 text-[10px] text-slate-500 italic text-center">No groups created yet</p>
+                  ) : (
+                    groups.map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => selectGroup(g)}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                          selectedGroup?.id === g.id
+                            ? "bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30"
+                            : "hover:bg-tertiary"
+                        }`}
+                      >
+                        <p className="text-[10px] font-bold text-[var(--text-primary)]">{g.name}</p>
+                        <p className="text-[7px] text-slate-500">{g.member_count} members · {g.is_active ? "active" : "inactive"}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Group Detail */}
+              <div className="lg:col-span-2 space-y-6">
+                {!selectedGroup ? (
+                  <div className="card py-20 text-center">
+                    <p className="text-[10px] text-slate-500 italic">Select a group to configure</p>
+                  </div>
+                ) : !groupDetail ? (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin" style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
+                  </div>
+                ) : (
+                  <>
+                    {/* General */}
+                    <div className="card space-y-4">
+                      <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Group Settings</h3>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Name</p>
+                        <input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Description</p>
+                        <input
+                          value={editDesc}
+                          onChange={(e) => setEditDesc(e.target.value)}
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Default Access Profile</p>
+                        <select
+                          value={editProfileId}
+                          onChange={(e) => setEditProfileId(e.target.value)}
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                        >
+                          <option value="">None (inherit from role)</option>
+                          {allProfiles.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Default Responsibilities */}
+                    <div className="card space-y-4">
+                      <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Default Responsibilities</h3>
+                      <p className="text-[8px] text-slate-500">Assigned automatically when a user joins this group.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {allResponsibilities.map((r) => (
+                          <label
+                            key={r.id}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${
+                              editRespIds.includes(r.id)
+                                ? "bg-emerald-500/10 border-emerald-500/30"
+                                : "bg-secondary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editRespIds.includes(r.id)}
+                              onChange={() => toggleResp(r.id)}
+                              className="w-4 h-4 rounded accent-[var(--brand-orange)]"
+                            />
+                            <div>
+                              <p className="text-[10px] font-bold text-[var(--text-primary)]">{r.name}</p>
+                              <p className="text-[7px] text-[var(--text-secondary)]">{r.key}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Members */}
+                    <div className="card space-y-4">
+                      <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+                        Members ({groupDetail.member_count})
+                      </h3>
+                      <p className="text-[8px] text-slate-500">
+                        Members are managed via the User Search tab. Select a user and use the Groups section to assign or remove groups.
+                      </p>
+                    </div>
+
+                    {/* Save */}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-30"
+                      >
+                        {saving ? "Saving..." : "Save Group Configuration"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }

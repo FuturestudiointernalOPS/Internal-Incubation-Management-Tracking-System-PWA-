@@ -211,3 +211,23 @@ CREATE TABLE IF NOT EXISTS user_responsibilities (
 
 CREATE INDEX IF NOT EXISTS idx_user_resp_cid ON user_responsibilities(user_cid);
 CREATE INDEX IF NOT EXISTS idx_user_resp_id ON user_responsibilities(responsibility_id);
+
+-- ─── 12. Groups Master Table with Defaults ───
+CREATE TABLE IF NOT EXISTS groups (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT DEFAULT '',
+    access_profile_id INTEGER REFERENCES access_profiles(id) ON DELETE SET NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS group_default_responsibilities (
+    id SERIAL PRIMARY KEY,
+    group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    responsibility_id INTEGER NOT NULL REFERENCES responsibilities(id) ON DELETE CASCADE,
+    UNIQUE(group_id, responsibility_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_group_defaults_group ON group_default_responsibilities(group_id);
