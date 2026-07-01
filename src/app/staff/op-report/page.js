@@ -1481,7 +1481,6 @@ export default function StaffOpReport() {
                             </p>
                             <button
                               onClick={() => {
-                                if (new Date().getDay() !== 1) return;
                                 setShowStandupModal(true);
                                 setWeekInfo(getCurrentWeek());
                               }}

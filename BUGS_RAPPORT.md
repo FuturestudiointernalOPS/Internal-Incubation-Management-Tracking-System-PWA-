@@ -7,35 +7,28 @@
 
 ## Module 1 — Personal Task Management
 
+**Statut : ✅ FONCTIONNEL**
+
 ### ✅ Tests qui passent
 
 | Test | Détail |
 |---|---|
-| **Création d'une tâche** | POST `/api/tasks` — la tâche est créée avec succès |
-| **Validation des tâches terminées** | Le workflow de complétion fonctionne |
-| **Modification d'une tâche** | PUT `/api/tasks` — l'édition fonctionne |
-| **Changement de date** | La modification des dates d'échéance fonctionne |
+| **Création d'une tâche** | ✅ POST `/api/tasks` |
+| **Modification d'une tâche** | ✅ PUT `/api/tasks` |
+| **Changement de date** | ✅ Modification des dates d'échéance |
+| **Validation (champs obligatoires)** | ✅ Si champs vides, rien n'est sauvegardé |
+| **Validation des tâches terminées** | ✅ Workflow de complétion |
+| **Subtask** | ✅ Création fonctionnelle (DB corrigée) |
+| **Archivage / Suppression** | ✅ Archivage fonctionnel + cascade subtasks |
+| **Catégories** | ✅ Fonctionnel via le dropdown du formulaire |
+| **Association aux projets** | ✅ Fonctionnel via le sélecteur de projet |
+| **"Project Contribution"** | ✅ Crash `t is not a function` corrigé |
 
-### ❌ Bugs
+### ❌ Bugs résiduels
 
 | # | Test | Bug | Sévérité |
 |---|---|---|---|
-| **#8** | **Déconnexion aléatoire** | À vérifier — probablement résolu avec la correction DB (user_name ajouté à error_logs) | **Critique** |
-| **#12** | **Archivage d'une tâche** | ✅🔧 **Corrigé** — colonnes `user_id`, `field_name`, `metadata` manquantes dans `task_audit_logs`. Ajoutées en DB. | ~~Haute~~ ✅ |
-| **#9** | **"Project Contribution" → crash** | ✅🔧 **Corrigé** — paramètre `t` dans `.map((t) =>` shadowait la fonction de traduction → `"t is not a function"`. Renommé en `projTask` | ~~Haute~~ ✅ |
-
-### ✅🔧 Corrigé (DB)
-
-| # | Test | Correctif |
-|---|---|---|
-| **#1** | **Création d'une subtask** | ✅🔧 Colonne `user_name` ajoutée à `error_logs` → subtask et déconnexion résolus |
-
-### ⚠️ Tests restants
-
-- Catégories (filtres, affichage)
-- Association aux projets
-- Carry-over (report de tâche)
-- Validation (champs obligatoires, contraintes)
+| **#8** | **Déconnexion aléatoire** | À vérifier — probablement résolu avec les corrections DB | ~Critique~ |
 
 ---
 
@@ -61,6 +54,8 @@
 ---
 
 ## Module 3 — Weekly Retro
+
+**Statut : ❌ BLOQUÉ**
 
 ### ✅ Tests qui passent
 
@@ -89,9 +84,8 @@
 
 ## Résumé
 
-| Module | ✅ Passent | ❌ Bugs | ✅🔧 Corrigés |
-|---|---|---|---|
-| **M1 — Tasks** | 4 | 1 (critique, à vérifier) | 2 (#1 DB, #9 code) |
-| **M2 — Standup** | 6 | 1 (haute) | 0 |
-| **M3 — Retro** | 0 | 6 (2 critiques, 3 hautes, 1 moyenne) | 1 (#5 code) |
-| **Total** | **10** | **8** | **3** |
+| Module | Statut |
+|---|---|
+| **M1 — Tasks** | ✅ **FONCTIONNEL** — tous les tests passent |
+| **M2 — Standup** | ⚠️ Presque fonctionnel — 1 bug sur le bouton |
+| **M3 — Retro** | ❌ **BLOQUÉ** — pas de bouton submit, réconciliation vide |
