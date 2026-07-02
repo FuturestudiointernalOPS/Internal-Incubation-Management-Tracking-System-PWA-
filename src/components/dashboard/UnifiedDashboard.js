@@ -750,7 +750,14 @@ export default function UnifiedDashboard({ role: propRole }) {
               })}
               {assignments.length > 5 && (
                 <button
-                  onClick={() => router.push("/admin/tasks")}
+                  onClick={() =>
+                    router.push(
+                      effectiveRole === "super_admin" ||
+                        effectiveRole === "admin"
+                        ? "/admin/tasks"
+                        : "/staff/op-report",
+                    )
+                  }
                   className="w-full text-center py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
                 >
                   View All ({assignments.length})
@@ -1343,14 +1350,27 @@ export default function UnifiedDashboard({ role: propRole }) {
               </p>
               <div className="flex gap-3 mt-4">
                 <button
-                  onClick={() => router.push("/admin/tasks")}
+                  onClick={() =>
+                    router.push(
+                      effectiveRole === "super_admin" ||
+                        effectiveRole === "admin"
+                        ? "/admin/tasks"
+                        : "/staff/op-report",
+                    )
+                  }
                   className="px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                 >
                   <Plus className="w-4 h-4 inline mr-1" /> Create Task
                 </button>
                 <button
-                  onClick={() => router.push("/admin/projects")}
-                  className="px-6 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                  onClick={() =>
+                    router.push(
+                      effectiveRole === "super_admin" ||
+                        effectiveRole === "admin"
+                        ? "/admin/projects"
+                        : "/staff/projects",
+                    )
+                  }
                 >
                   View Projects
                 </button>

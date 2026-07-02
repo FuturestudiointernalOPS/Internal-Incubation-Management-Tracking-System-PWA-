@@ -135,11 +135,11 @@ export async function GET(req) {
     // Sessions (from programs the user manages + sessions they handle)
     try {
       const sessions = await db.execute({
-        sql: `SELECT s.id, s.title, s.scheduled_date, s.start_time, s.handler_id, s.program_id, p.name AS program_name
+        sql: `SELECT s.id, s.title, s.start_at, s.teacher_id, s.program_id, p.name AS program_name
               FROM v2_sessions s
               LEFT JOIN v2_programs p ON s.program_id = p.id
-              WHERE s.scheduled_date IS NOT NULL
-                AND (s.handler_id = ? OR s.program_id IN (
+              WHERE s.start_at IS NOT NULL
+                AND (s.teacher_id = ? OR s.program_id IN (
                   SELECT id FROM v2_programs WHERE assigned_pm_id = ?
                 ) OR ? IN ('super_admin', 'admin'))`,
         args: [userId, userId, role],
@@ -148,7 +148,7 @@ export async function GET(req) {
         calendarEvents.push({
           id: `session-${s.id}`,
           title: s.title,
-          date: String(s.scheduled_date).split("T")[0],
+          date: String(s.start_at).split("T")[0],
           type: "session",
           source: "session",
           status: "scheduled",
@@ -359,7 +359,7 @@ export async function GET(req) {
                        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
                 FROM tasks
                 GROUP BY project_id
-              ) t_stats ON p.id = t_stats.project_id
+              ) t_stats ON p.id::text = t_stats.project_id
               LEFT JOIN (
                 SELECT t.project_id,
                        COUNT(*) AS active
@@ -367,7 +367,7 @@ export async function GET(req) {
                 JOIN tasks t ON b.task_id = t.id
                 WHERE b.status = 'active'
                 GROUP BY t.project_id
-              ) b_stats ON p.id = b_stats.project_id
+              ) b_stats ON p.id::text = b_stats.project_id
               WHERE (p.owner_id = ? OR EXISTS (
                 SELECT 1 FROM project_members pm WHERE pm.project_id::text = p.id::text AND pm.user_cid = ? AND pm.role = 'lead'
               ))
@@ -402,7 +402,7 @@ export async function GET(req) {
                          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
                   FROM tasks
                   GROUP BY project_id
-                ) t_stats ON p.id = t_stats.project_id
+                ) t_stats ON p.id::text = t_stats.project_id
                 LEFT JOIN (
                   SELECT t.project_id,
                          COUNT(*) AS active
@@ -410,8 +410,8 @@ export async function GET(req) {
                   JOIN tasks t ON b.task_id = t.id
                   WHERE b.status = 'active'
                   GROUP BY t.project_id
-                ) b_stats ON p.id = b_stats.project_id
-                WHERE p.id IN (${placeholders})
+                ) b_stats ON p.id::text = b_stats.project_id
+                WHERE p.id::text IN (${placeholders})
                 ORDER BY p.created_at DESC`,
           args: collabProjectIds,
         });
