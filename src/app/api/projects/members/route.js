@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 /**
  * PROJECT MEMBERS API
@@ -60,7 +60,6 @@ export async function POST(req) {
     }
 
     // Get session for inviter info
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     const inviterName = session?.name || "Unknown";
 

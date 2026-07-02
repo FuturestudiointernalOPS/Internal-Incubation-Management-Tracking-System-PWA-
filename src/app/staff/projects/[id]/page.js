@@ -166,7 +166,8 @@ export default function StaffProjectDetail() {
                 </div>
                 <div className="flex items-center gap-4 mt-1.5">
                   {project.owner_name && <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]"><User className="w-3 h-3" /><span className="font-bold">{project.owner_name}</span></div>}
-                  <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]"><Calendar className="w-3 h-3" /><span className="font-bold">Created {new Date(project.created_at).toLocaleDateString()}</span></div>
+                  {project.start_date && <div className="flex items-center gap-1.5 text-[10px] text-emerald-400"><Calendar className="w-3 h-3" /><span className="font-bold">Start {new Date(project.start_date).toLocaleDateString()}</span></div>}
+                  {project.end_date && <div className="flex items-center gap-1.5 text-[10px] text-amber-400"><Calendar className="w-3 h-3" /><span className="font-bold">End {new Date(project.end_date).toLocaleDateString()}</span></div>}
                 </div>
               </div>
             </div>
@@ -262,6 +263,7 @@ export default function StaffProjectDetail() {
             userId={user?.cid || user?.id || ""}
             userName={user?.name || "Staff"}
             projects={[{ id: project.id, name: project.name }]}
+            projectMembers={members}
             taskList={project.tasks || []}
             onTasksChange={fetchProject}
             showCarryOver={false}

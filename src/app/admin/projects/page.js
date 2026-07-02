@@ -67,6 +67,8 @@ export default function AdminProjects() {
     leads: [],
     conceptNoteUrl: "",
     conceptNoteUrlInput: "",
+    start_date: "",
+    end_date: "",
   });
   const [conceptNoteFile, setConceptNoteFile] = useState(null);
   const [uploadingConcept, setUploadingConcept] = useState(false);
@@ -91,6 +93,8 @@ export default function AdminProjects() {
     status: "Active",
     leads: [],
     conceptNoteUrl: "",
+    start_date: "",
+    end_date: "",
   });
   const [editConceptFile, setEditConceptFile] = useState(null);
   const [uploadingEditConcept, setUploadingEditConcept] = useState(false);
@@ -184,6 +188,8 @@ export default function AdminProjects() {
           description: editProject.description || null,
           concept_note_url: editProject.conceptNoteUrl || null,
           status: editProject.status,
+          start_date: editProject.start_date || null,
+          end_date: editProject.end_date || null,
           assigned_pm_ids: editProject.leads,
         }),
       });
@@ -208,6 +214,8 @@ export default function AdminProjects() {
           concept_note_url:
             newProject.conceptNoteUrl || newProject.conceptNoteUrlInput || null,
           assigned_pm_ids: newProject.leads,
+          start_date: newProject.start_date || null,
+          end_date: newProject.end_date || null,
           status: "Active",
         }),
       });
@@ -519,6 +527,12 @@ export default function AdminProjects() {
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                       Progress
                     </th>
+                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Start
+                    </th>
+                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      End
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -605,6 +619,16 @@ export default function AdminProjects() {
                             {project.completionRate || 0}%
                           </span>
                         </div>
+                      </td>
+                      <td className="text-center p-4">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                          {project.start_date ? new Date(project.start_date).toLocaleDateString('en', {month:'short',day:'numeric'}) : '—'}
+                        </span>
+                      </td>
+                      <td className="text-center p-4">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                          {project.end_date ? new Date(project.end_date).toLocaleDateString('en', {month:'short',day:'numeric'}) : '—'}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -944,6 +968,23 @@ export default function AdminProjects() {
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                 />
               </div>
+
+              {/* Start / End Dates */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Start Date</label>
+                  <input type="date" value={newProject.start_date}
+                    onChange={(e) => setNewProject((p) => ({ ...p, start_date: e.target.value }))}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">End Date</label>
+                  <input type="date" value={newProject.end_date}
+                    onChange={(e) => setNewProject((p) => ({ ...p, end_date: e.target.value }))}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+                </div>
+              </div>
+
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Concept Note{" "}

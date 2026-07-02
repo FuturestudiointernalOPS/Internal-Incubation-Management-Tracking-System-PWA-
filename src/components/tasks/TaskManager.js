@@ -70,6 +70,7 @@ export default function TaskManager({
   userId = null,
   userName = "",
   projects = [], // available projects for picker
+  projectMembers = [], // available members for assignment
   taskList = [], // existing tasks from API (with subtasks nested)
   onTasksChange = null, // callback(newTaskRows) when pending tasks change
   compact = false,
@@ -158,6 +159,7 @@ export default function TaskManager({
     name: "",
     project_id: "",
     category: "",
+    assigned_to: "",
     start_date: "",
     due_date: "",
     start_time: "",
@@ -310,6 +312,7 @@ export default function TaskManager({
           created_year: week.year || 0,
           start_date: taskData.start_date || null,
           end_date: taskData.due_date || null,
+          assigned_to: taskData.assigned_to || null,
           link: taskData.link || null,
         }),
       });
@@ -333,6 +336,7 @@ export default function TaskManager({
       project_id: form.project_id || null,
       category: form.category || null,
       parent_task_id: pendingParentTaskId || null,
+      assigned_to: form.assigned_to || null,
       start_date: form.start_date || null,
       due_date: form.due_date || null,
       link: form.link || null,
@@ -992,6 +996,23 @@ export default function TaskManager({
               <span className="text-[8px] text-slate-500">
                 {selectedProject?.name || form.category || ""}
               </span>
+            </div>
+          )}
+
+          {/* Assignee dropdown (project mode only) */}
+          {mode === "project" && projectMembers.length > 0 && (
+            <div>
+              <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Assign to</label>
+              <select
+                value={form.assigned_to || ""}
+                onChange={(e) => setForm((p) => ({ ...p, assigned_to: e.target.value }))}
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
+              >
+                <option value="">Self</option>
+                {projectMembers.map((m) => (
+                  <option key={m.member_id || m.user_cid} value={m.member_id || m.user_cid}>{m.name || m.member_id}</option>
+                ))}
+              </select>
             </div>
           )}
 

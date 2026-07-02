@@ -28,8 +28,10 @@ export async function POST(req) {
       description,
       concept_note,
       concept_note_url,
-      assigned_pm_id, // keep for backwards compatibility if needed
-      assigned_pm_ids = [], // new array format
+      start_date,
+      end_date,
+      assigned_pm_id,
+      assigned_pm_ids = [],
     } = body;
 
     if (!name) {
@@ -58,11 +60,13 @@ export async function POST(req) {
     });
 
     const result = await db.execute({
-      sql: "INSERT INTO v2_projects (program_id, name, status, meta, owner_id) VALUES (?, ?, ?, ?, ?) RETURNING id",
+      sql: "INSERT INTO v2_projects (program_id, name, status, start_date, end_date, meta, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
       args: [
         program_id || null,
         name,
         status || "Active",
+        start_date || null,
+        end_date || null,
         meta,
         primaryOwnerId,
       ],
@@ -201,6 +205,8 @@ export async function PUT(req) {
       description,
       concept_note,
       concept_note_url,
+      start_date,
+      end_date,
       assigned_pm_id,
       assigned_pm_ids,
     } = body;
@@ -222,6 +228,14 @@ export async function PUT(req) {
     if (status !== undefined) {
       updateFields.push("status = ?");
       updateArgs.push(status);
+    }
+    if (start_date !== undefined) {
+      updateFields.push("start_date = ?");
+      updateArgs.push(start_date || null);
+    }
+    if (end_date !== undefined) {
+      updateFields.push("end_date = ?");
+      updateArgs.push(end_date || null);
     }
 
     // If meta fields changed, update the meta JSON
