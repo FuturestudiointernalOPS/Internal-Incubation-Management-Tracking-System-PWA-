@@ -436,6 +436,12 @@ const NAVIGATION_MATRIX = {
       href: "/staff",
     },
     {
+      id: "standup",
+      name: "STANDUP",
+      icon: MessageSquare,
+      href: "/developer/standup",
+    },
+    {
       id: "communication",
       name: "COMMUNICATION",
       icon: MessageSquare,
