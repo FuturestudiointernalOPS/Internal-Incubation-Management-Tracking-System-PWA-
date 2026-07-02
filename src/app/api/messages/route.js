@@ -25,6 +25,14 @@ export async function GET(req) {
     }
 
     const targetCid = userId || session.cid;
+
+    // Ensure is_deleted column exists (safe migration)
+    try {
+      await db.execute(
+        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS is_deleted INTEGER DEFAULT 0",
+      );
+    } catch (_) {}
+
     const res = await db.execute({
       sql: "SELECT * FROM v2_messages WHERE (recipient_id = ? OR sender_id = ?) AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY created_at DESC",
       args: [targetCid, targetCid],

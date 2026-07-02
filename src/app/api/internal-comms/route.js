@@ -132,8 +132,8 @@ export async function POST(req) {
       );
     } catch (_) {}
 
-    await db.execute({
-      sql: "INSERT INTO v2_messages (sender_id, recipient_id, target_type, target_id, subject, body, priority, is_read) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    const insertRes = await db.execute({
+      sql: "INSERT INTO v2_messages (sender_id, recipient_id, target_type, target_id, subject, body, priority, is_read) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
       args: [
         effectiveSenderId,
         recipient_id || null,
@@ -145,6 +145,7 @@ export async function POST(req) {
         0,
       ],
     });
+    const newMessageId = insertRes.rows[0]?.id;
 
     // Get sender name for notification
     let senderName = effectiveSenderId;
@@ -189,7 +190,7 @@ export async function POST(req) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, id: newMessageId });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

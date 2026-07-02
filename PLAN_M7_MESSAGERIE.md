@@ -362,3 +362,19 @@ C4 (nettoyage legacy)         B3 (UI delete button)
 **Temps total estimé :** ~1h30 en parallèle (vs ~2h50 en série)
 
 **0 conflit de fichiers garanti** — les 2 personnes ne touchent jamais le même fichier.
+
+---
+
+## 8. Findings post-implémentation (tests E2E DeepSeek, 02/07/2026)
+
+Backend/API/Sécurité (A1-A4, B1, B2, B4) implémentés et pushés (`5f7cb31`, `72c73e1`). Tests E2E via chrome-devtools MCP ont trouvé 3 bugs supplémentaires, tous corrigés sauf 1 :
+
+- **Corrigé** : `messages/route.js` GET référençait `is_deleted` sans le guard `ALTER TABLE IF NOT EXISTS` (présent dans `internal-comms` mais oublié ici) → 500 `column "is_deleted" does not exist`. Migration aussi appliquée directement en DB staging (le fichier `.sql` seul ne suffit pas, personne ne l'avait exécuté).
+- **Corrigé** : `POST /api/internal-comms` ne retournait pas l'`id` du message créé (`RETURNING id` ajouté).
+- **Corrigé** (bug réel, pas le symptôme décrit) : SA authentifié + `sender_id` absent du body → contournait la validation → crash 500 NOT NULL. Fallback sur `session.cid` ajouté.
+
+### ⚠️ Hors-scope M7 — à remonter séparément (pas touché, décision utilisateur du 02/07/2026)
+
+**Bug résolution de rôle** : `pm@impactos.staging` (`contacts.role="program_manager"`) et `teacher@impactos.staging` (`contacts.role="teacher"`) se connectent tous les deux avec le rôle final `staff`. Cause : `session-login/route.js` (§6 ROLE RESOLUTION) ignore complètement `contacts.role` pour ces 2 rôles — la résolution dépend uniquement d'assignations réelles (`v2_programs.assigned_pm_id`, `assigned_assistant_id`, `v2_teams.handler_id`), et `v2_programs` est **vide** en staging (0 ligne). Fallback sur `group_name="FUTURE STUDIO"` → `staff` pour tous.
+
+Ambigu si c'est un bug (le champ `role` explicite devrait faire fallback avant `staff`) ou un design voulu ("single-admin hierarchy" : PM/teacher = rôle réel seulement si assigné à un programme concret). Touche la résolution de rôle **globale** (permissions, sidebar, tout module confondu), pas seulement M7 — décision à prendre avec l'équipe/tuteur, pas unilatéralement. Localisation exacte : `src/app/api/auth/session-login/route.js` lignes ~118-163 (et le doublon mort `src/app/api/auth/login/route.js` a la même logique, jamais atteint car bloqué par `src/proxy.js`).
