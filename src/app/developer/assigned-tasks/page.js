@@ -9,50 +9,133 @@ import {
   User,
   AlertTriangle,
   CheckCircle2,
+  XCircle,
+  Clock,
+  Send,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function AssignedTasks() {
   const [userRole, setUserRole] = useState("developer");
+  const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [pendingAssignments, setPendingAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [responding, setResponding] = useState(null);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("user");
       if (saved) {
         const u = JSON.parse(saved);
+        setUser(u);
         setUserRole(u.role || "developer");
       }
     } catch (_) {}
   }, []);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const sessionRes = await fetch("/api/auth/session");
       const sessionData = await sessionRes.json();
-      if (sessionData.authenticated && sessionData.user) {
-        const userId = sessionData.user.cid;
-        const res = await fetch(`/api/tasks?assigned_to=${userId}&sort=priority`);
-        const data = await res.json();
-        if (data.success) {
-          setTasks(data.tasks || []);
-        }
-      }
+      if (!sessionData.authenticated || !sessionData.user) return;
+      const userId = sessionData.user.cid;
+      if (!user) setUser(sessionData.user);
+
+      // Fetch accepted/active assigned tasks
+      const tasksRes = await fetch(
+        `/api/tasks?assigned_to=${userId}&sort=priority`,
+      );
+      const tasksData = await tasksRes.json();
+      if (tasksData.success) setTasks(tasksData.tasks || []);
+
+      // Fetch pending assignments (accept/decline workflow)
+      const assignRes = await fetch(
+        `/api/tasks/assignments?assignee_id=${userId}&status=pending`,
+      );
+      const assignData = await assignRes.json();
+      if (assignData.success)
+        setPendingAssignments(assignData.assignments || []);
     } catch (e) {
-      console.error("Failed to fetch assigned tasks", e);
+      console.error("Failed to fetch data", e);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    fetchData();
+  }, [fetchData]);
 
-  const priorityTasks = tasks.filter((t) => t.priority === "critical" || t.priority === "high");
-  const otherTasks = tasks.filter((t) => t.priority !== "critical" && t.priority !== "high");
+  const handleResponse = async (assignmentId, action) => {
+    setResponding(assignmentId);
+    try {
+      const res = await fetch("/api/tasks/assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignment_id: assignmentId, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+      } else {
+        alert(data.error || "Failed to respond");
+      }
+    } catch (e) {
+      alert("Network error");
+    } finally {
+      setResponding(null);
+    }
+  };
+
+  const criticalTasks = tasks.filter((t) => t.priority === "critical");
+  const highTasks = tasks.filter((t) => t.priority === "high");
+  const normalTasks = tasks.filter(
+    (t) => t.priority !== "critical" && t.priority !== "high",
+  );
+
+  const TaskCard = ({ task }) => (
+    <div
+      className={`card p-4 ${task.priority === "critical" ? "border-rose-500/30 bg-rose-500/5" : task.priority === "high" ? "border-amber-500/30 bg-amber-500/5" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
+              {task.title}
+            </h3>
+            {task.priority === "critical" && (
+              <span className="text-[8px] font-black text-rose-400 px-1.5 py-0.5 rounded-full bg-rose-500/10 uppercase">
+                Critical
+              </span>
+            )}
+            {task.priority === "high" && (
+              <span className="text-[8px] font-black text-amber-400 px-1.5 py-0.5 rounded-full bg-amber-500/10 uppercase">
+                High
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 mt-1.5">
+            <span className="flex items-center gap-1 text-[9px] text-slate-500">
+              <User className="w-3 h-3" /> {task.user_name || "Unknown"}
+            </span>
+            {task.end_date && (
+              <span className="flex items-center gap-1 text-[9px] text-slate-500">
+                <Calendar className="w-3 h-3" /> Due:{" "}
+                {new Date(task.end_date).toLocaleDateString("en-GB")}
+              </span>
+            )}
+            <span
+              className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${task.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : task.status === "blocked" ? "bg-rose-500/10 text-rose-400" : "bg-blue-500/10 text-blue-400"}`}
+            >
+              {task.status === "in_progress" ? "In Progress" : task.status}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <DashboardLayout role={userRole} activeTab="assigned_tasks">
@@ -62,69 +145,82 @@ export default function AssignedTasks() {
             <div className="flex items-center gap-2">
               <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Developer Workspace
+                ASSIGNED WORK
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
               Assigned Tasks
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              {tasks.length} tasks assigned to you
+              Tasks assigned to you by other team members
             </p>
           </div>
           <button
-            onClick={fetchTasks}
-            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+            onClick={fetchData}
+            className="btn btn-secondary gap-2 !px-4 !py-2.5"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCw className="w-4 h-4" /> Refresh
           </button>
         </header>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
-              style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }}
-            />
-          </div>
-        ) : tasks.length === 0 ? (
-          <div className="py-20 flex flex-col items-center justify-center opacity-40">
-            <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
-            <p className="text-lg font-black text-[var(--text-primary)] uppercase">No assigned tasks</p>
-            <p className="text-xs font-bold text-slate-500 mt-1">
-              Tasks assigned to you will appear here
-            </p>
+            <div className="w-5 h-5 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Priority Section */}
-            {priorityTasks.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="w-4 h-4 text-red-400" />
-                  <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">Priority</h2>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-red-500/10 text-red-400 uppercase tracking-wider">
-                    {priorityTasks.length}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {priorityTasks.map((task) => (
-                    <div key={task.id} className={`ios-card !p-4 border-l-4 ${task.priority === "critical" ? "border-l-red-500" : "border-l-amber-400"}`}>
-                      <div className="flex items-center justify-between">
+          <div className="space-y-8">
+            {/* Pending Assignments — Accept / Decline */}
+            {pendingAssignments.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  Pending Review ({pendingAssignments.length})
+                </h2>
+                <p className="text-[10px] text-slate-500">
+                  You must accept or decline these assignments before they
+                  appear in your workload.
+                </p>
+                <div className="space-y-3">
+                  {pendingAssignments.map((a) => (
+                    <div
+                      key={a.id}
+                      className="card p-4 border-amber-500/20 bg-amber-500/[0.03]"
+                    >
+                      <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                              task.priority === "critical" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
-                            }`}>{task.priority}</span>
-                            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 uppercase tracking-wider">
-                              {task.status?.replace("_", " ") || "pending"}
+                          <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                            {a.task_title}
+                          </h3>
+                          <div className="flex items-center gap-3 mt-1 text-[9px] text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <Send className="w-3 h-3" /> Assigned by:{" "}
+                              {a.assigner_id
+                                ? `User ${a.assigner_id.substring(0, 8)}...`
+                                : "Unknown"}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />{" "}
+                              {new Date(a.created_at).toLocaleDateString(
+                                "en-GB",
+                              )}
                             </span>
                           </div>
-                          <p className="text-xs font-bold text-[var(--text-primary)]">{task.title}</p>
-                          {task.end_date && (
-                            <p className="text-[8px] font-bold text-slate-500 mt-0.5 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" /> Due: {new Date(task.end_date).toLocaleDateString()}
-                            </p>
-                          )}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => handleResponse(a.id, "decline")}
+                            disabled={responding === a.id}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
+                          >
+                            <XCircle className="w-3.5 h-3.5" /> Decline
+                          </button>
+                          <button
+                            onClick={() => handleResponse(a.id, "accept")}
+                            disabled={responding === a.id}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Accept
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -133,33 +229,65 @@ export default function AssignedTasks() {
               </div>
             )}
 
-            {/* Other Tasks */}
-            {otherTasks.length > 0 && (
-              <div>
-                <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider mb-3">All Tasks</h2>
+            {/* Critical Priority Tasks */}
+            {criticalTasks.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-400" />
+                  Critical ({criticalTasks.length})
+                </h2>
                 <div className="space-y-2">
-                  {otherTasks.map((task) => (
-                    <div key={task.id} className="ios-card !p-4 border-[var(--border-primary)]">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 uppercase tracking-wider">
-                              {task.status?.replace("_", " ") || "pending"}
-                            </span>
-                          </div>
-                          <p className="text-xs font-bold text-[var(--text-primary)]">{task.title}</p>
-                          {task.end_date && (
-                            <p className="text-[8px] font-bold text-slate-500 mt-0.5">
-                              Due: {new Date(task.end_date).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                  {criticalTasks.map((task) => (
+                    <TaskCard key={task.id} task={task} />
                   ))}
                 </div>
               </div>
             )}
+
+            {/* High Priority Tasks */}
+            {highTasks.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  High Priority ({highTasks.length})
+                </h2>
+                <div className="space-y-2">
+                  {highTasks.map((task) => (
+                    <TaskCard key={task.id} task={task} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Normal Priority Tasks */}
+            {normalTasks.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
+                  <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
+                  Tasks ({normalTasks.length})
+                </h2>
+                <div className="space-y-2">
+                  {normalTasks.map((task) => (
+                    <TaskCard key={task.id} task={task} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {criticalTasks.length === 0 &&
+              highTasks.length === 0 &&
+              normalTasks.length === 0 &&
+              pendingAssignments.length === 0 && (
+                <div className="text-center py-20">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-slate-600" />
+                  <p className="text-sm font-bold text-slate-500">
+                    No assigned tasks
+                  </p>
+                  <p className="text-[10px] text-slate-600 mt-1">
+                    When someone assigns a task to you, it will appear here.
+                  </p>
+                </div>
+              )}
           </div>
         )}
       </div>
