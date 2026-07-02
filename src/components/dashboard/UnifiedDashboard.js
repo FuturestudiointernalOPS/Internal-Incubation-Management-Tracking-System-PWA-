@@ -752,7 +752,8 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <button
                   onClick={() =>
                     router.push(
-                      role === "super_admin" || role === "admin"
+                      effectiveRole === "super_admin" ||
+                        effectiveRole === "admin"
                         ? "/admin/tasks"
                         : "/staff/op-report",
                     )
@@ -1351,7 +1352,8 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <button
                   onClick={() =>
                     router.push(
-                      role === "super_admin" || role === "admin"
+                      effectiveRole === "super_admin" ||
+                        effectiveRole === "admin"
                         ? "/admin/tasks"
                         : "/staff/op-report",
                     )
@@ -1363,7 +1365,8 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <button
                   onClick={() =>
                     router.push(
-                      role === "super_admin" || role === "admin"
+                      effectiveRole === "super_admin" ||
+                        effectiveRole === "admin"
                         ? "/admin/projects"
                         : "/staff/projects",
                     )
