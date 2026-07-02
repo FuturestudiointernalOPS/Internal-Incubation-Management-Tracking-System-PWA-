@@ -18,6 +18,7 @@ export async function GET(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "developer",
     ]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);

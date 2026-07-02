@@ -17,6 +17,7 @@ import {
   X,
   Check,
   Building2,
+  Trash2,
 } from "lucide-react";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -245,6 +246,7 @@ export default function MessagingChat({ role = "super_admin" }) {
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
+  const [deletingMessageId, setDeletingMessageId] = useState(null);
 
   // Compose modal state
   const [showCompose, setShowCompose] = useState(false);
@@ -638,6 +640,24 @@ export default function MessagingChat({ role = "super_admin" }) {
     }
   };
 
+  // ── Handle deleting a message (sender only, enforced server-side too) ──
+  const handleDeleteMessage = async (messageId) => {
+    if (!window.confirm("Delete this message?")) return;
+    setDeletingMessageId(messageId);
+    try {
+      const res = await fetch(`/api/internal-comms?id=${messageId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await fetchMessages();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeletingMessageId(null);
+    }
+  };
+
   // ── Handle sending a new message from compose modal ──
   const handleSendNew = async () => {
     if (!composeBody) return;
@@ -979,14 +999,29 @@ export default function MessagingChat({ role = "super_admin" }) {
                     const isSent = msg.sender_id === uid;
                     const isLast = idx === activeMessages.length - 1;
                     const showRead = isSent && isLast && msg.is_read === 1;
+                    const isDeleting = deletingMessageId === msg.id;
                     return (
                       <div
                         key={msg.id}
                         className={cn(
-                          "flex",
+                          "flex items-center gap-1.5 group",
                           isSent ? "justify-end" : "justify-start",
                         )}
                       >
+                        {isSent && (
+                          <button
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            disabled={isDeleting}
+                            title="Delete message"
+                            className="shrink-0 opacity-0 group-hover:opacity-100 disabled:opacity-30 text-[var(--text-secondary)] hover:text-red-500 transition-all"
+                          >
+                            {isDeleting ? (
+                              <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3 h-3" />
+                            )}
+                          </button>
+                        )}
                         <div
                           className={cn(
                             "max-w-[75%] lg:max-w-[60%] px-3.5 py-2.5 rounded-2xl",

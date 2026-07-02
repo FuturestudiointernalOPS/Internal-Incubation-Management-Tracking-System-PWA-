@@ -207,11 +207,13 @@ Résultat final (4 sessions de tests E2E DeepSeek/chrome-devtools MCP, 02/07/202
 - [x] Notifications : créées après envoi
 - [x] Finance non-SA → 403
 - [x] Dark mode : ok sur toutes les pages testées
-- [ ] Polling 10s : **non vérifié** — pages messagerie ne s'hydratent pas correctement sous chrome-devtools MCP (`Page.navigate` CDP, cf A12 §8), pas représentatif d'un vrai navigateur. À tester manuellement.
-- [ ] Mobile responsive : **non vérifié**, même raison (A12)
-- [ ] `/developer/messages` (UI) : **non vérifiée**, API OK mais rendu jamais confirmé visuellement
+- [x] Mobile responsive : vérifié manuellement (chrome-devtools MCP, viewport 390×844) — toggle list↔chat OK dans les 2 sens
+- [x] Dark mode / light mode : vérifié manuellement — toggle OK, aucune régression visuelle
+- [x] Delete (UI) : bouton poubelle au hover, sender uniquement, confirm dialog, suppression confirmée en live (4→3 messages, preview thread mis à jour)
+- [ ] Polling 10s : toujours non vérifié en conditions réelles (attente 10s+2 sessions) — code inchangé (`setInterval` déjà en place), pas de raison de douter mais pas observé en direct
+- [ ] `/developer/messages` (UI) : toujours non vérifiée visuellement, API confirmée OK
 
-**Verdict DeepSeek : backend M7 100% fonctionnel, tous les guards sécurité confirmés.** Les 3 items restants sont des vérifications UI qui demandent un vrai navigateur, pas un bug identifié.
+**Verdict : backend M7 100% fonctionnel (DeepSeek), et le seul morceau frontend manquant (bouton delete, B3) est fait + vérifié en navigateur réel.** Reste juste 2 vérifications mineures non bloquantes (polling visuel, page developer).
 
 ---
 
@@ -390,3 +392,21 @@ Root cause : `db.execute(sql, args)` appelé avec 2 arguments positionnels dans 
 `POST /api/auth/session-login` avec les creds SA → 500 via chrome-devtools MCP (nouvel onglet), mais **non reproduit** en curl direct (2 sessions de suite, session 2 et 4) ni en requêtes DB isolées — la requête marche à 100% en dehors du contexte CDP. Staff/PM/teacher n'ont jamais ce problème. Hypothèse la plus probable : Next.js dev compile la route à la demande (premier hit = lent), et SA est systématiquement le premier rôle testé dans chaque session DeepSeek → possible race/timeout côté automation CDP sur une route encore en cours de compilation, pas un bug de code. Pas de réponse brute (body du 500) fournie pour confirmer — si ça persiste, il faudrait le body exact de l'erreur, pas juste le status code, pour trancher.
 
 Associé : **A12** — pages messagerie vides après `Page.navigate` en CDP (hydratation Next.js qui ne se fait pas correctement dans ce contexte précis). DeepSeek lui-même : "non représentatif d'un vrai navigateur." Polling 10s et mobile responsive restent donc non vérifiés, mais pas bloqués par un bug identifié — juste par la limite de l'outil de test CDP.
+
+### Session 5 — B3 : UI bouton delete construit + testé en navigateur réel
+
+Backend delete existait depuis l'étape 1 (A1-A4/B1/B2), jamais consommé côté UI. Ajouté dans `MessagingChat.js` : icône poubelle (`Trash2`, lucide-react) au hover, visible seulement sur les messages envoyés par l'utilisateur (`isSent`), `window.confirm()` avant suppression, appel `DELETE /api/internal-comms?id=<id>`, refetch après succès.
+
+Testé en direct avec chrome-devtools MCP (pas de souci d'hydratation cette fois, contrairement aux sessions DeepSeek) : login staff réel → conversation SA existante (4 messages) → hover fait apparaître l'icône → confirm dialog intercepté et accepté → message supprimé, count 4→3, preview de la conversation mis à jour instantanément. Vérifié aussi que le bouton n'apparaît jamais sur les messages reçus (seulement 1 bouton visible sur 3 messages restants, tous les autres étant reçus). Profité du navigateur ouvert pour cocher mobile responsive et dark/light mode au passage (§5).
+
+### Session 6 — C4 et B6 clos (décision utilisateur, 02/07/2026)
+
+**C4 — route legacy supprimée.** `src/app/api/messages/route.js` supprimé entièrement (`rm`, plus `rmdir` du dossier vide). Seul appelant (`src/app/developer/messages/page.js`) redirigé vers `GET /api/internal-comms?cid=`. Piège trouvé en cours de route : `internal-comms` GET n'autorisait que `staff/super_admin/program_manager/teacher` — `developer` était absent de la liste, alors que `/developer/messages` est un vrai lien de nav (`DashboardLayout.js` lignes 557/961), pas une page morte. Ajouté `"developer"` à `requireAuth([...])` du GET pour éviter une régression 403. Vérifié en direct : `GET /api/internal-comms?cid=<devCid>` avec session developer → 200 ; `POST /api/messages` → 404 (route bien morte, pas juste bloquée par le middleware avant résolution).
+
+**B6 — rôle explicite honoré en fallback.** `session-login/route.js` §6 ROLE RESOLUTION : ajouté `else if (user.role === "program_manager")` et `else if (user.role === "teacher")` juste après les checks d'assignation (`pmLeadAssignment`/`activeTeammateAssignment`) et avant le fallback `staff`/`group_name`. Changement additif — l'inférence par assignation reste prioritaire et inchangée, seul le cas "0 assignation mais rôle explicite en DB" change de résultat. Vérifié en direct (curl) :
+- `pm@impactos.staging` → `program_manager` (était `staff`)
+- `teacher@impactos.staging` → `teacher` (était `staff`)
+- `staff1@impactos.staging` → `staff` (inchangé)
+- `superadmin@impactos.staging` → `super_admin` (inchangé)
+
+**M7 — état final : plan intégralement clos**, y compris les 2 points laissés en suspens plus tôt (C4, B6). `src/app/api/auth/login/route.js` (route morte jumelle, bloquée par `proxy.js`) n'a pas été touchée — a la même logique de rôle bugguée mais inatteignable, non prioritaire.
