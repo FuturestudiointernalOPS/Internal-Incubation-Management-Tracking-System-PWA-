@@ -139,6 +139,7 @@ const ROLE_HIERARCHY = {
   program_manager: 3,
   team_lead: 2,
   staff: 1,
+  developer: 1,
   teacher: 1,
 };
 
@@ -795,7 +796,9 @@ export default function UnifiedDashboard({ role: propRole }) {
                           user?.role === "developer"
                             ? "admin"
                             : "staff";
-                        router.push("/" + r + "/op-report");
+                        router.push(
+                          user?.role === "developer" ? "/developer/standup" : "/" + r + "/op-report"
+                        );
                       }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 cursor-pointer hover:brightness-110 transition-all"
                     >
@@ -907,6 +910,33 @@ export default function UnifiedDashboard({ role: propRole }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ===== LEFT COLUMN (2/3) ===== */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Weekly Standup Banner for Staff/Devs */}
+            {(effectiveRole === "developer" || effectiveRole === "staff") && (
+              <div 
+                className="card flex items-center justify-between !p-4 border-l-4 border-l-[var(--brand-orange)] cursor-pointer hover:border-[var(--brand-orange)]/50 transition-all bg-[var(--brand-orange)]/5"
+                onClick={() => {
+                  router.push(
+                    effectiveRole === "developer" ? "/developer/standup" : "/staff/op-report"
+                  );
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-[var(--brand-orange)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                      Weekly Standup
+                    </h3>
+                    <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+                      View or submit your weekly operational report
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-400" />
+              </div>
+            )}
+
             {/* My Programs — Rich Cards */}
             {visibility.showQuickPrograms && (
               <div className="card">
@@ -1005,7 +1035,13 @@ export default function UnifiedDashboard({ role: propRole }) {
                     </span>
                   </div>
                   <button
-                    onClick={() => router.push("/staff/op-report")}
+                    onClick={() => {
+                      if (effectiveRole === "developer") {
+                        router.push("/developer/standup");
+                      } else {
+                        router.push("/staff/op-report");
+                      }
+                    }}
                     className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
                   >
                     Open Report
@@ -1036,7 +1072,9 @@ export default function UnifiedDashboard({ role: propRole }) {
                             user?.role === "developer"
                               ? "admin"
                               : "staff";
-                          router.push("/" + r + "/op-report");
+                          router.push(
+                            user?.role === "developer" ? "/developer/standup" : "/" + r + "/op-report"
+                          );
                         }}
                         className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
                       >
