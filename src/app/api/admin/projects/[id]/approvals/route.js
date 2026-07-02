@@ -29,7 +29,7 @@ export async function GET(req, { params }) {
     const result = await db.execute({
       sql: `SELECT par.*, c.name AS requester_name_lookup, t.title AS task_title
             FROM project_approval_requests par
-            LEFT JOIN contacts c ON par.requester_id = c.cid OR par.requester_id = c.id
+            LEFT JOIN contacts c ON par.requested_by = c.cid OR par.requested_by = c.id
             LEFT JOIN tasks t ON par.task_id = t.id
             WHERE par.project_id::text = ?
             ORDER BY par.created_at DESC`,

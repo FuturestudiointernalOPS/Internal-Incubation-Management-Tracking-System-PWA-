@@ -145,6 +145,21 @@ export async function POST(req) {
       metadata: { title, task_id, severity: severity || "medium" },
     });
 
+    // Notify all Super Admins (direct DB insert, recipient_id = "sa" for bell)
+    try {
+      await db.execute({
+        sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+        args: [
+          "sa",
+          "New Blocker Created",
+          `${user_name || user_id} added blocker "${title}" on task #${task_id}`,
+          "blocker",
+        ],
+      });
+    } catch (_) {
+      // Notifications are non-blocking
+    }
+
     return NextResponse.json({
       success: true,
       id: blockerId,

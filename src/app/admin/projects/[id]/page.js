@@ -407,6 +407,18 @@ export default function ProjectDetail() {
                       {new Date(project.created_at).toLocaleDateString()}
                     </span>
                   </div>
+                  {project.start_date && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
+                      <Calendar className="w-3 h-3" />
+                      <span className="font-bold">Start {new Date(project.start_date).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  {project.end_date && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-amber-400">
+                      <Calendar className="w-3 h-3" />
+                      <span className="font-bold">End {new Date(project.end_date).toLocaleDateString()}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -626,6 +638,7 @@ export default function ProjectDetail() {
               userId={project.owner_id || "sa"}
               userName={project.owner_name || "Project Owner"}
               projects={[{ id: project.id, name: project.name }]}
+              projectMembers={members}
               taskList={project.tasks || []}
               onTasksChange={fetchProject}
               showCarryOver={false}

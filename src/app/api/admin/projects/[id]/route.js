@@ -100,7 +100,7 @@ export async function GET(req, { params }) {
       sql: `SELECT DISTINCT member_id, c.name, c.role, c.email, member_role FROM (
         SELECT user_cid AS member_id, role AS member_role FROM project_members WHERE project_id::text = ?
         UNION
-        SELECT staff_id AS member_id, role AS member_role FROM v2_project_staff WHERE project_id::text = ?
+        SELECT staff_cid AS member_id, role AS member_role FROM v2_project_staff WHERE project_id::text = ?
         UNION
         SELECT assigned_to AS member_id, 'member' AS member_role FROM tasks WHERE project_id::text = ? AND assigned_to IS NOT NULL
       ) combined

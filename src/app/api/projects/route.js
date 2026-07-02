@@ -28,8 +28,10 @@ export async function POST(req) {
       description,
       concept_note,
       concept_note_url,
-      assigned_pm_id, // keep for backwards compatibility if needed
-      assigned_pm_ids = [], // new array format
+      start_date,
+      end_date,
+      assigned_pm_id,
+      assigned_pm_ids = [],
     } = body;
 
     if (!name) {
@@ -58,11 +60,13 @@ export async function POST(req) {
     });
 
     const result = await db.execute({
-      sql: "INSERT INTO v2_projects (program_id, name, status, meta, owner_id) VALUES (?, ?, ?, ?, ?) RETURNING id",
+      sql: "INSERT INTO v2_projects (program_id, name, status, start_date, end_date, meta, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
       args: [
         program_id || null,
         name,
         status || "Active",
+        start_date || null,
+        end_date || null,
         meta,
         primaryOwnerId,
       ],
@@ -112,12 +116,12 @@ export async function GET(req) {
       args.push(program_id);
     }
 
-    // Filter by user membership (project_members is the authoritative source)
+    // Filter by user membership (project_members OR owner_id)
     if (user_cid) {
       conditions.push(
-        "EXISTS (SELECT 1 FROM project_members WHERE project_id::text = p.id::text AND user_cid = ?)",
+        "(EXISTS (SELECT 1 FROM project_members WHERE project_id::text = p.id::text AND user_cid = ?) OR p.owner_id = ?)",
       );
-      args.push(user_cid);
+      args.push(user_cid, user_cid);
     }
 
     // Exclude archived unless explicitly requested
@@ -156,7 +160,9 @@ export async function GET(req) {
     // For each project, aggregate task stats
     const projectsWithStats = await Promise.all(
       result.rows.map(async (row) => {
-        const meta = row.meta ? JSON.parse(row.meta) : {};
+        const meta =
+          (typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta) ||
+          {};
         const taskStats = await db.execute({
           sql: `SELECT
             COUNT(*) AS total,
@@ -199,6 +205,8 @@ export async function PUT(req) {
       description,
       concept_note,
       concept_note_url,
+      start_date,
+      end_date,
       assigned_pm_id,
       assigned_pm_ids,
     } = body;
@@ -221,6 +229,14 @@ export async function PUT(req) {
       updateFields.push("status = ?");
       updateArgs.push(status);
     }
+    if (start_date !== undefined) {
+      updateFields.push("start_date = ?");
+      updateArgs.push(start_date || null);
+    }
+    if (end_date !== undefined) {
+      updateFields.push("end_date = ?");
+      updateArgs.push(end_date || null);
+    }
 
     // If meta fields changed, update the meta JSON
     if (
@@ -236,23 +252,26 @@ export async function PUT(req) {
         args: [parseInt(id)],
       });
 
-      const currentMeta = current.rows[0]?.meta
-        ? JSON.parse(current.rows[0].meta)
-        : {};
+      const rawMeta = current.rows[0]?.meta;
+      const currentMeta =
+        (typeof rawMeta === "string" ? JSON.parse(rawMeta) : rawMeta) || {};
 
       let leadsToAssign = assigned_pm_ids;
       if (assigned_pm_ids === undefined && assigned_pm_id !== undefined) {
-         leadsToAssign = assigned_pm_id ? [assigned_pm_id] : [];
+        leadsToAssign = assigned_pm_id ? [assigned_pm_id] : [];
       }
-      
-      const primaryOwnerId = leadsToAssign && leadsToAssign.length > 0 ? leadsToAssign[0] : null;
+
+      const primaryOwnerId =
+        leadsToAssign && leadsToAssign.length > 0 ? leadsToAssign[0] : null;
 
       const newMeta = JSON.stringify({
         ...currentMeta,
         ...(description !== undefined ? { description } : {}),
         ...(concept_note !== undefined ? { concept_note } : {}),
         ...(concept_note_url !== undefined ? { concept_note_url } : {}),
-        ...(leadsToAssign !== undefined ? { assigned_pm_id: primaryOwnerId, assigned_pm_ids: leadsToAssign } : {}),
+        ...(leadsToAssign !== undefined
+          ? { assigned_pm_id: primaryOwnerId, assigned_pm_ids: leadsToAssign }
+          : {}),
       });
 
       updateFields.push("meta = ?");
@@ -281,7 +300,12 @@ export async function PUT(req) {
 
     // Update project leads in members table if provided
     if (assigned_pm_ids !== undefined || assigned_pm_id !== undefined) {
-      const leadsToAssign = assigned_pm_ids !== undefined ? assigned_pm_ids : (assigned_pm_id ? [assigned_pm_id] : []);
+      const leadsToAssign =
+        assigned_pm_ids !== undefined
+          ? assigned_pm_ids
+          : assigned_pm_id
+            ? [assigned_pm_id]
+            : [];
       // Remove existing lead(s)
       await db.execute({
         sql: "DELETE FROM project_members WHERE project_id::text = ? AND role = 'lead'",

@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-        "sync-finance": "node scripts/sync-finance.js --syncAll"
+    "sync-finance": "node scripts/sync-finance.js --syncAll"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -22,7 +22,7 @@
     "jspdf": "^4.2.1",
     "lucide-react": "^0.473.0",
     "mailgen": "^2.0.32",
-    "next": "^16.2.1",
+    "next": "^15.4.1",
     "nodemailer": "^8.0.3",
     "papaparse": "^5.5.3",
     "pg": "^8.20.0",
@@ -40,7 +40,7 @@
     "@babel/parser": "^7.29.7",
     "autoprefixer": "^10.4.27",
     "eslint": "9.18.0",
-    "eslint-config-next": "^16.2.1",
+    "eslint-config-next": "^15.4.1",
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.19"
   }

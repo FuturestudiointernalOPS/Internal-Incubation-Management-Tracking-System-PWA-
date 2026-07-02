@@ -330,6 +330,10 @@ export async function POST(req) {
     let finalStatus = status || "in_progress";
     let pendingApproval = false;
 
+    // If assigned to someone else, don't set assigned_to directly — use pending assignment workflow
+    const needsAssignment = finalAssignedTo && finalAssignedTo !== user_id;
+    const effectiveAssignedTo = needsAssignment ? null : finalAssignedTo;
+
     const result = await db.execute({
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id, category,
@@ -350,7 +354,7 @@ export async function POST(req) {
         parent_task_id || null,
         finalStartDate,
         finalEndDate,
-        finalAssignedTo,
+        effectiveAssignedTo,
         link || null,
       ],
     });
@@ -442,6 +446,30 @@ export async function POST(req) {
       });
     } catch (e) {
       console.error("Standup upsert failed (non-blocking):", e.message);
+    }
+
+    // ─── Task Assignment Workflow ───
+    // If assigned to someone else, create pending assignment (requires accept/decline)
+    if (needsAssignment) {
+      try {
+        await db.execute({
+          sql: "INSERT INTO task_assignments (task_id, assigner_id, assignee_id) VALUES (?, ?, ?)",
+          args: [taskId, user_id, finalAssignedTo],
+        });
+        // Notify assignee
+        const taskRef = title || "#" + taskId;
+        await db.execute({
+          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+          args: [
+            finalAssignedTo,
+            "New Task Assignment",
+            `${user_name || user_id} assigned you task "${taskRef}"`,
+            "task_assignment",
+          ],
+        });
+      } catch (e) {
+        console.error("Task assignment creation failed:", e.message);
+      }
     }
 
     // ─── Sync parent end_date if subtask extends further ───
