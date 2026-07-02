@@ -46,6 +46,8 @@ export async function GET(req) {
     }
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
+    const assigned_to = searchParams.get("assigned_to");
+    const project_id_filter = searchParams.get("project_id");
 
     // SECURITY: Users can only see their own tasks unless super_admin
     const sessionCid = session.cid;
@@ -67,8 +69,6 @@ export async function GET(req) {
     const year = searchParams.get("year");
     const role = searchParams.get("role");
     const id = searchParams.get("id");
-    const assigned_to = searchParams.get("assigned_to");
-    const project_id_filter = searchParams.get("project_id");
     const sort = searchParams.get("sort");
     const limit = searchParams.get("limit");
     const brief = searchParams.get("brief") === "true";
