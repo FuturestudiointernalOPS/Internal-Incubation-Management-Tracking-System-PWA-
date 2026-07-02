@@ -436,12 +436,6 @@ const NAVIGATION_MATRIX = {
       href: "/staff",
     },
     {
-      id: "standup",
-      name: "STANDUP",
-      icon: MessageSquare,
-      href: "/developer/standup",
-    },
-    {
       id: "communication",
       name: "COMMUNICATION",
       icon: MessageSquare,
@@ -540,8 +534,8 @@ const NAVIGATION_MATRIX = {
       name: "STANDUPS & RETROS",
       icon: MessageSquare,
       subItems: [
-        { id: "standup", name: "STANDUP", href: "/developer/standup" },
-        { id: "retro", name: "RETRO", href: "/developer/retro" },
+        { id: "standup", name: "STANDUP", href: "/staff/op-report" },
+        { id: "retro", name: "RETRO", href: "/staff/op-report" },
       ],
     },
     {
@@ -946,7 +940,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           id: "standup",
           name: "STAND-UP",
           icon: MessageSquare,
-          href: "/developer/standup",
+          href: "/staff/op-report",
         },
         {
           id: "my_tasks",
