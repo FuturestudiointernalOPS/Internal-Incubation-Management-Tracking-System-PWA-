@@ -46,6 +46,8 @@ export async function GET(req) {
     }
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
+    const assigned_to = searchParams.get("assigned_to");
+    const project_id_filter = searchParams.get("project_id");
 
     // SECURITY: Users can only see their own tasks unless super_admin
     const sessionCid = session.cid;
@@ -67,8 +69,6 @@ export async function GET(req) {
     const year = searchParams.get("year");
     const role = searchParams.get("role");
     const id = searchParams.get("id");
-    const assigned_to = searchParams.get("assigned_to");
-    const project_id_filter = searchParams.get("project_id");
     const sort = searchParams.get("sort");
     const limit = searchParams.get("limit");
     const brief = searchParams.get("brief") === "true";
@@ -968,7 +968,10 @@ export async function PUT(req) {
     }
 
     // ─── Sync parent end_date if this (sub)task extends further ───
-    if (task.parent_task_id && (end_date !== undefined || start_date !== undefined)) {
+    if (
+      task.parent_task_id &&
+      (end_date !== undefined || start_date !== undefined)
+    ) {
       try {
         const effEnd = end_date || task.end_date;
         if (effEnd) {
@@ -1080,9 +1083,15 @@ export async function DELETE(req) {
       args: [parseInt(id)],
     });
 
-    // Delete associated blockers and audit logs first
+    // Delete associated blockers, subtasks, and audit logs first
     await db.execute({
-      sql: "DELETE FROM blockers WHERE task_id = ?",
+      sql: "DELETE FROM blockers WHERE task_id IN (SELECT id FROM tasks WHERE id = ? OR parent_task_id = ?)",
+      args: [parseInt(id), parseInt(id)],
+    });
+
+    // Delete subtasks first (parent_task_id pointing to this task)
+    await db.execute({
+      sql: "DELETE FROM tasks WHERE parent_task_id = ?",
       args: [parseInt(id)],
     });
 

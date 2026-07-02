@@ -88,18 +88,20 @@ export function I18nProvider({ children }) {
   }, []);
 
   const t = useCallback(
-    (key) => {
+    (key, params = {}) => {
       // Try active language first
       const activeLang = LANGUAGES[lang];
-      const activeResult = resolveKey(activeLang, key);
-      if (activeResult != null) return activeResult;
+      let result = resolveKey(activeLang, key);
+      if (result == null) {
+        // Fallback to English
+        result = resolveKey(LANGUAGES[DEFAULT_LANGUAGE], key);
+      }
+      if (result == null) return key;
 
-      // Fallback to English
-      const englishResult = resolveKey(LANGUAGES[DEFAULT_LANGUAGE], key);
-      if (englishResult != null) return englishResult;
-
-      // Last resort: return the key itself as a visible signal
-      return key;
+      // Replace {param} placeholders
+      return result.replace(/\{(\w+)\}/g, (_, name) => {
+        return params[name] !== undefined ? params[name] : `{${name}}`;
+      });
     },
     [lang],
   );

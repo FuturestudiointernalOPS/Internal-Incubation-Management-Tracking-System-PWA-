@@ -26,7 +26,7 @@ export default function DeveloperMessages() {
         const sessionRes = await fetch("/api/auth/session");
         const sessionData = await sessionRes.json();
         if (sessionData.authenticated) {
-          const res = await fetch(`/api/messages?user_id=${sessionData.user.cid}`);
+          const res = await fetch(`/api/internal-comms?cid=${sessionData.user.cid}`);
           const data = await res.json();
           if (data.success) {
             setMessages(data.messages || []);
