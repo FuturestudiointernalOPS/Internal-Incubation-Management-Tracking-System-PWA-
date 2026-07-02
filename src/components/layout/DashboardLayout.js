@@ -824,7 +824,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   }, [fetchNotifications, fetchSubmissionCount]);
 
   useEffect(() => {
-  useEffect(() => {
     // First load already done by initAuth — skip immediate fetch
     const id = setTimeout(() => {
       fetchNotifications();
