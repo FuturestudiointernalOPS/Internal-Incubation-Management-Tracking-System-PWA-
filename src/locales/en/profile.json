@@ -1,0 +1,15 @@
+{
+  "profile": {
+    "subtitle": "Manage your profile information and security settings.",
+    "generalInfo": "General Information",
+    "fullName": "Full Name",
+    "email": "Email Address",
+    "security": "Security Settings",
+    "passwordHint": "Update your account password to ensure platform security.",
+    "newPassword": "New Password",
+    "passwordPlaceholder": "Enter new password...",
+    "updated": "Profile updated successfully",
+    "updateFailed": "Update failed. Please try again.",
+    "couldNotLoad": "Could not load profile data."
+  }
+}

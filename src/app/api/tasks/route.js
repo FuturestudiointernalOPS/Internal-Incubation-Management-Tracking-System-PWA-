@@ -59,10 +59,6 @@ export async function GET(req) {
           { status: 403 },
         );
       }
-      // If no user_id specified, force scope to own tasks
-      if (!user_id && !assigned_to && !project_id_filter) {
-        // Will add user_id filter below
-      }
     }
     const status = searchParams.get("status");
     const week_number = searchParams.get("week");
