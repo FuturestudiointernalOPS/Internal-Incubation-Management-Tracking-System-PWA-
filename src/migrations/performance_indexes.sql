@@ -1,5 +1,6 @@
 -- Performance Index Migration
 -- Fix slow queries identified by forensic logging
+-- All use IF NOT EXISTS — safe to re-run
 
 -- 1. user_sessions.token — session lookup (3.1s bottleneck)
 CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token);
@@ -7,8 +8,8 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token);
 -- 2. user_sessions.expires_at — session cleanup
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
 
--- 3. notifications.recipient_id + is_read — notification fetch (3.7s bottleneck)
-CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_id, is_read, created_at DESC);
+-- 3. v2_notifications.recipient_id + is_read — notification fetch (3.7s bottleneck)
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON v2_notifications(recipient_id, is_read, created_at DESC);
 
 -- 4. tasks.user_id + status — task queries
 CREATE INDEX IF NOT EXISTS idx_tasks_user_status ON tasks(user_id, status);
