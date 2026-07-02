@@ -14,18 +14,44 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 export default function DeveloperProjects() {
   const router = useRouter();
   const [userRole, setUserRole] = useState("developer");
+  const [user, setUser] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [responding, setResponding] = useState(null);
 
-  useEffect(() => {
+  const fetchInvitations = async (cid) => {
     try {
-      const saved = localStorage.getItem("user");
-      if (saved) {
-        const u = JSON.parse(saved);
-        setUserRole(u.role || "developer");
+      const res = await fetch(
+        `/api/projects/invitations?invitee_id=${encodeURIComponent(cid)}&status=pending`,
+      );
+      const data = await res.json();
+      if (data.success) setInvitations(data.invitations || []);
+    } catch (e) {
+      console.error("Failed to fetch invitations", e);
+    }
+  };
+
+  const handleInvitationResponse = async (invitationId, action) => {
+    setResponding(invitationId);
+    try {
+      const res = await fetch("/api/projects/invitations/respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitation_id: invitationId, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+      } else {
+        alert(data.error || "Failed to respond");
       }
-    } catch (_) {}
-  }, []);
+    } catch (e) {
+      alert("Network error");
+    } finally {
+      setResponding(null);
+    }
+  };
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -34,15 +60,19 @@ export default function DeveloperProjects() {
         const sessionRes = await fetch("/api/auth/session");
         const sessionData = await sessionRes.json();
         if (sessionData.authenticated && sessionData.user) {
-          const userId = sessionData.user.cid;
+          const u = sessionData.user;
+          setUser(u);
+          const userId = u.cid;
+          setUserRole(u.role || "developer");
+          fetchInvitations(userId);
+
           const res = await fetch(`/api/projects?user_cid=${userId}`);
           const data = await res.json();
           if (data.success) {
             setProjects(data.projects || []);
           } else {
-            // Fallback: try dashboard API
             const dashRes = await fetch(
-              `/api/dashboard?user_id=${userId}&role=${sessionData.user.role}`,
+              `/api/dashboard?user_id=${userId}&role=${u.role}`,
             );
             const dashData = await dashRes.json();
             if (dashData.success && dashData.quickAccess?.projects) {
@@ -78,6 +108,55 @@ export default function DeveloperProjects() {
             </p>
           </div>
         </header>
+
+        {/* Pending Project Invitations */}
+        {invitations.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
+              <Users className="w-4 h-4 text-amber-400" />
+              Project Invitations ({invitations.length})
+            </h2>
+            <div className="space-y-2">
+              {invitations.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="card p-4 border-amber-500/20 bg-amber-500/[0.03]"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                        {inv.project_name || "Project"}
+                      </h3>
+                      <p className="text-[9px] text-slate-500 mt-1">
+                        Invited you to join this project
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() =>
+                          handleInvitationResponse(inv.id, "decline")
+                        }
+                        disabled={responding === inv.id}
+                        className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
+                      >
+                        Decline
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleInvitationResponse(inv.id, "accept")
+                        }
+                        disabled={responding === inv.id}
+                        className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
+                      >
+                        Accept
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">

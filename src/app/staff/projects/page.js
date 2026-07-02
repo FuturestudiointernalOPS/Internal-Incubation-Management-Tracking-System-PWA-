@@ -27,7 +27,9 @@ export default function MyProjects() {
   const { t } = useI18n();
   const [user, setUser] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [responding, setResponding] = useState(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -40,17 +42,17 @@ export default function MyProjects() {
           const u = data.user;
           setUser(u);
           fetchProjects(u.cid || u.id);
+          fetchInvitations(u.cid || u.id);
           return;
         }
-      } catch (_) {
-        // Session API unavailable — fallback to localStorage
-      }
+      } catch (_) {}
 
-      // Fallback: read from localStorage (DashboardLayout may have populated it)
+      // Fallback: read from localStorage
       const u = JSON.parse(localStorage.getItem("user") || "{}");
       if (u.cid || u.id) {
         setUser(u);
         fetchProjects(u.cid || u.id);
+        fetchInvitations(u.cid || u.id);
       } else {
         setLoading(false);
       }
@@ -71,6 +73,39 @@ export default function MyProjects() {
       console.error("Failed to fetch projects", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInvitations = async (cid) => {
+    try {
+      const res = await fetch(
+        `/api/projects/invitations?invitee_id=${encodeURIComponent(cid)}&status=pending`,
+      );
+      const data = await res.json();
+      if (data.success) setInvitations(data.invitations || []);
+    } catch (e) {
+      console.error("Failed to fetch invitations", e);
+    }
+  };
+
+  const handleInvitationResponse = async (invitationId, action) => {
+    setResponding(invitationId);
+    try {
+      const res = await fetch("/api/projects/invitations/respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitation_id: invitationId, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+      } else {
+        alert(data.error || "Failed to respond");
+      }
+    } catch (e) {
+      alert("Network error");
+    } finally {
+      setResponding(null);
     }
   };
 
@@ -119,6 +154,55 @@ export default function MyProjects() {
             />
           </div>
         </header>
+
+        {/* Pending Project Invitations */}
+        {invitations.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
+              <Users className="w-4 h-4 text-amber-400" />
+              Project Invitations ({invitations.length})
+            </h2>
+            <div className="space-y-2">
+              {invitations.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="card p-4 border-amber-500/20 bg-amber-500/[0.03]"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                        {inv.project_name || "Project"}
+                      </h3>
+                      <p className="text-[9px] text-slate-500 mt-1">
+                        Invited you to join this project
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() =>
+                          handleInvitationResponse(inv.id, "decline")
+                        }
+                        disabled={responding === inv.id}
+                        className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
+                      >
+                        Decline
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleInvitationResponse(inv.id, "accept")
+                        }
+                        disabled={responding === inv.id}
+                        className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
+                      >
+                        Accept
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Projects List */}
         {loading ? (
@@ -200,7 +284,19 @@ export default function MyProjects() {
                             Timeline
                           </p>
                           <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
-                            {project.start_date ? new Date(project.start_date).toLocaleDateString('en',{month:'short',day:'numeric'}) : '—'} → {project.end_date ? new Date(project.end_date).toLocaleDateString('en',{month:'short',day:'numeric'}) : '—'}
+                            {project.start_date
+                              ? new Date(project.start_date).toLocaleDateString(
+                                  "en",
+                                  { month: "short", day: "numeric" },
+                                )
+                              : "—"}{" "}
+                            →{" "}
+                            {project.end_date
+                              ? new Date(project.end_date).toLocaleDateString(
+                                  "en",
+                                  { month: "short", day: "numeric" },
+                                )
+                              : "—"}
                           </p>
                         </div>
                         <div>
