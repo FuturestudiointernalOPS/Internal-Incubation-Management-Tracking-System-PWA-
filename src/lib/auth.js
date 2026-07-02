@@ -18,6 +18,19 @@ export async function createSession(userCid, userRole) {
 
   const token = uuidv4();
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+  const expiresAtStr = expiresAt
+    .toISOString()
+    .replace("T", " ")
+    .replace("Z", "");
+
+  console.log(
+    "[session] createSession — cid:",
+    userCid,
+    "role:",
+    userRole,
+    "expires:",
+    expiresAtStr,
+  );
 
   // Clean up old sessions for this user
   await db.execute({
@@ -29,13 +42,13 @@ export async function createSession(userCid, userRole) {
   await db.execute({
     sql: `INSERT INTO user_sessions (token, user_cid, role, expires_at)
           VALUES (?, ?, ?, ?)`,
-    args: [
-      token,
-      userCid,
-      userRole,
-      expiresAt.toISOString().replace("T", " ").replace("Z", ""),
-    ],
+    args: [token, userCid, userRole, expiresAtStr],
   });
+
+  console.log(
+    "[session] Session stored — token:",
+    token.substring(0, 8) + "...",
+  );
 
   return { token, maxAge: SESSION_DURATION_HOURS * 60 * 60 };
 }
@@ -51,7 +64,15 @@ export async function getSession() {
     const cookieStore = await cookies();
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
-    if (!token) return null;
+    if (!token) {
+      console.log("[session] No cookie found");
+      return null;
+    }
+
+    console.log(
+      "[session] getSession — token from cookie:",
+      token.substring(0, 8) + "...",
+    );
 
     const result = await db.execute({
       sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
@@ -61,7 +82,15 @@ export async function getSession() {
       args: [token],
     });
 
-    if (result.rows.length === 0) return null;
+    if (result.rows.length === 0) {
+      console.log(
+        "[session] Token not in DB or expired — cookie token:",
+        token.substring(0, 8) + "...",
+      );
+      return null;
+    }
+
+    console.log("[session] Session FOUND in DB");
 
     const session = result.rows[0];
 
@@ -72,6 +101,12 @@ export async function getSession() {
       !allowedStatuses.includes(session.status) &&
       session.role !== "super_admin"
     ) {
+      console.log(
+        "[session] User status rejected:",
+        session.status,
+        "role:",
+        session.role,
+      );
       await destroySession();
       return null;
     }

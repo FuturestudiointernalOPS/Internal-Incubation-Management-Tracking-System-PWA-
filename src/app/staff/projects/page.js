@@ -149,12 +149,7 @@ export default function MyProjects() {
                 <div
                   key={project.id}
                   onClick={() => {
-                    // Route based on user role — admin goes to admin path, staff goes to staff path
-                    const base =
-                      user?.role === "super_admin" || user?.role === "developer"
-                        ? "/admin"
-                        : "/staff";
-                    router.push(`${base}/projects/${project.id}`);
+                    router.push(`/staff/projects/${project.id}`);
                   }}
                   className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all hover:bg-tertiary border-[var(--border-primary)]"
                 >

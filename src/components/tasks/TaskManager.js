@@ -131,6 +131,9 @@ export default function TaskManager({
   const [addResourceTaskId, setAddResourceTaskId] = useState(null);
   const [resourceForm, setResourceForm] = useState({ name: "", url: "" });
   const [resourceAdding, setResourceAdding] = useState(false);
+  const [blockerModal, setBlockerModal] = useState(null); // { taskId, taskTitle } or null
+  const [blockerTitle, setBlockerTitle] = useState("");
+  const [blockerAdding, setBlockerAdding] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const projectDropdownRef = useRef(null);
@@ -201,6 +204,51 @@ export default function TaskManager({
       if (res.ok) {
         if (onTasksChange) onTasksChange();
       }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // ── API: Add blocker to task ──
+  const handleAddBlocker = async () => {
+    if (!blockerModal || !blockerTitle.trim()) return;
+    setBlockerAdding(true);
+    try {
+      const res = await fetch("/api/blockers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: blockerModal.taskId,
+          user_id: uid,
+          user_name: userName || "User",
+          title: blockerTitle.trim(),
+        }),
+      });
+      if (res.ok) {
+        setBlockerModal(null);
+        setBlockerTitle("");
+        if (onTasksChange) onTasksChange();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setBlockerAdding(false);
+  };
+
+  // ── API: Resolve blocker ──
+  const handleResolveBlocker = async (blockerId) => {
+    try {
+      await fetch("/api/blockers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: blockerId,
+          user_id: uid,
+          status: "resolved",
+          resolved_by: uid,
+        }),
+      });
+      if (onTasksChange) onTasksChange();
     } catch (e) {
       console.error(e);
     }
@@ -560,6 +608,18 @@ export default function TaskManager({
               ))}
             </select>
           )}
+
+          {/* Blockers button */}
+          <button
+            onClick={() => setBlockerModal({ taskId: task.id, taskTitle: task.title })}
+            className={`shrink-0 transition-all ${(task.blockers || []).filter(b => b.status === 'active').length > 0 ? 'text-rose-400' : 'text-slate-500 hover:text-rose-400'}`}
+            title={(task.blockers || []).filter(b => b.status === 'active').length > 0 ? `${(task.blockers || []).filter(b => b.status === 'active').length} active blocker(s)` : 'Add blocker'}
+          >
+            <Shield className="w-3 h-3" />
+            {(task.blockers || []).filter(b => b.status === 'active').length > 0 && (
+              <span className="text-[7px] font-black ml-0.5">{(task.blockers || []).filter(b => b.status === 'active').length}</span>
+            )}
+          </button>
 
           {/* Edit button — parent AND sub tasks */}
           {
@@ -1268,6 +1328,90 @@ export default function TaskManager({
                 className="flex-1 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Blocker Modal ─── */}
+      {blockerModal && (
+        <div
+          className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => { setBlockerModal(null); setBlockerTitle(""); }}
+        >
+          <div
+            className="w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-rose-400" />
+                <span className="text-xs font-black uppercase tracking-wider text-rose-400">Blockers</span>
+              </div>
+              <button onClick={() => { setBlockerModal(null); setBlockerTitle(""); }}>
+                <X className="w-5 h-5 text-[var(--text-secondary)]" />
+              </button>
+            </div>
+
+            <p className="text-[10px] font-bold text-[var(--text-primary)]">
+              {blockerModal.taskTitle}
+            </p>
+
+            {/* Existing blockers */}
+            {(() => {
+              const taskBlockers = tasks.find((t) => t.id === blockerModal.taskId)?.blockers || [];
+              const activeBlockers = taskBlockers.filter((b) => b.status === "active");
+              const resolvedBlockers = taskBlockers.filter((b) => b.status !== "active");
+              return (
+                <>
+                  {activeBlockers.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Active ({activeBlockers.length})</p>
+                      {activeBlockers.map((b) => (
+                        <div key={b.id} className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                          <span className="text-[10px] text-rose-400 font-bold">{b.title}</span>
+                          <button
+                            onClick={() => handleResolveBlocker(b.id)}
+                            className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
+                          >
+                            Resolve
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {resolvedBlockers.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Resolved ({resolvedBlockers.length})</p>
+                      {resolvedBlockers.map((b) => (
+                        <div key={b.id} className="flex items-center p-2 rounded-lg bg-slate-500/10">
+                          <span className="text-[10px] text-slate-400 font-bold line-through">{b.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* New blocker input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={blockerTitle}
+                onChange={(e) => setBlockerTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && blockerTitle.trim()) handleAddBlocker(); }}
+                placeholder="Describe the blocker..."
+                className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
+                autoFocus
+              />
+              <button
+                onClick={handleAddBlocker}
+                disabled={!blockerTitle.trim() || blockerAdding}
+                className="px-4 py-2 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
+              >
+                {blockerAdding ? "..." : "Add"}
               </button>
             </div>
           </div>

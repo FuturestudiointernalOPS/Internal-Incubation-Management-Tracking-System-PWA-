@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool } from "pg";
 
 /**
  * IMPACTOS DATA ARCHITECTURE — UNIFIED DB ENGINE (SUPABASE EDITION)
@@ -13,7 +13,9 @@ const getPool = () => {
 
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
-    console.error(" forensics | CRITICAL: DATABASE_URL is missing. Localhost is disconnected.");
+    console.error(
+      " forensics | CRITICAL: DATABASE_URL is missing. Localhost is disconnected.",
+    );
     return null;
   }
 
@@ -21,8 +23,8 @@ const getPool = () => {
     pgPool = new Pool({
       connectionString: dbUrl,
       ssl: { rejectUnauthorized: false },
-      max: 10, 
-      idleTimeoutMillis: 10000,
+      max: 10,
+      idleTimeoutMillis: 300000,
       connectionTimeoutMillis: 15000,
     });
     return pgPool;
@@ -40,7 +42,7 @@ const execute = async (queryObj) => {
   const pool = getPool();
   if (!pool) throw new Error("Database connection pool is offline.");
 
-  const sql = typeof queryObj === 'string' ? queryObj : queryObj.sql;
+  const sql = typeof queryObj === "string" ? queryObj : queryObj.sql;
   const args = queryObj.args || [];
 
   try {
@@ -53,20 +55,22 @@ const execute = async (queryObj) => {
 
     // Forensic Dialect Translation: SQLite-isms to Postgres
     // Handle datetime('now') -> NOW()
-    pgSql = pgSql.replace(/datetime\(['"]now['"]\)/gi, 'NOW()');
-    
+    pgSql = pgSql.replace(/datetime\(['"]now['"]\)/gi, "NOW()");
+
     const result = await pool.query(pgSql, args);
     const duration = Date.now() - start;
 
     if (duration > 1000) {
-      console.warn(` forensics | SLOW QUERY (${duration}ms): ${pgSql.substring(0, 100)}...`);
+      console.warn(
+        ` forensics | SLOW QUERY (${duration}ms): ${pgSql.substring(0, 100)}...`,
+      );
     }
-    
+
     return {
       rows: result.rows,
-      columns: result.fields ? result.fields.map(f => f.name) : [],
+      columns: result.fields ? result.fields.map((f) => f.name) : [],
       rowsAffected: result.rowCount,
-      lastInsertRowid: result.rows[0]?.id || null
+      lastInsertRowid: result.rows[0]?.id || null,
     };
   } catch (err) {
     console.error(" forensics | Supabase DB Error:", err.message);
@@ -83,10 +87,11 @@ const db = { execute };
  */
 export const initDb = async () => {
   const pool = getPool();
-  if (!pool) throw new Error("Database initialization failed. Check environment variables.");
+  if (!pool)
+    throw new Error(
+      "Database initialization failed. Check environment variables.",
+    );
   return db;
 };
 
 export default db;
-
-

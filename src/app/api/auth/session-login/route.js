@@ -129,13 +129,29 @@ export async function POST(req) {
         args: [userCid],
       });
 
-      const activeTeammateAssignment = await db.execute({
-        sql: `SELECT id::text FROM v2_programs WHERE assigned_assistant_id LIKE ?
-              UNION
-              SELECT id::text FROM v2_teams WHERE handler_id = ?
-              LIMIT 1`,
-        args: [`%${userCid}%`, userCid],
-      });
+      // Resolve teacher/assistant role: check v2_programs (assigned_assistant_id,
+      // which may not exist in fresh DBs), and v2_teams (handler_id).
+      // Wrapped in try/catch for schema compatibility across environments.
+      let activeTeammateAssignment = { rows: [] };
+      try {
+        activeTeammateAssignment = await db.execute({
+          sql: `SELECT id::text FROM v2_programs WHERE assigned_assistant_id LIKE ?
+                UNION
+                SELECT id::text FROM v2_teams WHERE handler_id = ?
+                LIMIT 1`,
+          args: [`%${userCid}%`, userCid],
+        });
+      } catch (_) {
+        // v2_programs.assigned_assistant_id may not exist — fall back to v2_teams only
+        try {
+          activeTeammateAssignment = await db.execute({
+            sql: "SELECT id::text FROM v2_teams WHERE handler_id = ? LIMIT 1",
+            args: [userCid],
+          });
+        } catch (__) {
+          // v2_teams may also be unavailable — leave rows empty
+        }
+      }
 
       if (user.role === "super_admin" || user.id === "sa") {
         finalRole = "super_admin";
