@@ -534,8 +534,8 @@ const NAVIGATION_MATRIX = {
       name: "STANDUPS & RETROS",
       icon: MessageSquare,
       subItems: [
-        { id: "standup", name: "STANDUP", href: "/staff/op-report" },
-        { id: "retro", name: "RETRO", href: "/staff/op-report" },
+        { id: "standup", name: "STANDUP", href: "/developer/standup" },
+        { id: "retro", name: "RETRO", href: "/developer/retro" },
       ],
     },
     {
@@ -940,7 +940,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           id: "standup",
           name: "STAND-UP",
           icon: MessageSquare,
-          href: "/staff/op-report",
+          href: "/developer/standup",
         },
         {
           id: "my_tasks",
