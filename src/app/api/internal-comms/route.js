@@ -176,10 +176,10 @@ export async function POST(req) {
       };
       const dbRole = roleMap[target_id];
       if (dbRole) {
-        const members = await db.execute(
-          "SELECT cid FROM contacts WHERE role = ?",
-          [dbRole],
-        );
+        const members = await db.execute({
+          sql: "SELECT cid FROM contacts WHERE role = ?",
+          args: [dbRole],
+        });
         for (const m of members.rows) {
           if (m.cid === effectiveSenderId) continue;
           await db.execute({
