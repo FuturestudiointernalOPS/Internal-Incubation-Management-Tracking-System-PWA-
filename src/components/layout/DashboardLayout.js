@@ -640,10 +640,50 @@ const NAV_RESPONSIBILITY_MAP = {
   permissions: "user_management",
   // Nav sections with custom naming
   internal_ops: "operations",
+  // Additional nav items from other role matrices
+  dashboard: null, // always visible
+  projects: null, // always visible
+  access_summary: "user_management",
+  engineering_dashboard: "engineering",
 };
 
 // Roles that bypass responsibility filtering entirely
 const RESPONSIBILITY_BYPASS_ROLES = ["super_admin"];
+
+/**
+ * Build nav items from responsibilities across ALL role matrices.
+ * Collects items from every role's matrix where the required responsibility
+ * matches the user's assigned responsibilities. Items with no responsibility
+ * requirement are always included (dashboard, profile, logout).
+ */
+function buildNavFromResponsibilities(userRespKeys) {
+  const allItems = [];
+  const seenIds = new Set();
+
+  for (const matrix of Object.values(NAVIGATION_MATRIX)) {
+    for (const item of matrix) {
+      if (seenIds.has(item.id)) continue;
+      seenIds.add(item.id);
+
+      const required = NAV_RESPONSIBILITY_MAP[item.id];
+      // Include if no responsibility required OR user has the required responsibility
+      if (!required || userRespKeys.has(required)) {
+        if (item.subItems) {
+          const filteredSubs = item.subItems.filter((sub) => {
+            const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
+            return !subRequired || userRespKeys.has(subRequired);
+          });
+          if (filteredSubs.length > 0) {
+            allItems.push({ ...item, subItems: filteredSubs });
+          }
+        } else {
+          allItems.push(item);
+        }
+      }
+    }
+  }
+  return allItems;
+}
 
 /**
  * Filter nav items based on a user's responsibilities.
@@ -924,6 +964,16 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     }
 
     const matrix = NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin;
+    const bypass = RESPONSIBILITY_BYPASS_ROLES.includes(activeRole);
+
+    // If user has responsibilities assigned, build nav from responsibilities
+    // across ALL role matrices instead of just the user's role matrix
+    if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
+      const respKeys = new Set(userResponsibilities.map((r) => r.key));
+      return buildNavFromResponsibilities(respKeys);
+    }
+
+    // Fallback: role-based matrix (backward compatible)
     const items = [...matrix];
 
     if (
@@ -963,8 +1013,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       }
     }
 
-    // Filter by responsibilities (if not super_admin and not intern)
-    const bypass = RESPONSIBILITY_BYPASS_ROLES.includes(activeRole);
     return filterNavByResponsibilities(items, userResponsibilities, bypass);
   }, [user.role, user.groups, role, pmPrograms, userResponsibilities]);
 

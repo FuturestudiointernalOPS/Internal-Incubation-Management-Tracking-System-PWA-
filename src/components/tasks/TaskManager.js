@@ -91,9 +91,18 @@ export default function TaskManager({
   const effectiveWeekInfo = useMemo(() => {
     if (weekInfo?.week && weekInfo?.year) return weekInfo;
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const days = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
-    const week = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    const week =
+      1 +
+      Math.round(
+        ((d.getTime() - week1.getTime()) / 86400000 -
+          3 +
+          ((week1.getDay() + 6) % 7)) /
+          7,
+      );
     return { week, year: now.getFullYear() };
   }, [weekInfo]);
 
@@ -587,20 +596,20 @@ export default function TaskManager({
             </button>
           }
 
-          {/* Archive button for past-week tasks, Delete for current week */}
+          {/* Delete / Archive button — parent AND sub tasks */}
           {(() => {
             const isPastWeek =
               effectiveWeekInfo &&
               (task.created_week !== effectiveWeekInfo.week ||
                 task.created_year !== effectiveWeekInfo.year);
-
             if (isPastWeek) {
+              // Past-week tasks can only be archived, not deleted
               return (
                 <button
                   onClick={async () => {
                     if (
                       !window.confirm(
-                        `Archive task "${task.title}"? This will hide it from active views.`,
+                        `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
                       )
                     )
                       return;
@@ -612,13 +621,12 @@ export default function TaskManager({
                     if (onTasksChange) onTasksChange();
                   }}
                   className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
-                  title="Archive task"
+                  title="Archive task (past week — cannot delete)"
                 >
                   <Archive className="w-3 h-3" />
                 </button>
               );
             }
-
             return (
               <button
                 onClick={async () => {

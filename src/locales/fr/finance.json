@@ -1,0 +1,59 @@
+{
+  "dashboard": {
+    "title": "Tableau de Bord Financier",
+    "subtitle": "Vue d'ensemble — tous les projets",
+    "subtitleProject": "Projet : {project}",
+    "lastSynced": "Dernière synchro il y a {time}",
+    "lastSyncedJustNow": "Synchronisé à l'instant",
+    "syncNow": "Synchroniser",
+    "syncing": "Synchronisation...",
+    "syncSuccess": "Données synchronisées avec succès !",
+    "syncError": "Échec de la synchronisation. Veuillez réessayer.",
+    "syncRateLimited": "Synchronisation limitée. Veuillez patienter {seconds}s.",
+    "syncNotAuth": "Non authentifié. Veuillez vous connecter.",
+    "noData": "Aucune donnée disponible. Veuillez synchroniser d'abord.",
+    "retry": "Réessayer",
+    "loading": "Chargement..."
+  },
+  "summary": {
+    "revenue": "Revenus perçus",
+    "revenueSubtext": "Cumul annuel",
+    "budget": "Budget total approuvé",
+    "budgetSubtext": "Allocation {year}",
+    "consumed": "Budget consommé",
+    "consumedSubtext": "Cumul annuel",
+    "remaining": "Budget restant",
+    "remainingSubtext": "Disponible",
+    "remainingNegative": "Dépassement"
+  },
+  "gauge": {
+    "title": "Taux d'exécution budgétaire",
+    "target": "Cible : {min}–{max}%",
+    "onTrack": "Bon suivi",
+    "warning": "Attention",
+    "concern": "Préoccupant"
+  },
+  "chart": {
+    "title": "Tendance mensuelle",
+    "planned": "Prévu",
+    "actual": "Réalisé",
+    "tooltipMonth": "Mois",
+    "tooltipPlanned": "Prévu",
+    "tooltipActual": "Réalisé",
+    "tooltipVariance": "Écart"
+  },
+  "selector": {
+    "label": "Exercice fiscal",
+    "loading": "Chargement..."
+  },
+  "status": {
+    "synced": "Synchronisé",
+    "stale": "Données obsolètes",
+    "notSynced": "Non synchronisé"
+  },
+  "error": {
+    "notAuth": "Non authentifié. Veuillez vous connecter.",
+    "serverError": "Une erreur s'est produite. Veuillez réessayer.",
+    "networkError": "Erreur réseau. Vérifiez votre connexion."
+  }
+}
