@@ -628,13 +628,26 @@ export default function TaskManager({
 
           {/* Blockers button */}
           <button
-            onClick={() => setBlockerModal({ taskId: task.id, taskTitle: task.title })}
-            className={`shrink-0 transition-all ${(task.blockers || []).filter(b => b.status === 'active').length > 0 ? 'text-rose-400' : 'text-slate-500 hover:text-rose-400'}`}
-            title={(task.blockers || []).filter(b => b.status === 'active').length > 0 ? `${(task.blockers || []).filter(b => b.status === 'active').length} active blocker(s)` : 'Add blocker'}
+            onClick={() =>
+              setBlockerModal({ taskId: task.id, taskTitle: task.title })
+            }
+            className={`shrink-0 transition-all ${(task.blockers || []).filter((b) => b.status === "active").length > 0 ? "text-rose-400" : "text-slate-500 hover:text-rose-400"}`}
+            title={
+              (task.blockers || []).filter((b) => b.status === "active")
+                .length > 0
+                ? `${(task.blockers || []).filter((b) => b.status === "active").length} active blocker(s)`
+                : "Add blocker"
+            }
           >
             <Shield className="w-3 h-3" />
-            {(task.blockers || []).filter(b => b.status === 'active').length > 0 && (
-              <span className="text-[7px] font-black ml-0.5">{(task.blockers || []).filter(b => b.status === 'active').length}</span>
+            {(task.blockers || []).filter((b) => b.status === "active").length >
+              0 && (
+              <span className="text-[7px] font-black ml-0.5">
+                {
+                  (task.blockers || []).filter((b) => b.status === "active")
+                    .length
+                }
+              </span>
             )}
           </button>
 
@@ -660,7 +673,63 @@ export default function TaskManager({
             </button>
           }
 
-          {/* Delete / Archive button — parent AND sub tasks */}
+          {/* Archive button — always visible */}
+          <button
+            onClick={async () => {
+              if (
+                !window.confirm(
+                  `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
+                )
+              )
+                return;
+              try {
+                const res = await fetch(`/api/tasks?id=${task.id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ status: "archived" }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  if (onTasksChange) onTasksChange();
+                } else {
+                  alert(data.error || "Failed to archive task.");
+                }
+              } catch (e) {
+                alert("Network error while archiving task.");
+              }
+            }}
+            className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
+            title="Archive task"
+          >
+            <Archive className="w-3 h-3" />
+          </button>
+
+          {/* Duplicate button — always visible */}
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/tasks/duplicate", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ task_id: task.id }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  if (onTasksChange) onTasksChange();
+                } else {
+                  alert(data.error || "Failed to duplicate task.");
+                }
+              } catch (e) {
+                alert("Network error while duplicating task.");
+              }
+            }}
+            className="text-slate-500 hover:text-[var(--brand-orange)] transition-all shrink-0"
+            title="Duplicate task"
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+
+          {/* Delete / Archive based on week — parent AND sub tasks */}
           {(() => {
             const isPastWeek =
               effectiveWeekInfo &&
@@ -677,12 +746,21 @@ export default function TaskManager({
                       )
                     )
                       return;
-                    await fetch(`/api/tasks?id=${task.id}`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ status: "archived" }),
-                    });
-                    if (onTasksChange) onTasksChange();
+                    try {
+                      const res = await fetch(`/api/tasks?id=${task.id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status: "archived" }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        if (onTasksChange) onTasksChange();
+                      } else {
+                        alert(data.error || "Failed to archive task.");
+                      }
+                    } catch (e) {
+                      alert("Network error while archiving task.");
+                    }
                   }}
                   className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
                   title="Archive task (past week — cannot delete)"
@@ -695,8 +773,22 @@ export default function TaskManager({
               <button
                 onClick={async () => {
                   if (!window.confirm(`Delete task "${task.title}"?`)) return;
-                  await fetch(`/api/tasks?id=${task.id}`, { method: "DELETE" });
-                  if (onTasksChange) onTasksChange();
+                  try {
+                    const res = await fetch(`/api/tasks?id=${task.id}`, {
+                      method: "DELETE",
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      if (onTasksChange) onTasksChange();
+                    } else {
+                      alert(
+                        data.error ||
+                          "Cannot delete this task. It may be locked (older than 12 hours).",
+                      );
+                    }
+                  } catch (e) {
+                    alert("Network error while deleting task.");
+                  }
                 }}
                 className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
                 title="Delete task"
@@ -987,7 +1079,7 @@ export default function TaskManager({
             </div>
           )}
 
-            {/* Inherited badge for sub-tasks */}
+          {/* Inherited badge for sub-tasks */}
           {pendingParentTaskId && form.project_id && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
               <span className="text-[8px] font-bold text-indigo-400">
@@ -1002,15 +1094,24 @@ export default function TaskManager({
           {/* Assignee dropdown (project mode only) */}
           {mode === "project" && projectMembers.length > 0 && (
             <div>
-              <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Assign to</label>
+              <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Assign to
+              </label>
               <select
                 value={form.assigned_to || ""}
-                onChange={(e) => setForm((p) => ({ ...p, assigned_to: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, assigned_to: e.target.value }))
+                }
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
               >
                 <option value="">Self</option>
                 {projectMembers.map((m) => (
-                  <option key={m.member_id || m.user_cid} value={m.member_id || m.user_cid}>{m.name || m.member_id}</option>
+                  <option
+                    key={m.member_id || m.user_cid}
+                    value={m.member_id || m.user_cid}
+                  >
+                    {m.name || m.member_id}
+                  </option>
                 ))}
               </select>
             </div>
@@ -1138,7 +1239,7 @@ export default function TaskManager({
                           {st.title}
                         </span>
                         <span
-                          className={`ml-auto text-[7px] font-semibold px-1.5 py-0.5 rounded-full ${
+                          className={`text-[7px] font-semibold px-1.5 py-0.5 rounded-full ${
                             st.status === "completed"
                               ? "bg-emerald-500/10 text-emerald-400"
                               : "bg-slate-500/10 text-slate-400"
@@ -1148,6 +1249,37 @@ export default function TaskManager({
                             ? "Done"
                             : st.status?.replace(/_/g, " ") || "Pending"}
                         </span>
+                        <button
+                          onClick={async () => {
+                            if (
+                              !window.confirm(`Delete subtask "${st.title}"?`)
+                            )
+                              return;
+                            try {
+                              const res = await fetch(
+                                `/api/tasks?id=${st.id}`,
+                                {
+                                  method: "DELETE",
+                                },
+                              );
+                              const data = await res.json();
+                              if (data.success) {
+                                if (onTasksChange) onTasksChange();
+                              } else {
+                                alert(
+                                  data.error ||
+                                    "Cannot delete this subtask. It may be older than 12 hours.",
+                                );
+                              }
+                            } catch (e) {
+                              alert("Network error while deleting subtask.");
+                            }
+                          }}
+                          className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
+                          title="Delete subtask"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -1372,7 +1504,10 @@ export default function TaskManager({
       {blockerModal && (
         <div
           className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => { setBlockerModal(null); setBlockerTitle(""); }}
+          onClick={() => {
+            setBlockerModal(null);
+            setBlockerTitle("");
+          }}
         >
           <div
             className="w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4"
@@ -1381,9 +1516,16 @@ export default function TaskManager({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-rose-400" />
-                <span className="text-xs font-black uppercase tracking-wider text-rose-400">Blockers</span>
+                <span className="text-xs font-black uppercase tracking-wider text-rose-400">
+                  Blockers
+                </span>
               </div>
-              <button onClick={() => { setBlockerModal(null); setBlockerTitle(""); }}>
+              <button
+                onClick={() => {
+                  setBlockerModal(null);
+                  setBlockerTitle("");
+                }}
+              >
                 <X className="w-5 h-5 text-[var(--text-secondary)]" />
               </button>
             </div>
@@ -1394,17 +1536,29 @@ export default function TaskManager({
 
             {/* Existing blockers */}
             {(() => {
-              const taskBlockers = tasks.find((t) => t.id === blockerModal.taskId)?.blockers || [];
-              const activeBlockers = taskBlockers.filter((b) => b.status === "active");
-              const resolvedBlockers = taskBlockers.filter((b) => b.status !== "active");
+              const taskBlockers =
+                tasks.find((t) => t.id === blockerModal.taskId)?.blockers || [];
+              const activeBlockers = taskBlockers.filter(
+                (b) => b.status === "active",
+              );
+              const resolvedBlockers = taskBlockers.filter(
+                (b) => b.status !== "active",
+              );
               return (
                 <>
                   {activeBlockers.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Active ({activeBlockers.length})</p>
+                      <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest">
+                        Active ({activeBlockers.length})
+                      </p>
                       {activeBlockers.map((b) => (
-                        <div key={b.id} className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                          <span className="text-[10px] text-rose-400 font-bold">{b.title}</span>
+                        <div
+                          key={b.id}
+                          className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
+                        >
+                          <span className="text-[10px] text-rose-400 font-bold">
+                            {b.title}
+                          </span>
                           <button
                             onClick={() => handleResolveBlocker(b.id)}
                             className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
@@ -1417,10 +1571,17 @@ export default function TaskManager({
                   )}
                   {resolvedBlockers.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Resolved ({resolvedBlockers.length})</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        Resolved ({resolvedBlockers.length})
+                      </p>
                       {resolvedBlockers.map((b) => (
-                        <div key={b.id} className="flex items-center p-2 rounded-lg bg-slate-500/10">
-                          <span className="text-[10px] text-slate-400 font-bold line-through">{b.title}</span>
+                        <div
+                          key={b.id}
+                          className="flex items-center p-2 rounded-lg bg-slate-500/10"
+                        >
+                          <span className="text-[10px] text-slate-400 font-bold line-through">
+                            {b.title}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -1435,7 +1596,10 @@ export default function TaskManager({
                 type="text"
                 value={blockerTitle}
                 onChange={(e) => setBlockerTitle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && blockerTitle.trim()) handleAddBlocker(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && blockerTitle.trim())
+                    handleAddBlocker();
+                }}
                 placeholder="Describe the blocker..."
                 className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
                 autoFocus

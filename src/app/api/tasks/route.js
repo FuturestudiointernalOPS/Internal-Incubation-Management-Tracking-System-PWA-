@@ -654,6 +654,9 @@ export async function PUT(req) {
       } else if (status === "carried_over") {
         auditAction = "carried_over";
         auditDetails = `Task "${task.title}" carried over to next week`;
+      } else if (status === "archived") {
+        auditAction = "archived";
+        auditDetails = `Task "${task.title}" archived`;
       } else {
         auditDetails = `Task "${task.title}" status changed from ${task.status} to ${status}`;
       }
@@ -923,12 +926,11 @@ export async function PUT(req) {
     if (dateChangeLog) {
       await db.execute({
         sql: `INSERT INTO task_audit_logs
-          (task_id, user_id, user_name, action, field_name, old_value, new_value, metadata)
-          VALUES (?, ?, ?, 'schedule_changed', ?, ?, ?, ?)`,
+          (task_id, user_id, action, field_name, old_value, new_value, metadata)
+          VALUES (?, ?, 'schedule_changed', ?, ?, ?, ?)`,
         args: [
           parseInt(id),
           user_id || task.user_id,
-          user_name || task.user_name || "",
           dateChangeLog.field,
           String(dateChangeLog.old_val || ""),
           String(dateChangeLog.new_val || ""),
@@ -964,7 +966,9 @@ export async function PUT(req) {
           ? ACTION_TYPES.TASK_COMPLETED
           : status === "carried_over"
             ? ACTION_TYPES.TASK_CARRIED_OVER
-            : ACTION_TYPES.TASK_UPDATED;
+            : status === "archived"
+              ? ACTION_TYPES.TASK_UPDATED
+              : ACTION_TYPES.TASK_UPDATED;
       await logTaskEvent({
         task_id: parseInt(id),
         project_id: project_id || task.project_id,

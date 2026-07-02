@@ -44,6 +44,13 @@ export const STATUS_CONFIG = {
     border: "border-indigo-500/20",
     dot: "bg-indigo-400",
   },
+  archived: {
+    label: "Archived",
+    color: "text-slate-500",
+    bg: "bg-slate-500/10",
+    border: "border-slate-500/20",
+    dot: "bg-slate-500",
+  },
 };
 
 export const STATUS_LIST = Object.keys(STATUS_CONFIG);
@@ -62,20 +69,45 @@ export const SEVERITY_LIST = Object.keys(SEVERITY_COLORS);
 // ─── MONTHS ────────────────────────────────────────────────────────────
 
 export const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 export const MONTHS_SHORT = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 // ─── WEEK DAYS ─────────────────────────────────────────────────────────
 
 export const DAYS = [
-  "Sunday", "Monday", "Tuesday", "Wednesday",
-  "Thursday", "Friday", "Saturday",
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ];
 
 export const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -117,7 +149,8 @@ export function formatDate(date, options = {}) {
     return d.toLocaleDateString("en", {
       month: options.short ? "short" : "long",
       day: "numeric",
-      year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+      year:
+        d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
     });
   } catch {
     return String(date);
@@ -149,9 +182,7 @@ export function formatDateTime(date) {
 export function formatLabel(val) {
   if (!val || val === "—") return "—";
   if (typeof val !== "string") return String(val);
-  return val
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return val.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // ─── NUMBER UTILITIES ──────────────────────────────────────────────────
@@ -183,5 +214,9 @@ export const CHART_COLORS = [
 ];
 
 export const CHART_COLORS_CSS = [
-  "#FF6600", "#10B981", "#EF4444", "#F59E0B", "#6366F1",
+  "#FF6600",
+  "#10B981",
+  "#EF4444",
+  "#F59E0B",
+  "#6366F1",
 ];
