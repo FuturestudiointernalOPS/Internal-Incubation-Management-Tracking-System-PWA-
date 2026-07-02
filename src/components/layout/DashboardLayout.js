@@ -534,15 +534,19 @@ const NAVIGATION_MATRIX = {
       name: "STANDUPS & RETROS",
       icon: MessageSquare,
       subItems: [
-        { id: "standup", name: "STANDUP", href: "/developer/standup" },
-        { id: "retro", name: "RETRO", href: "/developer/retro" },
+        {
+          id: "standup",
+          name: "STANDUP",
+          href: "/staff/op-report?tab=standup",
+        },
+        { id: "retro", name: "RETRO", href: "/staff/op-report?tab=retro" },
       ],
     },
     {
       id: "projects",
       name: "PROJECTS",
       icon: Briefcase,
-      href: "/developer/projects",
+      href: "/staff/projects",
     },
     {
       id: "notifications",
@@ -554,7 +558,7 @@ const NAVIGATION_MATRIX = {
       id: "messages",
       name: "MESSAGES",
       icon: Send,
-      href: "/developer/messages",
+      href: "/staff/messages",
     },
   ],
 
@@ -820,16 +824,15 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   }, [fetchNotifications, fetchSubmissionCount]);
 
   useEffect(() => {
-    fetchNotifications();
-    fetchSubmissionCount();
-    fetchPendingInvites();
-    const interval = setInterval(() => {
+  useEffect(() => {
+    // First load already done by initAuth — skip immediate fetch
+    const id = setTimeout(() => {
       fetchNotifications();
       fetchSubmissionCount();
       fetchPendingInvites();
       fetchPendingAssignments();
     }, 15000);
-    return () => clearInterval(interval);
+    return () => clearTimeout(id);
   }, [fetchNotifications, fetchSubmissionCount, fetchPendingInvites, fetchPendingAssignments]);
 
   const { toggleTheme, theme } = useTheme();
@@ -863,32 +866,51 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           // Sync localStorage for components that still read from it
           localStorage.setItem("user", JSON.stringify(userWithFullData));
 
-          // Fetch user groups for group-based navigation
-          try {
-            const groupsRes = await fetch(
-              `/api/user-groups?user_cid=${sessionData.user.cid}`,
-            );
-            const groupsData = await groupsRes.json();
-            if (groupsData.success && groupsData.groups.length > 0) {
-              const updatedUser = {
-                ...userWithFullData,
-                groups: groupsData.groups,
-              };
-              setUser(updatedUser);
-              localStorage.setItem("user", JSON.stringify(updatedUser));
-            }
-          } catch (_) {}
+          // Fetch user groups + responsibilities + notifications in parallel
+          const [groupsRes, respRes, notifRes] = await Promise.allSettled([
+            fetch(`/api/user-groups?user_cid=${sessionData.user.cid}`),
+            fetch(`/api/responsibilities?user_cid=${sessionData.user.cid}`),
+            fetch(`/api/notifications?recipient_id=${sessionData.user.cid}`),
+          ]);
 
-          // Fetch user responsibilities for dynamic dashboard
-          try {
-            const respRes = await fetch(
-              `/api/responsibilities?user_cid=${sessionData.user.cid}`,
-            );
-            const respData = await respRes.json();
-            if (respData.success) {
-              setUserResponsibilities(respData.responsibilities || []);
-            }
-          } catch (_) {}
+          // User groups
+          if (groupsRes.status === "fulfilled") {
+            try {
+              const groupsData = await groupsRes.value.json();
+              if (groupsData.success && groupsData.groups.length > 0) {
+                const updatedUser = {
+                  ...userWithFullData,
+                  groups: groupsData.groups,
+                };
+                setUser(updatedUser);
+                localStorage.setItem("user", JSON.stringify(updatedUser));
+              }
+            } catch (_) {}
+          }
+
+          // Responsibilities
+          if (respRes.status === "fulfilled") {
+            try {
+              const respData = await respRes.value.json();
+              if (respData.success) {
+                setUserResponsibilities(respData.responsibilities || []);
+              }
+            } catch (_) {}
+          }
+
+          // Notifications (pre-fetch to avoid separate effect)
+          if (notifRes.status === "fulfilled") {
+            try {
+              const notifData = await notifRes.value.json();
+              if (notifData.success) {
+                // Only set if we haven't already fetched via the interval
+                setNotifications((prev) =>
+                  prev.length > 0 ? prev : notifData.notifications || [],
+                );
+                setUnreadCount(notifData.unread_count ?? 0);
+              }
+            } catch (_) {}
+          }
         } else {
           // Session API failed — fallback to localStorage
           const savedUser = localStorage.getItem("user");
@@ -971,7 +993,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           id: "standup",
           name: "STAND-UP",
           icon: MessageSquare,
-          href: "/developer/standup",
+          href: "/staff/op-report?tab=standup",
         },
         {
           id: "my_tasks",
@@ -983,13 +1005,13 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           id: "projects",
           name: "MY PROJECTS",
           icon: Briefcase,
-          href: "/developer/projects",
+          href: "/staff/projects",
         },
         {
           id: "messages",
           name: "MESSAGING",
           icon: Send,
-          href: "/developer/messages",
+          href: "/staff/messages",
         },
       ];
     }
@@ -1191,7 +1213,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                                 const role = user?.role || "";
                                 if (role === "super_admin")
                                   router.push("/admin/internal-comms");
-                                else if (role === "staff")
+                                else if (
+                                  role === "staff" ||
+                                  role === "developer"
+                                )
                                   router.push("/staff/messages");
                                 else if (role === "teacher")
                                   router.push("/teacher/messages");

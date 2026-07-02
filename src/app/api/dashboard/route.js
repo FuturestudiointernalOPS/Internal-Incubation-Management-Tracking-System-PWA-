@@ -3,29 +3,13 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
 /**
- * UNIFIED DASHBOARD API
+ * UNIFIED DASHBOARD API — OPTIMIZED (parallel queries)
  *
- * GET /api/dashboard
+ * GET /api/dashboard?user_id=X&role=Y&year=2026&month=7
  *
- * Returns all data needed for the role-based unified dashboard in a single
- * optimized request.  The response shape adapts to the requesting user's role.
- *
- * Query params:
- *   user_id  – required, the CID or ID of the logged-in user
- *   role     – required, the user's role string
- *   year     – calendar year (default: current)
- *   month    – calendar month (1-12, default: current)
- *
- * Response sections:
- *   user         – { name, role, cid }
- *   calendar     – unified events from /api/calendar
- *   summary      – { programs, projects, tasks, blockers, overdueTasks, criticalBlockers }
- *   attention    – { overdueTasks[], criticalBlockers[], dueToday[] }
- *   activity     – recent 10 activity records
- *   quickAccess  – { programs[], projects[], tasks[], blockers[] } (max 5 each)
- *   assignments  – tasks assigned to user
+ * All independent database queries run in parallel via Promise.all.
+ * Response time = slowest single query, not sum of all queries.
  */
-
 export async function GET(req) {
   try {
     await initDb();
@@ -45,31 +29,203 @@ export async function GET(req) {
       );
     }
 
-    // ── 1. USER INFO ──
-    let userName = "User";
-    try {
-      const userRes = await db.execute({
+    const todayStr = new Date().toISOString().split("T")[0];
+    const isAdmin = role === "super_admin" || role === "admin";
+
+    // ─────────────────────────────────────────────
+    // PHASE 1: All independent queries in parallel
+    // ─────────────────────────────────────────────
+    const [
+      userRes,
+      taskDateRes,
+      progDateRes,
+      sessRes,
+      delRes,
+      eventRes,
+      taskStatsRes,
+      blockerRes,
+      progCountRes,
+      ownedProjRes,
+      collabMembersRes,
+      activityRes,
+      assignmentsRes,
+      myTasksRes,
+    ] = await Promise.allSettled([
+      // 1. User info
+      db.execute({
         sql: "SELECT name, email, role, cid FROM contacts WHERE cid = ?",
         args: [userId],
-      });
-      if (userRes.rows.length > 0) {
-        userName = userRes.rows[0].name || "User";
-      }
-    } catch (_) {}
+      }),
 
-    // ── 2. CALENDAR EVENTS (from unified calendar API logic) ──
-    const calendarEvents = [];
-
-    // Tasks with dates
-    try {
-      const tasks = await db.execute({
+      // 2. Tasks with dates (calendar)
+      db.execute({
         sql: `SELECT id, title, start_date, end_date, status, project_id, user_id, assigned_to
               FROM tasks
               WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)
                 AND (user_id = ? OR assigned_to = ?)`,
         args: [userId, userId],
-      });
-      for (const t of tasks.rows) {
+      }),
+
+      // 3. Programs with dates (calendar)
+      db.execute({
+        sql: `SELECT id, name, start_date, end_date, assigned_pm_id
+              FROM v2_programs
+              WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)
+                AND (assigned_pm_id = ? OR ? IN ('super_admin', 'admin'))`,
+        args: [userId, role],
+      }),
+
+      // 4. Sessions (calendar)
+      db.execute({
+        sql: `SELECT s.id, s.title, s.start_at, s.teacher_id, s.program_id, p.name AS program_name
+              FROM v2_sessions s
+              LEFT JOIN v2_programs p ON s.program_id = p.id
+              WHERE s.start_at IS NOT NULL
+                AND (s.teacher_id = ? OR s.program_id IN (
+                  SELECT id FROM v2_programs WHERE assigned_pm_id = ?
+                ) OR ? IN ('super_admin', 'admin'))`,
+        args: [userId, userId, role],
+      }),
+
+      // 5. Deliverables (calendar)
+      db.execute({
+        sql: `SELECT d.id, d.title, d.due_date, d.program_id
+              FROM v2_deliverables d
+              JOIN v2_programs p ON d.program_id = p.id
+              WHERE d.due_date IS NOT NULL
+                AND (p.assigned_pm_id = ? OR ? IN ('super_admin', 'admin'))`,
+        args: [userId, role],
+      }),
+
+      // 6. v2_events (calendar)
+      db.execute({
+        sql: `SELECT id, title, start_time, event_type, created_by
+              FROM v2_events
+              WHERE start_time IS NOT NULL
+                AND created_by = ?`,
+        args: [userId],
+      }),
+
+      // 7. Task stats (summary + overdue + due today)
+      db.execute({
+        sql: `SELECT id, title, end_date, status, priority, project_id
+              FROM tasks
+              WHERE (user_id = ? OR assigned_to = ?)`,
+        args: [userId, userId],
+      }),
+
+      // 8. Active blockers
+      db.execute({
+        sql: `SELECT b.id, b.title, b.severity, b.status, b.task_id, t.project_id, t.title AS task_title, t.end_date
+              FROM blockers b
+              JOIN tasks t ON b.task_id = t.id
+              WHERE b.status = 'active'
+                AND (t.user_id = ? OR t.assigned_to = ?)
+              ORDER BY CASE b.severity
+                WHEN 'critical' THEN 0 WHEN 'high' THEN 1
+                WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4
+              END`,
+        args: [userId, userId],
+      }),
+
+      // 9. Programs count (PM or admin)
+      db.execute({
+        sql: `SELECT id, name, status
+              FROM v2_programs
+              WHERE assigned_pm_id = ?
+                 OR ? IN ('super_admin', 'admin')
+              ORDER BY created_at DESC`,
+        args: [userId, role],
+      }),
+
+      // 10. Owned projects (with task/blocker stats)
+      db.execute({
+        sql: `SELECT
+                p.id, p.name, p.status, p.owner_id, p.meta,
+                COALESCE(t_stats.total, 0) AS task_total,
+                COALESCE(t_stats.completed, 0) AS task_completed,
+                COALESCE(b_stats.active, 0) AS blocker_active
+              FROM v2_projects p
+              LEFT JOIN (
+                SELECT project_id,
+                       COUNT(*) AS total,
+                       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+                FROM tasks GROUP BY project_id
+              ) t_stats ON p.id = t_stats.project_id
+              LEFT JOIN (
+                SELECT t.project_id, COUNT(*) AS active
+                FROM blockers b JOIN tasks t ON b.task_id = t.id
+                WHERE b.status = 'active' GROUP BY t.project_id
+              ) b_stats ON p.id = b_stats.project_id
+              WHERE (p.owner_id = ? OR EXISTS (
+                SELECT 1 FROM project_members pm
+                WHERE pm.project_id::text = p.id::text AND pm.user_cid = ? AND pm.role = 'lead'
+              )) OR ? IN ('super_admin', 'admin')
+              ORDER BY p.created_at DESC`,
+        args: [userId, userId, role],
+      }),
+
+      // 11. Collaborator project IDs (needed for phase 2)
+      db.execute({
+        sql: `SELECT DISTINCT project_id FROM project_members WHERE user_cid = ?`,
+        args: [userId],
+      }),
+
+      // 12. Recent activity
+      db.execute({
+        sql: `(SELECT 'task_completed' AS action, title AS description, updated_at AS timestamp, user_id
+               FROM tasks WHERE (user_id = ? OR assigned_to = ?) AND status = 'completed'
+               ORDER BY updated_at DESC LIMIT 5)
+              UNION ALL
+              (SELECT 'blocker_resolved' AS action, title AS description, resolved_at AS timestamp, resolved_by AS user_id
+               FROM blockers WHERE resolved_by = ? AND status = 'resolved'
+               ORDER BY resolved_at DESC LIMIT 3)
+              UNION ALL
+              (SELECT 'task_assigned' AS action, title AS description, created_at AS timestamp, user_id
+               FROM tasks WHERE assigned_to = ?
+               ORDER BY created_at DESC LIMIT 3)
+              ORDER BY timestamp DESC LIMIT 10`,
+        args: [userId, userId, userId, userId],
+      }),
+
+      // 13. Assignments (tasks assigned TO user)
+      db.execute({
+        sql: `SELECT id, title, status, end_date, user_name, user_id, priority, created_at
+              FROM tasks WHERE assigned_to = ? ORDER BY created_at DESC`,
+        args: [userId],
+      }),
+
+      // 14. User's own tasks (quick access)
+      db.execute({
+        sql: `SELECT id, title, status, end_date, priority, project_id
+              FROM tasks WHERE user_id = ?
+              ORDER BY
+                CASE status
+                  WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1
+                  WHEN 'blocked' THEN 2 WHEN 'carried_over' THEN 3 ELSE 4
+                END,
+                end_date ASC NULLS LAST
+              LIMIT 5`,
+        args: [userId],
+      }),
+    ]);
+
+    // ─────────────────────────────────────────────
+    // PHASE 2: Process results
+    // ─────────────────────────────────────────────
+
+    // 1. User info
+    let userName = "User";
+    if (userRes.status === "fulfilled" && userRes.value.rows.length > 0) {
+      userName = userRes.value.rows[0].name || "User";
+    }
+
+    // 2. Calendar events
+    const calendarEvents = [];
+
+    // Tasks → calendar
+    if (taskDateRes.status === "fulfilled") {
+      for (const t of taskDateRes.value.rows) {
         if (t.start_date) {
           calendarEvents.push({
             id: `task-${t.id}-start`,
@@ -95,18 +251,11 @@ export async function GET(req) {
           });
         }
       }
-    } catch (_) {}
+    }
 
-    // Programs (always show – visibility handled by frontend)
-    try {
-      const programs = await db.execute({
-        sql: `SELECT id, name, start_date, end_date, assigned_pm_id
-              FROM v2_programs
-              WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)
-                AND (assigned_pm_id = ? OR ? IN ('super_admin', 'admin'))`,
-        args: [userId, role],
-      });
-      for (const p of programs.rows) {
+    // Programs → calendar
+    if (progDateRes.status === "fulfilled") {
+      for (const p of progDateRes.value.rows) {
         if (p.start_date) {
           calendarEvents.push({
             id: `program-${p.id}-start`,
@@ -130,21 +279,11 @@ export async function GET(req) {
           });
         }
       }
-    } catch (_) {}
+    }
 
-    // Sessions (from programs the user manages + sessions they handle)
-    try {
-      const sessions = await db.execute({
-        sql: `SELECT s.id, s.title, s.start_at, s.teacher_id, s.program_id, p.name AS program_name
-              FROM v2_sessions s
-              LEFT JOIN v2_programs p ON s.program_id = p.id
-              WHERE s.start_at IS NOT NULL
-                AND (s.teacher_id = ? OR s.program_id IN (
-                  SELECT id FROM v2_programs WHERE assigned_pm_id = ?
-                ) OR ? IN ('super_admin', 'admin'))`,
-        args: [userId, userId, role],
-      });
-      for (const s of sessions.rows) {
+    // Sessions → calendar
+    if (sessRes.status === "fulfilled") {
+      for (const s of sessRes.value.rows) {
         calendarEvents.push({
           id: `session-${s.id}`,
           title: s.title,
@@ -156,19 +295,11 @@ export async function GET(req) {
           project_id: s.program_id,
         });
       }
-    } catch (_) {}
+    }
 
-    // Deliverables (program-manager or admin)
-    try {
-      const delRes = await db.execute({
-        sql: `SELECT d.id, d.title, d.due_date, d.program_id
-              FROM v2_deliverables d
-              JOIN v2_programs p ON d.program_id = p.id
-              WHERE d.due_date IS NOT NULL
-                AND (p.assigned_pm_id = ? OR ? IN ('super_admin', 'admin'))`,
-        args: [userId, role],
-      });
-      for (const d of delRes.rows) {
+    // Deliverables → calendar
+    if (delRes.status === "fulfilled") {
+      for (const d of delRes.value.rows) {
         calendarEvents.push({
           id: `deliverable-${d.id}`,
           title: `${d.title} due`,
@@ -179,18 +310,11 @@ export async function GET(req) {
           related_id: d.id,
         });
       }
-    } catch (_) {}
+    }
 
-    // v2_events (connected)
-    try {
-      const v2events = await db.execute({
-        sql: `SELECT id, title, start_time, event_type, created_by
-              FROM v2_events
-              WHERE start_time IS NOT NULL
-                AND created_by = ?`,
-        args: [userId],
-      });
-      for (const e of v2events.rows) {
+    // v2_events → calendar
+    if (eventRes.status === "fulfilled") {
+      for (const e of eventRes.value.rows) {
         calendarEvents.push({
           id: `v2event-${e.id}`,
           title: e.title,
@@ -201,32 +325,24 @@ export async function GET(req) {
           related_id: e.id,
         });
       }
-    } catch (_) {}
+    }
 
-    // Filter to requested month
+    // Filter calendar to requested month
     const monthStr = String(month).padStart(2, "0");
     const monthEvents = calendarEvents.filter(
       (e) => e.date && e.date.startsWith(`${year}-${monthStr}`),
     );
 
-    // ── 3. SUMMARY STATS ──
+    // 3. Task stats
+    let totalTasks = 0,
+      openTasks = 0,
+      overdueTasks = 0;
+    const overdueTaskList = [],
+      dueTodayList = [];
 
-    // Tasks stats
-    let totalTasks = 0;
-    let openTasks = 0;
-    let overdueTasks = 0;
-    const overdueTaskList = [];
-    const dueTodayList = [];
-    try {
-      const taskRes = await db.execute({
-        sql: `SELECT id, title, end_date, status, priority, project_id
-              FROM tasks
-              WHERE (user_id = ? OR assigned_to = ?)`,
-        args: [userId, userId],
-      });
-      totalTasks = taskRes.rows.length;
-      const todayStr = new Date().toISOString().split("T")[0];
-      for (const t of taskRes.rows) {
+    if (taskStatsRes.status === "fulfilled") {
+      totalTasks = taskStatsRes.value.rows.length;
+      for (const t of taskStatsRes.value.rows) {
         if (t.status !== "completed") openTasks++;
         if (
           t.end_date &&
@@ -256,33 +372,21 @@ export async function GET(req) {
           });
         }
       }
-    } catch (_) {}
+    }
 
-    // Blocker stats
-    let activeBlockers = 0;
-    let criticalBlockers = 0;
+    // 4. Blocker stats
+    let activeBlockers = 0,
+      criticalBlockers = 0;
     const criticalBlockerList = [];
-    try {
-      const blockerRes = await db.execute({
-        sql: `SELECT b.id, b.title, b.severity, b.status, b.task_id, t.project_id, t.title AS task_title, t.end_date
-              FROM blockers b
-              JOIN tasks t ON b.task_id = t.id
-              WHERE b.status = 'active'
-                AND (t.user_id = ? OR t.assigned_to = ?)
-              ORDER BY
-                CASE b.severity
-                  WHEN 'critical' THEN 0 WHEN 'high' THEN 1
-                  WHEN 'medium' THEN 2 WHEN 'low' THEN 3
-                  ELSE 4
-                END`,
-        args: [userId, userId],
-      });
-      activeBlockers = blockerRes.rows.length;
+    const allBlockers = [];
+
+    if (blockerRes.status === "fulfilled") {
+      activeBlockers = blockerRes.value.rows.length;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      for (const b of blockerRes.rows) {
+
+      for (const b of blockerRes.value.rows) {
         if (b.severity === "critical" || b.severity === "high") {
-          // Only include blockers linked to tasks that are overdue or due today
           let includeBlocker = true;
           if (b.end_date) {
             const dueDate = new Date(b.end_date);
@@ -301,219 +405,131 @@ export async function GET(req) {
             });
           }
         }
+        allBlockers.push(b);
       }
-    } catch (_) {}
+    }
 
-    // All blockers (for quick access)
-    const allBlockers = [...criticalBlockerList];
-    try {
-      if (allBlockers.length < 5) {
-        const moreBlockers = await db.execute({
-          sql: `SELECT b.id, b.title, b.severity, b.status
-                FROM blockers b
-                JOIN tasks t ON b.task_id = t.id
-                WHERE b.status = 'active'
-                  AND (t.user_id = ? OR t.assigned_to = ?)
-                LIMIT 5`,
-          args: [userId, userId],
-        });
-        for (const b of moreBlockers.rows) {
-          if (!allBlockers.find((cb) => cb.id === b.id)) {
-            allBlockers.push(b);
-          }
-        }
-      }
-    } catch (_) {}
-
-    // Programs count (PM or admin)
+    // 5. Programs
     let programCount = 0;
-    let userPrograms = [];
-    try {
-      const progRes = await db.execute({
-        sql: `SELECT id, name, status
-              FROM v2_programs
-              WHERE assigned_pm_id = ?
-                 OR ? IN ('super_admin', 'admin')
-              ORDER BY created_at DESC`,
-        args: [userId, role],
-      });
-      programCount = progRes.rows.length;
-      userPrograms = progRes.rows.slice(0, 5);
-    } catch (_) {}
+    const userPrograms = [];
+    if (progCountRes.status === "fulfilled") {
+      programCount = progCountRes.value.rows.length;
+      userPrograms.push(...progCountRes.value.rows.slice(0, 5));
+    }
 
-    // Projects where user is owner or collaborator (with task/blocker stats)
+    // 6. Projects (owned + collaborator)
     let projectCount = 0;
-    let userProjects = [];
-    try {
-      // Owned: owner_id matches user, OR assigned_pm_id in meta matches (legacy)
-      const ownedProjRes = await db.execute({
-        sql: `SELECT
-                p.id, p.name, p.status, p.owner_id, p.meta,
-                COALESCE(t_stats.total, 0) AS task_total,
-                COALESCE(t_stats.completed, 0) AS task_completed,
-                COALESCE(b_stats.active, 0) AS blocker_active
-              FROM v2_projects p
-              LEFT JOIN (
-                SELECT project_id,
-                       COUNT(*) AS total,
-                       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
-                FROM tasks
-                GROUP BY project_id
-              ) t_stats ON p.id::text = t_stats.project_id
-              LEFT JOIN (
-                SELECT t.project_id,
-                       COUNT(*) AS active
-                FROM blockers b
-                JOIN tasks t ON b.task_id = t.id
-                WHERE b.status = 'active'
-                GROUP BY t.project_id
-              ) b_stats ON p.id::text = b_stats.project_id
-              WHERE (p.owner_id = ? OR EXISTS (
-                SELECT 1 FROM project_members pm WHERE pm.project_id::text = p.id::text AND pm.user_cid = ? AND pm.role = 'lead'
-              ))
-                 OR ? IN ('super_admin', 'admin')
-              ORDER BY p.created_at DESC`,
-        args: [userId, userId, role],
-      });
+    const userProjects = [];
+    let collabProjects = [];
 
-      // Collaborator: user is in project_members but not owner
-      let collabProjectIds = [];
-      try {
-        const collabRes = await db.execute({
-          sql: `SELECT DISTINCT project_id FROM project_members WHERE user_cid = ?`,
-          args: [userId],
-        });
-        collabProjectIds = collabRes.rows.map((r) => r.project_id);
-      } catch (_) {}
+    if (
+      ownedProjRes.status === "fulfilled" &&
+      collabMembersRes.status === "fulfilled"
+    ) {
+      // Map owned projects
+      const ownedMapped = (ownedProjRes.value.rows || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        status: p.status,
+        owner_id: p.owner_id,
+        meta: p.meta,
+        role: "owner",
+        taskStats: {
+          total: parseInt(p.task_total) || 0,
+          completed: parseInt(p.task_completed) || 0,
+        },
+        blockerStats: { active: parseInt(p.blocker_active) || 0 },
+        completionRate:
+          (parseInt(p.task_total) || 0) > 0
+            ? Math.round(
+                ((parseInt(p.task_completed) || 0) /
+                  (parseInt(p.task_total) || 1)) *
+                  100,
+              )
+            : 0,
+      }));
 
-      let collabProjects = [];
+      // Collaborator projects
+      const collabProjectIds = collabMembersRes.value.rows.map(
+        (r) => r.project_id,
+      );
       if (collabProjectIds.length > 0) {
-        const placeholders = collabProjectIds.map(() => "?").join(",");
-        const collabProjRes = await db.execute({
-          sql: `SELECT
-                  p.id, p.name, p.status, p.owner_id, p.meta,
-                  COALESCE(t_stats.total, 0) AS task_total,
-                  COALESCE(t_stats.completed, 0) AS task_completed,
-                  COALESCE(b_stats.active, 0) AS blocker_active
-                FROM v2_projects p
-                LEFT JOIN (
-                  SELECT project_id,
-                         COUNT(*) AS total,
-                         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
-                  FROM tasks
-                  GROUP BY project_id
-                ) t_stats ON p.id::text = t_stats.project_id
-                LEFT JOIN (
-                  SELECT t.project_id,
-                         COUNT(*) AS active
-                  FROM blockers b
-                  JOIN tasks t ON b.task_id = t.id
-                  WHERE b.status = 'active'
-                  GROUP BY t.project_id
-                ) b_stats ON p.id::text = b_stats.project_id
-                WHERE p.id::text IN (${placeholders})
-                ORDER BY p.created_at DESC`,
-          args: collabProjectIds,
-        });
-        collabProjects = collabProjRes.rows;
+        try {
+          const placeholders = collabProjectIds.map(() => "?").join(",");
+          const collabProjRes = await db.execute({
+            sql: `SELECT
+                    p.id, p.name, p.status, p.owner_id, p.meta,
+                    COALESCE(t_stats.total, 0) AS task_total,
+                    COALESCE(t_stats.completed, 0) AS task_completed,
+                    COALESCE(b_stats.active, 0) AS blocker_active
+                  FROM v2_projects p
+                  LEFT JOIN (
+                    SELECT project_id, COUNT(*) AS total,
+                           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+                    FROM tasks GROUP BY project_id
+                  ) t_stats ON p.id = t_stats.project_id
+                  LEFT JOIN (
+                    SELECT t.project_id, COUNT(*) AS active
+                    FROM blockers b JOIN tasks t ON b.task_id = t.id
+                    WHERE b.status = 'active' GROUP BY t.project_id
+                  ) b_stats ON p.id = b_stats.project_id
+                  WHERE p.id IN (${placeholders})
+                  ORDER BY p.created_at DESC`,
+            args: collabProjectIds,
+          });
+
+          const ownedIds = new Set(ownedMapped.map((p) => String(p.id)));
+          collabProjects = (collabProjRes.rows || [])
+            .filter((p) => !ownedIds.has(String(p.id)))
+            .map((p) => ({
+              id: p.id,
+              name: p.name,
+              status: p.status,
+              owner_id: p.owner_id,
+              meta: p.meta,
+              role: "collaborator",
+              taskStats: {
+                total: parseInt(p.task_total) || 0,
+                completed: parseInt(p.task_completed) || 0,
+              },
+              blockerStats: { active: parseInt(p.blocker_active) || 0 },
+              completionRate:
+                (parseInt(p.task_total) || 0) > 0
+                  ? Math.round(
+                      ((parseInt(p.task_completed) || 0) /
+                        (parseInt(p.task_total) || 1)) *
+                        100,
+                    )
+                  : 0,
+            }));
+        } catch (_) {}
       }
 
-      // Map owned projects with role="owner"
-      const ownedMapped = (ownedProjRes.rows || []).map((p) => {
-        const total = parseInt(p.task_total) || 0;
-        const completed = parseInt(p.task_completed) || 0;
-        return {
-          id: p.id,
-          name: p.name,
-          status: p.status,
-          owner_id: p.owner_id,
-          meta: p.meta,
-          role: "owner",
-          taskStats: { total, completed },
-          blockerStats: { active: parseInt(p.blocker_active) || 0 },
-          completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-        };
-      });
-
-      // Map collaborator projects with role="collaborator" (excluding owned)
-      const ownedIds = new Set(ownedMapped.map((p) => String(p.id)));
-      const collabMapped = (collabProjects || [])
-        .filter((p) => !ownedIds.has(String(p.id)))
-        .map((p) => {
-          const total = parseInt(p.task_total) || 0;
-          const completed = parseInt(p.task_completed) || 0;
-          return {
-            id: p.id,
-            name: p.name,
-            status: p.status,
-            owner_id: p.owner_id,
-            meta: p.meta,
-            role: "collaborator",
-            taskStats: { total, completed },
-            blockerStats: { active: parseInt(p.blocker_active) || 0 },
-            completionRate:
-              total > 0 ? Math.round((completed / total) * 100) : 0,
-          };
-        });
-
-      userProjects = [...ownedMapped, ...collabMapped];
+      userProjects.push(...ownedMapped, ...collabProjects);
       projectCount = userProjects.length;
-    } catch (_) {}
+    }
 
-    // ── 4. RECENT ACTIVITY ──
+    // 7. Activity
     let activity = [];
-    try {
-      const actRes = await db.execute({
-        sql: `(SELECT 'task_completed' AS action, title AS description, updated_at AS timestamp, user_id
-               FROM tasks WHERE (user_id = ? OR assigned_to = ?) AND status = 'completed'
-               ORDER BY updated_at DESC LIMIT 5)
-              UNION ALL
-              (SELECT 'blocker_resolved' AS action, title AS description, resolved_at AS timestamp, resolved_by AS user_id
-               FROM blockers WHERE resolved_by = ? AND status = 'resolved'
-               ORDER BY resolved_at DESC LIMIT 3)
-              UNION ALL
-              (SELECT 'task_assigned' AS action, title AS description, created_at AS timestamp, user_id
-               FROM tasks WHERE assigned_to = ?
-               ORDER BY created_at DESC LIMIT 3)
-              ORDER BY timestamp DESC LIMIT 10`,
-        args: [userId, userId, userId, userId],
-      });
-      activity = actRes.rows;
-    } catch (_) {}
+    if (activityRes.status === "fulfilled") {
+      activity = activityRes.value.rows;
+    }
 
-    // ── 5. ASSIGNMENTS (tasks assigned TO user by others) ──
+    // 8. Assignments
     let assignments = [];
-    try {
-      const assignRes = await db.execute({
-        sql: `SELECT id, title, status, end_date, user_name, user_id, priority, created_at
-              FROM tasks
-              WHERE assigned_to = ?
-              ORDER BY created_at DESC`,
-        args: [userId],
-      });
-      assignments = assignRes.rows;
-    } catch (_) {}
+    if (assignmentsRes.status === "fulfilled") {
+      assignments = assignmentsRes.value.rows;
+    }
 
-    // ── 6. USER'S OWN TASKS (for quick access / attention section) ──
+    // 9. My tasks
     let myTasks = [];
-    try {
-      const taskRes = await db.execute({
-        sql: `SELECT id, title, status, end_date, priority, project_id
-              FROM tasks
-              WHERE user_id = ?
-              ORDER BY
-                CASE status
-                  WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1
-                  WHEN 'blocked' THEN 2 WHEN 'carried_over' THEN 3
-                  ELSE 4
-                END,
-                end_date ASC NULLS LAST
-              LIMIT 5`,
-        args: [userId],
-      });
-      myTasks = taskRes.rows;
-    } catch (_) {}
+    if (myTasksRes.status === "fulfilled") {
+      myTasks = myTasksRes.value.rows;
+    }
 
+    // ─────────────────────────────────────────────
+    // RESPONSE
+    // ─────────────────────────────────────────────
     return NextResponse.json({
       success: true,
       user: { cid: userId, name: userName, role },
@@ -548,10 +564,10 @@ export async function GET(req) {
         tasks: myTasks,
         blockers: allBlockers.slice(0, 5),
       },
-      assignments: assignments.filter((a) => a.status !== "completed"),
+      assignments,
     });
   } catch (error) {
-    console.error("Unified Dashboard API error:", error);
+    console.error("GET dashboard error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },

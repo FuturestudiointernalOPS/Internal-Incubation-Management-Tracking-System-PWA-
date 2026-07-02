@@ -453,23 +453,52 @@ export default function StaffOpReport() {
     }
   }, []);
 
+  // ─── Query param: pre-select tab (e.g. ?tab=standup | retro | summary) ───
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (!saved) {
-        router.push("/login");
-        return;
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "standup" || tab === "retro" || tab === "summary") {
+        setReportType(tab);
       }
-      const u = JSON.parse(saved);
-      if (!u.id && !u.cid) {
-        router.push("/login");
-        return;
-      }
-      setUser(u);
-    } catch (e) {
-      console.error("Failed to parse user from localStorage:", e);
-      router.push("/login");
     }
+  }, []);
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        // Try server session first for authoritative role
+        const sessionRes = await fetch("/api/auth/session");
+        if (sessionRes.ok) {
+          const sessionData = await sessionRes.json();
+          if (sessionData?.user) {
+            setUser(sessionData.user);
+            return;
+          }
+        }
+      } catch (e) {
+        // Fall through to localStorage
+      }
+
+      // Fallback: localStorage
+      try {
+        const saved = localStorage.getItem("user");
+        if (!saved) {
+          router.push("/login");
+          return;
+        }
+        const u = JSON.parse(saved);
+        if (!u.id && !u.cid) {
+          router.push("/login");
+          return;
+        }
+        setUser(u);
+      } catch (e) {
+        console.error("Failed to parse user from localStorage:", e);
+        router.push("/login");
+      }
+    }
+    fetchUser();
   }, [router]);
 
   useEffect(() => {
@@ -834,7 +863,10 @@ export default function StaffOpReport() {
   };
 
   return (
-    <DashboardLayout role={user?.role || "staff"}>
+    <DashboardLayout
+      role={user?.role || "staff"}
+      isParticipant={user?.role === "participant"}
+    >
       <div className="space-y-8 pb-20 text-left">
         {/* Toast */}
         {toast && (
