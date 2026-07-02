@@ -53,7 +53,13 @@ export default function LoginPage() {
                   ? "/staff"
                   : data.user.role === "teacher"
                     ? "/teacher"
-                    : "/participant";
+                    : data.user.role === "developer"
+                      ? "/developer"
+                      : data.user.role === "participant"
+                        ? "/participant"
+                        : data.user.role === "finance"
+                          ? "/finance"
+                          : "/participant";
           window.location.href = target;
         }, 800);
       } else {

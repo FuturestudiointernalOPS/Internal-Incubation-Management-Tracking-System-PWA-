@@ -452,23 +452,52 @@ export default function StaffOpReport() {
     }
   }, []);
 
+  // ─── Query param: pre-select tab (e.g. ?tab=standup | retro | summary) ───
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      if (!saved) {
-        router.push("/login");
-        return;
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "standup" || tab === "retro" || tab === "summary") {
+        setReportType(tab);
       }
-      const u = JSON.parse(saved);
-      if (!u.id && !u.cid) {
-        router.push("/login");
-        return;
-      }
-      setUser(u);
-    } catch (e) {
-      console.error("Failed to parse user from localStorage:", e);
-      router.push("/login");
     }
+  }, []);
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        // Try server session first for authoritative role
+        const sessionRes = await fetch("/api/auth/session");
+        if (sessionRes.ok) {
+          const sessionData = await sessionRes.json();
+          if (sessionData?.user) {
+            setUser(sessionData.user);
+            return;
+          }
+        }
+      } catch (e) {
+        // Fall through to localStorage
+      }
+
+      // Fallback: localStorage
+      try {
+        const saved = localStorage.getItem("user");
+        if (!saved) {
+          router.push("/login");
+          return;
+        }
+        const u = JSON.parse(saved);
+        if (!u.id && !u.cid) {
+          router.push("/login");
+          return;
+        }
+        setUser(u);
+      } catch (e) {
+        console.error("Failed to parse user from localStorage:", e);
+        router.push("/login");
+      }
+    }
+    fetchUser();
   }, [router]);
 
   useEffect(() => {
@@ -833,7 +862,10 @@ export default function StaffOpReport() {
   };
 
   return (
-    <DashboardLayout role={user?.role || "staff"}>
+    <DashboardLayout
+      role={user?.role || "staff"}
+      isParticipant={user?.role === "participant"}
+    >
       <div className="space-y-8 pb-20 text-left">
         {/* Toast */}
         {toast && (
@@ -981,7 +1013,8 @@ export default function StaffOpReport() {
                               (t) =>
                                 !["archived", "completed"].includes(t.status) &&
                                 !t.parent_task_id &&
-                                (t.created_week !== curWeek || t.created_year !== curYear)
+                                (t.created_week !== curWeek ||
+                                  t.created_year !== curYear),
                             );
 
                             if (prevWeekTasks.length > 0) {
@@ -1653,13 +1686,28 @@ export default function StaffOpReport() {
                                                     b.status === "completed"
                                                   )
                                                     return -1;
-                                                    
-                                                  const aCarryover = a.carried_over_from_task_id !== null || a.status === "carried_over";
-                                                  const bCarryover = b.carried_over_from_task_id !== null || b.status === "carried_over";
-                                                  if (aCarryover && !bCarryover) return -1;
-                                                  if (!aCarryover && bCarryover) return 1;
 
-                                                  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                                                  const aCarryover =
+                                                    a.carried_over_from_task_id !==
+                                                      null ||
+                                                    a.status === "carried_over";
+                                                  const bCarryover =
+                                                    b.carried_over_from_task_id !==
+                                                      null ||
+                                                    b.status === "carried_over";
+                                                  if (aCarryover && !bCarryover)
+                                                    return -1;
+                                                  if (!aCarryover && bCarryover)
+                                                    return 1;
+
+                                                  return (
+                                                    new Date(
+                                                      a.created_at,
+                                                    ).getTime() -
+                                                    new Date(
+                                                      b.created_at,
+                                                    ).getTime()
+                                                  );
                                                 })
                                                 .map((task) => {
                                                   const cfg =
@@ -1798,9 +1846,13 @@ export default function StaffOpReport() {
                                                             >
                                                               {task.title}
                                                             </span>
-                                                            {(task.carried_over_from_task_id !== null || task.status === "carried_over") && (
+                                                            {(task.carried_over_from_task_id !==
+                                                              null ||
+                                                              task.status ===
+                                                                "carried_over") && (
                                                               <span className="flex items-center gap-1 text-[8px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider ml-2">
-                                                                <Shield className="w-2.5 h-2.5" /> Carryover
+                                                                <Shield className="w-2.5 h-2.5" />{" "}
+                                                                Carryover
                                                               </span>
                                                             )}
                                                             {task.subtasks
@@ -3078,79 +3130,80 @@ export default function StaffOpReport() {
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {carryoverTasks
-                      .map((task) => (
-                        <div
-                          key={task.id}
-                          className="flex items-start gap-3 p-3 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.03]"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                              {task.title}
-                            </p>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                              <span className="text-[8px] text-slate-500">
-                                {t("staff.table.due")}:{" "}
-                                {formatDate(task.end_date)}
+                    {carryoverTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 p-3 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.03]"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)]">
+                            {task.title}
+                          </p>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            <span className="text-[8px] text-slate-500">
+                              {t("staff.table.due")}:{" "}
+                              {formatDate(task.end_date)}
+                            </span>
+                            {(task.blockers || []).filter(
+                              (b) => b.status === "active",
+                            ).length > 0 && (
+                              <span className="text-[8px] text-rose-400 flex items-center gap-1">
+                                <Shield className="w-2.5 h-2.5" />
+                                {
+                                  (task.blockers || []).filter(
+                                    (b) => b.status === "active",
+                                  ).length
+                                }{" "}
+                                {t("status.active")}
                               </span>
-                              {(task.blockers || []).filter(
-                                (b) => b.status === "active",
-                              ).length > 0 && (
-                                <span className="text-[8px] text-rose-400 flex items-center gap-1">
-                                  <Shield className="w-2.5 h-2.5" />
-                                  {
-                                    (task.blockers || []).filter(
-                                      (b) => b.status === "active",
-                                    ).length
-                                  }{" "}
-                                  {t("status.active")}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-1 shrink-0">
-                            <button
-                              onClick={async () => {
-                                // Update old task to 'carried_over'
-                                await fetch("/api/tasks", {
-                                  method: "PUT",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
-                                    id: task.id,
-                                    status: "carried_over",
-                                    user_id: user?.cid || user?.id,
-                                  }),
-                                });
-                                // Clone task to current week
-                                await fetch("/api/tasks", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
-                                    title: task.title,
-                                    description: task.description || null,
-                                    project_id: task.project_id || null,
-                                    category: task.category || null,
-                                    user_id: user?.cid || user?.id,
-                                    user_name: user?.name || "",
-                                    status: "in_progress",
-                                    created_week: weekInfo.week,
-                                    created_year: weekInfo.year,
-                                    parent_task_id: null,
-                                    start_date: task.start_date || null,
-                                    end_date: task.end_date || null,
-                                    carried_over_from_task_id: task.id,
-                                  }),
-                                });
-                                setCarryoverTasks(prev => prev.filter(t => t.id !== task.id));
-                                fetchTasks();
-                              }}
-                              className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
-                            >
-                              {t("staff.opReport.continue")}
-                            </button>
+                            )}
                           </div>
                         </div>
-                      ))}
+                        <div className="flex gap-1 shrink-0">
+                          <button
+                            onClick={async () => {
+                              // Update old task to 'carried_over'
+                              await fetch("/api/tasks", {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  id: task.id,
+                                  status: "carried_over",
+                                  user_id: user?.cid || user?.id,
+                                }),
+                              });
+                              // Clone task to current week
+                              await fetch("/api/tasks", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  title: task.title,
+                                  description: task.description || null,
+                                  project_id: task.project_id || null,
+                                  category: task.category || null,
+                                  user_id: user?.cid || user?.id,
+                                  user_name: user?.name || "",
+                                  status: "in_progress",
+                                  created_week: weekInfo.week,
+                                  created_year: weekInfo.year,
+                                  parent_task_id: null,
+                                  start_date: task.start_date || null,
+                                  end_date: task.end_date || null,
+                                  carried_over_from_task_id: task.id,
+                                }),
+                              });
+                              setCarryoverTasks((prev) =>
+                                prev.filter((t) => t.id !== task.id),
+                              );
+                              fetchTasks();
+                            }}
+                            className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
+                          >
+                            {t("staff.opReport.continue")}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

@@ -57,10 +57,6 @@ export async function GET(req) {
           { status: 403 },
         );
       }
-      // If no user_id specified, force scope to own tasks
-      if (!user_id && !assigned_to && !project_id_filter) {
-        // Will add user_id filter below
-      }
     }
     const status = searchParams.get("status");
     const week_number = searchParams.get("week");
@@ -794,7 +790,7 @@ export async function PUT(req) {
           const subEnd = new Date(end_date || task.end_date);
           const currentParentEndStr = parentEndRes.rows[0].end_date;
           let shouldUpdateParent = false;
-          
+
           if (!currentParentEndStr) {
             shouldUpdateParent = true;
           } else {
@@ -968,7 +964,10 @@ export async function PUT(req) {
     }
 
     // ─── Sync parent end_date if this (sub)task extends further ───
-    if (task.parent_task_id && (end_date !== undefined || start_date !== undefined)) {
+    if (
+      task.parent_task_id &&
+      (end_date !== undefined || start_date !== undefined)
+    ) {
       try {
         const effEnd = end_date || task.end_date;
         if (effEnd) {
