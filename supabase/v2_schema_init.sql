@@ -500,6 +500,7 @@ CREATE TABLE IF NOT EXISTS v2_messages (
     body TEXT NOT NULL,
     priority TEXT DEFAULT 'normal',
     is_read INTEGER DEFAULT 0,
+    is_deleted INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

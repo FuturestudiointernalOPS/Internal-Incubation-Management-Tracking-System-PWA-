@@ -7,7 +7,7 @@ import { syncDataSource } from "@/lib/finance/ingest";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
@@ -21,10 +21,10 @@ export async function POST(req) {
     }
 
     // Rate limit: check if last sync was less than 60 seconds ago
-    const ds = await db.execute(
-      "SELECT last_sync_at FROM data_sources WHERE id = ?",
-      [dataSourceId],
-    );
+    const ds = await db.execute({
+      sql: "SELECT last_sync_at FROM data_sources WHERE id = ?",
+      args: [dataSourceId],
+    });
 
     if (ds.rows.length === 0) {
       return NextResponse.json(
