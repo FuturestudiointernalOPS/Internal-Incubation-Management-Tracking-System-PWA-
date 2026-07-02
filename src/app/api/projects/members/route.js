@@ -59,15 +59,43 @@ export async function POST(req) {
       );
     }
 
+    // Get session for inviter info
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    const inviterName = session?.name || "Unknown";
+
+    // Get project name
+    const projRes = await db.execute({
+      sql: "SELECT name FROM v2_projects WHERE id::text = ?",
+      args: [project_id],
+    });
+    const projectName = projRes.rows[0]?.name || "Unknown Project";
+
+    // Cancel any existing pending invitation for this project+user
     await db.execute({
-      sql: `INSERT INTO project_members (project_id, user_cid, role, assigned_at)
-            VALUES (?, ?, ?, NOW())
-            ON CONFLICT (project_id, user_cid)
-            DO UPDATE SET role = ?, assigned_at = NOW()`,
-      args: [project_id, user_cid, role || "member", role || "member"],
+      sql: "UPDATE project_invitations SET status = 'declined', responded_at = NOW() WHERE project_id = ? AND invitee_id = ? AND status = 'pending'",
+      args: [project_id, user_cid],
     });
 
-    return NextResponse.json({ success: true, action: "added" });
+    // Create invitation
+    const invResult = await db.execute({
+      sql: "INSERT INTO project_invitations (project_id, inviter_id, invitee_id, role) VALUES (?, ?, ?, ?) RETURNING id",
+      args: [project_id, inviterName, user_cid, role || "member"],
+    });
+    const invitationId = invResult.rows[0]?.id || invResult.lastInsertRowid;
+
+    // Notify invitee
+    await db.execute({
+      sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+      args: [
+        user_cid,
+        "Project Invitation",
+        `${inviterName} invited you to join "${projectName}"`,
+        "project_invite",
+      ],
+    });
+
+    return NextResponse.json({ success: true, action: "invited" });
   } catch (error) {
     console.error("POST project members error:", error);
     return NextResponse.json(

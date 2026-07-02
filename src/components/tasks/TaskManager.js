@@ -970,7 +970,7 @@ export default function TaskManager({
             </div>
           )}
 
-          {/* Inherited badge for sub-tasks */}
+            {/* Inherited badge for sub-tasks */}
           {pendingParentTaskId && form.project_id && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
               <span className="text-[8px] font-bold text-indigo-400">

@@ -7,6 +7,8 @@ import { NextResponse } from "next/server";
 export const SESSION_COOKIE_NAME = "impactos_session";
 const SESSION_DURATION_HOURS = 24;
 const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
+const SESSION_CACHE_TTL = 5000; // 5s cache for session lookups
+const _sessionCache = new Map();
 
 /**
  * Creates a new session for a user.
@@ -69,6 +71,13 @@ export async function getSession() {
       return null;
     }
 
+    // In-memory cache: avoid re-querying DB for the same token within 5s
+    const cacheKey = token;
+    const cached = _sessionCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      return cached.session;
+    }
+
     console.log(
       "[session] getSession — token from cookie:",
       token.substring(0, 8) + "...",
@@ -94,7 +103,7 @@ export async function getSession() {
 
     const session = result.rows[0];
 
-    // Verify user is still in good standing (approved/active for staff, active for others)
+    // Check user standing
     const allowedStatuses = ["active", "approved"];
     if (
       session.status &&
@@ -108,10 +117,11 @@ export async function getSession() {
         session.role,
       );
       await destroySession();
+      _sessionCache.delete(token);
       return null;
     }
 
-    return {
+    const result_session = {
       cid: session.user_cid,
       name: session.name,
       email: session.email,
@@ -119,6 +129,14 @@ export async function getSession() {
       group_name: session.group_name,
       token: session.token,
     };
+
+    // Cache the session for 5s
+    _sessionCache.set(token, {
+      session: result_session,
+      expires: Date.now() + SESSION_CACHE_TTL,
+    });
+
+    return result_session;
   } catch (error) {
     console.error("Session validation error:", error);
     return null;

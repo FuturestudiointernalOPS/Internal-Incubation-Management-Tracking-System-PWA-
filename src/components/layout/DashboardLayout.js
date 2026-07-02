@@ -732,6 +732,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingInvites, setPendingInvites] = useState([]);
   const [openMenus, setOpenMenus] = useState({});
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
@@ -781,6 +782,19 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     } catch (_) {}
   }, []);
 
+  const fetchPendingInvites = useCallback(async () => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (!savedUser) return;
+      const parsedUser = JSON.parse(savedUser);
+      const cid = parsedUser.cid || parsedUser.id;
+      if (!cid) return;
+      const res = await fetch(`/api/projects/invitations?invitee_id=${cid}&status=pending`);
+      const data = await res.json();
+      if (data.success) setPendingInvites(data.invitations || []);
+    } catch (_) {}
+  }, []);
+
   // Listen for manual refresh events from approve actions
   useEffect(() => {
     const onRefresh = () => {
@@ -794,12 +808,14 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   useEffect(() => {
     fetchNotifications();
     fetchSubmissionCount();
+    fetchPendingInvites();
     const interval = setInterval(() => {
       fetchNotifications();
       fetchSubmissionCount();
+      fetchPendingInvites();
     }, 15000);
     return () => clearInterval(interval);
-  }, [fetchNotifications, fetchSubmissionCount]);
+  }, [fetchNotifications, fetchSubmissionCount, fetchPendingInvites]);
 
   const { toggleTheme, theme } = useTheme();
   const [user, setUser] = useState({});
@@ -1184,6 +1200,59 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                             <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed group-hover:text-[var(--text-primary)] transition-colors">
                               {n.message}
                             </p>
+                            {/* Accept/Decline buttons for project invitations */}
+                            {n.type === "project_invite" && (
+                              <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const saved = JSON.parse(localStorage.getItem("user") || "{}");
+                                      const cid = saved.cid || saved.id;
+                                      const invRes = await fetch(`/api/projects/invitations?invitee_id=${cid}&status=pending`);
+                                      const invData = await invRes.json();
+                                      const pendingInvite = invData.invitations?.[0];
+                                      if (pendingInvite) {
+                                        await fetch("/api/projects/invitations/respond", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ invitation_id: pendingInvite.id, action: "accept" }),
+                                        });
+                                      }
+                                      // Mark notification as read
+                                      await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const saved = JSON.parse(localStorage.getItem("user") || "{}");
+                                      const cid = saved.cid || saved.id;
+                                      const invRes = await fetch(`/api/projects/invitations?invitee_id=${cid}&status=pending`);
+                                      const invData = await invRes.json();
+                                      const pendingInvite = invData.invitations?.[0];
+                                      if (pendingInvite) {
+                                        await fetch("/api/projects/invitations/respond", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ invitation_id: pendingInvite.id, action: "decline" }),
+                                        });
+                                      }
+                                      // Mark notification as read
+                                      await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))
                       ) : (
@@ -1210,6 +1279,56 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           </header>
 
           <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
+            {/* Project Invitation Banner */}
+            {pendingInvites.length > 0 && (
+              <div className="mb-6 p-4 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <Briefcase className="w-5 h-5 text-[var(--brand-orange)]" />
+                  <div>
+                    <p className="text-[11px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+                      Project Invitation
+                    </p>
+                    <p className="text-[10px] text-[var(--text-secondary)]">
+                      You've been invited to join <span className="font-bold text-[var(--text-primary)]">{pendingInvites[0].project_name || "a project"}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      setPendingInvites([]);
+                      try {
+                        await fetch("/api/projects/invitations/respond", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ invitation_id: pendingInvites[0].id, action: "accept" }),
+                        });
+                        fetchNotifications();
+                      } catch (_) {}
+                    }}
+                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-600 transition-all"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setPendingInvites([]);
+                      try {
+                        await fetch("/api/projects/invitations/respond", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ invitation_id: pendingInvites[0].id, action: "decline" }),
+                        });
+                        fetchNotifications();
+                      } catch (_) {}
+                    }}
+                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-500 transition-all"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="max-w-[1400px] mx-auto animate-in">{children}</div>
           </main>
           {modals}

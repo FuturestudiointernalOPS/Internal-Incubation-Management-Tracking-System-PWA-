@@ -26,6 +26,8 @@ const getPool = () => {
       max: 10,
       idleTimeoutMillis: 300000,
       connectionTimeoutMillis: 15000,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10000,
     });
     return pgPool;
   } catch (e) {

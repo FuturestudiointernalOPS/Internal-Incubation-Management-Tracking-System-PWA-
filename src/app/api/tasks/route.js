@@ -794,7 +794,7 @@ export async function PUT(req) {
           const subEnd = new Date(end_date || task.end_date);
           const currentParentEndStr = parentEndRes.rows[0].end_date;
           let shouldUpdateParent = false;
-          
+
           if (!currentParentEndStr) {
             shouldUpdateParent = true;
           } else {
