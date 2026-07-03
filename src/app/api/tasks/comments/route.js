@@ -107,21 +107,59 @@ export async function POST(req) {
         args: [parseInt(task_id)],
       });
       const task = taskRes.rows[0];
+      const alreadyNotified = new Set();
+
+      const insertNotif = async (recipientId, title, message, type) => {
+        await db.execute({
+          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                VALUES (?, ?, ?, ?, 0, NOW())`,
+          args: [recipientId, title, message, type],
+        });
+      };
+
       if (task) {
         const recipients = new Set(
           [task.user_id, task.assigned_to].filter((r) => r && r !== sender_id),
         );
         for (const recipientId of recipients) {
-          await fetch(`${req.nextUrl.origin}/api/notifications`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipient_id: recipientId,
-              title: "New Comment",
-              message: `${sender_name || "Someone"} commented on "${task.title}"`,
-              type: "comment",
-            }),
-          });
+          alreadyNotified.add(recipientId);
+          await insertNotif(
+            recipientId,
+            "New Comment",
+            `${sender_name || "Someone"} commented on "${task.title}"`,
+            "comment",
+          );
+        }
+      }
+
+      // ─── @Mentions — parse and notify mentioned users ───
+      const mentionRegex = /@(\w[\w\s.-]*?\w)\b/g;
+      let match;
+      const mentionedNames = new Set();
+      while ((match = mentionRegex.exec(commentBody)) !== null) {
+        mentionedNames.add(match[1].trim().toLowerCase());
+      }
+
+      if (mentionedNames.size > 0) {
+        const namesArray = [...mentionedNames];
+        const placeholders = namesArray.map(() => "?").join(",");
+        const mentionRes = await db.execute({
+          sql: `SELECT cid, name FROM contacts
+                WHERE LOWER(TRIM(name)) IN (${placeholders})
+                AND deleted = 0`,
+          args: namesArray,
+        });
+
+        for (const mentioned of mentionRes.rows) {
+          if (alreadyNotified.has(mentioned.cid)) continue;
+          if (mentioned.cid === sender_id) continue;
+
+          await insertNotif(
+            mentioned.cid,
+            "Mention in Comment",
+            `${sender_name || "Someone"} mentioned you in a comment on "${task?.title || "a task"}"`,
+            "mention",
+          );
         }
       }
     } catch (_) {

@@ -151,15 +151,15 @@ export async function POST(req) {
         });
         if (assignerLog.rows.length > 0) {
           const assignerId = assignerLog.rows[0].actor_id;
-          await fetch(new URL("/api/notifications", req.url).toString(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipient_id: assignerId,
-              title: "Assignment Declined",
-              message: `${user_name || user_id} declined the task "${task.title}".`,
-              type: "assignment",
-            }),
+          await db.execute({
+            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                  VALUES (?, ?, ?, ?, 0, NOW())`,
+            args: [
+              assignerId,
+              "Assignment Declined",
+              `${user_name || user_id} declined the task "${task.title}".`,
+              "assignment",
+            ],
           });
         }
       } catch (notifErr) {
