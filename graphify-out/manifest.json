@@ -280,8 +280,8 @@
     "hash": "854a503d97afc5980aa343462df2358d"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/admin/projects/[id]/route.js": {
-    "mtime": 1783067518.0455382,
-    "hash": "e88298e69995b2cb614b34fc6c61f5be"
+    "mtime": 1783105183.0296807,
+    "hash": "643153a3fe298783aed8dcb48e3aad60"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/admin/projects/[id]/updates/route.js": {
     "mtime": 1782805567.3369591,
@@ -692,8 +692,8 @@
     "hash": "857e64f20b7435aca21423057fee9faa"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/route.js": {
-    "mtime": 1783103981.4422069,
-    "hash": "cff29f5fc3f8d416051de5a58d20311f"
+    "mtime": 1783104581.140844,
+    "hash": "87e54ff5669f3b12f52be5c19b687e6b"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/approve/route.js": {
     "mtime": 1782805567.3415918,
@@ -712,8 +712,8 @@
     "hash": "f6fdff46319a6aa20a6e1a127d186a76"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/resources/route.js": {
-    "mtime": 1782911479.4067032,
-    "hash": "e78c3f57276d2c95bbe9a3a8517a9d75"
+    "mtime": 1783104573.5974116,
+    "hash": "679bb92419f337210f4a8cb2daf39e81"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/logs/route.js": {
     "mtime": 1782805567.3415918,
@@ -1144,8 +1144,8 @@
     "hash": "652d41fec8c57594dcf4a007bb07afd9"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/components/tasks/TaskManager.js": {
-    "mtime": 1783096330.653457,
-    "hash": "fbb1aa400bcca07070a6dd0b722d8c11"
+    "mtime": 1783104631.6872761,
+    "hash": "dc6432be2d669b718d0219f063f97d28"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/components/layout/DashboardLayout.js": {
     "mtime": 1783067518.052033,
@@ -1178,6 +1178,10 @@
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/migrations/seed_responsibilities.sql": {
     "mtime": 1782911479.411735,
     "hash": "9e8524f3913ebf67d25b40eccbf63a04"
+  },
+  "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/migrations/006_task_resources_file_support.sql": {
+    "mtime": 1783104565.5051198,
+    "hash": "f5de7f0600b3b87d6c87cc4c86a10ff8"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/migrations/add_grading_mode.sql": {
     "mtime": 1782805567.3487272,

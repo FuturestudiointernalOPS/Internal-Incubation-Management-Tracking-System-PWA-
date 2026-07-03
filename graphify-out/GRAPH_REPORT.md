@@ -1,10 +1,10 @@
 # Graph Report - src  (2026-07-03)
 
 ## Corpus Check
-- Large corpus: 351 files · ~254,711 words. Semantic extraction will be expensive (many Claude tokens). Consider running on a subfolder, or use --no-semantic to run AST-only.
+- Large corpus: 352 files · ~255,059 words. Semantic extraction will be expensive (many Claude tokens). Consider running on a subfolder, or use --no-semantic to run AST-only.
 
 ## Summary
-- 1013 nodes · 1427 edges · 199 communities (140 shown, 59 thin omitted)
+- 1013 nodes · 1427 edges · 205 communities (138 shown, 67 thin omitted)
 - Extraction: 61% EXTRACTED · 39% INFERRED · 0% AMBIGUOUS · INFERRED: 550 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
@@ -47,7 +47,7 @@
 - [[_COMMUNITY_Community 36|Community 36]]
 - [[_COMMUNITY_Community 37|Community 37]]
 - [[_COMMUNITY_Community 38|Community 38]]
-- [[_COMMUNITY_Community 39|Community 39]]
+- [[_COMMUNITY_Community 41|Community 41]]
 - [[_COMMUNITY_Community 42|Community 42]]
 - [[_COMMUNITY_Community 43|Community 43]]
 - [[_COMMUNITY_Community 44|Community 44]]
@@ -66,19 +66,19 @@
 - [[_COMMUNITY_Community 57|Community 57]]
 - [[_COMMUNITY_Community 58|Community 58]]
 - [[_COMMUNITY_Community 59|Community 59]]
-- [[_COMMUNITY_Community 60|Community 60]]
 - [[_COMMUNITY_Community 61|Community 61]]
-- [[_COMMUNITY_Community 63|Community 63]]
+- [[_COMMUNITY_Community 62|Community 62]]
 - [[_COMMUNITY_Community 64|Community 64]]
+- [[_COMMUNITY_Community 65|Community 65]]
 - [[_COMMUNITY_Community 66|Community 66]]
-- [[_COMMUNITY_Community 67|Community 67]]
 - [[_COMMUNITY_Community 68|Community 68]]
+- [[_COMMUNITY_Community 69|Community 69]]
 - [[_COMMUNITY_Community 70|Community 70]]
 - [[_COMMUNITY_Community 71|Community 71]]
 - [[_COMMUNITY_Community 72|Community 72]]
 - [[_COMMUNITY_Community 73|Community 73]]
-- [[_COMMUNITY_Community 74|Community 74]]
 - [[_COMMUNITY_Community 75|Community 75]]
+- [[_COMMUNITY_Community 76|Community 76]]
 - [[_COMMUNITY_Community 77|Community 77]]
 - [[_COMMUNITY_Community 78|Community 78]]
 - [[_COMMUNITY_Community 79|Community 79]]
@@ -91,15 +91,15 @@
 - [[_COMMUNITY_Community 86|Community 86]]
 - [[_COMMUNITY_Community 87|Community 87]]
 - [[_COMMUNITY_Community 88|Community 88]]
-- [[_COMMUNITY_Community 89|Community 89]]
+- [[_COMMUNITY_Community 94|Community 94]]
 - [[_COMMUNITY_Community 95|Community 95]]
 - [[_COMMUNITY_Community 96|Community 96]]
 - [[_COMMUNITY_Community 97|Community 97]]
 - [[_COMMUNITY_Community 98|Community 98]]
-- [[_COMMUNITY_Community 100|Community 100]]
+- [[_COMMUNITY_Community 99|Community 99]]
 - [[_COMMUNITY_Community 101|Community 101]]
 - [[_COMMUNITY_Community 102|Community 102]]
-- [[_COMMUNITY_Community 130|Community 130]]
+- [[_COMMUNITY_Community 103|Community 103]]
 - [[_COMMUNITY_Community 131|Community 131]]
 - [[_COMMUNITY_Community 132|Community 132]]
 - [[_COMMUNITY_Community 133|Community 133]]
@@ -107,7 +107,7 @@
 - [[_COMMUNITY_Community 135|Community 135]]
 - [[_COMMUNITY_Community 136|Community 136]]
 - [[_COMMUNITY_Community 137|Community 137]]
-- [[_COMMUNITY_Community 146|Community 146]]
+- [[_COMMUNITY_Community 138|Community 138]]
 - [[_COMMUNITY_Community 147|Community 147]]
 - [[_COMMUNITY_Community 148|Community 148]]
 - [[_COMMUNITY_Community 149|Community 149]]
@@ -115,8 +115,14 @@
 - [[_COMMUNITY_Community 151|Community 151]]
 - [[_COMMUNITY_Community 152|Community 152]]
 - [[_COMMUNITY_Community 153|Community 153]]
-- [[_COMMUNITY_Community 191|Community 191]]
-- [[_COMMUNITY_Community 196|Community 196]]
+- [[_COMMUNITY_Community 154|Community 154]]
+- [[_COMMUNITY_Community 155|Community 155]]
+- [[_COMMUNITY_Community 156|Community 156]]
+- [[_COMMUNITY_Community 157|Community 157]]
+- [[_COMMUNITY_Community 158|Community 158]]
+- [[_COMMUNITY_Community 159|Community 159]]
+- [[_COMMUNITY_Community 197|Community 197]]
+- [[_COMMUNITY_Community 202|Community 202]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `initDb()` - 222 edges
@@ -142,15 +148,15 @@
 - `ProjectKanbanBoard()` --calls--> `useI18n()`  [INFERRED]
   app/admin/work/page.js → lib/i18n.js
 
-## Communities (199 total, 59 thin omitted)
+## Communities (205 total, 67 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.05
-Nodes (34): POST(), GET(), POST(), POST(), GET(), DELETE(), GET(), POST() (+26 more)
+Nodes (31): POST(), GET(), POST(), POST(), POST(), GET(), DELETE(), GET() (+23 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.05
-Nodes (33): GET(), POST(), PATCH(), GET(), GET(), POST(), GET(), POST() (+25 more)
+Cohesion: 0.06
+Nodes (29): GET(), POST(), PATCH(), GET(), POST(), GET(), POST(), GET() (+21 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.06
@@ -165,20 +171,20 @@ Cohesion: 0.09
 Nodes (9): GoogleCalendarProvider, MicrosoftCalendarProvider, CalendarProvider, getCalendarProvider(), GET(), POST(), checkCalendarHealth(), syncEvent() (+1 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.1
-Nodes (15): GET(), POST(), destroySession(), getSession(), GET(), PUT(), GET(), POST() (+7 more)
-
-### Community 6 - "Community 6"
 Cohesion: 0.16
 Nodes (18): buildProgramMap(), ingestFromSheet(), parseBudgetLines(), parseProjectSheet(), parseTransactions(), syncDataSource(), BUDGET_SHEET_MAP, excelDateToISO() (+10 more)
 
+### Community 6 - "Community 6"
+Cohesion: 0.12
+Nodes (16): GET(), POST(), DELETE(), GET(), POST(), PUT(), getSession(), GET() (+8 more)
+
 ### Community 7 - "Community 7"
 Cohesion: 0.12
-Nodes (13): StaffDashboard(), BudgetExecutionGauge(), DataSourceSelector(), useI18n(), AdminOpReports(), formatLabel(), MonthlyBreakdown(), MONTHS (+5 more)
+Nodes (13): AssignedTasks(), StaffDashboard(), BudgetExecutionGauge(), ProgramWorkspace(), useI18n(), AdminOpReports(), formatLabel(), MonthlyBreakdown() (+5 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.18
-Nodes (17): ACCESS_LEVELS, getAccessProfileCapabilities(), getUserEffectiveCapabilities(), getUserEffectiveCapabilitiesV2(), getUserEffectiveProfile(), getUserFullPermissionMatrix(), getUserFullPermissionMatrixV2(), getUserGroups() (+9 more)
+Cohesion: 0.15
+Nodes (19): ACCESS_LEVELS, destroySession(), getAccessProfileCapabilities(), getUserEffectiveCapabilities(), getUserEffectiveCapabilitiesV2(), getUserEffectiveProfile(), getUserFullPermissionMatrix(), getUserFullPermissionMatrixV2() (+11 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.12
@@ -201,20 +207,20 @@ Cohesion: 0.16
 Nodes (9): DashboardLayout(), NAV_KEY_MAP, NAV_RESPONSIBILITY_MAP, NAVIGATION_MATRIX, RESPONSIBILITY_BYPASS_ROLES, SidebarContent(), tnav(), ThemeContext (+1 more)
 
 ### Community 14 - "Community 14"
+Cohesion: 0.19
+Nodes (10): DELETE(), GET(), POST(), PUT(), GET(), PUT(), assignResponsibility(), logPermissionAudit() (+2 more)
+
+### Community 15 - "Community 15"
 Cohesion: 0.17
 Nodes (6): AdminDashboard(), DAYS, getCalendarDays(), ICONS, MONTHS, STATUS_CONFIG
 
-### Community 15 - "Community 15"
+### Community 16 - "Community 16"
 Cohesion: 0.21
 Nodes (7): POST(), POST(), POST(), sendEmail(), sendInviteEmail(), sendPasswordResetEmail(), sendWelcomeEmail()
 
-### Community 16 - "Community 16"
+### Community 17 - "Community 17"
 Cohesion: 0.17
 Nodes (6): ACCESS_COLORS, ACCESS_LABELS, ACCESS_LEVELS, ACCESS_SHORT, LEVELS_ORDER, MODULE_CATEGORIES
-
-### Community 18 - "Community 18"
-Cohesion: 0.24
-Nodes (8): DELETE(), GET(), POST(), PUT(), logPermissionAudit(), PUT(), GET(), PUT()
 
 ### Community 19 - "Community 19"
 Cohesion: 0.24
@@ -269,8 +275,8 @@ Cohesion: 0.53
 Nodes (5): AdminBlockers(), formatSeverity(), getSeverityBg(), getSeverityColor(), SEVERITY_CONFIG
 
 ### Community 35 - "Community 35"
-Cohesion: 0.47
-Nodes (4): DELETE(), GET(), POST(), PUT()
+Cohesion: 0.4
+Nodes (4): DELETE(), GET(), PATCH(), POST()
 
 ### Community 36 - "Community 36"
 Cohesion: 0.47
@@ -281,78 +287,70 @@ Cohesion: 0.53
 Nodes (5): DB_PATH, GET(), getDb(), POST(), saveDb()
 
 ### Community 38 - "Community 38"
-Cohesion: 0.4
-Nodes (4): DELETE(), GET(), PATCH(), POST()
-
-### Community 39 - "Community 39"
 Cohesion: 0.47
 Nodes (4): DELETE(), GET(), POST(), PUT()
 
-### Community 42 - "Community 42"
+### Community 41 - "Community 41"
 Cohesion: 0.4
 Nodes (4): createSession(), setSessionCookieOnResponse(), POST(), POST()
 
-### Community 43 - "Community 43"
+### Community 44 - "Community 44"
 Cohesion: 0.4
-Nodes (4): GET(), PUT(), assignResponsibility(), removeResponsibility()
+Nodes (4): DELETE(), GET(), PATCH(), POST()
+
+### Community 45 - "Community 45"
+Cohesion: 0.6
+Nodes (3): DELETE(), GET(), POST()
 
 ### Community 46 - "Community 46"
 Cohesion: 0.6
-Nodes (3): DELETE(), GET(), POST()
+Nodes (4): fireInvite(), GET(), POST(), PUT()
 
 ### Community 47 - "Community 47"
 Cohesion: 0.4
 Nodes (3): GET(), POST(), PUT()
 
-### Community 48 - "Community 48"
-Cohesion: 0.6
-Nodes (4): fireInvite(), GET(), POST(), PUT()
-
-### Community 51 - "Community 51"
+### Community 50 - "Community 50"
 Cohesion: 0.4
 Nodes (3): EN, FR, LOCALE_REGISTRY
 
 ### Community 52 - "Community 52"
 Cohesion: 0.5
-Nodes (4): DELETE(), GET(), POST(), PUT()
+Nodes (3): AdminProjects(), STATUS_BG, STATUS_COLORS
 
-### Community 54 - "Community 54"
+### Community 53 - "Community 53"
 Cohesion: 0.5
 Nodes (3): COLUMN_TO_STATUS, KANBAN_COLUMNS, ProjectKanbanBoard()
 
-### Community 55 - "Community 55"
-Cohesion: 0.5
-Nodes (3): AdminProjects(), STATUS_BG, STATUS_COLORS
+### Community 57 - "Community 57"
+Cohesion: 0.67
+Nodes (3): DELETE(), GET(), POST()
+
+### Community 58 - "Community 58"
+Cohesion: 0.67
+Nodes (3): db, execute(), getPool()
 
 ### Community 59 - "Community 59"
 Cohesion: 0.5
 Nodes (3): GET(), PATCH(), POST()
 
-### Community 60 - "Community 60"
-Cohesion: 0.5
-Nodes (3): DELETE(), GET(), POST()
-
-### Community 61 - "Community 61"
-Cohesion: 0.67
-Nodes (3): DELETE(), GET(), POST()
-
-### Community 66 - "Community 66"
+### Community 64 - "Community 64"
 Cohesion: 0.67
 Nodes (3): seedDefaultRoleCapabilities(), GET(), POST()
 
 ## Knowledge Gaps
 - **91 isolated node(s):** `publicPaths`, `publicApiPaths`, `softAuthPaths`, `config`, `fr` (+86 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **59 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **67 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `initDb()` connect `Community 1` to `Community 0`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 8`, `Community 12`, `Community 15`, `Community 18`, `Community 19`, `Community 148`, `Community 147`, `Community 150`, `Community 151`, `Community 146`, `Community 153`, `Community 26`, `Community 27`, `Community 152`, `Community 149`, `Community 35`, `Community 36`, `Community 38`, `Community 39`, `Community 42`, `Community 43`, `Community 45`, `Community 46`, `Community 47`, `Community 48`, `Community 52`, `Community 56`, `Community 59`, `Community 60`, `Community 61`, `Community 66`, `Community 77`, `Community 78`, `Community 79`, `Community 80`, `Community 81`, `Community 82`, `Community 83`, `Community 84`, `Community 85`, `Community 86`, `Community 87`, `Community 88`, `Community 89`, `Community 97`?**
+- **Why does `initDb()` connect `Community 1` to `Community 0`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 8`, `Community 12`, `Community 14`, `Community 16`, `Community 147`, `Community 148`, `Community 149`, `Community 19`, `Community 151`, `Community 152`, `Community 153`, `Community 26`, `Community 27`, `Community 154`, `Community 156`, `Community 157`, `Community 159`, `Community 158`, `Community 155`, `Community 35`, `Community 36`, `Community 38`, `Community 41`, `Community 43`, `Community 44`, `Community 45`, `Community 46`, `Community 47`, `Community 54`, `Community 57`, `Community 58`, `Community 59`, `Community 64`, `Community 75`, `Community 76`, `Community 77`, `Community 78`, `Community 79`, `Community 80`, `Community 81`, `Community 82`, `Community 83`, `Community 84`, `Community 85`, `Community 86`, `Community 87`, `Community 88`, `Community 96`, `Community 97`, `Community 98`, `Community 150`?**
   _High betweenness centrality (0.122) - this node is a cross-community bridge._
-- **Why does `requireAuth()` connect `Community 0` to `Community 1`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 8`, `Community 12`, `Community 15`, `Community 18`, `Community 19`, `Community 148`, `Community 147`, `Community 150`, `Community 151`, `Community 146`, `Community 153`, `Community 26`, `Community 27`, `Community 152`, `Community 149`, `Community 35`, `Community 37`, `Community 38`, `Community 39`, `Community 43`, `Community 45`, `Community 46`, `Community 47`, `Community 48`, `Community 52`, `Community 56`, `Community 57`, `Community 59`, `Community 60`, `Community 61`, `Community 66`, `Community 77`, `Community 78`, `Community 79`, `Community 80`, `Community 81`, `Community 82`, `Community 83`, `Community 84`, `Community 85`, `Community 86`, `Community 87`, `Community 88`, `Community 89`, `Community 97`?**
+- **Why does `requireAuth()` connect `Community 0` to `Community 1`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 8`, `Community 12`, `Community 14`, `Community 16`, `Community 147`, `Community 148`, `Community 149`, `Community 19`, `Community 151`, `Community 152`, `Community 153`, `Community 26`, `Community 27`, `Community 154`, `Community 156`, `Community 157`, `Community 159`, `Community 158`, `Community 155`, `Community 35`, `Community 37`, `Community 38`, `Community 43`, `Community 44`, `Community 45`, `Community 46`, `Community 47`, `Community 54`, `Community 55`, `Community 57`, `Community 59`, `Community 64`, `Community 75`, `Community 76`, `Community 77`, `Community 78`, `Community 79`, `Community 80`, `Community 81`, `Community 82`, `Community 83`, `Community 84`, `Community 85`, `Community 86`, `Community 87`, `Community 88`, `Community 96`, `Community 97`, `Community 98`, `Community 150`?**
   _High betweenness centrality (0.086) - this node is a cross-community bridge._
-- **Why does `useI18n()` connect `Community 7` to `Community 130`, `Community 131`, `Community 132`, `Community 133`, `Community 134`, `Community 135`, `Community 136`, `Community 137`, `Community 10`, `Community 13`, `Community 14`, `Community 21`, `Community 23`, `Community 25`, `Community 28`, `Community 32`, `Community 33`, `Community 34`, `Community 44`, `Community 54`, `Community 55`, `Community 70`, `Community 71`, `Community 72`, `Community 73`, `Community 74`, `Community 75`?**
+- **Why does `useI18n()` connect `Community 7` to `Community 131`, `Community 132`, `Community 133`, `Community 134`, `Community 135`, `Community 136`, `Community 137`, `Community 138`, `Community 10`, `Community 13`, `Community 15`, `Community 21`, `Community 23`, `Community 25`, `Community 28`, `Community 32`, `Community 33`, `Community 34`, `Community 42`, `Community 52`, `Community 53`, `Community 68`, `Community 69`, `Community 70`, `Community 71`, `Community 72`, `Community 73`?**
   _High betweenness centrality (0.035) - this node is a cross-community bridge._
 - **Are the 220 inferred relationships involving `initDb()` (e.g. with `GET()` and `GET()`) actually correct?**
   _`initDb()` has 220 INFERRED edges - model-reasoned connections that need verification._
