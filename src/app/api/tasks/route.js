@@ -147,6 +147,8 @@ export async function GET(req) {
     let blockersByTask = {};
     let subtasksByTask = {};
     let resourcesByTask = {};
+    let commentCountByTask = {};
+    let allTaskIds = [...taskIds];
 
     if (taskIds.length > 0) {
       // Single batch query for all blockers
@@ -165,30 +167,32 @@ export async function GET(req) {
         });
       }
 
-      // Single batch query for all subtasks
+      // Single batch query for all subtasks — include full field set (Ticket 1.3)
       try {
         const subtaskRes = await db.execute({
-          sql: `SELECT id, title, status, parent_task_id FROM tasks WHERE parent_task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
+          sql: `SELECT id, title, description, status, priority, assigned_to,
+                        start_date, end_date, created_week, created_year,
+                        link, parent_task_id
+                FROM tasks
+                WHERE parent_task_id IN (${taskIds.map(() => "?").join(",")})
+                ORDER BY created_at ASC`,
           args: taskIds,
         });
         for (const s of subtaskRes.rows || []) {
           const pid = s.parent_task_id;
           if (!subtasksByTask[pid]) subtasksByTask[pid] = [];
-          subtasksByTask[pid].push({
-            id: s.id,
-            title: s.title,
-            status: s.status,
-          });
+          subtasksByTask[pid].push(s);
+          allTaskIds.push(s.id);
         }
       } catch (e) {
         // parent_task_id column may not exist yet
       }
 
-      // Single batch query for all resources
+      // Single batch query for all resources (tasks + subtasks)
       try {
         const resourceRes = await db.execute({
-          sql: `SELECT id, name, url, task_id FROM task_resources WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
-          args: taskIds,
+          sql: `SELECT id, name, url, task_id FROM task_resources WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
+          args: allTaskIds,
         });
         for (const r of resourceRes.rows || []) {
           const tid = r.task_id;
@@ -202,6 +206,28 @@ export async function GET(req) {
       } catch (e) {
         // task_resources table may not exist yet in some environments
       }
+
+      // Comment counts (tasks + subtasks) — full thread fetched on-demand per task
+      try {
+        const commentRes = await db.execute({
+          sql: `SELECT task_id, COUNT(*) AS cnt FROM v2_task_comments WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) GROUP BY task_id`,
+          args: allTaskIds,
+        });
+        for (const c of commentRes.rows || []) {
+          commentCountByTask[c.task_id] = parseInt(c.cnt) || 0;
+        }
+      } catch (e) {
+        // v2_task_comments table may not exist yet in some environments
+      }
+    }
+
+    // Attach resources/comment counts onto subtasks now that we have them
+    for (const pid of Object.keys(subtasksByTask)) {
+      subtasksByTask[pid] = subtasksByTask[pid].map((s) => ({
+        ...s,
+        resources: resourcesByTask[s.id] || [],
+        commentCount: commentCountByTask[s.id] || 0,
+      }));
     }
 
     // Map results
@@ -210,6 +236,7 @@ export async function GET(req) {
       blockers: blockersByTask[task.id] || [],
       subtasks: subtasksByTask[task.id] || [],
       resources: resourcesByTask[task.id] || [],
+      commentCount: commentCountByTask[task.id] || 0,
     }));
 
     return NextResponse.json({ success: true, tasks: tasksWithBlockers });
@@ -244,6 +271,7 @@ export async function POST(req) {
       end_date,
       assigned_to,
       link,
+      priority,
     } = body;
 
     if (!user_id || !title || !created_week || !created_year) {
@@ -330,12 +358,18 @@ export async function POST(req) {
     const needsAssignment = finalAssignedTo && finalAssignedTo !== user_id;
     const effectiveAssignedTo = needsAssignment ? null : finalAssignedTo;
 
+    const finalPriority = ["critical", "high", "medium", "low"].includes(
+      priority,
+    )
+      ? priority
+      : "medium";
+
     const result = await db.execute({
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id, category,
          created_week, created_year, carried_over_from_task_id,
-          parent_task_id, start_date, end_date, assigned_to, link)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          parent_task_id, start_date, end_date, assigned_to, link, priority)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          RETURNING id`,
       args: [
         user_id,
@@ -353,6 +387,7 @@ export async function POST(req) {
         finalEndDate,
         effectiveAssignedTo,
         link || null,
+        finalPriority,
       ],
     });
 
@@ -530,6 +565,7 @@ export async function PUT(req) {
       end_date,
       assigned_to,
       link,
+      priority,
       force_complete,
     } = body;
 
@@ -556,11 +592,24 @@ export async function PUT(req) {
     const task = currentTask.rows[0];
     const locked = await isTaskLocked(id);
 
+    const updateFields = [];
+    const updateArgs = [];
+    const changes = [];
+
     // Ownership enforcement: only the task creator or super_admin can change status
     if (link !== undefined && link !== task.link) {
       updateFields.push("link = ?");
       updateArgs.push(link || null);
       changes.push("link updated");
+    }
+    if (
+      priority !== undefined &&
+      ["critical", "high", "medium", "low"].includes(priority) &&
+      priority !== task.priority
+    ) {
+      updateFields.push("priority = ?");
+      updateArgs.push(priority);
+      changes.push(`priority changed to ${priority}`);
     }
     if (status !== undefined && status !== task.status) {
       const effectiveUserId = user_id || session.cid;
@@ -626,11 +675,8 @@ export async function PUT(req) {
       }
     }
 
-    const updateFields = [];
-    const updateArgs = [];
     let auditAction = "updated";
     let auditDetails = "";
-    const changes = [];
     let needsRescheduleInc = false;
     let dateChangeLog = null; // { field, old_val, new_val } for task_audit_logs
 

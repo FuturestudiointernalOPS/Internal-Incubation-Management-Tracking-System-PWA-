@@ -51,6 +51,20 @@ const STATUS_OPTIONS = [
   { value: "completed", label: "Completed" },
 ];
 
+const PRIORITY_CONFIG = {
+  critical: { label: "Critical", color: "text-red-400", bg: "bg-red-500/10" },
+  high: { label: "High", color: "text-amber-400", bg: "bg-amber-500/10" },
+  medium: { label: "Medium", color: "text-blue-400", bg: "bg-blue-500/10" },
+  low: { label: "Low", color: "text-slate-400", bg: "bg-slate-500/10" },
+};
+
+const PRIORITY_OPTIONS = [
+  { value: "critical", label: "Critical" },
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+];
+
 const CATEGORIES = [
   "Operations",
   "Administration",
@@ -114,6 +128,9 @@ export default function TaskManager({
   const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
   const [subTaskModal, setSubTaskModal] = useState(null); // { id, project_id, category, title } or null
   const [subTaskInput, setSubTaskInput] = useState("");
+  const [subTaskDescription, setSubTaskDescription] = useState("");
+  const [subTaskPriority, setSubTaskPriority] = useState("medium");
+  const [subTaskAssignedTo, setSubTaskAssignedTo] = useState("");
   const [subTaskStartDate, setSubTaskStartDate] = useState("");
   const [subTaskEndDate, setSubTaskEndDate] = useState("");
   const [subTaskLink, setSubTaskLink] = useState("");
@@ -128,7 +145,15 @@ export default function TaskManager({
     due_date: "",
     status: "",
     assigned_to: "",
+    priority: "medium",
   });
+
+  // ── Comments (Ticket 1.3 / 1.9) ──
+  const [openComments, setOpenComments] = useState(null); // task id or null
+  const [commentsByTask, setCommentsByTask] = useState({});
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
 
   const [addResourceTaskId, setAddResourceTaskId] = useState(null);
   const [resourceForm, setResourceForm] = useState({ name: "", url: "" });
@@ -161,6 +186,7 @@ export default function TaskManager({
     project_id: "",
     category: "",
     assigned_to: "",
+    priority: "medium",
     start_date: "",
     due_date: "",
     start_time: "",
@@ -211,6 +237,79 @@ export default function TaskManager({
       console.error(e);
     }
   };
+
+  // ── Comments (Ticket 1.3 / 1.9) ──
+  const toggleComments = useCallback(
+    async (taskId) => {
+      if (openComments === taskId) {
+        setOpenComments(null);
+        return;
+      }
+      setOpenComments(taskId);
+      if (!commentsByTask[taskId]) {
+        setLoadingComments(true);
+        try {
+          const res = await fetch(`/api/tasks/comments?task_id=${taskId}`);
+          const data = await res.json();
+          if (data.success) {
+            setCommentsByTask((prev) => ({
+              ...prev,
+              [taskId]: data.comments || [],
+            }));
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoadingComments(false);
+        }
+      }
+    },
+    [openComments, commentsByTask],
+  );
+
+  const postComment = useCallback(
+    async (taskId) => {
+      const text = newComment.trim();
+      if (!text) return;
+      setPostingComment(true);
+      try {
+        const res = await fetch("/api/tasks/comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task_id: taskId,
+            sender_id: uid,
+            sender_name: userName || "User",
+            body: text,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setCommentsByTask((prev) => ({
+            ...prev,
+            [taskId]: [
+              ...(prev[taskId] || []),
+              {
+                id: data.id,
+                task_id: taskId,
+                sender_id: uid,
+                sender_name: userName || "User",
+                body: text,
+                created_at: data.created_at || new Date().toISOString(),
+              },
+            ],
+          }));
+          setNewComment("");
+          if (onTasksChange) onTasksChange();
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setPostingComment(false);
+      }
+    },
+    [newComment, uid, userName, onTasksChange],
+  );
 
   // ── API: Add blocker to task ──
   const handleAddBlocker = async () => {
@@ -303,6 +402,7 @@ export default function TaskManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: taskData.title,
+          description: taskData.description || null,
           project_id: taskData.project_id || null,
           category: taskData.category || null,
           user_id: uid,
@@ -315,6 +415,7 @@ export default function TaskManager({
           end_date: taskData.due_date || null,
           assigned_to: taskData.assigned_to || null,
           link: taskData.link || null,
+          priority: taskData.priority || "medium",
         }),
       });
       return await res.json();
@@ -341,6 +442,7 @@ export default function TaskManager({
       start_date: form.start_date || null,
       due_date: form.due_date || null,
       link: form.link || null,
+      priority: form.priority || "medium",
     });
 
     if (data.success) {
@@ -367,6 +469,8 @@ export default function TaskManager({
       name: "",
       project_id: "",
       category: "",
+      assigned_to: "",
+      priority: "medium",
       start_date: "",
       due_date: "",
       start_time: "",
@@ -394,15 +498,22 @@ export default function TaskManager({
     if (!name || !subTaskModal) return;
     const data = await createTask({
       title: name,
+      description: subTaskDescription || null,
       project_id: subTaskModal.project_id || null,
       category: subTaskModal.category || null,
       parent_task_id: subTaskModal.id,
+      assigned_to: subTaskAssignedTo || null,
+      priority: subTaskPriority || "medium",
       start_date: subTaskStartDate || null,
       due_date: subTaskEndDate || null,
       link: subTaskLink || null,
     });
+
     if (data.success) {
       setSubTaskInput("");
+      setSubTaskDescription("");
+      setSubTaskAssignedTo("");
+      setSubTaskPriority("medium");
       setSubTaskStartDate("");
       setSubTaskEndDate("");
       setSubTaskLink("");
@@ -410,7 +521,18 @@ export default function TaskManager({
       setTimeout(() => setSubTaskSuccess(""), 2000);
       if (onTasksChange) onTasksChange();
     }
-  }, [subTaskInput, subTaskModal, createTask, onTasksChange]);
+  }, [
+    subTaskInput,
+    subTaskDescription,
+    subTaskAssignedTo,
+    subTaskPriority,
+    subTaskModal,
+    subTaskStartDate,
+    subTaskEndDate,
+    subTaskLink,
+    createTask,
+    onTasksChange,
+  ]);
 
   // ── Available projects / categories ──
   const selectedProject = projects.find(
@@ -493,8 +615,9 @@ export default function TaskManager({
                 : ""
           } ${!isSub && task.subtasks?.length > 0 ? "bg-indigo-500/[0.04]" : ""}`}
         >
-          {/* Checkbox — only in project mode for task owner/assignee, never in standup */}
-          {mode !== "standup" &&
+          {/* Checkbox — always available for sub-tasks (independent completion, Ticket 1.3).
+              For parent tasks, hidden in standup mode since the status dropdown covers it. */}
+          {(mode !== "standup" || isSub) &&
             (() => {
               const canCheck =
                 mode === "project"
@@ -551,9 +674,21 @@ export default function TaskManager({
               >
                 {task.title}
               </span>
-              <span className="text-[7px] font-black text-indigo-400 uppercase tracking-wider bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0">
-                {task.subtasks.length} sub
-              </span>
+              {(() => {
+                const total = task.subtasks.length;
+                const done = task.subtasks.filter(
+                  (s) => s.status === "completed",
+                ).length;
+                const allDone = done === total;
+                return (
+                  <span
+                    className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${allDone ? "text-emerald-400 bg-emerald-500/10" : "text-indigo-400 bg-indigo-500/10"}`}
+                    title={`${done} of ${total} sub-tasks completed`}
+                  >
+                    {done}/{total} done
+                  </span>
+                );
+              })()}
             </div>
           ) : (
             <span
@@ -565,6 +700,19 @@ export default function TaskManager({
                 </span>
               )}
               {task.title}
+            </span>
+          )}
+
+          {/* Priority badge */}
+          {task.priority && task.priority !== "medium" && (
+            <span
+              className={cn(
+                "text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                PRIORITY_CONFIG[task.priority]?.bg,
+                PRIORITY_CONFIG[task.priority]?.color,
+              )}
+            >
+              {PRIORITY_CONFIG[task.priority]?.label || task.priority}
             </span>
           )}
 
@@ -665,6 +813,7 @@ export default function TaskManager({
                   due_date: task.end_date || "",
                   status: task.status || "in_progress",
                   assigned_to: task.assigned_to || "",
+                  priority: task.priority || "medium",
                 });
                 setEditTaskModal(task);
               }}
@@ -910,6 +1059,13 @@ export default function TaskManager({
           >
             <Plus className="w-2.5 h-2.5" /> Resource
           </button>
+          <button
+            onClick={() => toggleComments(task.id)}
+            className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-blue-400 transition-colors"
+          >
+            <MessageSquare className="w-2.5 h-2.5" />
+            Comments{task.commentCount > 0 ? ` (${task.commentCount})` : ""}
+          </button>
           {!isSub && (
             <button
               onClick={() =>
@@ -921,6 +1077,53 @@ export default function TaskManager({
             </button>
           )}
         </div>
+
+        {/* Comments thread */}
+        {openComments === task.id && (
+          <div
+            className={`mt-1 p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] flex flex-col gap-2 ${isSub ? "ml-10" : "ml-8"} max-w-md`}
+          >
+            {loadingComments ? (
+              <p className="text-[9px] text-slate-500 italic">Loading...</p>
+            ) : (commentsByTask[task.id] || []).length === 0 ? (
+              <p className="text-[9px] text-slate-500 italic">
+                No comments yet.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+                {(commentsByTask[task.id] || []).map((c) => (
+                  <div key={c.id} className="text-[9px]">
+                    <span className="font-black text-[var(--text-primary)]">
+                      {c.sender_name || c.sender_id}:{" "}
+                    </span>
+                    <span className="text-[var(--text-secondary)]">
+                      {c.body}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") postComment(task.id);
+                }}
+                placeholder="Write a comment..."
+                className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+              />
+              <button
+                onClick={() => postComment(task.id)}
+                disabled={!newComment.trim() || postingComment}
+                className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase disabled:opacity-40"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Sub-tasks — always visible under parent */}
         {!isSub && task.subtasks?.length > 0 && (
@@ -1093,31 +1296,54 @@ export default function TaskManager({
             </div>
           )}
 
-          {/* Assignee dropdown (project mode only) */}
-          {mode === "project" && projectMembers.length > 0 && (
+          {/* Assignee + Priority row */}
+          <div className="grid grid-cols-2 gap-2">
+            {mode === "project" && projectMembers.length > 0 && (
+              <div>
+                <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Assign to
+                </label>
+                <select
+                  value={form.assigned_to || ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, assigned_to: e.target.value }))
+                  }
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
+                >
+                  <option value="">Self</option>
+                  {projectMembers.map((m) => (
+                    <option
+                      key={m.member_id || m.user_cid}
+                      value={m.member_id || m.user_cid}
+                    >
+                      {m.name || m.member_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Assign to
+                Priority
               </label>
               <select
-                value={form.assigned_to || ""}
+                value={form.priority || "medium"}
                 onChange={(e) =>
-                  setForm((p) => ({ ...p, assigned_to: e.target.value }))
+                  setForm((p) => ({ ...p, priority: e.target.value }))
                 }
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
+                className={cn(
+                  "w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none appearance-none cursor-pointer",
+                  PRIORITY_CONFIG[form.priority || "medium"]?.color,
+                )}
               >
-                <option value="">Self</option>
-                {projectMembers.map((m) => (
-                  <option
-                    key={m.member_id || m.user_cid}
-                    value={m.member_id || m.user_cid}
-                  >
-                    {m.name || m.member_id}
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
                   </option>
                 ))}
               </select>
             </div>
-          )}
+          </div>
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-2">
@@ -1305,12 +1531,52 @@ export default function TaskManager({
                 value={subTaskInput}
                 onChange={(e) => setSubTaskInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") addSubTaskFromModal();
+                  if (e.key === "Enter" && !e.shiftKey) addSubTaskFromModal();
                 }}
                 placeholder="Enter sub-task name..."
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
                 autoFocus
               />
+              <textarea
+                value={subTaskDescription}
+                onChange={(e) => setSubTaskDescription(e.target.value)}
+                placeholder="Description (optional)..."
+                rows={2}
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                {projectMembers.length > 0 && (
+                  <select
+                    value={subTaskAssignedTo}
+                    onChange={(e) => setSubTaskAssignedTo(e.target.value)}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="">Assign: Self</option>
+                    {projectMembers.map((m) => (
+                      <option
+                        key={m.member_id || m.user_cid}
+                        value={m.member_id || m.user_cid}
+                      >
+                        {m.name || m.member_id}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <select
+                  value={subTaskPriority}
+                  onChange={(e) => setSubTaskPriority(e.target.value)}
+                  className={cn(
+                    "w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none appearance-none cursor-pointer",
+                    PRIORITY_CONFIG[subTaskPriority]?.color,
+                  )}
+                >
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label} Priority
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="date"
@@ -1396,6 +1662,28 @@ export default function TaskManager({
                 rows={2}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
+
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Priority
+                </label>
+                <select
+                  value={editForm.priority || "medium"}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, priority: e.target.value }))
+                  }
+                  className={cn(
+                    "w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold appearance-none cursor-pointer",
+                    PRIORITY_CONFIG[editForm.priority || "medium"]?.color,
+                  )}
+                >
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               {/* Assignee dropdown (project mode only) */}
               {mode === "project" && projectMembers.length > 0 && (
@@ -1502,6 +1790,7 @@ export default function TaskManager({
                         start_date: editForm.start_date || null,
                         end_date: editForm.due_date || null,
                         assigned_to: editForm.assigned_to || null,
+                        priority: editForm.priority || "medium",
                         user_id: uid,
                       }),
                     });
