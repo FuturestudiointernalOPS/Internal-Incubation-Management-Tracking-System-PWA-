@@ -697,6 +697,7 @@ export async function PUT(req) {
     }
 
     // ─── ASSIGNMENT MANAGEMENT ───
+    let pendingAssignmentCreated = false;
     if (assigned_to !== undefined) {
       const assignmentChanged =
         String(assigned_to) !== String(task.assigned_to || "");
@@ -723,6 +724,7 @@ export async function PUT(req) {
       // Assign to another user: create pending assignment (requires accept/decline)
       else if (assignmentChanged && assigned_to) {
         // Do NOT push assigned_to to updateFields — task stays unassigned until acceptance
+        pendingAssignmentCreated = true;
         changes.push(`pending assignment to user ${assigned_to}`);
         auditDetails = `Task "${task.title}" pending assignment to user ${assigned_to}`;
 
@@ -746,7 +748,7 @@ export async function PUT(req) {
             args: [
               assigned_to,
               "New Task Assignment",
-              `${user_name || effectiveUserId} assigned you task "${task.title}"`,
+              `${user_name || session.name || effectiveUserId} assigned you task "${task.title}"`,
               "task_assignment",
             ],
           });
@@ -811,11 +813,18 @@ export async function PUT(req) {
       }
     }
 
-    if (updateFields.length === 0) {
+    if (updateFields.length === 0 && !pendingAssignmentCreated) {
       return NextResponse.json(
         { success: false, error: "No fields to update" },
         { status: 400 },
       );
+    }
+
+    if (updateFields.length === 0 && pendingAssignmentCreated) {
+      return NextResponse.json({
+        success: true,
+        message: "Pending assignment created",
+      });
     }
 
     updateFields.push("updated_at = CURRENT_TIMESTAMP");
