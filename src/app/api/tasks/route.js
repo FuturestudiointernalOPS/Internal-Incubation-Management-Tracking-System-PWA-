@@ -331,14 +331,14 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // Prevent assigning to super_admin
+    // Prevent assigning to super_admin (unless the creator IS the super admin assigning to themselves)
     if (finalAssignedTo) {
       try {
         const saCheck = await db.execute({
           sql: "SELECT role FROM contacts WHERE cid = ? AND role = 'super_admin'",
           args: [finalAssignedTo],
         });
-        if (saCheck.rows.length > 0) {
+        if (saCheck.rows.length > 0 && finalAssignedTo !== user_id) {
           return NextResponse.json(
             {
               success: false,
