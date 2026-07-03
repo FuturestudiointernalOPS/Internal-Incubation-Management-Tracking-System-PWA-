@@ -335,7 +335,8 @@ export async function POST(req) {
         (user_id, user_name, title, description, status, project_id, category,
          created_week, created_year, carried_over_from_task_id,
           parent_task_id, start_date, end_date, assigned_to, link)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         RETURNING id`,
       args: [
         user_id,
         user_name || "",
@@ -355,7 +356,7 @@ export async function POST(req) {
       ],
     });
 
-    const taskId = Number(result.lastInsertRowid);
+    const taskId = Number(result.rows[0]?.id || result.lastInsertRowid);
 
     // Audit log: Task Created
     await logAuditEvent({
@@ -699,44 +700,59 @@ export async function PUT(req) {
     if (assigned_to !== undefined) {
       const assignmentChanged =
         String(assigned_to) !== String(task.assigned_to || "");
-      updateFields.push("assigned_to = ?");
-      updateArgs.push(assigned_to || null);
+      const effectiveUserId = user_id || session.cid;
 
-      if (assignmentChanged && assigned_to) {
-        changes.push(`assigned to user ${assigned_to}`);
-        auditDetails = `Task "${task.title}" assigned to user ${assigned_to}`;
+      // Un-assign: clear directly (no pending workflow needed)
+      if (assignmentChanged && !assigned_to) {
+        updateFields.push("assigned_to = ?");
+        updateArgs.push(null);
+        changes.push("assignment removed");
+        auditDetails = `Assignment removed for task "${task.title}"`;
+      }
+      // Self-assign: set directly (no pending workflow needed)
+      else if (
+        assignmentChanged &&
+        assigned_to &&
+        String(assigned_to) === String(effectiveUserId)
+      ) {
+        updateFields.push("assigned_to = ?");
+        updateArgs.push(assigned_to);
+        changes.push(`self-assigned`);
+        auditDetails = `Task "${task.title}" self-assigned`;
+      }
+      // Assign to another user: create pending assignment (requires accept/decline)
+      else if (assignmentChanged && assigned_to) {
+        // Do NOT push assigned_to to updateFields — task stays unassigned until acceptance
+        changes.push(`pending assignment to user ${assigned_to}`);
+        auditDetails = `Task "${task.title}" pending assignment to user ${assigned_to}`;
 
-        // Get assignee name for notification
-        let assigneeName = assigned_to;
-        try {
-          const assigneeRes = await db.execute({
-            sql: "SELECT name FROM contacts WHERE cid = ? OR id = ?",
-            args: [assigned_to, assigned_to],
+        // Guard against duplicate pending rows
+        const dupCheck = await db.execute({
+          sql: "SELECT id FROM task_assignments WHERE task_id = ? AND assignee_id = ? AND status = 'pending'",
+          args: [parseInt(id), assigned_to],
+        });
+
+        if (dupCheck.rows.length === 0) {
+          await db.execute({
+            sql: "INSERT INTO task_assignments (task_id, assigner_id, assignee_id) VALUES (?, ?, ?)",
+            args: [parseInt(id), effectiveUserId, assigned_to],
           });
-          if (assigneeRes.rows.length > 0) {
-            assigneeName = assigneeRes.rows[0].name;
-          }
-        } catch (_) {}
+        }
 
-        // Send notification to assignee
+        // Notify assignee via v2_notifications (mirror POST pattern)
         try {
-          const notifUrl = new URL("/api/notifications", req.url).toString();
-          await fetch(notifUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipient_id: assigned_to,
-              title: "Task Assigned",
-              message: `${user_name || "Someone"} assigned you "${task.title}". Please review and accept.`,
-              type: "assignment",
-            }),
+          await db.execute({
+            sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+            args: [
+              assigned_to,
+              "New Task Assignment",
+              `${user_name || effectiveUserId} assigned you task "${task.title}"`,
+              "task_assignment",
+            ],
           });
         } catch (notifErr) {
           console.error("Assignment notification failed:", notifErr.message);
         }
-      } else if (assignmentChanged && !assigned_to) {
-        changes.push("assignment removed");
-        auditDetails = `Assignment removed for task "${task.title}"`;
       }
     }
     // ─── SCHEDULE DRIFT DETECTION (Phase 2/11) ───
@@ -876,6 +892,9 @@ export async function PUT(req) {
       const assignmentChanged =
         String(assigned_to) !== String(task.assigned_to || "");
       if (assignmentChanged) {
+        const effectiveUserId = user_id || session.cid;
+        const isPendingAssignment =
+          assigned_to && String(assigned_to) !== String(effectiveUserId);
         await logTaskEvent({
           task_id: parseInt(id),
           project_id: project_id || task.project_id,
@@ -885,10 +904,15 @@ export async function PUT(req) {
             ? ACTION_TYPES.TASK_ASSIGNED
             : ACTION_TYPES.TASK_UPDATED,
           previous_state: { assigned_to: task.assigned_to },
-          new_state: { assigned_to: assigned_to || null },
-          description: assigned_to
-            ? `Task assigned to ${assigned_to}`
-            : `Assignment removed from task`,
+          // Pending assignment: tasks.assigned_to stays NULL until acceptance
+          new_state: {
+            assigned_to: isPendingAssignment ? null : assigned_to || null,
+          },
+          description: isPendingAssignment
+            ? `Pending assignment to ${assigned_to} (awaiting acceptance)`
+            : assigned_to
+              ? `Task assigned to ${assigned_to}`
+              : `Assignment removed from task`,
         });
       }
     }

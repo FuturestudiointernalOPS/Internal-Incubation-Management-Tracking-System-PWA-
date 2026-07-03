@@ -127,6 +127,7 @@ export default function TaskManager({
     start_date: "",
     due_date: "",
     status: "",
+    assigned_to: "",
   });
 
   const [addResourceTaskId, setAddResourceTaskId] = useState(null);
@@ -663,6 +664,7 @@ export default function TaskManager({
                   start_date: task.start_date || "",
                   due_date: task.end_date || "",
                   status: task.status || "in_progress",
+                  assigned_to: task.assigned_to || "",
                 });
                 setEditTaskModal(task);
               }}
@@ -1394,6 +1396,36 @@ export default function TaskManager({
                 rows={2}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
+
+              {/* Assignee dropdown (project mode only) */}
+              {mode === "project" && projectMembers.length > 0 && (
+                <div>
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Assign to
+                  </label>
+                  <select
+                    value={editForm.assigned_to || ""}
+                    onChange={(e) =>
+                      setEditForm((p) => ({
+                        ...p,
+                        assigned_to: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold text-emerald-400"
+                  >
+                    <option value="">Self</option>
+                    {projectMembers.map((m) => (
+                      <option
+                        key={m.member_id || m.user_cid}
+                        value={m.member_id || m.user_cid}
+                      >
+                        {m.name || m.member_id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
@@ -1469,6 +1501,7 @@ export default function TaskManager({
                         description: editForm.description || null,
                         start_date: editForm.start_date || null,
                         end_date: editForm.due_date || null,
+                        assigned_to: editForm.assigned_to || null,
                         user_id: uid,
                       }),
                     });
