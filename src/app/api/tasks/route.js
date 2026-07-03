@@ -197,7 +197,7 @@ export async function GET(req) {
       // Single batch query for all resources (tasks + subtasks)
       try {
         const resourceRes = await db.execute({
-          sql: `SELECT id, name, url, task_id FROM task_resources WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
+          sql: `SELECT id, name, url, task_id, type, file_name, file_size, uploaded_by FROM task_resources WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
           args: allTaskIds,
         });
         for (const r of resourceRes.rows || []) {
@@ -207,6 +207,10 @@ export async function GET(req) {
             id: r.id,
             name: r.name,
             url: r.url,
+            type: r.type,
+            file_name: r.file_name,
+            file_size: r.file_size,
+            uploaded_by: r.uploaded_by,
           });
         }
       } catch (e) {

@@ -27,9 +27,10 @@ import {
   Archive,
   Link as LinkIcon,
   Copy,
+  Paperclip,
 } from "lucide-react";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────
+import { uploadFile } from "@/lib/storage";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -161,6 +162,7 @@ export default function TaskManager({
   const [addResourceTaskId, setAddResourceTaskId] = useState(null);
   const [resourceForm, setResourceForm] = useState({ name: "", url: "" });
   const [resourceAdding, setResourceAdding] = useState(false);
+  const [resourceFile, setResourceFile] = useState(null);
   const [blockerModal, setBlockerModal] = useState(null); // { taskId, taskTitle } or null
   const [blockerTitle, setBlockerTitle] = useState("");
   const [blockerAdding, setBlockerAdding] = useState(false);
@@ -229,6 +231,41 @@ export default function TaskManager({
         if (onTasksChange) onTasksChange();
         setAddResourceTaskId(null);
         setResourceForm({ name: "", url: "" });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResourceAdding(false);
+    }
+  };
+
+  const handleUploadResourceFile = async (taskId) => {
+    if (!resourceFile) return;
+    setResourceAdding(true);
+    try {
+      const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
+      const upload = await uploadFile("task-attachments", path, resourceFile);
+      if (!upload.success) {
+        alert(upload.error || "Upload failed");
+        return;
+      }
+      const res = await fetch("/api/tasks/resources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: taskId,
+          name: resourceFile.name,
+          url: upload.url,
+          type: "file",
+          file_name: resourceFile.name,
+          file_size: resourceFile.size,
+          user_id: uid,
+        }),
+      });
+      if (res.ok) {
+        if (onTasksChange) onTasksChange();
+        setAddResourceTaskId(null);
+        setResourceFile(null);
       }
     } catch (e) {
       console.error(e);
@@ -996,7 +1033,11 @@ export default function TaskManager({
                   rel="noopener noreferrer"
                   className="text-[10px] text-[var(--brand-orange)] hover:underline flex items-center gap-1 max-w-[200px] truncate"
                 >
-                  <LinkIcon className="w-2.5 h-2.5 shrink-0" />
+                  {r.type === "file" ? (
+                    <Paperclip className="w-2.5 h-2.5 shrink-0" />
+                  ) : (
+                    <LinkIcon className="w-2.5 h-2.5 shrink-0" />
+                  )}
                   {r.name || r.url}
                 </a>
                 <button
@@ -1044,12 +1085,24 @@ export default function TaskManager({
               className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
               autoFocus
             />
+            <input
+              type="file"
+              onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
+              className="w-full text-[9px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[8px] file:font-bold file:bg-[var(--brand-orange)] file:text-black"
+            />
             <div className="flex gap-1 justify-end">
               <button
                 onClick={() => setAddResourceTaskId(null)}
                 className="px-2 py-1 text-[8px] font-bold text-slate-500 uppercase"
               >
                 Cancel
+              </button>
+              <button
+                onClick={() => handleUploadResourceFile(task.id)}
+                disabled={!resourceFile || resourceAdding}
+                className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase"
+              >
+                Upload
               </button>
               <button
                 onClick={() => handleAddResource(task.id)}

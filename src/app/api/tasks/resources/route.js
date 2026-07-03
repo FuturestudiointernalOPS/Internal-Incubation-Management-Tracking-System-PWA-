@@ -9,7 +9,7 @@ export async function POST(req) {
     if (authError) return authError;
 
     const body = await req.json();
-    const { task_id, name, url } = body;
+    const { task_id, name, url, type, file_name, file_size, user_id } = body;
 
     if (!task_id || !url) {
       return NextResponse.json(
@@ -19,13 +19,22 @@ export async function POST(req) {
     }
 
     const result = await db.execute({
-      sql: `INSERT INTO task_resources (task_id, name, url) VALUES (?, ?, ?)`,
-      args: [parseInt(task_id), name || null, url],
+      sql: `INSERT INTO task_resources (task_id, name, url, type, file_name, file_size, uploaded_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      args: [
+        parseInt(task_id),
+        name || null,
+        url,
+        type || "url",
+        file_name || null,
+        file_size || null,
+        user_id || null,
+      ],
     });
 
     return NextResponse.json({
       success: true,
-      id: Number(result.lastInsertRowid),
+      id: Number(result.rows[0]?.id || result.lastInsertRowid),
       message: "Resource added successfully",
     });
   } catch (error) {
