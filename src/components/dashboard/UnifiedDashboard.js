@@ -701,9 +701,24 @@ export default function UnifiedDashboard({ role: propRole }) {
                       {(task.user_name || "?").charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className="text-[11px] font-bold text-[var(--text-primary)] truncate block">
-                        {task.title}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                          {task.title}
+                        </span>
+                        {task.priority && task.priority !== "medium" && (
+                          <span
+                            className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                              task.priority === "critical"
+                                ? "bg-red-500/10 text-red-400"
+                                : task.priority === "high"
+                                  ? "bg-amber-500/10 text-amber-400"
+                                  : "bg-slate-500/10 text-slate-400"
+                            }`}
+                          >
+                            {task.priority}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[8px] text-slate-500 mt-0.5">
                         Assigned by: {task.user_name || "System"}
                         {task.end_date
@@ -797,7 +812,9 @@ export default function UnifiedDashboard({ role: propRole }) {
                             ? "admin"
                             : "staff";
                         router.push(
-                          user?.role === "developer" ? "/developer/standup" : "/" + r + "/op-report"
+                          user?.role === "developer"
+                            ? "/developer/standup"
+                            : "/" + r + "/op-report",
                         );
                       }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 cursor-pointer hover:brightness-110 transition-all"
@@ -912,11 +929,13 @@ export default function UnifiedDashboard({ role: propRole }) {
           <div className="lg:col-span-2 space-y-6">
             {/* Weekly Standup Banner for Staff/Devs */}
             {(effectiveRole === "developer" || effectiveRole === "staff") && (
-              <div 
+              <div
                 className="card flex items-center justify-between !p-4 border-l-4 border-l-[var(--brand-orange)] cursor-pointer hover:border-[var(--brand-orange)]/50 transition-all bg-[var(--brand-orange)]/5"
                 onClick={() => {
                   router.push(
-                    effectiveRole === "developer" ? "/developer/standup" : "/staff/op-report"
+                    effectiveRole === "developer"
+                      ? "/developer/standup"
+                      : "/staff/op-report",
                   );
                 }}
               >
@@ -1073,7 +1092,9 @@ export default function UnifiedDashboard({ role: propRole }) {
                               ? "admin"
                               : "staff";
                           router.push(
-                            user?.role === "developer" ? "/developer/standup" : "/" + r + "/op-report"
+                            user?.role === "developer"
+                              ? "/developer/standup"
+                              : "/" + r + "/op-report",
                           );
                         }}
                         className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"

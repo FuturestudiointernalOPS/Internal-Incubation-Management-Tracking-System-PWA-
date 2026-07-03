@@ -1408,6 +1408,25 @@ export default function StaffOpReport() {
                                                               <span className="text-[12px] font-medium text-[var(--text-primary)]">
                                                                 {task.title}
                                                               </span>
+                                                              {task.priority &&
+                                                                task.priority !==
+                                                                  "medium" && (
+                                                                  <span
+                                                                    className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                                                                      task.priority ===
+                                                                      "critical"
+                                                                        ? "bg-red-500/10 text-red-400"
+                                                                        : task.priority ===
+                                                                            "high"
+                                                                          ? "bg-amber-500/10 text-amber-400"
+                                                                          : "bg-slate-500/10 text-slate-400"
+                                                                    }`}
+                                                                  >
+                                                                    {
+                                                                      task.priority
+                                                                    }
+                                                                  </span>
+                                                                )}
                                                             </div>
                                                           </td>
                                                           <td className="px-3 py-2.5 text-[11px] text-slate-500">
@@ -1846,6 +1865,25 @@ export default function StaffOpReport() {
                                                             >
                                                               {task.title}
                                                             </span>
+                                                            {task.priority &&
+                                                              task.priority !==
+                                                                "medium" && (
+                                                                <span
+                                                                  className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                                                                    task.priority ===
+                                                                    "critical"
+                                                                      ? "bg-red-500/10 text-red-400"
+                                                                      : task.priority ===
+                                                                          "high"
+                                                                        ? "bg-amber-500/10 text-amber-400"
+                                                                        : "bg-slate-500/10 text-slate-400"
+                                                                  }`}
+                                                                >
+                                                                  {
+                                                                    task.priority
+                                                                  }
+                                                                </span>
+                                                              )}
                                                             {(task.carried_over_from_task_id !==
                                                               null ||
                                                               task.status ===

@@ -68,6 +68,7 @@ export async function GET(req) {
     const sort = searchParams.get("sort");
     const limit = searchParams.get("limit");
     const brief = searchParams.get("brief") === "true";
+    const priority = searchParams.get("priority");
 
     let sql = "SELECT * FROM tasks WHERE 1=1";
     const args = [];
@@ -102,6 +103,11 @@ export async function GET(req) {
     if (status) {
       sql += " AND status = ?";
       args.push(status);
+    }
+
+    if (priority) {
+      sql += " AND priority = ?";
+      args.push(priority);
     }
 
     if (week_number) {

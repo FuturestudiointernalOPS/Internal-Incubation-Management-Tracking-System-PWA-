@@ -73,6 +73,7 @@ const CATEGORIES = [
   "Logistics",
   "HR",
   "Technology",
+  "Research",
   "Other",
 ];
 
@@ -135,6 +136,8 @@ export default function TaskManager({
   const [subTaskEndDate, setSubTaskEndDate] = useState("");
   const [subTaskLink, setSubTaskLink] = useState("");
   const [subTaskSuccess, setSubTaskSuccess] = useState("");
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const [editTaskModal, setEditTaskModal] = useState(null); // task object or null
   const [editForm, setEditForm] = useState({
     name: "",
@@ -198,6 +201,16 @@ export default function TaskManager({
   useEffect(() => {
     setTasks(taskList || []);
   }, [taskList]);
+
+  // Fetch available categories from API
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) setAvailableCategories(d.categories.map((c) => c.name));
+      })
+      .catch(() => {});
+  }, []);
 
   const handleAddResource = async (taskId) => {
     if (!resourceForm.url.trim()) return;
@@ -1274,11 +1287,17 @@ export default function TaskManager({
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-purple-400 outline-none appearance-none cursor-pointer"
                 >
                   <option value="">—</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
+                  {availableCategories.length > 0
+                    ? availableCategories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))
+                    : CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
                 </select>
               </div>
             </div>
