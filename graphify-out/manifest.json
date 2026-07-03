@@ -692,8 +692,8 @@
     "hash": "857e64f20b7435aca21423057fee9faa"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/route.js": {
-    "mtime": 1783067518.047627,
-    "hash": "8009a2e321e3f140b6d4570b70a58eeb"
+    "mtime": 1783084600.6314247,
+    "hash": "f2e3cb1a058c83e73177c42c777d2efd"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/approve/route.js": {
     "mtime": 1782805567.3415918,
@@ -708,8 +708,8 @@
     "hash": "b6aa60b79f589f784e59706cea2aebde"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/assignments/route.js": {
-    "mtime": 1783067518.0469143,
-    "hash": "3b368847b5bb6945b344b8adfbce1fb0"
+    "mtime": 1783074824.4583242,
+    "hash": "f6fdff46319a6aa20a6e1a127d186a76"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/resources/route.js": {
     "mtime": 1782911479.4067032,
@@ -718,6 +718,10 @@
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/logs/route.js": {
     "mtime": 1782805567.3415918,
     "hash": "d2d3268b189f5bf29c16061c486a48f9"
+  },
+  "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/comments/route.js": {
+    "mtime": 1783084600.6302567,
+    "hash": "a9ec3d2e707c67404609ca3a9922fcec"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/api/tasks/duplicate/route.js": {
     "mtime": 1783067518.0470786,
@@ -936,8 +940,8 @@
     "hash": "b251faecbdfe789061e34d8738c51e6c"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/developer/assigned-tasks/page.js": {
-    "mtime": 1783067518.047885,
-    "hash": "e0d1ae8eea15c106790d5b9e822fa3e0"
+    "mtime": 1783074824.4586792,
+    "hash": "61e3431af0e9d41f297ad3462bfbbf67"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/app/developer/notifications/page.js": {
     "mtime": 1782911479.4073193,
@@ -1140,8 +1144,8 @@
     "hash": "652d41fec8c57594dcf4a007bb07afd9"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/components/tasks/TaskManager.js": {
-    "mtime": 1783067518.0524385,
-    "hash": "f4ce6defcd628d306f26cf36a3465753"
+    "mtime": 1783084600.632862,
+    "hash": "d4c4d21150e6368c66cee85af1c46572"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/components/layout/DashboardLayout.js": {
     "mtime": 1783067518.052033,
@@ -1199,6 +1203,10 @@
     "mtime": 1782911479.411735,
     "hash": "72ba611999ba53b3b31cb8ab64f92c90"
   },
+  "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/migrations/005_task_assignments.sql": {
+    "mtime": 1783074824.4594448,
+    "hash": "4cfc5611a6947525effafb5aa06fc151"
+  },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/migrations/add_user_groups.sql": {
     "mtime": 1782911479.411735,
     "hash": "92275970fe8f8c19f9c6b05f33b25c18"
@@ -1216,7 +1224,7 @@
     "hash": "b109c80e89e9509d08efffd203645048"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/migrations/004_task_comments.sql": {
-    "mtime": 1783000728.7798243,
+    "mtime": 1783074824.4593985,
     "hash": "32b8305f020b1669a0140a92661fe3ff"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/migrations/phase_rituals.sql": {
@@ -1300,8 +1308,8 @@
     "hash": "1a2944b9cd055d376a7b33c3abe56a72"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/lib/locales.js": {
-    "mtime": 1782929193.7042847,
-    "hash": "85ccfa0fad6813b8292a882b8a174c03"
+    "mtime": 1783074824.4591708,
+    "hash": "4ad9a1f4fd6592fc52103c51a5bde088"
   },
   "/home/kev/Extra-projects/Internal-Incubation-Management-Tracking-System-PWA-/src/lib/i18n.js": {
     "mtime": 1782998986.184609,
