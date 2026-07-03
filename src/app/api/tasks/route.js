@@ -446,15 +446,15 @@ export async function POST(req) {
         });
 
         for (const sa of saRes.rows) {
-          await fetch(`${req.nextUrl.origin}/api/notifications`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipient_id: sa.cid,
-              title: "New Sub-task Created",
-              message: `${user_name || user_id} added sub-task "${title}" under "${parentTitle}"`,
-              type: "task",
-            }),
+          await db.execute({
+            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                  VALUES (?, ?, ?, ?, 0, NOW())`,
+            args: [
+              sa.cid,
+              "New Sub-task Created",
+              `${user_name || user_id} added sub-task "${title}" under "${parentTitle}"`,
+              "subtask",
+            ],
           });
         }
       } catch (_) {}
@@ -937,15 +937,15 @@ export async function PUT(req) {
             args: [],
           });
           for (const sa of saRes.rows) {
-            await fetch(`${req.nextUrl.origin}/api/notifications`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                recipient_id: sa.cid,
-                title: "Sub-tasks Auto-completed",
-                message: `"${task.title}" was marked completed — ${updatedSubs.rowsAffected} sub-task(s) auto-completed.`,
-                type: "task",
-              }),
+            await db.execute({
+              sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                    VALUES (?, ?, ?, ?, 0, NOW())`,
+              args: [
+                sa.cid,
+                "Sub-tasks Auto-completed",
+                `Sub-tasks for task "${task.title}" were auto-completed by completing the parent task.`,
+                "subtask_auto_complete",
+              ],
             });
           }
         }

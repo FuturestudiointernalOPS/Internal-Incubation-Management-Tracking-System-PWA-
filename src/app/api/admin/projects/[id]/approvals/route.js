@@ -128,15 +128,15 @@ export async function POST(req, { params }) {
         });
         const taskTitle = taskRes.rows[0]?.title || "Task";
 
-        await fetch(new URL("/api/notifications", req.url).toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recipient_id: approvalRequest.requester_id,
-            title: "Project Contribution Approved",
-            message: `Your contribution to link "${taskTitle}" was approved by ${reviewer_name || reviewer_id}.`,
-            type: "approval",
-          }),
+        await db.execute({
+          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                VALUES (?, ?, ?, ?, 0, NOW())`,
+          args: [
+            approvalRequest.requester_id,
+            "Project Contribution Approved",
+            `Your contribution to link "${taskTitle}" was approved by ${reviewer_name || reviewer_id}.`,
+            "approval",
+          ],
         });
       } catch (notifErr) {
         console.error("Approval notification failed:", notifErr.message);
@@ -150,15 +150,15 @@ export async function POST(req, { params }) {
         });
         const taskTitle = taskRes.rows[0]?.title || "Task";
 
-        await fetch(new URL("/api/notifications", req.url).toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recipient_id: approvalRequest.requester_id,
-            title: "Project Contribution Declined",
-            message: `Your request to link "${taskTitle}" was declined. Reason: ${rejection_reason}`,
-            type: "approval",
-          }),
+        await db.execute({
+          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                VALUES (?, ?, ?, ?, 0, NOW())`,
+          args: [
+            approvalRequest.requester_id,
+            "Project Contribution Declined",
+            `Your request to link "${taskTitle}" was declined. Reason: ${rejection_reason}`,
+            "approval",
+          ],
         });
       } catch (notifErr) {
         console.error("Rejection notification failed:", notifErr.message);

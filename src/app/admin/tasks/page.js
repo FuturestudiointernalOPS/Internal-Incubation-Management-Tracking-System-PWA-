@@ -18,6 +18,7 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  Send,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -101,6 +102,11 @@ export default function AdminTasks() {
   const [sortBy, setSortBy] = useState("newest");
   const [viewingTask, setViewingTask] = useState(null);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [commentInput, setCommentInput] = useState("");
+  const [assignValue, setAssignValue] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
   const { t } = useI18n();
 
   const fetchTasks = useCallback(async () => {
@@ -124,6 +130,70 @@ export default function AdminTasks() {
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  // Load current user from localStorage (set by DashboardLayout)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("user");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setCurrentUser(parsed);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Fetch all users for assignment dropdown
+  useEffect(() => {
+    fetch("/api/contacts")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setAllUsers(data.contacts || []);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch comments when viewingTask changes
+  const fetchComments = useCallback(async (taskId) => {
+    try {
+      const res = await fetch(`/api/tasks/comments?task_id=${taskId}`);
+      const data = await res.json();
+      if (data.success) {
+        setComments(data.comments || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewingTask) {
+      setAssignValue(viewingTask.assigned_to || "");
+      fetchComments(viewingTask.id);
+    }
+  }, [viewingTask, fetchComments]);
+
+  const handleAddComment = async () => {
+    if (!commentInput.trim() || !currentUser || !viewingTask) return;
+    try {
+      const res = await fetch("/api/tasks/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: viewingTask.id,
+          sender_id: currentUser.cid || currentUser.id,
+          sender_name: currentUser.name,
+          body: commentInput.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCommentInput("");
+        fetchComments(viewingTask.id);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Build user list from tasks
   const users = useMemo(() => {
@@ -726,6 +796,47 @@ export default function AdminTasks() {
                   </div>
                 )}
 
+                {/* Assignment */}
+                <div className="border-t border-[var(--border-primary)] pt-4">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                    Assignment
+                  </p>
+                  <div className="flex gap-2">
+                    <select
+                      value={assignValue}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const res = await fetch(`/api/tasks`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            id: viewingTask.id,
+                            assigned_to: val,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setViewingTask((prev) => ({
+                            ...prev,
+                            assigned_to: val,
+                          }));
+                        } else {
+                          alert(data.error || "Failed to assign");
+                        }
+                      }}
+                      className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="">Unassigned</option>
+                      {allUsers.map((u) => (
+                        <option key={u.cid} value={u.cid}>
+                          {u.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="pt-4 border-t border-[var(--border-primary)]">
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
                     {t("admin.quickActions")}
@@ -751,6 +862,51 @@ export default function AdminTasks() {
                         );
                       },
                     )}
+                  </div>
+                </div>
+
+                {/* Comments */}
+                <div className="border-t border-[var(--border-primary)] pt-4">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                    Comments
+                  </p>
+                  <div className="space-y-2 mb-3 max-h-32 overflow-y-auto">
+                    {comments.map((c) => (
+                      <div
+                        key={c.id}
+                        className="text-[10px] p-2 rounded-lg bg-primary border border-[var(--border-primary)]"
+                      >
+                        <span className="font-bold text-[var(--text-primary)]">
+                          {c.sender_name}:
+                        </span>{" "}
+                        <span className="text-[var(--text-secondary)]">
+                          {c.body}
+                        </span>
+                      </div>
+                    ))}
+                    {comments.length === 0 && (
+                      <p className="text-[10px] text-slate-500 italic">
+                        No comments yet.
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={commentInput}
+                      onChange={(e) => setCommentInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddComment();
+                      }}
+                      placeholder="Add a comment..."
+                      className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                    />
+                    <button
+                      onClick={handleAddComment}
+                      className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20 transition-all"
+                    >
+                      <Send className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               </div>
