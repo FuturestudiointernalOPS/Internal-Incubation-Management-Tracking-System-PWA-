@@ -277,6 +277,7 @@ export async function POST(req) {
     // Task must have project_id OR category — auto-assign "General" as fallback
     if (!finalProjectId && !finalCategory) {
       finalCategory = "General";
+    }
 
     // Phase 5: Auto-generate start_date from created_at if not provided
     const finalStartDate = start_date || new Date().toISOString().split("T")[0];
