@@ -446,14 +446,24 @@ export async function POST(req) {
           sql: "INSERT INTO task_assignments (task_id, assigner_id, assignee_id) VALUES (?, ?, ?)",
           args: [taskId, user_id, finalAssignedTo],
         });
-        // Notify assignee
+        // Notify assignee — resolve display name if not provided
         const taskRef = title || "#" + taskId;
+        let notifyName = user_name;
+        if (!notifyName) {
+          try {
+            const nameRes = await db.execute({
+              sql: "SELECT name FROM contacts WHERE cid = ?",
+              args: [user_id],
+            });
+            if (nameRes.rows.length > 0) notifyName = nameRes.rows[0].name;
+          } catch (_) {}
+        }
         await db.execute({
           sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
           args: [
             finalAssignedTo,
             "New Task Assignment",
-            `${user_name || user_id} assigned you task "${taskRef}"`,
+            `${notifyName || user_id} assigned you task "${taskRef}"`,
             "task_assignment",
           ],
         });
