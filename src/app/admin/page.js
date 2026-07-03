@@ -61,22 +61,21 @@ function getCalendarDays(year, month) {
   return days;
 }
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+const MONTH_KEYS = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
 ];
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 function isToday(d) {
   const today = new Date();
@@ -255,7 +254,7 @@ export default function AdminDashboard() {
     return t(`status.${map[key] || "pending"}`);
   };
 
-  const getMonthLabel = (idx) => t(`time.months.${MONTHS[idx].toLowerCase()}`);
+  const getMonthLabel = (idx) => t(`time.months.` + MONTH_KEYS[idx]);
 
   // Dashboard widgets state
   const now = new Date();
@@ -376,18 +375,19 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Fetch tasks for calendar
+  // Fetch tasks for calendar (super_admin sees all, others see own)
   const fetchWidgetData = useCallback(async () => {
     setDashboardLoading(true);
     try {
       try {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
         const userId = user.cid || user.id;
+        const isSA = user.role === "super_admin";
 
         const [taskRes, blockerRes] = await Promise.all([
-          userId
-            ? fetch(`/api/tasks?user_id=${userId}&brief=true`)
-            : fetch("/api/tasks?brief=true"),
+          isSA
+            ? fetch("/api/tasks?brief=true")
+            : fetch(`/api/tasks?user_id=${userId}&brief=true`),
           fetch("/api/blockers?status=active"),
         ]);
         const taskData = await taskRes.json();
@@ -410,6 +410,16 @@ export default function AdminDashboard() {
       setDashboardLoading(false);
     }
   }, []);
+
+  // Ticket 1.6: expose refresh callback for auto calendar sync
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.__refreshAdminDashboard = fetchWidgetData;
+    }
+    return () => {
+      if (typeof window !== "undefined") delete window.__refreshAdminDashboard;
+    };
+  }, [fetchWidgetData]);
 
   const handlePrevMonth = () => {
     if (calMonth === 0) {
@@ -489,6 +499,15 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchWidgetData();
+  }, [fetchWidgetData]);
+
+  // Ticket 1.6: refetch calendar when tab becomes visible again
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchWidgetData();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [fetchWidgetData]);
 
   useEffect(() => {
@@ -603,10 +622,10 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
-                {DAYS.map((d) => (
-                  <div key={d} className="bg-primary p-2 text-center">
+                {DAY_KEYS.map((k) => (
+                  <div key={k} className="bg-primary p-2 text-center">
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      {t(`time.days.${d.toLowerCase()}`)}
+                      {t("time.days." + k)}
                     </span>
                   </div>
                 ))}
@@ -641,21 +660,31 @@ export default function AdminDashboard() {
                           </span>
                         )}
                       </div>
-                      <div className="space-y-0.5">
-                        {dayTasks.slice(0, 3).map((task) => (
-                          <button
-                            key={task.id}
-                            onClick={() => setSelectedTask(task)}
-                            className={`w-full text-left px-1.5 py-0.5 rounded text-[8px] font-bold truncate leading-tight ${STATUS_CONFIG[task.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[task.status]?.color || "text-slate-400"} hover:brightness-110 transition-all`}
-                          >
-                            {task.title}
-                          </button>
-                        ))}
-                        {dayTasks.length > 3 && (
-                          <span className="text-[7px] text-slate-600 pl-1">
-                            +{dayTasks.length - 3} {t("common.more")}
-                          </span>
-                        )}
+                      <div className="space-y-0.5 max-h-[80px] overflow-y-auto custom-scrollbar">
+                        {dayTasks.map((task) => {
+                          const priorityColor =
+                            task.priority === "critical"
+                              ? "bg-red-500/20 text-red-400"
+                              : task.priority === "high"
+                                ? "bg-amber-500/20 text-amber-400"
+                                : task.status === "completed"
+                                  ? "bg-emerald-500/10 text-emerald-400/70 line-through"
+                                  : task.status === "blocked"
+                                    ? "bg-rose-500/15 text-rose-400"
+                                    : STATUS_CONFIG[task.status]?.bg +
+                                        " " +
+                                        STATUS_CONFIG[task.status]?.color ||
+                                      "bg-slate-500/10 text-slate-400";
+                          return (
+                            <button
+                              key={task.id}
+                              onClick={() => setSelectedTask(task)}
+                              className={`w-full text-left px-1.5 py-0.5 rounded text-[8px] font-bold truncate leading-tight ${priorityColor} hover:brightness-110 transition-all`}
+                            >
+                              {task.title}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   );

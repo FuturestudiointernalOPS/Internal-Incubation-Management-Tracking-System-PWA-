@@ -28,6 +28,11 @@
       "november": "November",
       "december": "December"
     },
+    "calendar": {
+      "month": "Month",
+      "week": "Week",
+      "day": "Day"
+    },
     "days": {
       "sun": "Sun",
       "mon": "Mon",

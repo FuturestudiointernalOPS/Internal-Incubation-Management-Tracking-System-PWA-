@@ -220,30 +220,53 @@ export async function GET(req) {
       userName = userRes.value.rows[0].name || "User";
     }
 
+    // Helper: convert any date format (Date object, ISO string, etc.) to YYYY-MM-DD
+    const toDateStr = (val) => {
+      if (!val) return null;
+      try {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+        return d.toISOString().split("T")[0];
+      } catch {
+        return null;
+      }
+    };
+
+    // Helper: generate all dates from start to end (inclusive)
+    const dateRange = (start, end) => {
+      const dates = [];
+      const s = new Date(start + "T00:00:00Z");
+      const e = new Date(end + "T00:00:00Z");
+      if (isNaN(s.getTime()) || isNaN(e.getTime())) return dates;
+      const cur = new Date(s);
+      while (cur <= e) {
+        dates.push(cur.toISOString().split("T")[0]);
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+      return dates;
+    };
+
     // 2. Calendar events
     const calendarEvents = [];
 
-    // Tasks → calendar
+    // Tasks → calendar — span all days from start_date to end_date
     if (taskDateRes.status === "fulfilled") {
       for (const t of taskDateRes.value.rows) {
-        if (t.start_date) {
+        const startStr = toDateStr(t.start_date);
+        const endStr = toDateStr(t.end_date);
+        if (!startStr && !endStr) continue;
+        // Determine the effective date range
+        const rangeStart = startStr || endStr;
+        const rangeEnd = endStr || startStr;
+        const days = dateRange(rangeStart, rangeEnd);
+        for (const day of days) {
+          const isFirst = day === rangeStart;
+          const isLast = day === rangeEnd;
           calendarEvents.push({
-            id: `task-${t.id}-start`,
+            id: `task-${t.id}-${day}`,
             title: t.title,
-            date: String(t.start_date).split("T")[0],
-            type: "task_start",
-            source: "task",
-            status: t.status,
-            related_id: t.id,
-            project_id: t.project_id,
-          });
-        }
-        if (t.end_date) {
-          calendarEvents.push({
-            id: `task-${t.id}-end`,
-            title: `${t.title} (due)`,
-            date: String(t.end_date).split("T")[0],
-            type: "task_due",
+            date: day,
+            type: isFirst ? "task_start" : isLast ? "task_due" : "task_active",
             source: "task",
             status: t.status,
             related_id: t.id,
@@ -257,26 +280,30 @@ export async function GET(req) {
     if (progDateRes.status === "fulfilled") {
       for (const p of progDateRes.value.rows) {
         if (p.start_date) {
-          calendarEvents.push({
-            id: `program-${p.id}-start`,
-            title: `${p.name} starts`,
-            date: String(p.start_date).split("T")[0],
-            type: "program_start",
-            source: "program",
-            status: "active",
-            related_id: p.id,
-          });
+          const d = toDateStr(p.start_date);
+          if (d)
+            calendarEvents.push({
+              id: `program-${p.id}-start`,
+              title: `${p.name} starts`,
+              date: d,
+              type: "program_start",
+              source: "program",
+              status: "active",
+              related_id: p.id,
+            });
         }
         if (p.end_date) {
-          calendarEvents.push({
-            id: `program-${p.id}-end`,
-            title: `${p.name} ends`,
-            date: String(p.end_date).split("T")[0],
-            type: "program_end",
-            source: "program",
-            status: "active",
-            related_id: p.id,
-          });
+          const d = toDateStr(p.end_date);
+          if (d)
+            calendarEvents.push({
+              id: `program-${p.id}-end`,
+              title: `${p.name} ends`,
+              date: d,
+              type: "program_end",
+              source: "program",
+              status: "active",
+              related_id: p.id,
+            });
         }
       }
     }
@@ -287,7 +314,7 @@ export async function GET(req) {
         calendarEvents.push({
           id: `session-${s.id}`,
           title: s.title,
-          date: String(s.start_at).split("T")[0],
+          date: toDateStr(s.start_at),
           type: "session",
           source: "session",
           status: "scheduled",
@@ -303,7 +330,7 @@ export async function GET(req) {
         calendarEvents.push({
           id: `deliverable-${d.id}`,
           title: `${d.title} due`,
-          date: String(d.due_date).split("T")[0],
+          date: toDateStr(d.due_date),
           type: "deliverable_due",
           source: "deliverable",
           status: "pending",
@@ -318,7 +345,7 @@ export async function GET(req) {
         calendarEvents.push({
           id: `v2event-${e.id}`,
           title: e.title,
-          date: String(e.start_time).split("T")[0],
+          date: toDateStr(e.start_time),
           type: "event",
           source: "event",
           status: "scheduled",

@@ -390,6 +390,8 @@ export default function StaffOpReport() {
       });
 
       setTasks(Array.from(taskMap.values()));
+      // Ticket 1.6: notify dashboard calendar of changes
+      if (typeof window !== "undefined") window.__refreshDashboard?.();
     } catch (e) {
       console.error("Failed to fetch tasks:", e);
     } finally {

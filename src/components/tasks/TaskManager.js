@@ -433,6 +433,10 @@ export default function TaskManager({
         });
         // Re-fetch via callback
         if (onTasksChange) onTasksChange();
+        if (typeof window !== "undefined") {
+          window.__refreshDashboard?.();
+          window.__refreshAdminDashboard?.();
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -506,6 +510,10 @@ export default function TaskManager({
       setPendingParentTaskId(null);
       setAddedCount((c) => c + 1);
       if (onTasksChange) onTasksChange();
+      if (typeof window !== "undefined") {
+        window.__refreshDashboard?.();
+        window.__refreshAdminDashboard?.();
+      }
     }
     setCreating(false);
   }, [form, pendingParentTaskId, createTask, onTasksChange, creating]);
@@ -569,6 +577,10 @@ export default function TaskManager({
       setSubTaskSuccess("Sub-task added!");
       setTimeout(() => setSubTaskSuccess(""), 2000);
       if (onTasksChange) onTasksChange();
+      if (typeof window !== "undefined") {
+        window.__refreshDashboard?.();
+        window.__refreshAdminDashboard?.();
+      }
     }
   }, [
     subTaskInput,
