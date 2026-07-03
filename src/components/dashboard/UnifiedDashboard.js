@@ -64,12 +64,31 @@ const STATUS_CONFIG = {
   },
 };
 
-const EVENT_COLORS = {
+const EVENT_BASE = {
   task: "bg-blue-500/10 text-blue-400",
   program: "bg-emerald-500/10 text-emerald-400",
   session: "bg-amber-500/10 text-amber-400",
   deliverable: "bg-purple-500/10 text-purple-400",
   event: "bg-sky-500/10 text-sky-400",
+};
+
+const PRIORITY_COLORS = {
+  critical: "bg-red-500/20 text-red-400 border-red-500/30",
+  high: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  medium: "bg-blue-500/10 text-blue-400",
+  low: "bg-slate-500/10 text-slate-400",
+};
+
+const getEventStyle = (ev) => {
+  // Completed tasks: muted green
+  if (ev.status === "completed")
+    return "bg-emerald-500/10 text-emerald-400/70 line-through";
+  if (ev.status === "blocked") return "bg-rose-500/15 text-rose-400";
+  // Tasks: color by priority
+  if (ev.source === "task" && ev.priority && ev.priority !== "medium") {
+    return PRIORITY_COLORS[ev.priority] || EVENT_BASE.task;
+  }
+  return EVENT_BASE[ev.source] || "bg-slate-500/10 text-slate-400";
 };
 
 const EVENT_DOTS = {
@@ -80,21 +99,21 @@ const EVENT_DOTS = {
   event: "bg-sky-400",
 };
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+const MONTH_KEYS = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
 ];
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 const SEVERITY_SORT = { critical: 0, high: 1, medium: 2, low: 3 };
 
@@ -282,6 +301,27 @@ export default function UnifiedDashboard({ role: propRole }) {
     if (user) fetchDashboardData();
   }, [user, fetchDashboardData]);
 
+  // Ticket 1.6: refetch calendar when tab becomes visible again
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && user) {
+        fetchDashboardData();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [user, fetchDashboardData]);
+
+  // Ticket 1.6: expose refresh callback for auto calendar sync
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.__refreshDashboard = fetchDashboardData;
+    }
+    return () => {
+      if (typeof window !== "undefined") delete window.__refreshDashboard;
+    };
+  }, [fetchDashboardData]);
+
   // ── Calendar navigation ──
   const handlePrevMonth = () => {
     if (calMonth === 0) {
@@ -423,7 +463,7 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
-                {MONTHS[calMonth]} {calYear}
+                {t("time.months." + MONTH_KEYS[calMonth])} {calYear}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -440,7 +480,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         : "text-slate-500 hover:text-[var(--text-primary)]",
                     )}
                   >
-                    {v}
+                    {t("time.calendar." + v)}
                   </button>
                 ))}
               </div>
@@ -454,7 +494,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 onClick={handleToday}
                 className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                Today
+                {t("time.today")}
               </button>
               <button
                 onClick={handleNextMonth}
@@ -468,10 +508,10 @@ export default function UnifiedDashboard({ role: propRole }) {
           {/* Month View */}
           {calView === "month" && (
             <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
-              {DAYS.map((d) => (
-                <div key={d} className="bg-primary p-1 text-center">
+              {DAY_KEYS.map((k) => (
+                <div key={k} className="bg-primary p-1 text-center">
                   <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                    {d}
+                    {t("time.days." + k)}
                   </span>
                 </div>
               ))}
@@ -515,25 +555,19 @@ export default function UnifiedDashboard({ role: propRole }) {
                         </span>
                       )}
                     </div>
-                    <div className="space-y-0.5 mt-0.5">
-                      {dayEvents.slice(0, 2).map((ev) => (
+                    <div className="space-y-0.5 mt-0.5 max-h-[90px] overflow-y-auto custom-scrollbar">
+                      {dayEvents.map((ev) => (
                         <button
                           key={ev.id}
                           onClick={() => setSelectedEvent(ev)}
                           className={cn(
                             "w-full text-left px-1 py-0.5 rounded text-[7px] font-bold truncate leading-tight hover:brightness-110 transition-all",
-                            EVENT_COLORS[ev.source] ||
-                              "bg-slate-500/10 text-slate-400",
+                            getEventStyle(ev),
                           )}
                         >
                           {ev.title}
                         </button>
                       ))}
-                      {dayEvents.length > 2 && (
-                        <span className="text-[6px] text-slate-500 pl-0.5">
-                          +{dayEvents.length - 2}
-                        </span>
-                      )}
                     </div>
                   </div>
                 );
@@ -581,13 +615,13 @@ export default function UnifiedDashboard({ role: propRole }) {
                           {d.getDate()}
                         </p>
                         <p className="text-[6px] font-bold text-slate-600 uppercase">
-                          {DAYS[d.getDay()]}
+                          {t("time.days." + DAY_KEYS[d.getDay()])}
                         </p>
                       </div>
                       <div className="flex-1 space-y-1">
                         {dayEvents.length === 0 && (
                           <p className="text-[8px] text-slate-600 italic">
-                            No events
+                            {t("common.noEvents")}
                           </p>
                         )}
                         {dayEvents.map((ev) => (
@@ -629,7 +663,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     </p>
                     {dayEvents.length === 0 && (
                       <p className="text-[8px] text-slate-600 italic">
-                        No events scheduled for today
+                        {t("common.noEvents")}
                       </p>
                     )}
                     {dayEvents.map((ev) => (
