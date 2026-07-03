@@ -308,16 +308,9 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // Task must have project_id OR category (not both empty)
+    // Task must have project_id OR category — auto-assign "General" as fallback
     if (!finalProjectId && !finalCategory) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Task must be linked to a project or have a category.",
-        },
-        { status: 400 },
-      );
-    }
+      finalCategory = "General";
 
     // Phase 5: Auto-generate start_date from created_at if not provided
     const finalStartDate = start_date || new Date().toISOString().split("T")[0];
