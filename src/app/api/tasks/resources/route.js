@@ -1,15 +1,16 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 export async function POST(req) {
   try {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const session = await getSession();
 
     const body = await req.json();
-    const { task_id, name, url, type, file_name, file_size, user_id } = body;
+    const { task_id, name, url, type, file_name, file_size } = body;
 
     if (!task_id || !url) {
       return NextResponse.json(
@@ -28,7 +29,7 @@ export async function POST(req) {
         type || "url",
         file_name || null,
         file_size || null,
-        user_id || null,
+        session?.cid || null,
       ],
     });
 

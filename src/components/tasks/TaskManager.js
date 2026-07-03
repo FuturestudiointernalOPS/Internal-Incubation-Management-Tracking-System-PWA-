@@ -259,7 +259,6 @@ export default function TaskManager({
           type: "file",
           file_name: resourceFile.name,
           file_size: resourceFile.size,
-          user_id: uid,
         }),
       });
       if (res.ok) {
