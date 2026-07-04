@@ -36,7 +36,7 @@ export async function POST(req) {
     // 1. Validate token
     const tokenResult = await db.execute({
       sql: `SELECT * FROM password_setup_tokens
-            WHERE token = ? AND used = false AND expires_at > NOW()`,
+            WHERE token = ? AND used = 0 AND expires_at > NOW()`,
       args: [token],
     });
 
@@ -55,12 +55,12 @@ export async function POST(req) {
     // 3. Update user - set password and status to active
     await db.execute({
       sql: "UPDATE contacts SET password = ?, status = 'active' WHERE cid = ?",
-      args: [hashedPassword, setupRecord.user_cid],
+      args: [hashedPassword, setupRecord.contact_cid],
     });
 
     // 4. Mark token as used
     await db.execute({
-      sql: "UPDATE password_setup_tokens SET used = true WHERE token = ?",
+      sql: "UPDATE password_setup_tokens SET used = 1 WHERE token = ?",
       args: [token],
     });
 
@@ -69,7 +69,7 @@ export async function POST(req) {
       await db.execute({
         sql: `INSERT INTO audit_log (entity_type, entity_id, user_id, user_name, action, details)
               VALUES ('user', 0, ?, ?, 'password_setup', 'Password set via secure setup link')`,
-        args: [setupRecord.user_cid, setupRecord.user_email],
+        args: [setupRecord.contact_cid, setupRecord.user_email],
       });
     } catch (e) {
       // Audit logging is non-critical

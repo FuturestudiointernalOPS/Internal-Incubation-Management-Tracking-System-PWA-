@@ -30,7 +30,7 @@ export async function syncTask(taskId) {
   const res = await db.execute({
     sql: `SELECT t.*, p.name as project_name
           FROM tasks t
-          LEFT JOIN v2_projects p ON t.project_id = p.id
+          LEFT JOIN v2_projects p ON t.project_id = p.id::text
           WHERE t.id = ?`,
     args: [taskId],
   });
@@ -136,7 +136,7 @@ export async function syncAllTasks() {
   const res = await db.execute({
     sql: `SELECT t.*, p.name as project_name
           FROM tasks t
-          LEFT JOIN v2_projects p ON t.project_id = p.id
+          LEFT JOIN v2_projects p ON t.project_id = p.id::text
           WHERE t.notion_page_id IS NULL
           LIMIT 50`,
     args: [],

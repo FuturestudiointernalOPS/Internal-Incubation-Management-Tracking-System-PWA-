@@ -70,11 +70,10 @@ export async function POST(req) {
     expiresAt.setHours(expiresAt.getHours() + 24);
 
     await db.execute({
-      sql: `INSERT INTO password_setup_tokens (user_cid, user_email, token, expires_at, used)
-            VALUES (?, ?, ?, ?, false)`,
+      sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used)
+            VALUES (?, ?, ?, 0)`,
       args: [
         user_cid,
-        user.email,
         token,
         expiresAt.toISOString().replace("T", " ").replace("Z", ""),
       ],

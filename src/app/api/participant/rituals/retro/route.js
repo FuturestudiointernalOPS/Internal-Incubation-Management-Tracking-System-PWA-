@@ -47,7 +47,7 @@ export const POST = createHandler(async (req) => {
     );
 
   await db.execute({
-    sql: "INSERT INTO v2_retros (participant_id, program_id, week_number, went_well, improve, action_items) VALUES (?, ?, ?, ?, ?, ?)",
+    sql: "INSERT INTO v2_retros (user_id, program_id, week_number, went_well, improve, action_items) VALUES (?, ?, ?, ?, ?, ?)",
     args: [
       cid,
       program_id,

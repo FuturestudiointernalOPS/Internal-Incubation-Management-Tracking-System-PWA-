@@ -6,7 +6,7 @@ export const POST = createHandler(
   { roles: ["staff", "super_admin"] },
   async (req) => {
     const body = await req.json();
-    const { program_id, title, description, week_number, type, kpi_ids } = body;
+    const { program_id, title, description, week_number } = body;
 
     if (!program_id || !title) {
       return NextResponse.json(
@@ -16,28 +16,25 @@ export const POST = createHandler(
     }
 
     const result = await db.execute({
-      sql: `INSERT INTO v2_deliverables (program_id, title, description, week_number, type, kpi_ids)
-           VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [
-        program_id,
-        title,
-        description || null,
-        week_number || 1,
-        type || "Group",
-        kpi_ids ? JSON.stringify(kpi_ids) : null,
-      ],
+      sql: `INSERT INTO v2_deliverables (program_id, title, description, week_number)
+                 VALUES (?, ?, ?, ?) RETURNING id`,
+            args: [
+              program_id,
+              title,
+              description || null,
+              week_number || 1,
+            ],
     });
 
     return NextResponse.json({
       success: true,
       deliverable: {
-        id: Number(result.rows[0]?.id ?? result.lastInsertRowid),
-        program_id,
-        title,
-        description,
-        week_number,
-        type,
-      },
+              id: Number(result.rows[0]?.id ?? result.lastInsertRowid),
+              program_id,
+              title,
+              description,
+              week_number,
+            },
     });
   },
 );

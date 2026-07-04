@@ -3,7 +3,7 @@
    =====================================================================================
    This Version 2 (V2) API route is ACTIVE AND CURRENTLY USED BY V1.
    Do not delete it or break its functionality, as V1 depends on it.
-   
+
    However, DO NOT add new features here. All new development should happen in V1.
    ===================================================================================== */
 
@@ -17,9 +17,9 @@ export async function GET(req, { params }) {
     const { token } = await params; // Destructure carefully
 
     const result = await db.execute({
-      sql: `SELECT i.*, p.name as program_name 
-            FROM v2_invitations i 
-            LEFT JOIN v2_programs p ON i.program_id = p.id 
+      sql: `SELECT i.*, p.name as program_name
+            FROM v2_invitations i
+            LEFT JOIN v2_programs p ON i.program_id = p.id::text
             WHERE i.token = ? AND i.expires_at > datetime('now')`,
       args: [token]
     });
@@ -29,13 +29,13 @@ export async function GET(req, { params }) {
     }
 
     const invite = result.rows[0];
-    return NextResponse.json({ 
+    return NextResponse.json({
       invite: {
         program_id: invite.program_id,
         program_name: invite.program_name,
         group_name: invite.group_name,
         role: invite.role
-      } 
+      }
     });
   } catch (error) {
     console.error("[Token Validation Error]:", error);
@@ -79,8 +79,8 @@ export async function POST(req, { params }) {
     if (existingUser.rows.length > 0) {
       // User exists, update their profile with the new invite credentials and group
       await db.execute({
-        sql: `UPDATE contacts 
-              SET name = ?, phone = ?, password = ?, role = ?, group_name = ?, team_id = ? 
+        sql: `UPDATE contacts
+              SET name = ?, phone = ?, password = ?, role = ?, group_name = ?, v2_team_id = ?
               WHERE email = ?`,
         args: [name, phone || null, hashedPassword, invite.role, invite.group_name, invite.team_id || null, email]
       });
@@ -88,7 +88,7 @@ export async function POST(req, { params }) {
     } else {
       // Create new user
       await db.execute({
-        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, group_name, team_id) 
+        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, group_name, v2_team_id)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [cid, name, email, phone || null, hashedPassword, invite.role, invite.group_name, invite.team_id || null]
       });
@@ -109,14 +109,14 @@ export async function POST(req, { params }) {
       });
     } else {
       await db.execute({
-        sql: `INSERT INTO v2_participants (program_id, name, email, phone, status, team_id) 
+        sql: `INSERT INTO v2_participants (program_id, name, email, phone, status, team_id)
               VALUES (?, ?, ?, ?, 'Active', ?)`,
         args: [invite.program_id, name, email, phone || null, invite.team_id || null]
       });
     }
 
-    return NextResponse.json({ 
-      message: "Successfully joined the team!", 
+    return NextResponse.json({
+      message: "Successfully joined the team!",
       user: { cid: contactId, name, email, role: invite.role }
     });
 

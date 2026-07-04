@@ -10,7 +10,7 @@ export async function GET(req, { params }) {
     const result = await db.execute({
       sql: `SELECT i.*, p.name as program_name
             FROM v2_invitations i
-            LEFT JOIN v2_programs p ON i.program_id = p.id
+            LEFT JOIN v2_programs p ON i.program_id = p.id::text
             WHERE i.token = ? AND i.expires_at > datetime('now')`,
       args: [token],
     });
@@ -84,7 +84,7 @@ export async function POST(req, { params }) {
       // User exists, update their profile with the new invite credentials and group
       await db.execute({
         sql: `UPDATE contacts
-                      SET name = ?, phone = ?, password = ?, role = ?, group_name = ?, team_id = ?, status = ?
+                      SET name = ?, phone = ?, password = ?, role = ?, group_name = ?, v2_team_id = ?, status = ?
                       WHERE email = ?`,
         args: [
           name,
@@ -101,7 +101,7 @@ export async function POST(req, { params }) {
     } else {
       // Create new user
       await db.execute({
-        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, group_name, team_id, status)
+        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, group_name, v2_team_id, status)
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           cid,

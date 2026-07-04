@@ -413,10 +413,10 @@ export async function PUT(req) {
                 if (cCid) {
                   try {
                     await db.execute({
-                      sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                            VALUES (?, ?, ?, ?)
+                      sql: `INSERT INTO participant_programs (participant_id, program_id)
+                            VALUES (?, ?)
                             ON CONFLICT (participant_id, program_id) DO NOTHING`,
-                      args: [cCid, id, "system", "pm_program_update"],
+                      args: [cCid, id],
                     });
                   } catch (_) {
                     // participant_programs table may not exist

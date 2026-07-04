@@ -59,10 +59,10 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
     if (contact.cid) {
       try {
         await db.execute({
-          sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                VALUES (?, ?, ?, ?)
+          sql: `INSERT INTO participant_programs (participant_id, program_id)
+                VALUES (?, ?)
                 ON CONFLICT (participant_id, program_id) DO NOTHING`,
-          args: [contact.cid, program_id, "system", "group_assignment"],
+          args: [contact.cid, program_id],
         });
       } catch (_) {
         // participant_programs table may not exist

@@ -17,7 +17,7 @@ export const POST = createHandler(
   async (req) => {
     const { user, action } = await req.json();
     await db.execute({
-      sql: "INSERT INTO activity_logs (user, action) VALUES (?, ?)",
+      sql: "INSERT INTO activity_logs (user_identity, action) VALUES (?, ?)",
       args: [user || "System", action],
     });
     return NextResponse.json({ success: true });

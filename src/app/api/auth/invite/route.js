@@ -29,7 +29,7 @@ export const POST = createHandler(
     const token = uuidv4();
 
     await db.execute({
-      sql: `INSERT INTO password_setup_tokens (token, user_cid, token_type, invited_by, role, group_id, expires_at)
+      sql: `INSERT INTO password_setup_tokens (token, contact_cid, token_type, invited_by, role, group_id, expires_at)
           VALUES (?, ?, ?, ?, ?, ?, NOW() + INTERVAL '48 hours')`,
       args: [
         token,
@@ -39,11 +39,6 @@ export const POST = createHandler(
         role || null,
         groupId || null,
       ],
-    });
-
-    await db.execute({
-      sql: "UPDATE contacts SET invited_at = NOW() WHERE cid = ?",
-      args: [cid],
     });
 
     sendInviteEmail({ to: email, name, role, token }).catch((e) =>

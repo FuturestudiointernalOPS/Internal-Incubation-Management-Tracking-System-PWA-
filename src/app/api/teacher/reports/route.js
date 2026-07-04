@@ -78,7 +78,7 @@ export async function POST(req) {
 
       // Log Activity
       await db.execute({
-        sql: "INSERT INTO activity_logs (user, action, module, status) VALUES (?, ?, ?, ?)",
+        sql: "INSERT INTO activity_logs (user_identity, action, module, status) VALUES (?, ?, ?, ?)",
         args: [
           teacher_name,
           `Updated Weekly Report (Week ${week_number})`,
@@ -111,7 +111,7 @@ export async function POST(req) {
 
       // Log Activity
       await db.execute({
-        sql: "INSERT INTO activity_logs (user, action, module, status) VALUES (?, ?, ?, ?)",
+        sql: "INSERT INTO activity_logs (user_identity, action, module, status) VALUES (?, ?, ?, ?)",
         args: [
           teacher_name,
           `Created Weekly Report (Week ${week_number})`,

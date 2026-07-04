@@ -28,8 +28,8 @@ export const POST = createHandler(
         { status: 400 },
       );
     const result = await db.execute({
-      sql: "INSERT INTO segments (name, filters) VALUES (?, ?) RETURNING id",
-      args: [name, JSON.stringify(filters)],
+      sql: "INSERT INTO segments (name, criteria) VALUES (?, ?) RETURNING id",
+            args: [name, JSON.stringify(filters)],
     });
     return NextResponse.json({ success: true, segment_id: result.rows[0].id });
   },

@@ -21,7 +21,7 @@ export async function GET() {
 
     await initDb();
     const res = await db.execute({
-      sql: "SELECT name, email, phone, address, language, profile_completed, supervisor_cid FROM contacts WHERE cid = ?",
+      sql: "SELECT name, email, phone, address, language, supervisor_cid FROM contacts WHERE cid = ?",
       args: [session.cid],
     });
 

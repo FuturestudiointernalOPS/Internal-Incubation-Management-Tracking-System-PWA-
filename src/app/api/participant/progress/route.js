@@ -132,7 +132,7 @@ export async function GET(req) {
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_standups WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          sql: "SELECT * FROM v2_standups WHERE user_id = ? AND program_id = ? ORDER BY created_at DESC",
           args: [cid, pid],
         }),
         db.execute({
@@ -140,11 +140,11 @@ export async function GET(req) {
           args: [cid, pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_retros WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          sql: "SELECT * FROM v2_retros WHERE user_id = ? AND program_id = ? ORDER BY created_at DESC",
           args: [cid, pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_reflections WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          sql: "SELECT * FROM v2_reflections WHERE user_id = ? AND program_id = ? ORDER BY created_at DESC",
           args: [cid, pid],
         }),
       ]);

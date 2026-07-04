@@ -45,17 +45,16 @@ export async function POST(req) {
 
       // Invalidate old tokens
       await db.execute({
-        sql: "UPDATE password_setup_tokens SET used = true WHERE user_cid = ? AND used = false",
+        sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ? AND used = 0",
         args: [user.cid],
       });
 
       // Create new token
       await db.execute({
-        sql: `INSERT INTO password_setup_tokens (user_cid, user_email, token, expires_at, used)
-              VALUES (?, ?, ?, ?, false)`,
+        sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used)
+              VALUES (?, ?, ?, 0)`,
         args: [
           user.cid,
-          user.email,
           token,
           expiresAt.toISOString().replace("T", " ").replace("Z", ""),
         ],

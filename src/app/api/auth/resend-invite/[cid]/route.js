@@ -21,12 +21,12 @@ export const POST = createHandler(
       );
     const contact = contactRes.rows[0];
     await db.execute({
-      sql: "UPDATE password_setup_tokens SET expires_at = NOW() - INTERVAL '1 second' WHERE user_cid = ? AND used_at IS NULL",
+      sql: "UPDATE password_setup_tokens SET expires_at = NOW() - INTERVAL '1 second' WHERE contact_cid = ? AND used_at IS NULL",
       args: [cid],
     });
     const token = uuidv4();
     await db.execute({
-      sql: "INSERT INTO password_setup_tokens (token, user_cid, token_type, role, expires_at) VALUES (?, ?, 'staff_invite', ?, NOW() + INTERVAL '48 hours')",
+      sql: "INSERT INTO password_setup_tokens (token, contact_cid, token_type, role, expires_at) VALUES (?, ?, 'staff_invite', ?, NOW() + INTERVAL '48 hours')",
       args: [token, cid, contact.role],
     });
     sendInviteEmail({

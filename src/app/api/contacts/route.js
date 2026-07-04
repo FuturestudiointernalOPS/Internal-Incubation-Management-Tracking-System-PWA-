@@ -15,14 +15,9 @@ async function fireInvite(cid, name, email, role, groupId) {
       role === "participant" ? "participant_invite" : "staff_invite";
 
     await db.execute({
-      sql: `INSERT INTO password_setup_tokens (token, user_cid, token_type, role, group_id, expires_at)
+      sql: `INSERT INTO password_setup_tokens (token, contact_cid, token_type, role, group_id, expires_at)
             VALUES (?, ?, ?, ?, ?, NOW() + INTERVAL '48 hours')`,
       args: [token, cid, tokenType, role || null, groupId || null],
-    });
-
-    await db.execute({
-      sql: "UPDATE contacts SET invited_at = NOW() WHERE cid = ?",
-      args: [cid],
     });
 
     // Send email (non-blocking, fire and forget)
@@ -176,15 +171,15 @@ export async function POST(req) {
         for (const pid of programIdsToAssign) {
           try {
             await db.execute({
-              sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                    VALUES (?, ?, ?, ?)
+              sql: `INSERT INTO participant_programs (participant_id, program_id)
+                    VALUES (?, ?)
                     ON CONFLICT (participant_id, program_id) DO NOTHING`,
-              args: [vc.cid, pid, "system", "registration"],
+              args: [vc.cid, pid],
             });
 
             await db.execute({
-              sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
-                    VALUES (?, ?, 'assigned', ?, 'registration')`,
+              sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
+                    VALUES (?, ?, 'assigned', ?)`,
               args: [vc.cid, pid, "system"],
             });
           } catch (e) {
@@ -333,15 +328,15 @@ export async function PUT(req) {
       for (const pid of data.program_ids) {
         try {
           await db.execute({
-            sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                  VALUES (?, ?, ?, ?)
+            sql: `INSERT INTO participant_programs (participant_id, program_id)
+                  VALUES (?, ?)
                   ON CONFLICT (participant_id, program_id) DO NOTHING`,
-            args: [data.cid, pid, data.assigned_by || "system", "manual"],
+            args: [data.cid, pid],
           });
 
           await db.execute({
-            sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
-                  VALUES (?, ?, 'assigned', ?, 'manual')`,
+            sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
+                  VALUES (?, ?, 'assigned', ?)`,
             args: [data.cid, pid, data.assigned_by || "system"],
           });
         } catch (e) {
@@ -355,14 +350,12 @@ export async function PUT(req) {
       // Single program_id fallback — ensure at least this one exists
       try {
         await db.execute({
-          sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                VALUES (?, ?, ?, ?)
+          sql: `INSERT INTO participant_programs (participant_id, program_id)
+                VALUES (?, ?)
                 ON CONFLICT (participant_id, program_id) DO NOTHING`,
           args: [
             data.cid,
             data.program_id,
-            data.assigned_by || "system",
-            "manual",
           ],
         });
       } catch (e) {

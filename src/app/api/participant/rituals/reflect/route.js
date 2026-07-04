@@ -53,7 +53,7 @@ export const POST = createHandler(async (req) => {
     );
 
   await db.execute({
-    sql: "INSERT INTO v2_reflections (participant_id, program_id, week_number, learnings, challenges, suggestions) VALUES (?, ?, ?, ?, ?, ?)",
+    sql: "INSERT INTO v2_reflections (user_id, program_id, week_number, learnings, challenges, suggestions) VALUES (?, ?, ?, ?, ?, ?)",
     args: [
       cid,
       program_id,
