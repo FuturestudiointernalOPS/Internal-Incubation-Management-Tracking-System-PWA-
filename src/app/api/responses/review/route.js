@@ -1,14 +1,11 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function POST(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "teacher"]);
-    if (authError) return authError;
+export const POST = createHandler(
+  { roles: ["super_admin", "staff", "teacher"] },
+  async (req) => {
     const { response_id, cid } = await req.json();
-
     if (!response_id || !cid)
       return NextResponse.json(
         { success: false, error: "Missing fields" },
@@ -24,11 +21,9 @@ export async function POST(req) {
       sql: "SELECT answers, form_id FROM form_responses WHERE id = ?",
       args: [response_id],
     });
-
     if (responseData.rows.length > 0) {
       const form_id = responseData.rows[0].form_id;
       const answers = JSON.parse(responseData.rows[0].answers || "{}");
-
       const hasYes = Object.values(answers).some(
         (v) => v === "Yes" || String(v).toLowerCase() === "yes" || v === true,
       );
@@ -38,11 +33,8 @@ export async function POST(req) {
       let status = "responded";
       if (hasYes) status = "yes";
       else if (hasNo) status = "no";
-
       await db.execute({
-        sql: `UPDATE campaign_contacts
-               SET status = ?
-               WHERE cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
+        sql: `UPDATE campaign_contacts SET status = ? WHERE cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
         args: [status, cid, form_id],
       });
     }
@@ -51,10 +43,5 @@ export async function POST(req) {
       success: true,
       message: "Manually matched successfully.",
     });
-  } catch (err) {
-    return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
