@@ -6,14 +6,14 @@ export const POST = createHandler(async (req) => {
   const body = await req.json();
   const {
     program_id,
-    group_id,
     participant_id,
+    week_number,
     learnings,
-    challenges,
+    accomplishments,
     suggestions,
   } = body;
 
-  if (!program_id || (!group_id && !participant_id)) {
+  if (!program_id || !participant_id || week_number === undefined) {
     return NextResponse.json(
       { success: false, error: "Missing required fields" },
       { status: 400 },
@@ -21,21 +21,21 @@ export const POST = createHandler(async (req) => {
   }
 
   const result = await db.execute({
-    sql: `INSERT INTO v2_feedback (program_id, group_id, participant_id, learnings, challenges, suggestions)
+    sql: `INSERT INTO v2_feedback (program_id, participant_id, week_number, learnings, accomplishments, suggestions)
            VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
     args: [
       program_id,
-      group_id || null,
-      participant_id || null,
+      participant_id,
+      week_number,
       learnings || null,
-      challenges || null,
+      accomplishments || null,
       suggestions || null,
     ],
   });
 
   return NextResponse.json({
     success: true,
-    feedback: { id: Number(result.rows[0]?.id ?? result.lastInsertRowid) },
+    feedback: { id: result.rows[0]?.id ?? null },
   });
 });
 
@@ -43,10 +43,9 @@ export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
   const program_id = searchParams.get("program_id");
 
-  let sql = `SELECT f.*, p.name as participant_name, g.name as group_name
+  let sql = `SELECT f.*, p.name as participant_name
        FROM v2_feedback f
        LEFT JOIN v2_participants p ON f.participant_id = p.id
-       LEFT JOIN v2_groups g ON f.group_id = g.id
        WHERE 1=1`;
   let args = [];
   if (program_id) {
@@ -59,7 +58,6 @@ export const GET = createHandler(async (req) => {
   const feedback = rows.map((r) => ({
     ...r,
     v2_participants: r.participant_name ? { name: r.participant_name } : null,
-    v2_groups: r.group_name ? { name: r.group_name } : null,
   }));
   return NextResponse.json({ success: true, feedback });
 });
