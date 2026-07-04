@@ -1,12 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
+export const GET = createHandler(
+  { roles: ["staff", "super_admin"] },
+  async (req) => {
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
     const result = await db.execute({
@@ -14,29 +12,17 @@ export async function GET(req) {
       args: [programId],
     });
     return NextResponse.json({ success: true, followups: result.rows });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
 
-export async function POST(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
+export const POST = createHandler(
+  { roles: ["staff", "super_admin"] },
+  async (req) => {
     const { program_id, week_number, session_id, comment } = await req.json();
     const result = await db.execute({
       sql: "INSERT INTO v2_followups (program_id, week_number, session_id, comment) VALUES (?, ?, ?, ?) RETURNING *",
       args: [program_id, week_number, session_id || null, comment],
     });
     return NextResponse.json({ success: true, followup: result.rows[0] });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
