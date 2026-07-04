@@ -830,6 +830,8 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       fetchSubmissionCount();
       fetchPendingInvites();
       fetchPendingAssignments();
+      // Trigger deadline check (idempotent, safe)
+      fetch("/api/tasks/notify-deadlines", { method: "POST" }).catch(() => {});
     }, 15000);
     return () => clearTimeout(id);
   }, [fetchNotifications, fetchSubmissionCount, fetchPendingInvites, fetchPendingAssignments]);
