@@ -29,16 +29,9 @@ export const POST = createHandler(
     const token = uuidv4();
 
     await db.execute({
-      sql: `INSERT INTO password_setup_tokens (token, contact_cid, token_type, invited_by, role, group_id, expires_at)
-          VALUES (?, ?, ?, ?, ?, ?, NOW() + INTERVAL '48 hours')`,
-      args: [
-        token,
-        cid,
-        tokenType,
-        invitedBy || null,
-        role || null,
-        groupId || null,
-      ],
+      sql: `INSERT INTO password_setup_tokens (token, contact_cid, expires_at)
+          VALUES (?, ?, NOW() + INTERVAL '48 hours')`,
+      args: [token, cid],
     });
 
     sendInviteEmail({ to: email, name, role, token }).catch((e) =>

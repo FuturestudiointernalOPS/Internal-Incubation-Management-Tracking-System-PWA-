@@ -87,8 +87,8 @@ export async function POST(req) {
         // Generate invite token
         const token = uuidv4();
         await db.execute({
-          sql: "INSERT INTO password_setup_tokens (token, contact_cid, token_type, role, group_id, expires_at) VALUES (?, ?, 'family_invite', 'participant', ?, NOW() + INTERVAL '48 hours')",
-          args: [token, cid, familyId],
+          sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at) VALUES (?, ?, NOW() + INTERVAL '48 hours')",
+          args: [token, cid],
         });
 
         // Send email

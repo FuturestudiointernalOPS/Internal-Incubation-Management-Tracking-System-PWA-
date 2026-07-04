@@ -24,7 +24,7 @@ export async function GET(req) {
       sql: `SELECT pt.*, c.name, c.email, c.role
             FROM password_setup_tokens pt
             JOIN contacts c ON pt.contact_cid = c.cid
-            WHERE pt.token = ? AND pt.used_at IS NULL AND pt.expires_at > NOW()`,
+            WHERE pt.token = ? AND pt.used = 0 AND pt.expires_at > NOW()`,
       args: [token],
     });
 
@@ -85,7 +85,7 @@ export async function POST(req) {
       sql: `SELECT pt.*, c.email, c.name, c.role
             FROM password_setup_tokens pt
             JOIN contacts c ON pt.contact_cid = c.cid
-            WHERE pt.token = ? AND pt.used_at IS NULL AND pt.expires_at > NOW()`,
+            WHERE pt.token = ? AND pt.used = 0 AND pt.expires_at > NOW()`,
       args: [token],
     });
 
@@ -101,13 +101,13 @@ export async function POST(req) {
 
     // Update contact: set password, mark as active and verified
     await db.execute({
-      sql: "UPDATE contacts SET password = ?, status = 'active', activated_at = NOW() WHERE cid = ?",
+      sql: "UPDATE contacts SET password = ?, status = 'active' WHERE cid = ?",
       args: [hashedPassword, record.contact_cid],
     });
 
     // Mark token as used
     await db.execute({
-      sql: "UPDATE password_setup_tokens SET used_at = NOW() WHERE token = ?",
+      sql: "UPDATE password_setup_tokens SET used = 1 WHERE token = ?",
       args: [token],
     });
 

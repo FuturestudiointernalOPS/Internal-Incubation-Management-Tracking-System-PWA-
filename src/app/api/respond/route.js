@@ -33,7 +33,7 @@ export async function POST(req) {
       if (emailMatch.rows.length > 0) {
         resolvedCid = emailMatch.rows[0].cid;
         confidence_score = 100;
-      } 
+      }
       else if (publicData.phone) {
         const phoneMatch = await db.execute({
           sql: "SELECT cid FROM contacts WHERE phone = ?",
@@ -44,7 +44,7 @@ export async function POST(req) {
           confidence_score = 95;
         }
       }
-      
+
       if (!resolvedCid && publicData.name) {
         const nameMatch = await db.execute({
           sql: "SELECT cid FROM contacts WHERE LOWER(name) LIKE LOWER(?)",
@@ -82,9 +82,9 @@ export async function POST(req) {
       else if (hasNo) status = 'no';
 
       await db.execute({
-        sql: `UPDATE campaign_contacts 
-              SET status = ? 
-              WHERE cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
+        sql: `UPDATE campaign_contacts
+              SET status = ?
+              WHERE contact_cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
         args: [status, resolvedCid, form_id]
       });
     }

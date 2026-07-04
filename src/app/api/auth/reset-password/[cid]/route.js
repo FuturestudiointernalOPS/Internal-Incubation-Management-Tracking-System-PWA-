@@ -24,7 +24,7 @@ export const POST = createHandler(
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const resetUrl = `${appUrl}/activate?token=${token}&mode=reset`;
     await db.execute({
-      sql: "INSERT INTO password_setup_tokens (token, contact_cid, token_type, expires_at) VALUES (?, ?, 'password_reset', NOW() + INTERVAL '48 hours')",
+      sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at) VALUES (?, ?, NOW() + INTERVAL '48 hours')",
       args: [token, cid],
     });
     sendPasswordResetEmail({

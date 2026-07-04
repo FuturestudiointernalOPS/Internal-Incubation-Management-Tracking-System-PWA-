@@ -68,7 +68,7 @@ export async function POST(request) {
 
     // Link the task back to the error log
     await db.execute({
-      sql: "UPDATE error_logs SET task_id = ?, status = 'in_progress' WHERE id = ?",
+      sql: "UPDATE error_logs SET task_id = ? WHERE id = ?",
       args: [taskId, error_id],
     });
 

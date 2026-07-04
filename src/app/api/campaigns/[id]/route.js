@@ -13,7 +13,7 @@ export async function GET(req, { params }) {
     const campaignRes = await db.execute({
       sql: `SELECT c.*,
                    COUNT(cc.id) as total_contacts,
-                   SUM(CASE WHEN cc.status = 'completed' OR cc.sequence_step > 0 THEN 1 ELSE 0 END) as sent_contacts
+                   SUM(CASE WHEN cc.status != 'pending' THEN 1 ELSE 0 END) as sent_contacts
             FROM campaigns c
             LEFT JOIN campaign_contacts cc ON c.id = cc.campaign_id
             WHERE c.id = ?
@@ -35,18 +35,17 @@ export async function GET(req, { params }) {
     });
 
     // 2. Get Step-by-Step Delivery Counts
-    // A contact has 'received' step N if their current sequence_step is > N
-    // OR if they have marked the entire campaign as 'completed'.
     const contactsRes = await db.execute({
-      sql: "SELECT cid, sequence_step, status FROM campaign_contacts WHERE campaign_id = ?",
+      sql: "SELECT contact_cid, status FROM campaign_contacts WHERE campaign_id = ?",
       args: [id],
     });
 
+    const nonPendingCount = contactsRes.rows.filter(
+      (c) => c.status !== "pending",
+    ).length;
+
     const stepsWithCounts = stepsRes.rows.map((step) => {
-      const deliveredCount = contactsRes.rows.filter(
-        (c) => c.sequence_step > step.step_order || c.status === "completed",
-      ).length;
-      return { ...step, delivered_count: deliveredCount };
+      return { ...step, delivered_count: nonPendingCount };
     });
 
     return NextResponse.json({
@@ -85,21 +84,16 @@ export async function PUT(req, { params }) {
         sql: "DELETE FROM campaign_steps WHERE campaign_id = ?",
         args: [id],
       });
-      const stepQueries = data.steps.map((s, idx) => ({
-        sql: "INSERT INTO campaign_steps (campaign_id, step_order, subject, body, delay_days, delay_minutes, delay_hours, specific_time, scheduled_date, wait_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        args: [
-          id,
-          idx,
-          s.subject,
-          s.body,
-          s.wait_type === "days" ? s.delay_days || 0 : 0,
-          s.wait_type === "minutes" ? s.delay_minutes || 0 : 0,
-          s.wait_type === "hours" ? s.delay_hours || 0 : 0,
-          s.specific_time || null,
-          s.wait_type === "date" ? s.scheduled_date : null,
-          s.wait_type || "days",
-        ],
-      }));
+      const stepQueries = data.steps.map((s, idx) => {
+        const delay_hours =
+          (s.wait_type === "days" ? (s.delay_days || 0) * 24 : 0) +
+          (s.wait_type === "hours" ? s.delay_hours || 0 : 0) +
+          Math.round((s.wait_type === "minutes" ? s.delay_minutes || 0 : 0) / 60);
+        return {
+          sql: "INSERT INTO campaign_steps (campaign_id, step_order, subject, body, delay_hours) VALUES (?, ?, ?, ?, ?)",
+          args: [id, idx, s.subject, s.body, delay_hours],
+        };
+      });
       await db.batch(stepQueries);
     }
 
@@ -108,22 +102,17 @@ export async function PUT(req, { params }) {
       // For simplicity, we'll keep existing sent records and only sync pending/new ones
       // 1. Get existing contact IDs
       const existingRes = await db.execute({
-        sql: "SELECT cid FROM campaign_contacts WHERE campaign_id = ?",
+        sql: "SELECT contact_cid FROM campaign_contacts WHERE campaign_id = ?",
         args: [id],
       });
-      const existingCids = existingRes.rows.map((r) => r.cid);
+      const existingCids = existingRes.rows.map((r) => r.contact_cid);
 
       // 2. Identities to add
       const toAdd = data.cids.filter((cid) => !existingCids.includes(cid));
       if (toAdd.length > 0) {
-        let nextSendAt = new Date().toISOString();
-        const step0 = data.steps?.[0];
-        if (step0 && step0.wait_type === "date" && step0.scheduled_date)
-          nextSendAt = new Date(step0.scheduled_date).toISOString();
-
         const addQueries = toAdd.map((cid) => ({
-          sql: "INSERT INTO campaign_contacts (campaign_id, cid, status, sequence_step, next_send_at) VALUES (?, ?, 'pending', 0, ?)",
-          args: [id, cid, nextSendAt],
+          sql: "INSERT INTO campaign_contacts (campaign_id, contact_cid, status) VALUES (?, ?, 'pending')",
+          args: [id, cid],
         }));
         await db.batch(addQueries);
       }
@@ -132,7 +121,7 @@ export async function PUT(req, { params }) {
       const toRemove = existingCids.filter((cid) => !data.cids.includes(cid));
       if (toRemove.length > 0) {
         await db.execute({
-          sql: `DELETE FROM campaign_contacts WHERE campaign_id = ? AND cid IN (${toRemove.map(() => "?").join(",")}) AND status != 'sent'`,
+          sql: `DELETE FROM campaign_contacts WHERE campaign_id = ? AND contact_cid IN (${toRemove.map(() => "?").join(",")}) AND status != 'sent'`,
           args: [id, ...toRemove],
         });
       }

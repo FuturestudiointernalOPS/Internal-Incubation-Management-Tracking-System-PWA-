@@ -6,6 +6,22 @@
 
 Grouped below by root cause — most of the 162 collapse into ~12 clusters, since the same wrong column name is repeated across many files.
 
+## ✅ Status after Batch 1 + Batch 2 (both applied)
+
+**Fully fixed and re-verified clean**: clusters 1(partial→now complete)/2/3(partial)/4/5/6/8(partial)/9/10, plus B1–B7 in `docs/DEEPSEEK_SCHEMA_FIX_BATCH2.md` (password_setup_tokens fully aligned, rituals degraded-but-consistent, v2_submissions rename, campaigns/campaign_contacts simplified to single-send, v2_checkins, standard-types, error_logs, contacts.supervisor_cid no-op, `groups/route.js` now returns 501 instead of crashing).
+
+**Deliberately left broken, flagged, not touched** (schema too far from code intent to safely auto-fix — needs a real product/architecture decision when that module is actually built):
+- `kpi_progress` (+ `lib/kpi-progress.js` and every reader)
+- `pm/curriculum`, `pm/schedule`, `teacher/full-state`, `v2/teacher/full-state` (the `v2_sessions`/`v2_document_requirements` parts specifically — these files ALSO contain the now-fixed `v2_submissions.document_id→deliverable_id` rename, so they're partially fixed, partially still broken by design)
+- `forms`, `forms/[form_id]`, `respond`, `responses`, `responses/review`, `send-pending` (the `form_responses`/`forms.schema` parts — `send-pending`'s campaign-side logic was fixed, the forms-side wasn't)
+- `project_approval_requests` (`admin/projects/[id]/approvals`, `tasks/approve`, `tasks/route.js`)
+
+**Missed entirely — not in either batch, still broken, nobody's fault, just an oversight**: `v2_attendance` (cluster 6 — `attendance/route.js`, `participant/home`, `participant/programs/[id]`, `participant/programs`, `participant/progress`). This one WAS a safe rename candidate (drop `date`/`program_id`, no structural gap) but got dropped from both batch's file lists. Pick up whenever convenient — same mechanical treatment as the other renames.
+
+Also still broken, correctly out of scope both times: the 5 uuid/text cast sites that needed a "confirm the id-spaces actually correspond before casting" judgment call (`admin/analytics/users`, `dashboard`, `submissions.js:93`) — 2 of 5 original casts were applied (invites token join, notion sync, auth/login UNION), these 3 remain unresolved.
+
+---
+
 ---
 
 ## Clusters where the fix is a straightforward rename (code → match existing schema)

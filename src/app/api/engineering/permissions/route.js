@@ -37,7 +37,7 @@ export async function GET(req) {
     if (users === "true") {
       // Fetch all contacts with their enriched data
       const contactsRes = await db.execute({
-        sql: "SELECT cid, name, email, role, status, access_profile_id, group_name, created_at, invited_at FROM contacts ORDER BY name ASC",
+        sql: "SELECT cid, name, email, role, status, access_profile_id, group_name, created_at FROM contacts ORDER BY name ASC",
       });
 
       // Fetch all user_groups
@@ -110,7 +110,6 @@ export async function GET(req) {
           groups,
           responsibilities: respMap[u.cid] || [],
           created_at: u.created_at,
-          invited_at: u.invited_at,
         };
       });
 
@@ -499,17 +498,14 @@ export async function PUT(req) {
         break;
 
       case "set_supervisor":
-        await db.execute({
-          sql: "UPDATE contacts SET supervisor_cid = ? WHERE cid = ?",
-          args: [body.supervisor_cid || null, user_cid],
-        });
+        // supervisor_cid column does not exist on contacts — no-op until migration adds it
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
           targetCid: user_cid,
           targetName,
           action: "supervisor_assigned",
-          details: `Supervisor set to ${body.supervisor_cid || "none"}`,
+          details: `Supervisor set to ${body.supervisor_cid || "none"} (not persisted — column missing)`,
         });
         break;
 

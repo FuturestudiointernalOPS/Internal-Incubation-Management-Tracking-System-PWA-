@@ -11,13 +11,11 @@ export const dynamic = "force-dynamic";
 async function fireInvite(cid, name, email, role, groupId) {
   try {
     const token = uuidv4();
-    const tokenType =
-      role === "participant" ? "participant_invite" : "staff_invite";
 
     await db.execute({
-      sql: `INSERT INTO password_setup_tokens (token, contact_cid, token_type, role, group_id, expires_at)
-            VALUES (?, ?, ?, ?, ?, NOW() + INTERVAL '48 hours')`,
-      args: [token, cid, tokenType, role || null, groupId || null],
+      sql: `INSERT INTO password_setup_tokens (token, contact_cid, expires_at)
+            VALUES (?, ?, NOW() + INTERVAL '48 hours')`,
+      args: [token, cid],
     });
 
     // Send email (non-blocking, fire and forget)

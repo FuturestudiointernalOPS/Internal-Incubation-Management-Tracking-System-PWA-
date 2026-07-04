@@ -34,7 +34,7 @@ export const POST = createHandler(
       if (hasYes) status = "yes";
       else if (hasNo) status = "no";
       await db.execute({
-        sql: `UPDATE campaign_contacts SET status = ? WHERE cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
+        sql: `UPDATE campaign_contacts SET status = ? WHERE contact_cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
         args: [status, cid, form_id],
       });
     }

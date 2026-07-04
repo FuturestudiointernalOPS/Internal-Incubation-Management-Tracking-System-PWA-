@@ -9,17 +9,16 @@ export async function GET() {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    // Find pending contacts and their current step requirements
+    // Find pending contacts for first step only
     const result = await db.execute(`
-      SELECT cc.id as cc_id, cc.cid, cc.campaign_id, cc.sequence_step,
+      SELECT cc.id as cc_id, cc.contact_cid, cc.campaign_id,
              c.email, c.name, cam.name as campaign_name, cam.form_id,
-             cs.subject as step_subject, cs.body as step_body, cs.delay_days
+             cs.subject as step_subject, cs.body as step_body
       FROM campaign_contacts cc
-      JOIN contacts c ON cc.cid = c.cid
+      JOIN contacts c ON cc.contact_cid = c.cid
       JOIN campaigns cam ON cc.campaign_id = cam.id
-      JOIN campaign_steps cs ON cc.campaign_id = cs.campaign_id AND cc.sequence_step = cs.step_order
+      JOIN campaign_steps cs ON cc.campaign_id = cs.campaign_id AND cs.step_order = 0
       WHERE cc.status = 'pending'
-      AND (cc.next_send_at IS NULL OR datetime(cc.next_send_at) <= datetime('now'))
       AND cam.status != 'paused'
       LIMIT 10
     `);
@@ -40,7 +39,7 @@ export async function GET() {
 
     for (const row of result.rows) {
       const formUrl = row.form_id
-        ? `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/form/${row.form_id}?cid=${row.cid}`
+        ? `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/form/${row.form_id}?cid=${row.contact_cid}`
         : "";
 
       // Personalize Content
@@ -67,7 +66,7 @@ export async function GET() {
                 : ""
             }
 
-            <p style="margin-top: 50px; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 25px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: bold;">Electronic Dispatch ID: ${row.cid} · ImpactOS Executive Core</p>
+            <p style="margin-top: 50px; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 25px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: bold;">Electronic Dispatch ID: ${row.contact_cid} · ImpactOS Executive Core</p>
           </div>
         `;
 
@@ -79,45 +78,11 @@ export async function GET() {
           isHtml: true,
         });
 
-        // 1. Identify the NEXT step in the sequence
-        const nextStepResult = await db.execute({
-          sql: "SELECT * FROM campaign_steps WHERE campaign_id = ? AND step_order = ?",
-          args: [row.campaign_id, row.sequence_step + 1],
+        // Single-send: mark contact as completed after sending
+        await db.execute({
+          sql: `UPDATE campaign_contacts SET status = 'completed', sent_at = NOW() WHERE id = ?`,
+          args: [row.cc_id],
         });
-
-        if (nextStepResult.rows.length > 0) {
-          const ns = nextStepResult.rows[0];
-
-          // 2. Calculate the next dispatch window correctly
-          if (ns.wait_type === "date" && ns.scheduled_date) {
-            // Fixed Date/Time logic
-            await db.execute({
-              sql: `UPDATE campaign_contacts SET sequence_step = sequence_step + 1, next_send_at = ?, status = 'pending' WHERE id = ?`,
-              args: [ns.scheduled_date, row.cc_id],
-            });
-          } else {
-            // Dynamic Delay logic (Minutes/Hours/Days)
-            const unit = ns.wait_type || "days";
-            const val =
-              unit === "minutes"
-                ? ns.delay_minutes || 0
-                : unit === "hours"
-                  ? ns.delay_hours || 0
-                  : ns.delay_days || 0;
-            const window = `+${val} ${unit}`;
-
-            await db.execute({
-              sql: `UPDATE campaign_contacts SET sequence_step = sequence_step + 1, next_send_at = datetime('now', ?), status = 'pending' WHERE id = ?`,
-              args: [window, row.cc_id],
-            });
-          }
-        } else {
-          // Sequence complete
-          await db.execute({
-            sql: `UPDATE campaign_contacts SET status = 'completed', next_send_at = NULL WHERE id = ?`,
-            args: [row.cc_id],
-          });
-        }
         sentCount++;
       } catch (err) {
         console.error("Failed to send email to", row.email, err);

@@ -101,7 +101,7 @@ export async function GET(req) {
       const submissions = subRes.rows || [];
 
       for (const d of deliverables) {
-        const sub = submissions.find((s) => s.document_id === d.id);
+        const sub = submissions.find((s) => s.deliverable_id === d.id);
         allAssignments.push({
           id: d.id,
           title: d.title,
@@ -168,7 +168,7 @@ export async function POST(req) {
     }
 
     await db.execute({
-      sql: "INSERT INTO v2_submissions (participant_id, program_id, document_id, file_url, status) VALUES (?, ?, ?, ?, 'pending')",
+      sql: "INSERT INTO v2_submissions (participant_id, program_id, deliverable_id, file_url, status) VALUES (?, ?, ?, ?, 'pending')",
       args: [cid, program_id, deliverable_id, file_url || null],
     });
 

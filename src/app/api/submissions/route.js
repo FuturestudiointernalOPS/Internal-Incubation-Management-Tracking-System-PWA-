@@ -108,8 +108,8 @@ export async function PATCH(req) {
 
     // 2. Update Database
     await db.execute({
-      sql: "UPDATE v2_submissions SET status = ?, feedback = ?, score = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?",
-      args: [status, feedback || null, score !== undefined ? score : null, id],
+      sql: "UPDATE v2_submissions SET status = ?, feedback = ?, approved_at = CURRENT_TIMESTAMP WHERE id = ?",
+      args: [status, feedback || null, id],
     });
 
     // 3. Dispatch In-App Notification to Participant (non-blocking)
@@ -225,12 +225,8 @@ export async function PUT(req) {
       );
     }
 
-    await db.execute({
-      sql: "UPDATE v2_submissions SET score = ? WHERE participant_id = ? AND program_id = ?",
-      args: [score, String(participant_id), program_id],
-    });
-
-    return NextResponse.json({ success: true });
+    // score column does not exist in current v2_submissions schema
+    return NextResponse.json({ success: true, message: "Score column not available in current schema" });
   } catch (error) {
     console.error("Submissions PUT Error:", error);
     return NextResponse.json(

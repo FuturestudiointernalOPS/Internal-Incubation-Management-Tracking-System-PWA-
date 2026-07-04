@@ -27,9 +27,9 @@ export const GET = createHandler({ roles: ["staff", "super_admin"] }, async () =
   `);
 
   const campaignContactsResult = await db.execute(`
-    SELECT cc.campaign_id, cc.cid, cc.status, c.name, c.email
+    SELECT cc.campaign_id, cc.contact_cid, cc.status, c.name, c.email
     FROM campaign_contacts cc
-    JOIN contacts c ON cc.cid = c.cid
+    JOIN contacts c ON cc.contact_cid = c.cid
   `);
 
   const flaggedResult = await db.execute(`

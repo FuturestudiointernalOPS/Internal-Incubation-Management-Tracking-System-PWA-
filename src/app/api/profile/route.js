@@ -21,7 +21,7 @@ export async function GET() {
 
     await initDb();
     const res = await db.execute({
-      sql: "SELECT name, email, phone, address, language, supervisor_cid FROM contacts WHERE cid = ?",
+      sql: "SELECT name, email, phone, address, language FROM contacts WHERE cid = ?",
       args: [session.cid],
     });
 
@@ -48,7 +48,6 @@ export async function GET() {
         address: user.address,
         language: user.language,
         profile_completed: !!user.profile_completed,
-        supervisor_cid: user.supervisor_cid,
       },
       mandatory: { name: !hasName, email: !hasEmail },
       isComplete,

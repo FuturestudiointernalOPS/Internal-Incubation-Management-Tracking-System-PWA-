@@ -12,7 +12,7 @@ export const GET = createHandler(ROLE, async (req) => {
   let args = [];
 
   if (category) {
-    query += " AND category = ?";
+    query += " AND description = ?";
     args.push(category);
   }
 
@@ -24,13 +24,13 @@ export const POST = createHandler(ROLE, async (req) => {
   const { category, label, id } = await req.json();
   if (id) {
     await db.execute({
-      sql: "UPDATE v2_standard_types SET label = ? WHERE id = ?",
+      sql: "UPDATE v2_standard_types SET name = ? WHERE id = ?",
       args: [label, id],
     });
   } else {
     await db.execute({
-      sql: "INSERT INTO v2_standard_types (category, label) VALUES (?, ?)",
-      args: [category, label],
+      sql: "INSERT INTO v2_standard_types (name, description) VALUES (?, ?)",
+      args: [label, category],
     });
   }
   return NextResponse.json({ success: true });

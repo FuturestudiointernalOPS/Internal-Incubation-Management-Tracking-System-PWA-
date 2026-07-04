@@ -19,7 +19,7 @@ export const GET = createHandler(
         args: [cid],
       }),
       db.execute({
-        sql: `SELECT s.*, r.title as requirement_title, ses.week_number FROM v2_submissions s JOIN v2_document_requirements r ON s.document_id = r.id LEFT JOIN v2_sessions ses ON r.session_id = ses.id JOIN v2_teams t ON s.program_id = t.program_id WHERE t.handler_id = ? AND s.status = 'pending'`,
+        sql: `SELECT s.*, r.title as requirement_title, ses.week_number FROM v2_submissions s JOIN v2_document_requirements r ON s.deliverable_id = r.id LEFT JOIN v2_sessions ses ON r.session_id = ses.id JOIN v2_teams t ON s.program_id = t.program_id WHERE t.handler_id = ? AND s.status = 'pending'`,
         args: [cid],
       }),
       db.execute({

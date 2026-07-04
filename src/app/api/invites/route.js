@@ -11,8 +11,7 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
     role = "participant",
     expiresInDays = 7,
     expiresInHours,
-    created_by,
-  } = await req.json();
+    } = await req.json();
 
   if (!program_id) {
     return NextResponse.json(
@@ -32,8 +31,8 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
 
   try {
     await db.execute({
-      sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, expires_at, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?)`,
       args: [
         token,
         program_id,
@@ -41,7 +40,6 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
         team_id || null,
         role,
         expiresAt.toISOString().replace("T", " ").replace("Z", ""),
-        created_by || "admin",
       ],
     });
 
