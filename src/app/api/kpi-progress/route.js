@@ -28,12 +28,22 @@ export const GET = createHandler(
     }
 
     // Read from persisted kpi_progress table
-    const progressRes = await db.execute({
-      sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
-      args: [programId],
-    });
-
-    let progressEntries = progressRes.rows || [];
+    let progressEntries;
+    try {
+      const progressRes = await db.execute({
+        sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+        args: [programId],
+      });
+      progressEntries = progressRes.rows || [];
+    } catch (e) {
+      // kpi_progress schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 11
+      return NextResponse.json({
+        success: true,
+        kpiProgress: [],
+        overallProgress: 0,
+        source: "unavailable",
+      });
+    }
 
     // If no persisted data exists, calculate on the fly and persist it
     if (progressEntries.length === 0) {

@@ -735,17 +735,21 @@ export async function PUT(req) {
           // Staff not assigned — reset to pending approval
           updateFields.push("status = 'pending_project_approval'");
           // Create new approval request
-          await db.execute({
-            sql: `INSERT INTO project_approval_requests
-              (task_id, requester_id, requester_name, project_id, status)
-              VALUES (?, ?, ?, ?, 'pending')`,
-            args: [
-              parseInt(id),
-              user_id || task.user_id,
-              user_name || task.user_name || "",
-              project_id,
-            ],
-          });
+          try {
+            await db.execute({
+              sql: `INSERT INTO project_approval_requests
+                (task_id, requester_id, requester_name, project_id, status)
+                VALUES (?, ?, ?, ?, 'pending')`,
+              args: [
+                parseInt(id),
+                user_id || task.user_id,
+                user_name || task.user_name || "",
+                project_id,
+              ],
+            });
+          } catch (e) {
+            console.error("Failed to insert project_approval_request:", e.message);
+          }
           changes.push("project reassignment requires approval");
         }
       }

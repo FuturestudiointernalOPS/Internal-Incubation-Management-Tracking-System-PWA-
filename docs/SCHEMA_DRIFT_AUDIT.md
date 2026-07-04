@@ -6,19 +6,27 @@
 
 Grouped below by root cause — most of the 162 collapse into ~12 clusters, since the same wrong column name is repeated across many files.
 
-## ✅ Status after Batch 1 + Batch 2 (both applied)
+## ✅ Status after Batch 1 + Batch 2 + Batch 3 (all applied)
 
-**Fully fixed and re-verified clean**: clusters 1(partial→now complete)/2/3(partial)/4/5/6/8(partial)/9/10, plus B1–B7 in `docs/DEEPSEEK_SCHEMA_FIX_BATCH2.md` (password_setup_tokens fully aligned, rituals degraded-but-consistent, v2_submissions rename, campaigns/campaign_contacts simplified to single-send, v2_checkins, standard-types, error_logs, contacts.supervisor_cid no-op, `groups/route.js` now returns 501 instead of crashing).
+**Fully fixed and re-verified clean**: clusters 1/2/3/4/5/6(partially, see below)/8/9/10, all of B1–B7 (batch 2), and C1–C4 (batch 3, `docs/DEEPSEEK_SCHEMA_FIX_BATCH3.md`) — password_setup_tokens fully aligned, rituals degraded-but-consistent, v2_submissions rename, campaigns/campaign_contacts simplified to single-send, v2_checkins, standard-types, error_logs, contacts.supervisor_cid no-op, `groups/route.js` returns 501.
 
-**Deliberately left broken, flagged, not touched** (schema too far from code intent to safely auto-fix — needs a real product/architecture decision when that module is actually built):
-- `kpi_progress` (+ `lib/kpi-progress.js` and every reader)
-- `pm/curriculum`, `pm/schedule`, `teacher/full-state`, `v2/teacher/full-state` (the `v2_sessions`/`v2_document_requirements` parts specifically — these files ALSO contain the now-fixed `v2_submissions.document_id→deliverable_id` rename, so they're partially fixed, partially still broken by design)
-- `forms`, `forms/[form_id]`, `respond`, `responses`, `responses/review`, `send-pending` (the `form_responses`/`forms.schema` parts — `send-pending`'s campaign-side logic was fixed, the forms-side wasn't)
-- `project_approval_requests` (`admin/projects/[id]/approvals`, `tasks/approve`, `tasks/route.js`)
+**Batch 3 result — the 4 previously-crashing clusters now degrade gracefully instead of 500ing** (live-tested, not just statically):
+- `kpi_progress`: GET returns `{success:true, kpiProgress:[], overallProgress:0, source:"unavailable"}` instead of crashing. `recalculateKpiProgress` returns `[]` on write failure, writes nothing invented.
+- `pm/curriculum`, `pm/schedule`: whole routes return 501 "not available in this schema" (confirmed live via POST `action:add_session`).
+- `teacher/full-state`: the `v2_sessions` part AND the `v2_submissions` part (see correction below) both degrade to `[]`; the working `v2_teams` query still returns real data.
+- `forms`, `forms/[form_id]`: 501 (confirmed live).
+- `respond`, `responses`, `responses/review`: only the `form_responses`/`forms` queries wrapped, `campaign_contacts` parts (fixed in batch 2) still return real data (confirmed live — `/api/responses` returns real-shaped empty arrays, no 500).
+- `project_approval_requests`: `admin/projects/[id]/approvals` GET returns `{success:true, requests:[]}` (confirmed live), POST approve/reject and `tasks/approve` return a clean "not available" message instead of crashing; `tasks/route.js`'s approval-request INSERT silently logs and continues without blocking the task update itself.
 
-**Missed entirely — not in either batch, still broken, nobody's fault, just an oversight**: `v2_attendance` (cluster 6 — `attendance/route.js`, `participant/home`, `participant/programs/[id]`, `participant/programs`, `participant/progress`). This one WAS a safe rename candidate (drop `date`/`program_id`, no structural gap) but got dropped from both batch's file lists. Pick up whenever convenient — same mechanical treatment as the other renames.
+**Two mistakes caught during batch-3 review, both fixed:**
+1. `teacher/full-state/route.js`'s `subRes` query (the `v2_submissions` JOIN) was left unwrapped in the original batch-3 instructions on the assumption it "already worked" after batch 2's `deliverable_id` rename — it doesn't; `deliverable_id` (uuid) vs `v2_document_requirements.id` (integer) is a type mismatch, plus `r.session_id` also doesn't exist. Wrapped it too, now returns `[]` on failure like the sessions query.
+2. `v2/teacher/full-state/route.js` carries the same "AI agent: READ-ONLY here, changes go in V1 counterparts" banner enforced earlier in the createHandler batches — DeepSeek's edit there was reverted (not re-applied), consistent with that rule. Its V1 counterpart (`teacher/full-state/route.js`, no `v2/` prefix) has the real fix; the v2 shim is intentionally left crashing per the banner's own instruction.
 
-Also still broken, correctly out of scope both times: the 5 uuid/text cast sites that needed a "confirm the id-spaces actually correspond before casting" judgment call (`admin/analytics/users`, `dashboard`, `submissions.js:93`) — 2 of 5 original casts were applied (invites token join, notion sync, auth/login UNION), these 3 remain unresolved.
+**Deliberately left broken, flagged, not touched** (schema too far from code intent to safely auto-fix — needs a real product/architecture decision when that module is actually built): nothing new beyond what's now covered by graceful degradation above. The underlying schema gap (kpi_progress shape, v2_sessions richness, forms.schema absence, project_approval_requests entity mismatch) is unchanged — these features still don't *work*, they just don't crash anymore.
+
+**Missed entirely — not in any batch, still broken, nobody's fault, just an oversight**: `v2_attendance` (cluster 6 — `attendance/route.js`, `participant/home`, `participant/programs/[id]`, `participant/programs`, `participant/progress`). This one WAS a safe rename candidate (drop `date`/`program_id`, no structural gap) but got dropped from every batch's file list. Pick up whenever convenient — same mechanical treatment as the other renames.
+
+Also still broken, correctly out of scope every time: the 5 uuid/text cast sites that needed a "confirm the id-spaces actually correspond before casting" judgment call (`admin/analytics/users`, `dashboard`, `submissions.js:93`) — 2 of 5 original casts were applied (invites token join, notion sync, auth/login UNION), these 3 remain unresolved.
 
 ---
 

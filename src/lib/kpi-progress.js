@@ -97,34 +97,40 @@ export async function recalculateKpiProgress(programId) {
   });
 
   // 4. Upsert each entry into kpi_progress table
-  for (const entry of progressEntries) {
-    await db.execute({
-      sql: `INSERT INTO kpi_progress (kpi_id, program_id, linked_sessions, completed_sessions, linked_docs, completed_docs, total_items, completed_items, progress, weight, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-            ON CONFLICT (kpi_id, program_id)
-            DO UPDATE SET
-              linked_sessions = EXCLUDED.linked_sessions,
-              completed_sessions = EXCLUDED.completed_sessions,
-              linked_docs = EXCLUDED.linked_docs,
-              completed_docs = EXCLUDED.completed_docs,
-              total_items = EXCLUDED.total_items,
-              completed_items = EXCLUDED.completed_items,
-              progress = EXCLUDED.progress,
-              weight = EXCLUDED.weight,
-              updated_at = NOW()`,
-      args: [
-        entry.kpi_id,
-        entry.program_id,
-        entry.linked_sessions,
-        entry.completed_sessions,
-        entry.linked_docs,
-        entry.completed_docs,
-        entry.total_items,
-        entry.completed_items,
-        entry.progress,
-        entry.weight,
-      ],
-    });
+  try {
+    for (const entry of progressEntries) {
+      await db.execute({
+        sql: `INSERT INTO kpi_progress (kpi_id, program_id, linked_sessions, completed_sessions, linked_docs, completed_docs, total_items, completed_items, progress, weight, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+              ON CONFLICT (kpi_id, program_id)
+              DO UPDATE SET
+                linked_sessions = EXCLUDED.linked_sessions,
+                completed_sessions = EXCLUDED.completed_sessions,
+                linked_docs = EXCLUDED.linked_docs,
+                completed_docs = EXCLUDED.completed_docs,
+                total_items = EXCLUDED.total_items,
+                completed_items = EXCLUDED.completed_items,
+                progress = EXCLUDED.progress,
+                weight = EXCLUDED.weight,
+                updated_at = NOW()`,
+        args: [
+          entry.kpi_id,
+          entry.program_id,
+          entry.linked_sessions,
+          entry.completed_sessions,
+          entry.linked_docs,
+          entry.completed_docs,
+          entry.total_items,
+          entry.completed_items,
+          entry.progress,
+          entry.weight,
+        ],
+      });
+    }
+  } catch (e) {
+    // kpi_progress schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 11
+    console.warn("kpi_progress write failed:", e.message);
+    return [];
   }
 
   return progressEntries;

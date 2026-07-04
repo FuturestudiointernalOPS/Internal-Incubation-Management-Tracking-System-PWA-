@@ -12,15 +12,25 @@ export const POST = createHandler(
         { status: 400 },
       );
 
-    await db.execute({
-      sql: "UPDATE form_responses SET cid = ?, match_status = 'resolved' WHERE id = ?",
-      args: [cid, response_id],
-    });
+    try {
+      await db.execute({
+        sql: "UPDATE form_responses SET cid = ?, match_status = 'resolved' WHERE id = ?",
+        args: [cid, response_id],
+      });
+    } catch (e) {
+      // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
+    }
 
-    const responseData = await db.execute({
-      sql: "SELECT answers, form_id FROM form_responses WHERE id = ?",
-      args: [response_id],
-    });
+    let responseData;
+    try {
+      responseData = await db.execute({
+        sql: "SELECT answers, form_id FROM form_responses WHERE id = ?",
+        args: [response_id],
+      });
+    } catch (e) {
+      // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
+      responseData = { rows: [] };
+    }
     if (responseData.rows.length > 0) {
       const form_id = responseData.rows[0].form_id;
       const answers = JSON.parse(responseData.rows[0].answers || "{}");
