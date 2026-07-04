@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
+import { getTaskTitleById } from "@/lib/db/queries/tasks";
 
 /**
  * POST /api/retros/submit
@@ -152,11 +153,8 @@ export async function POST(req) {
           });
 
           // Audit log
-          const currentTask = await db.execute({
-            sql: "SELECT title FROM tasks WHERE id = ?",
-            args: [parseInt(task_id)],
-          });
-          const taskTitle = currentTask.rows[0]?.title || `Task #${task_id}`;
+          const taskTitle =
+            (await getTaskTitleById(task_id)) || `Task #${task_id}`;
 
           await logAuditEvent({
             entity_type: "task",

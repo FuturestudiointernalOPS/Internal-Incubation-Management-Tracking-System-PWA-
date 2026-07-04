@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
+import { getTaskTitleById } from "@/lib/db/queries/tasks";
 
 /**
  * POST /api/tasks/reconcile
@@ -50,13 +51,8 @@ export async function POST(req) {
         const updateBody = { id, user_id, user_name, status };
         if (force_complete) updateBody.force_complete = true;
 
-        // Fetch current task for audit
-        const currentTask = await db.execute({
-          sql: "SELECT title FROM tasks WHERE id = ?",
-          args: [parseInt(id)],
-        });
-
-        const taskTitle = currentTask.rows[0]?.title || `Task #${id}`;
+        // Fetch current task name for audit
+        const taskTitle = (await getTaskTitleById(id)) || `Task #${id}`;
 
         // Update via the existing PUT logic by calling through DB directly
         const updateFields = ["status = ?", "updated_at = CURRENT_TIMESTAMP"];

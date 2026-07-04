@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { requireProjectAccess } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { getTaskTitleById } from "@/lib/db/queries/tasks";
 
 /**
  * PROJECT APPROVALS API
@@ -122,11 +123,8 @@ export async function POST(req, { params }) {
 
       // Notify the requester
       try {
-        const taskRes = await db.execute({
-          sql: "SELECT title FROM tasks WHERE id = ?",
-          args: [approvalRequest.task_id],
-        });
-        const taskTitle = taskRes.rows[0]?.title || "Task";
+        const taskTitle =
+          (await getTaskTitleById(approvalRequest.task_id)) || "Task";
 
         await db.execute({
           sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
@@ -144,11 +142,8 @@ export async function POST(req, { params }) {
     } else {
       // Rejected — notify the requester with reason
       try {
-        const taskRes = await db.execute({
-          sql: "SELECT title FROM tasks WHERE id = ?",
-          args: [approvalRequest.task_id],
-        });
-        const taskTitle = taskRes.rows[0]?.title || "Task";
+        const taskTitle =
+          (await getTaskTitleById(approvalRequest.task_id)) || "Task";
 
         await db.execute({
           sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)

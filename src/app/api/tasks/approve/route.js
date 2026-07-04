@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
+import { getTaskById } from "@/lib/db/queries/tasks";
 
 /**
  * TASK APPROVAL API
@@ -41,19 +42,14 @@ export async function POST(req) {
     }
 
     // Fetch the task
-    const taskRes = await db.execute({
-      sql: "SELECT * FROM tasks WHERE id = ?",
-      args: [parseInt(task_id)],
-    });
+    const task = await getTaskById(task_id);
 
-    if (taskRes.rows.length === 0) {
+    if (!task) {
       return NextResponse.json(
         { success: false, error: "Task not found." },
         { status: 404 },
       );
     }
-
-    const task = taskRes.rows[0];
 
     if (task.status !== "pending_project_approval") {
       return NextResponse.json(

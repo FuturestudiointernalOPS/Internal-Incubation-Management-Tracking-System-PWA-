@@ -4,6 +4,11 @@ import { logAuditEvent, isTaskLocked } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
 import { requireAuth } from "@/lib/auth";
 import { standupUpsert } from "@/lib/standupUpsert";
+import {
+  getTaskById,
+  getTaskTitleById,
+  getTaskEndDateById,
+} from "@/lib/db/queries/tasks";
 
 /**
  * TASKS API
@@ -437,11 +442,8 @@ export async function POST(req) {
     if (parent_task_id) {
       try {
         // Fetch parent task title
-        const parentRes = await db.execute({
-          sql: "SELECT title FROM tasks WHERE id = ?",
-          args: [parseInt(parent_task_id)],
-        });
-        const parentTitle = parentRes.rows[0]?.title || "Unknown";
+        const parentTitle =
+          (await getTaskTitleById(parent_task_id)) || "Unknown";
 
         // Fetch all super admins
         const saRes = await db.execute({
@@ -521,12 +523,9 @@ export async function POST(req) {
     // ─── Sync parent end_date if subtask extends further ───
     if (parent_task_id && finalEndDate) {
       try {
-        const parentEndRes = await db.execute({
-          sql: "SELECT end_date FROM tasks WHERE id = ?",
-          args: [parseInt(parent_task_id)],
-        });
-        if (parentEndRes.rows.length > 0 && parentEndRes.rows[0].end_date) {
-          const parentEnd = new Date(parentEndRes.rows[0].end_date);
+        const parentEndStr = await getTaskEndDateById(parseInt(parent_task_id));
+        if (parentEndStr) {
+          const parentEnd = new Date(parentEndStr);
           const subEnd = new Date(finalEndDate);
           if (subEnd > parentEnd) {
             await db.execute({
@@ -591,19 +590,15 @@ export async function PUT(req) {
     }
 
     // Fetch current task state
-    const currentTask = await db.execute({
-      sql: "SELECT * FROM tasks WHERE id = ?",
-      args: [parseInt(id)],
-    });
+    const task = await getTaskById(id);
 
-    if (currentTask.rows.length === 0) {
+    if (!task) {
       return NextResponse.json(
         { success: false, error: "Task not found" },
         { status: 404 },
       );
     }
 
-    const task = currentTask.rows[0];
     const locked = await isTaskLocked(id);
 
     const updateFields = [];
@@ -1096,12 +1091,9 @@ export async function PUT(req) {
       try {
         const effEnd = end_date || task.end_date;
         if (effEnd) {
-          const pEndRes = await db.execute({
-            sql: "SELECT end_date FROM tasks WHERE id = ?",
-            args: [task.parent_task_id],
-          });
-          if (pEndRes.rows.length > 0 && pEndRes.rows[0].end_date) {
-            const pEnd = new Date(pEndRes.rows[0].end_date);
+          const pEndStr = await getTaskEndDateById(task.parent_task_id);
+          if (pEndStr) {
+            const pEnd = new Date(pEndStr);
             const sEnd = new Date(effEnd);
             if (sEnd > pEnd) {
               await db.execute({

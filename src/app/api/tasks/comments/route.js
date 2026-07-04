@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { taskExists } from "@/lib/db/queries/tasks";
 
 /**
  * TASK COMMENTS API (Ticket 1.3 / 1.9 / 4.2 — Task Discussions)
@@ -74,11 +75,7 @@ export async function POST(req) {
     }
 
     // Verify the task exists
-    const taskCheck = await db.execute({
-      sql: "SELECT id FROM tasks WHERE id = ?",
-      args: [parseInt(task_id)],
-    });
-    if (taskCheck.rows.length === 0) {
+    if (!(await taskExists(task_id))) {
       return NextResponse.json(
         { success: false, error: "Task not found" },
         { status: 404 },
