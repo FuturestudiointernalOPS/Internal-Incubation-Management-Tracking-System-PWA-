@@ -119,11 +119,11 @@ export async function POST(req) {
     // Create profile
     const result = await db.execute({
       sql: `INSERT INTO access_profiles (name, description, is_active)
-            VALUES (?, ?, 1)`,
+            VALUES (?, ?, 1) RETURNING id`,
       args: [name.trim(), description || ""],
     });
 
-    const profileId = Number(result.lastInsertRowid);
+    const profileId = Number(result.rows[0]?.id ?? result.lastInsertRowid);
 
     // Add capabilities if provided
     if (capabilities && typeof capabilities === "object") {

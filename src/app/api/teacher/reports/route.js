@@ -96,7 +96,7 @@ export async function POST(req) {
       const result = await db.execute({
         sql: `INSERT INTO v2_weekly_reports
                   (program_id, week_number, teacher_id, teacher_name, reception_score, progress_notes, student_reception, action_taken)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
         args: [
           program_id,
           week_number,

@@ -32,11 +32,11 @@ export async function POST(req) {
 
     const programId = `P-2026-${uuidv4().slice(0, 8).toUpperCase()}`;
 
-    const { lastInsertRowid } = await db.execute({
+    const result = await db.execute({
       sql: `INSERT INTO v2_programs (
         id, name, description, duration_weeks, duration_days,
         topics, outcomes, deliverables, resources, assigned_pm_id, feedback_enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         programId,
         name,

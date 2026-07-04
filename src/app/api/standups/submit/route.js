@@ -90,7 +90,7 @@ export async function POST(req) {
           VALUES (?, ?, ?, 'standup', ?, ?, 'submitted',
            ?, ?, ?,
            ?, ?, ?, ?,
-           ?, ?, ?)`,
+           ?, ?, ?) RETURNING id`,
         args: [
           user_id,
           user_name || "",
@@ -109,7 +109,7 @@ export async function POST(req) {
           additional_notes || null,
         ],
       });
-      reportId = Number(result.lastInsertRowid);
+      reportId = Number(result.rows[0]?.id ?? result.lastInsertRowid);
     }
 
     // Create inline tasks if provided
@@ -135,7 +135,7 @@ export async function POST(req) {
             ],
           });
           createdTasks.push({
-            id: Number(taskResult.lastInsertRowid),
+            id: Number(taskResult.rows[0]?.id ?? taskResult.lastInsertRowid),
             title: task.title,
           });
         }

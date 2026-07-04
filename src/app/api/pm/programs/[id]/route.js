@@ -1,9 +1,12 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(req, { params }) {
   try {
     await initDb();
+    const authError = await requireAuth(["super_admin", "program_manager"]);
+    if (authError) return authError;
     const { id } = await params;
 
     const result = await db.execute({

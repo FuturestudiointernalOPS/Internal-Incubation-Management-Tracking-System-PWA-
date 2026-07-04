@@ -106,7 +106,7 @@ export async function POST(req) {
           VALUES (?, ?, ?, 'retro', ?, ?, 'submitted',
            ?, ?, ?, ?,
            ?, ?, ?,
-           ?, ?, ?, ?)`,
+           ?, ?, ?, ?) RETURNING id`,
         args: [
           user_id,
           user_name || "",
@@ -126,7 +126,7 @@ export async function POST(req) {
           reportData.major_achievement,
         ],
       });
-      reportId = Number(result.lastInsertRowid);
+      reportId = Number(result.rows[0]?.id ?? result.lastInsertRowid);
     }
 
     // Process task reconciliation

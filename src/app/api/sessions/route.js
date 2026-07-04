@@ -20,7 +20,7 @@ export async function POST(req) {
 
     const res = await db.execute({
       sql: `INSERT INTO v2_sessions (program_id, title, week_number, type, teacher_id, start_at)
-            VALUES (?, ?, ?, ?, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         program_id,
         title,
@@ -34,7 +34,7 @@ export async function POST(req) {
     return NextResponse.json({
       success: true,
       session: {
-        id: Number(res.lastInsertRowid),
+        id: Number(res.rows[0]?.id ?? res.lastInsertRowid),
         program_id,
         title,
         week_number,

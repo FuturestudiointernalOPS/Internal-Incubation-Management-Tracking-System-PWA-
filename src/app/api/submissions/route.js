@@ -37,11 +37,11 @@ export async function POST(req) {
     // Use file_url if provided, fall back to submission_link/file_path for backward compat
     const resolvedFileUrl = file_url || submission_link || file_path || null;
 
-    const { lastInsertRowid } = await db.execute({
+    const result = await db.execute({
       sql: `INSERT INTO v2_submissions (
           program_id, deliverable_id, group_id, participant_id,
           file_url, status, feedback
-       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         program_id,
         deliverable_id,
@@ -56,7 +56,7 @@ export async function POST(req) {
     return NextResponse.json({
       success: true,
       submission: {
-        id: Number(lastInsertRowid),
+        id: Number(result.rows[0]?.id ?? result.lastInsertRowid),
         program_id,
         deliverable_id,
         status: status || "pending",

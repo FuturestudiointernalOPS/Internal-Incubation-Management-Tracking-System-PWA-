@@ -18,9 +18,9 @@ export async function POST(req) {
       );
     }
 
-    const { lastInsertRowid } = await db.execute({
+    const result = await db.execute({
       sql: `INSERT INTO v2_deliverables (program_id, title, description, week_number, type, kpi_ids)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         program_id,
         title,
@@ -34,7 +34,7 @@ export async function POST(req) {
     return NextResponse.json({
       success: true,
       deliverable: {
-        id: Number(lastInsertRowid),
+        id: Number(result.rows[0]?.id ?? result.lastInsertRowid),
         program_id,
         title,
         description,

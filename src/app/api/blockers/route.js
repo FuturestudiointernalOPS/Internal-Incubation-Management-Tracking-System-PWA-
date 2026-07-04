@@ -115,7 +115,7 @@ export async function POST(req) {
     const result = await db.execute({
       sql: `INSERT INTO blockers
         (task_id, user_id, user_name, title, description, severity)
-        VALUES (?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         parseInt(task_id),
         user_id,
@@ -132,7 +132,7 @@ export async function POST(req) {
       args: [parseInt(task_id)],
     });
 
-    const blockerId = Number(result.lastInsertRowid);
+    const blockerId = Number(result.rows[0]?.id ?? result.lastInsertRowid);
 
     // Audit log: Blocker Created
     await logAuditEvent({
@@ -221,7 +221,8 @@ export async function PUT(req) {
         return NextResponse.json(
           {
             success: false,
-            error: "Only the blocker creator or the task owner can mark it as resolved",
+            error:
+              "Only the blocker creator or the task owner can mark it as resolved",
           },
           { status: 403 },
         );

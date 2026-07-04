@@ -152,7 +152,7 @@ export async function POST(req) {
 
     const result = await db.execute({
       sql: `INSERT INTO groups (name, description, access_profile_id)
-            VALUES (?, ?, ?)`,
+            VALUES (?, ?, ?) RETURNING id`,
       args: [
         groupName,
         description || "",
@@ -162,7 +162,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      id: Number(result.lastInsertRowid),
+      id: Number(result.rows[0]?.id ?? result.lastInsertRowid),
       message: `Group "${groupName}" created`,
     });
   } catch (err) {
@@ -181,7 +181,13 @@ export async function PUT(req) {
 
     await initDb();
     const body = await req.json();
-    const { id, name, description, access_profile_id, default_responsibilities } = body;
+    const {
+      id,
+      name,
+      description,
+      access_profile_id,
+      default_responsibilities,
+    } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -203,7 +209,10 @@ export async function PUT(req) {
         sql: "SELECT name FROM groups WHERE id = ?",
         args: [groupId],
       });
-      if (old.rows.length > 0 && old.rows[0].name !== name.trim().toUpperCase()) {
+      if (
+        old.rows.length > 0 &&
+        old.rows[0].name !== name.trim().toUpperCase()
+      ) {
         await db.execute({
           sql: "UPDATE user_groups SET group_name = ? WHERE group_name = ?",
           args: [name.trim().toUpperCase(), old.rows[0].name],

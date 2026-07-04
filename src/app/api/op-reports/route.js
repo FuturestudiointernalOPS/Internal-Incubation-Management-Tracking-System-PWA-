@@ -215,7 +215,7 @@ export async function POST(req) {
          ?, ?, ?,
          ?, ?, ?, ?,
          ?, ?,
-         ?, ?, ?, ?, ?, ?)`,
+         ?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         user_id,
         user_name || "",
@@ -248,7 +248,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      id: Number(result.lastInsertRowid),
+      id: Number(result.rows[0]?.id ?? result.lastInsertRowid),
       action: "created",
     });
   } catch (error) {
