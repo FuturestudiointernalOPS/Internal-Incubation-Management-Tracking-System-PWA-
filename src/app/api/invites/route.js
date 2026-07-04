@@ -1,38 +1,36 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function POST(req) {
+export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+  const {
+    program_id,
+    group_name,
+    team_id,
+    role = "participant",
+    expiresInDays = 7,
+    expiresInHours,
+    created_by,
+  } = await req.json();
+
+  if (!program_id) {
+    return NextResponse.json(
+      { error: "Program ID is required" },
+      { status: 400 },
+    );
+  }
+
+  const token = uuidv4();
+  const expiresAt = new Date();
+
+  if (expiresInHours) {
+    expiresAt.setHours(expiresAt.getHours() + expiresInHours);
+  } else {
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+  }
+
   try {
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
-    const {
-      program_id,
-      group_name,
-      team_id,
-      role = "participant",
-      expiresInDays = 7,
-      expiresInHours,
-      created_by,
-    } = await req.json();
-
-    if (!program_id) {
-      return NextResponse.json(
-        { error: "Program ID is required" },
-        { status: 400 },
-      );
-    }
-
-    const token = uuidv4();
-    const expiresAt = new Date();
-
-    if (expiresInHours) {
-      expiresAt.setHours(expiresAt.getHours() + expiresInHours);
-    } else {
-      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
-    }
-
     await db.execute({
       sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, expires_at, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -66,7 +64,7 @@ export async function POST(req) {
       { status: 500 },
     );
   }
-}
+});
 
 export async function GET(req) {
   try {

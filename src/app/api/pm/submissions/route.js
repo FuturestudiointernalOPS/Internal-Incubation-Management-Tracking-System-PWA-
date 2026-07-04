@@ -1,25 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/pm/submissions?assigned_pm_id=X
- *
- * Returns all submissions for programs where this PM is assigned.
- * Includes program name, deliverable title, participant name.
- */
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-    ]);
-    if (authError) return authError;
-
+export const GET = createHandler(
+  { roles: ["staff", "super_admin", "program_manager"] },
+  async (req) => {
     const { searchParams } = new URL(req.url);
     const assignedPmId = searchParams.get("assigned_pm_id");
 
@@ -30,7 +17,6 @@ export async function GET(req) {
       );
     }
 
-    // Get programs assigned to this PM
     const progRes = await db.execute({
       sql: "SELECT id, name FROM v2_programs WHERE assigned_pm_id = ? AND (is_archived = 0 OR is_archived IS NULL)",
       args: [assignedPmId],
@@ -42,7 +28,6 @@ export async function GET(req) {
       return NextResponse.json({ success: true, submissions: [], programs });
     }
 
-    // Fetch submissions for those programs
     const placeholders = programIds.map(() => "?").join(",");
     const subRes = await db.execute({
       sql: `SELECT s.*, d.title as deliverable_title, d.week_number as deliverable_week,
@@ -57,7 +42,6 @@ export async function GET(req) {
       args: programIds,
     });
 
-    // Attach program name to each submission
     const progMap = {};
     for (const p of programs) progMap[p.id] = p.name;
     const submissions = (subRes.rows || []).map((s) => ({
@@ -66,11 +50,5 @@ export async function GET(req) {
     }));
 
     return NextResponse.json({ success: true, submissions, programs });
-  } catch (error) {
-    console.error("PM Submissions Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
+  },
+);

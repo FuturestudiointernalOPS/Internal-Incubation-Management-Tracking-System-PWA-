@@ -3,9 +3,9 @@
 // Reads KPI progress from the kpi_progress table.
 // Falls back to dynamic calculation if no persisted data exists.
 // =============================================================================
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export const dynamic = "force-dynamic";
@@ -14,17 +14,9 @@ export const dynamic = "force-dynamic";
  * GET /api/kpi-progress?program_id=xxx
  * Returns persisted KPI progress for a program.
  */
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
-    if (authError) return authError;
-
+export const GET = createHandler(
+  { roles: ['staff', 'super_admin', 'program_manager', 'teacher'] },
+  async (req) => {
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
 
@@ -69,11 +61,5 @@ export async function GET(req) {
       overallProgress,
       source: progressEntries.length > 0 ? "persisted" : "empty",
     });
-  } catch (error) {
-    console.error("KPI Progress Fetch Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
+  },
+);

@@ -1,17 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
-    if (authError) return authError;
+export const GET = createHandler(
+  { roles: ["staff", "super_admin", "program_manager", "teacher"] },
+  async (req) => {
     const { searchParams } = new URL(req.url);
     const pmId = searchParams.get("pm_id");
 
@@ -83,11 +76,5 @@ export async function GET(req) {
       success: true,
       schedule: sessions.rows,
     });
-  } catch (error) {
-    console.error("Schedule Fetch Error:", error);
-    return NextResponse.json(
-      { success: false, error: "System Error" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);

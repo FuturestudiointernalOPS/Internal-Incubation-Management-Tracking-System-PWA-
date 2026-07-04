@@ -1,12 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["teacher", "staff", "super_admin"]);
-    if (authError) return authError;
+export const GET = createHandler(
+  { roles: ["teacher", "staff", "super_admin"] },
+  async (req) => {
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
     const week_number = searchParams.get("week_number");
@@ -18,13 +16,11 @@ export async function GET(req) {
       });
     }
 
-    // Fetch all participants for this program
     const participants = await db.execute({
       sql: "SELECT id, name, cid, email, phone FROM v2_participants WHERE program_id = ?",
       args: [program_id],
     });
 
-    // Fetch all requirements for this week
     const requirements = await db.execute({
       sql: "SELECT id, title FROM v2_document_requirements WHERE program_id = ? AND week_number = ?",
       args: [program_id, week_number],
@@ -32,7 +28,6 @@ export async function GET(req) {
 
     const reqIds = requirements.rows.map((r) => r.id);
 
-    // Fetch submissions for these requirements
     let submissions = [];
     if (reqIds.length > 0) {
       const placeholders = reqIds.map(() => "?").join(",");
@@ -43,7 +38,6 @@ export async function GET(req) {
       submissions = subRes.rows;
     }
 
-    // Map fulfillment
     const fulfillment = participants.rows.map((p) => {
       const pSubs = submissions.filter(
         (s) => s.participant_id === p.id || s.participant_id === p.cid,
@@ -67,10 +61,5 @@ export async function GET(req) {
       fulfillment,
       requirements: requirements.rows,
     });
-  } catch (e) {
-    return NextResponse.json(
-      { success: false, error: e.message },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
