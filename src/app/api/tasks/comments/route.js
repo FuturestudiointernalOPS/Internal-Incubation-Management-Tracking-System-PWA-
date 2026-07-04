@@ -32,7 +32,7 @@ export async function GET(req) {
     }
 
     const result = await db.execute({
-      sql: `SELECT id, task_id, sender_id, sender_name, body, parent_id, created_at
+      sql: `SELECT id, task_id, sender_id, sender_name, body, parent_id, is_edited, edited_at, created_at
             FROM v2_task_comments
             WHERE task_id = ?
             ORDER BY created_at ASC`,
@@ -218,6 +218,55 @@ export async function DELETE(req) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE tasks/comments error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
+    const body = await req.json();
+    const { id, user_id, body: newBody } = body;
+
+    if (!id || !user_id || !newBody || !newBody.trim()) {
+      return NextResponse.json(
+        { success: false, error: "id, user_id, and body are required" },
+        { status: 400 },
+      );
+    }
+
+    const commentRes = await db.execute({
+      sql: "SELECT sender_id FROM v2_task_comments WHERE id = ?",
+      args: [parseInt(id)],
+    });
+
+    if (commentRes.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Comment not found" },
+        { status: 404 },
+      );
+    }
+
+    if (user_id !== commentRes.rows[0].sender_id) {
+      return NextResponse.json(
+        { success: false, error: "Only the author can edit this comment" },
+        { status: 403 },
+      );
+    }
+
+    await db.execute({
+      sql: "UPDATE v2_task_comments SET body = ?, is_edited = 1, edited_at = NOW() WHERE id = ?",
+      args: [newBody.trim(), parseInt(id)],
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("PUT tasks/comments error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },

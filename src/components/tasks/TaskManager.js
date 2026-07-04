@@ -166,6 +166,11 @@ export default function TaskManager({
   const [blockerModal, setBlockerModal] = useState(null); // { taskId, taskTitle } or null
   const [blockerTitle, setBlockerTitle] = useState("");
   const [blockerAdding, setBlockerAdding] = useState(false);
+  // ── Blocker Discussions (Ticket 1.9) ──
+  const [openBlockerDiscuss, setOpenBlockerDiscuss] = useState(null); // blocker id or null
+  const [blockerMessages, setBlockerMessages] = useState({});
+  const [newBlockerMsg, setNewBlockerMsg] = useState("");
+  const [postingBlockerMsg, setPostingBlockerMsg] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const projectDropdownRef = useRef(null);
@@ -404,6 +409,55 @@ export default function TaskManager({
       console.error(e);
     }
   };
+
+  // ── Blocker Discussions (Ticket 1.9) ──
+  const toggleBlockerDiscuss = useCallback(async (blockerId) => {
+    if (openBlockerDiscuss === blockerId) {
+      setOpenBlockerDiscuss(null);
+      return;
+    }
+    setOpenBlockerDiscuss(blockerId);
+    setNewBlockerMsg("");
+    if (!blockerMessages[blockerId]) {
+      try {
+        const res = await fetch(`/api/blockers/discuss?blocker_id=${blockerId}`);
+        const data = await res.json();
+        if (data.success) {
+          setBlockerMessages((prev) => ({ ...prev, [blockerId]: data.messages || [] }));
+        }
+      } catch (_) {}
+    }
+  }, [openBlockerDiscuss, blockerMessages]);
+
+  const postBlockerMessage = useCallback(async (blockerId) => {
+    const text = newBlockerMsg.trim();
+    if (!text) return;
+    setPostingBlockerMsg(true);
+    try {
+      const res = await fetch("/api/blockers/discuss", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blocker_id: blockerId,
+          sender_id: uid,
+          sender_name: userName || "User",
+          body: text,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBlockerMessages((prev) => ({
+          ...prev,
+          [blockerId]: [
+            ...(prev[blockerId] || []),
+            { id: data.id, sender_id: uid, sender_name: userName || "User", body: text, blocker_id: blockerId, created_at: new Date().toISOString() },
+          ],
+        }));
+        setNewBlockerMsg("");
+      }
+    } catch (_) {}
+    setPostingBlockerMsg(false);
+  }, [newBlockerMsg, uid, userName]);
 
   // ── API: Update task status ──
   const updateStatus = useCallback(
@@ -1959,17 +2013,55 @@ export default function TaskManager({
                       {activeBlockers.map((b) => (
                         <div
                           key={b.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
+                          className="flex flex-col p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
                         >
-                          <span className="text-[10px] text-rose-400 font-bold">
-                            {b.title}
-                          </span>
-                          <button
-                            onClick={() => handleResolveBlocker(b.id)}
-                            className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
-                          >
-                            Resolve
-                          </button>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-rose-400 font-bold">
+                              {b.title}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => toggleBlockerDiscuss(b.id)}
+                                className="px-2 py-0.5 text-[7px] font-black uppercase bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500 hover:text-white transition-all"
+                              >
+                                Discuss
+                              </button>
+                              <button
+                                onClick={() => handleResolveBlocker(b.id)}
+                                className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
+                              >
+                                Resolve
+                              </button>
+                            </div>
+                          </div>
+                          {/* Discussion thread */}
+                          {openBlockerDiscuss === b.id && (
+                            <div className="mt-2 pt-2 border-t border-rose-500/10 space-y-1.5">
+                              {(blockerMessages[b.id] || []).map((msg) => (
+                                <div key={msg.id} className="text-[9px]">
+                                  <span className="font-black text-[var(--text-primary)]">{msg.sender_name || msg.sender_id}: </span>
+                                  <span className="text-[var(--text-secondary)]">{msg.body}</span>
+                                </div>
+                              ))}
+                              <div className="flex items-center gap-1 pt-1">
+                                <input
+                                  type="text"
+                                  value={newBlockerMsg}
+                                  onChange={(e) => setNewBlockerMsg(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") postBlockerMessage(b.id); }}
+                                  placeholder="Reply..."
+                                  className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+                                />
+                                <button
+                                  onClick={() => postBlockerMessage(b.id)}
+                                  disabled={!newBlockerMsg.trim() || postingBlockerMsg}
+                                  className="px-2 py-1 bg-blue-500 text-white rounded text-[8px] font-bold uppercase disabled:opacity-40"
+                                >
+                                  Send
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
