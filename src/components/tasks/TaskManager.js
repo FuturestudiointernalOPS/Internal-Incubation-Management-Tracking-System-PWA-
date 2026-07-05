@@ -92,6 +92,7 @@ export default function TaskManager({
   compact = false,
   weekInfo = null, // { week, year } for standup mode
   showCarryOver = true, // show carry-over tasks section
+  readOnly = false, // past-week read-only mode
 }) {
   const uid = userId;
   // Get current logged-in user for permission checks
@@ -757,8 +758,8 @@ export default function TaskManager({
                       task.status === "completed" ? "in_progress" : "completed",
                     )
                   }
-                  disabled={isUpdating}
-                  className={`w-4 h-4 rounded-full border-2 shrink-0 transition-all hover:scale-110 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"} ${isUpdating ? "opacity-50 animate-pulse" : ""}`}
+                  disabled={isUpdating || readOnly}
+                  className={`w-4 h-4 rounded-full border-2 shrink-0 transition-all hover:scale-110 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"} ${isUpdating ? "opacity-50 animate-pulse" : ""} ${readOnly ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   {task.status === "completed" && (
                     <CheckCircle2 className="w-3 h-3 text-white" />
@@ -880,7 +881,8 @@ export default function TaskManager({
             <select
               value={task.status || "pending"}
               onChange={(e) => updateStatus(task.id, e.target.value)}
-              className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full border-0 outline-none cursor-pointer appearance-none shrink-0 ${cfg.bg} ${cfg.color}`}
+              disabled={readOnly}
+              className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full border-0 outline-none appearance-none shrink-0 ${readOnly ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${cfg.bg} ${cfg.color}`}
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value} className="bg-primary">
@@ -916,7 +918,7 @@ export default function TaskManager({
           </button>
 
           {/* Edit button — parent AND sub tasks */}
-          {
+          {!readOnly && (
             <button
               onClick={() => {
                 setEditForm({
@@ -937,9 +939,10 @@ export default function TaskManager({
             >
               <Edit3 className="w-3 h-3" />
             </button>
-          }
+          )}
 
           {/* Archive button — always visible */}
+          {!readOnly && (
           <button
             onClick={async () => {
               if (
@@ -969,8 +972,10 @@ export default function TaskManager({
           >
             <Archive className="w-3 h-3" />
           </button>
+          )}
 
           {/* Duplicate button — always visible */}
+          {!readOnly && (
           <button
             onClick={async () => {
               try {
@@ -994,9 +999,10 @@ export default function TaskManager({
           >
             <Copy className="w-3 h-3" />
           </button>
+          )}
 
           {/* Delete / Archive based on week — parent AND sub tasks */}
-          {(() => {
+          {!readOnly && (() => {
             const isPastWeek =
               effectiveWeekInfo &&
               (task.created_week !== effectiveWeekInfo.week ||
@@ -1065,7 +1071,7 @@ export default function TaskManager({
           })()}
 
           {/* Move up/down buttons */}
-          {!isSub && (
+          {!readOnly && !isSub && (
             <div className="flex flex-col gap-0.5 shrink-0">
               <button
                 onClick={() => moveTask(task.id, "up")}
@@ -1115,6 +1121,7 @@ export default function TaskManager({
                 >
                   <Copy className="w-2.5 h-2.5" />
                 </button>
+                {!readOnly && (
                 <button
                   onClick={() => handleDeleteResource(r.id)}
                   className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity"
@@ -1122,6 +1129,7 @@ export default function TaskManager({
                 >
                   <Trash2 className="w-2.5 h-2.5" />
                 </button>
+                )}
               </div>
             ))}
           </div>
@@ -1184,12 +1192,14 @@ export default function TaskManager({
         <div
           className={`mt-1 flex items-center gap-3 ${isSub ? "ml-10" : "ml-8"}`}
         >
+          {!readOnly && (
           <button
             onClick={() => setAddResourceTaskId(task.id)}
             className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors"
           >
             <Plus className="w-2.5 h-2.5" /> Resource
           </button>
+          )}
           <button
             onClick={() => toggleComments(task.id)}
             className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-blue-400 transition-colors"
@@ -1197,7 +1207,7 @@ export default function TaskManager({
             <MessageSquare className="w-2.5 h-2.5" />
             Comments{task.commentCount > 0 ? ` (${task.commentCount})` : ""}
           </button>
-          {!isSub && (
+          {!readOnly && !isSub && (
             <button
               onClick={() =>
                 openSubTask(task.id, task.project_id, task.category, task.title)
@@ -1234,6 +1244,7 @@ export default function TaskManager({
                 ))}
               </div>
             )}
+            {!readOnly && (
             <div className="flex gap-2">
               <input
                 type="text"
@@ -1253,6 +1264,7 @@ export default function TaskManager({
                 Send
               </button>
             </div>
+            )}
           </div>
         )}
 
@@ -1544,12 +1556,14 @@ export default function TaskManager({
           </div>
         </div>
       ) : (
+        !readOnly && (
         <button
           onClick={() => setShowTaskForm(true)}
           className="flex items-center gap-2 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all w-fit"
         >
           <Plus className="w-3 h-3" /> New Task
         </button>
+        )
       )}
 
       {/* ─── SUB-TASK POPUP MODAL ─── */}
@@ -2026,12 +2040,14 @@ export default function TaskManager({
                               >
                                 Discuss
                               </button>
+                              {!readOnly && (
                               <button
                                 onClick={() => handleResolveBlocker(b.id)}
                                 className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
                               >
                                 Resolve
                               </button>
+                              )}
                             </div>
                           </div>
                           {/* Discussion thread */}
@@ -2043,6 +2059,7 @@ export default function TaskManager({
                                   <span className="text-[var(--text-secondary)]">{msg.body}</span>
                                 </div>
                               ))}
+                              {!readOnly && (
                               <div className="flex items-center gap-1 pt-1">
                                 <input
                                   type="text"
@@ -2060,6 +2077,7 @@ export default function TaskManager({
                                   Send
                                 </button>
                               </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2088,6 +2106,7 @@ export default function TaskManager({
             })()}
 
             {/* New blocker input */}
+            {!readOnly && (
             <div className="flex gap-2">
               <input
                 type="text"
@@ -2109,6 +2128,7 @@ export default function TaskManager({
                 {blockerAdding ? "..." : "Add"}
               </button>
             </div>
+            )}
           </div>
         </div>
       )}

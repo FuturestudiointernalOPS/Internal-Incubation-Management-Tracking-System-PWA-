@@ -847,7 +847,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                             : "staff";
                         router.push(
                           user?.role === "developer"
-                            ? "/developer/standup"
+                            ? "/staff/op-report"
                             : "/" + r + "/op-report",
                         );
                       }}
@@ -968,7 +968,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 onClick={() => {
                   router.push(
                     effectiveRole === "developer"
-                      ? "/developer/standup"
+                      ? "/staff/op-report"
                       : "/staff/op-report",
                   );
                 }}
@@ -1090,7 +1090,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   <button
                     onClick={() => {
                       if (effectiveRole === "developer") {
-                        router.push("/developer/standup");
+                        router.push("/staff/op-report");
                       } else {
                         router.push("/staff/op-report");
                       }
@@ -1127,7 +1127,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                               : "staff";
                           router.push(
                             user?.role === "developer"
-                              ? "/developer/standup"
+                              ? "/staff/op-report"
                               : "/" + r + "/op-report",
                           );
                         }}

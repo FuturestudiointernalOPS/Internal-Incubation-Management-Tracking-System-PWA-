@@ -92,7 +92,12 @@
       "describeBlocker": "Décrire le blocage...",
       "tasksCreated": "{count} tâche(s) créée(s)",
       "tasksCompleted": "{count} tâche(s) terminée(s)",
-      "blockersAdded": "{count} blocage(s) ajouté(s)"
+      "blockersAdded": "{count} blocage(s) ajouté(s)",
+      "blockerActive": "Cette tâche a des blocages actifs qui doivent être résolus d'abord.",
+      "blockerResolveHint": "Résolvez les blocages pour continuer",
+      "view": "Voir",
+      "readOnly": "Ce rapport date d'une semaine passée et est en lecture seule.",
+      "editStandup": "Modifier le point"
     },
     "categories": {
       "operations": "Opérations",

@@ -671,8 +671,7 @@ export async function PUT(req) {
       });
 
       if (activeBlockers.rows.length > 0) {
-        const body2 = await req.json();
-        if (!body2.force_complete) {
+        if (!force_complete) {
           return NextResponse.json({
             success: false,
             error:

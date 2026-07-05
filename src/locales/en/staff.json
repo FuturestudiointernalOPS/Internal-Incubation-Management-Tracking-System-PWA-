@@ -92,7 +92,12 @@
       "describeBlocker": "Describe blocker...",
       "tasksCreated": "Created {count} task(s)",
       "tasksCompleted": "Completed {count} task(s)",
-      "blockersAdded": "Added {count} blocker(s)"
+      "blockersAdded": "Added {count} blocker(s)",
+      "blockerActive": "This task has active blockers that must be resolved first.",
+      "blockerResolveHint": "Resolve blockers to continue",
+      "view": "View",
+      "readOnly": "This standup is from a past week and is read-only.",
+      "editStandup": "Edit Standup"
     },
     "categories": {
       "operations": "Operations",

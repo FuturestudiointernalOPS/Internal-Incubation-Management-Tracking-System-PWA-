@@ -121,7 +121,7 @@ export async function POST(req) {
             sql: `INSERT INTO tasks
               (user_id, user_name, title, description, status, project_id,
                created_week, created_year, start_date, end_date)
-              VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
+              VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?) RETURNING id`,
             args: [
               user_id,
               user_name || "",
