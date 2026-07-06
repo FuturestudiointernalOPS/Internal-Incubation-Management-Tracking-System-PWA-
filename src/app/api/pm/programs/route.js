@@ -83,7 +83,7 @@ export async function GET(req) {
     const [sessions, participants, docs, reports, segments, submissions] =
       await Promise.all([
         db.execute(
-          "SELECT program_id, COUNT(*) as count, COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed FROM v2_sessions WHERE status != 'archived' GROUP BY program_id",
+          "SELECT program_id, COUNT(*) as count, 0 as completed FROM v2_sessions GROUP BY program_id",
         ),
         db.execute(
           "SELECT program_id, COUNT(*) as count FROM v2_participants GROUP BY program_id",
