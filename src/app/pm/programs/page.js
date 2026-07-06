@@ -333,14 +333,13 @@ export default function PMProgramsRegistry() {
                               e.stopPropagation();
                               try {
                                 const res = await fetch("/api/pm/programs", {
-                                  method: "PATCH",
+                                  method: "PUT",
                                   headers: {
                                     "Content-Type": "application/json",
                                   },
                                   body: JSON.stringify({
                                     id: program.id,
                                     is_archived: 0,
-                                    action: "archive",
                                   }),
                                 });
                                 if ((await res.json()).success) {
