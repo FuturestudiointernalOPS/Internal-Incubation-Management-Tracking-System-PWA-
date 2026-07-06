@@ -505,11 +505,11 @@ export default function AdminProjects() {
                     return (
                       <div
                         key={`${w.year}-${w.week}`}
-                        className="flex-1 flex flex-col items-center gap-1"
+                        className="flex-1 h-full flex flex-col justify-end items-center gap-1"
                         title={`${t("staff.table.week")} ${w.week}, ${w.year}: ${w.completed}`}
                       >
                         <div
-                          className="w-full bg-[var(--brand-orange)]/60 rounded-t"
+                          className="w-full bg-[var(--brand-orange)] opacity-60 rounded-t"
                           style={{
                             height: `${Math.max((w.completed / max) * 100, 4)}%`,
                           }}
