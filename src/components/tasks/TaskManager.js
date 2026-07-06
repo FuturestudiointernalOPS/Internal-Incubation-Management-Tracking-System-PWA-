@@ -434,13 +434,16 @@ export default function TaskManager({
 
   const carryOverTasks = useMemo(
     () =>
-      filteredTasks.filter(
+      tasks.filter(
         (t) =>
           (t.carried_over_from_task_id !== null ||
-            t.status === "carried_over") &&
+            t.status === "carried_over" ||
+            t.status === "in_progress" ||
+            t.status === "blocked") &&
+          t.created_week !== effectiveWeekInfo?.week &&
           !t.parent_task_id,
       ),
-    [filteredTasks],
+    [tasks, effectiveWeekInfo],
   );
 
   const activeTasks = useMemo(

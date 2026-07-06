@@ -440,8 +440,13 @@ export async function GET(req) {
         sql: "SELECT * FROM contacts WHERE cid = ?",
         args: [session.cid],
       });
+    } else if (session.role === "super_admin") {
+      // Super admins see ALL users including pending/inactive
+      result = await db.execute(
+        "SELECT * FROM contacts WHERE deleted = 0 ORDER BY name ASC",
+      );
     } else {
-      // Only return active, non-deleted users for contacts list
+      // Other roles only see active users
       result = await db.execute(
         "SELECT * FROM contacts WHERE deleted = 0 AND status = 'active' ORDER BY name ASC",
       );
