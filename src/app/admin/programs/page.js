@@ -206,6 +206,11 @@ export default function ProgramManagement() {
       }
     } catch (e) {
       console.error("Update Failure:", e);
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: "Update failed: " + e.message },
+        }),
+      );
     } finally {
       setIsUpdating(false);
     }
@@ -216,12 +221,11 @@ export default function ProgramManagement() {
     e.stopPropagation();
     try {
       const res = await fetch("/api/pm/programs", {
-        method: "PATCH",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id,
           is_archived: isArchiving ? 1 : 0,
-          action: "archive",
         }),
       });
       if ((await res.json()).success) fetchData();
