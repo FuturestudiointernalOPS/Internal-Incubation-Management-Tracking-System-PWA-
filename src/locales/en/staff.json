@@ -55,6 +55,7 @@
       "noWeeklyReports": "No weekly reports yet",
       "retroRequiresStandup": "Complete a stand-up to see retro here",
       "tasksPlanned": "Tasks Planned",
+      "productivity": "Productivity",
       "carriedOver": "Carried Over",
       "activeBlockers": "Active Blockers",
       "blockersCreated": "Blockers Created",
@@ -97,7 +98,17 @@
       "blockerResolveHint": "Resolve blockers to continue",
       "view": "View",
       "readOnly": "This standup is from a past week and is read-only.",
-      "editStandup": "Edit Standup"
+      "editStandup": "Edit Standup",
+      "blockerTitlePlaceholder": "Blocker title *",
+      "blockerDescriptionPlaceholder": "Description",
+      "blockerReferenceUrlPlaceholder": "Reference URL (optional)",
+      "blockerNotesPlaceholder": "Supporting notes",
+      "addBlockerButton": "Add Blocker",
+      "addingBlocker": "Adding...",
+      "priorityLow": "Low",
+      "priorityMedium": "Medium",
+      "priorityHigh": "High",
+      "priorityCritical": "Critical"
     },
     "categories": {
       "operations": "Operations",

@@ -55,6 +55,7 @@
       "noWeeklyReports": "Pas encore de rapports hebdomadaires",
       "retroRequiresStandup": "Complétez un point pour voir la rétro ici",
       "tasksPlanned": "Tâches planifiées",
+      "productivity": "Productivité",
       "carriedOver": "Reporté",
       "activeBlockers": "Blocages actifs",
       "blockersCreated": "Blocages créés",
@@ -97,7 +98,17 @@
       "blockerResolveHint": "Résolvez les blocages pour continuer",
       "view": "Voir",
       "readOnly": "Ce rapport date d'une semaine passée et est en lecture seule.",
-      "editStandup": "Modifier le point"
+      "editStandup": "Modifier le point",
+      "blockerTitlePlaceholder": "Titre du blocage *",
+      "blockerDescriptionPlaceholder": "Description",
+      "blockerReferenceUrlPlaceholder": "URL de référence (optionnel)",
+      "blockerNotesPlaceholder": "Notes complémentaires",
+      "addBlockerButton": "Ajouter un blocage",
+      "addingBlocker": "Ajout en cours...",
+      "priorityLow": "Faible",
+      "priorityMedium": "Moyenne",
+      "priorityHigh": "Élevée",
+      "priorityCritical": "Critique"
     },
     "categories": {
       "operations": "Opérations",

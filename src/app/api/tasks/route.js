@@ -670,14 +670,28 @@ export async function PUT(req) {
         args: [parseInt(id)],
       });
 
-      if (activeBlockers.rows.length > 0) {
+      // Also check blockers on subtasks (Rule 25)
+      const subtaskBlockers = await db.execute({
+        sql: `SELECT b.id, b.title, b.task_id, t.title AS task_title
+              FROM blockers b
+              JOIN tasks t ON b.task_id = t.id
+              WHERE t.parent_task_id = ? AND b.status = 'active'`,
+        args: [parseInt(id)],
+      });
+
+      const allBlockers = [
+        ...activeBlockers.rows.map((b) => ({ ...b, source: "task" })),
+        ...subtaskBlockers.rows.map((b) => ({ ...b, source: "subtask" })),
+      ];
+
+      if (allBlockers.length > 0) {
         if (!force_complete) {
           return NextResponse.json({
             success: false,
             error:
               "This task has active blockers. Please confirm completion or resolve the blocker before proceeding.",
             hasActiveBlockers: true,
-            blockers: activeBlockers.rows,
+            blockers: allBlockers,
           });
         }
       }
@@ -747,7 +761,10 @@ export async function PUT(req) {
               ],
             });
           } catch (e) {
-            console.error("Failed to insert project_approval_request:", e.message);
+            console.error(
+              "Failed to insert project_approval_request:",
+              e.message,
+            );
           }
           changes.push("project reassignment requires approval");
         }

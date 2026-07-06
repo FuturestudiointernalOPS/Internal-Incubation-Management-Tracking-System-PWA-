@@ -384,84 +384,146 @@ export default function AdminProjects() {
 
         {/* ANALYTICS ROW */}
         {analytics && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-            <div className="card flex items-center gap-3 p-3">
-              <div className="p-2 rounded-xl bg-white/5">
-                <ListTodo className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+              <div className="card flex items-center gap-3 p-3">
+                <div className="p-2 rounded-xl bg-white/5">
+                  <ListTodo className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+                </div>
+                <div>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {t("reports.tasks")}
+                  </p>
+                  <p className="text-base font-black">
+                    {analytics.tasks.total}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                  {t("reports.tasks")}
-                </p>
-                <p className="text-base font-black">{analytics.tasks.total}</p>
+              <div className="card flex items-center gap-3 p-3">
+                <div className="p-2 rounded-xl bg-emerald-500/10">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {t("reports.completed")}
+                  </p>
+                  <p className="text-base font-black text-emerald-500">
+                    {analytics.completionRate}%
+                  </p>
+                </div>
+              </div>
+              <div className="card flex items-center gap-3 p-3">
+                <div className="p-2 rounded-xl bg-amber-500/10">
+                  <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {t("reports.carriedOver")}
+                  </p>
+                  <p className="text-base font-black text-amber-500">
+                    {analytics.carryoverRate}%
+                  </p>
+                </div>
+              </div>
+              <div className="card flex items-center gap-3 p-3">
+                <div className="p-2 rounded-xl bg-rose-500/10">
+                  <Shield className="w-3.5 h-3.5 text-rose-500" />
+                </div>
+                <div>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {t("reports.active")}
+                  </p>
+                  <p className="text-base font-black text-rose-500">
+                    {analytics.blockers.active}
+                  </p>
+                </div>
+              </div>
+              <div className="card flex items-center gap-3 p-3">
+                <div className="p-2 rounded-xl bg-blue-500/10">
+                  <Users className="w-3.5 h-3.5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {t("reports.teamMembers")}
+                  </p>
+                  <p className="text-base font-black text-blue-500">
+                    {analytics.activeUsers}
+                  </p>
+                </div>
+              </div>
+              <div className="card flex items-center gap-3 p-3">
+                <div className="p-2 rounded-xl bg-indigo-500/10">
+                  <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
+                </div>
+                <div>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {t("admin.activePrograms")}
+                  </p>
+                  <p className="text-base font-black text-indigo-500">
+                    {analytics.projects}
+                  </p>
+                </div>
+              </div>
+              <div className="card flex items-center gap-3 p-3">
+                <div className="p-2 rounded-xl bg-orange-500/10">
+                  <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {t("admin.blockerRate")}
+                  </p>
+                  <p className="text-base font-black text-orange-500">
+                    {analytics.blockerRate}%
+                  </p>
+                </div>
+              </div>
+              <div className="card flex items-center gap-3 p-3">
+                <div className="p-2 rounded-xl bg-cyan-500/10">
+                  <Clock className="w-3.5 h-3.5 text-cyan-500" />
+                </div>
+                <div>
+                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    {t("reports.avgResolution")}
+                  </p>
+                  <p className="text-base font-black text-cyan-500">
+                    {analytics.avgResolutionHours}h
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="card flex items-center gap-3 p-3">
-              <div className="p-2 rounded-xl bg-emerald-500/10">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                  {t("reports.completed")}
+            {analytics.weeklyProductivity?.length > 0 && (
+              <div className="card p-4 space-y-2">
+                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                  {t("staff.opReport.productivity")}
                 </p>
-                <p className="text-base font-black text-emerald-500">
-                  {analytics.completionRate}%
-                </p>
+                <div className="flex items-end gap-2 h-16">
+                  {[...analytics.weeklyProductivity].reverse().map((w) => {
+                    const max = Math.max(
+                      ...analytics.weeklyProductivity.map((x) => x.completed),
+                      1,
+                    );
+                    return (
+                      <div
+                        key={`${w.year}-${w.week}`}
+                        className="flex-1 flex flex-col items-center gap-1"
+                        title={`${t("staff.table.week")} ${w.week}, ${w.year}: ${w.completed}`}
+                      >
+                        <div
+                          className="w-full bg-[var(--brand-orange)]/60 rounded-t"
+                          style={{
+                            height: `${Math.max((w.completed / max) * 100, 4)}%`,
+                          }}
+                        />
+                        <span className="text-[7px] text-slate-500">
+                          {w.week}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-            <div className="card flex items-center gap-3 p-3">
-              <div className="p-2 rounded-xl bg-amber-500/10">
-                <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                  {t("reports.carriedOver")}
-                </p>
-                <p className="text-base font-black text-amber-500">
-                  {analytics.carryoverRate}%
-                </p>
-              </div>
-            </div>
-            <div className="card flex items-center gap-3 p-3">
-              <div className="p-2 rounded-xl bg-rose-500/10">
-                <Shield className="w-3.5 h-3.5 text-rose-500" />
-              </div>
-              <div>
-                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                  {t("reports.active")}
-                </p>
-                <p className="text-base font-black text-rose-500">
-                  {analytics.blockers.active}
-                </p>
-              </div>
-            </div>
-            <div className="card flex items-center gap-3 p-3">
-              <div className="p-2 rounded-xl bg-blue-500/10">
-                <Users className="w-3.5 h-3.5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                  {t("reports.teamMembers")}
-                </p>
-                <p className="text-base font-black text-blue-500">
-                  {analytics.activeUsers}
-                </p>
-              </div>
-            </div>
-            <div className="card flex items-center gap-3 p-3">
-              <div className="p-2 rounded-xl bg-indigo-500/10">
-                <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
-              </div>
-              <div>
-                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                  {t("admin.activePrograms")}
-                </p>
-                <p className="text-base font-black text-indigo-500">
-                  {analytics.projects}
-                </p>
-              </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
 
         {/* FILTERS */}
@@ -551,7 +613,11 @@ export default function AdminProjects() {
                           name: project.name || "",
                           description: project.meta?.description || "",
                           status: project.status || "Active",
-                          leads: project.meta?.assigned_pm_ids || (project.assigned_pm_id ? [project.assigned_pm_id] : []),
+                          leads:
+                            project.meta?.assigned_pm_ids ||
+                            (project.assigned_pm_id
+                              ? [project.assigned_pm_id]
+                              : []),
                           conceptNoteUrl: project.meta?.concept_note_url || "",
                         });
                         fetchMembers(project.id);
@@ -622,12 +688,22 @@ export default function AdminProjects() {
                       </td>
                       <td className="text-center p-4">
                         <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {project.start_date ? new Date(project.start_date).toLocaleDateString('en', {month:'short',day:'numeric'}) : '—'}
+                          {project.start_date
+                            ? new Date(project.start_date).toLocaleDateString(
+                                "en",
+                                { month: "short", day: "numeric" },
+                              )
+                            : "—"}
                         </span>
                       </td>
                       <td className="text-center p-4">
                         <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {project.end_date ? new Date(project.end_date).toLocaleDateString('en', {month:'short',day:'numeric'}) : '—'}
+                          {project.end_date
+                            ? new Date(project.end_date).toLocaleDateString(
+                                "en",
+                                { month: "short", day: "numeric" },
+                              )
+                            : "—"}
                         </span>
                       </td>
                     </tr>
@@ -712,7 +788,9 @@ export default function AdminProjects() {
                 </label>
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
                   {allStaff.map((s) => {
-                    const isSelected = editProject.leads.includes(s.cid || s.id);
+                    const isSelected = editProject.leads.includes(
+                      s.cid || s.id,
+                    );
                     return (
                       <label
                         key={s.cid || s.id}
@@ -730,7 +808,9 @@ export default function AdminProjects() {
                             } else {
                               setEditProject((p) => ({
                                 ...p,
-                                leads: p.leads.filter((id) => id !== (s.cid || s.id)),
+                                leads: p.leads.filter(
+                                  (id) => id !== (s.cid || s.id),
+                                ),
                               }));
                             }
                           }}
@@ -972,16 +1052,33 @@ export default function AdminProjects() {
               {/* Start / End Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Start Date</label>
-                  <input type="date" value={newProject.start_date}
-                    onChange={(e) => setNewProject((p) => ({ ...p, start_date: e.target.value }))}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newProject.start_date}
+                    onChange={(e) =>
+                      setNewProject((p) => ({
+                        ...p,
+                        start_date: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+                  />
                 </div>
                 <div>
-                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">End Date</label>
-                  <input type="date" value={newProject.end_date}
-                    onChange={(e) => setNewProject((p) => ({ ...p, end_date: e.target.value }))}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all" />
+                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newProject.end_date}
+                    onChange={(e) =>
+                      setNewProject((p) => ({ ...p, end_date: e.target.value }))
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+                  />
                 </div>
               </div>
 
@@ -1097,7 +1194,9 @@ export default function AdminProjects() {
                             } else {
                               setNewProject((p) => ({
                                 ...p,
-                                leads: p.leads.filter((id) => id !== (s.cid || s.id)),
+                                leads: p.leads.filter(
+                                  (id) => id !== (s.cid || s.id),
+                                ),
                               }));
                             }
                           }}
