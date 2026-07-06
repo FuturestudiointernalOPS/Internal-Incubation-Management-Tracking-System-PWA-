@@ -432,8 +432,9 @@ export async function GET(req) {
         args: [session.cid],
       });
     } else {
+      // Only return active, non-deleted users for contacts list
       result = await db.execute(
-        "SELECT * FROM contacts ORDER BY created_at DESC",
+        "SELECT * FROM contacts WHERE deleted = 0 AND status = 'active' ORDER BY name ASC",
       );
     }
     return NextResponse.json({ success: true, contacts: result.rows });
