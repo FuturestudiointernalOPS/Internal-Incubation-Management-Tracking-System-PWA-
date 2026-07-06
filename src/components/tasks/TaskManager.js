@@ -705,13 +705,16 @@ export default function TaskManager({
 
   const carryOverTasks = useMemo(
     () =>
-      filteredTasks.filter(
+      tasks.filter(
         (t) =>
           (t.carried_over_from_task_id !== null ||
-            t.status === "carried_over") &&
+            t.status === "carried_over" ||
+            t.status === "in_progress" ||
+            t.status === "blocked") &&
+          t.created_week !== effectiveWeekInfo?.week &&
           !t.parent_task_id,
       ),
-    [filteredTasks],
+    [tasks, effectiveWeekInfo],
   );
 
   const activeTasks = useMemo(
@@ -2204,11 +2207,15 @@ export default function TaskManager({
                     onChange={(e) => setBlockerPriority(e.target.value)}
                     className="flex-1 px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
                   >
-                    <option value="low">{t("staff.opReport.priorityLow")}</option>
+                    <option value="low">
+                      {t("staff.opReport.priorityLow")}
+                    </option>
                     <option value="medium">
                       {t("staff.opReport.priorityMedium")}
                     </option>
-                    <option value="high">{t("staff.opReport.priorityHigh")}</option>
+                    <option value="high">
+                      {t("staff.opReport.priorityHigh")}
+                    </option>
                     <option value="critical">
                       {t("staff.opReport.priorityCritical")}
                     </option>
