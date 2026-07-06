@@ -1071,7 +1071,8 @@ export default function StaffOpReport() {
                         disabled={hasCurrentWeekStandup}
                       >
                         <>
-                          <Plus className="w-4 h-4" /> {t("staff.opReport.createNewStandup")}
+                          <Plus className="w-4 h-4" />{" "}
+                          {t("staff.opReport.createNewStandup")}
                         </>
                       </button>
                     </div>
@@ -1177,10 +1178,13 @@ export default function StaffOpReport() {
                                           </span>
                                           <button
                                             onClick={() => {
-                                              const currentWeek = getCurrentWeek();
+                                              const currentWeek =
+                                                getCurrentWeek();
                                               const isPastWeek =
-                                                report.week_number !== currentWeek.week ||
-                                                report.year !== currentWeek.year;
+                                                report.week_number !==
+                                                  currentWeek.week ||
+                                                report.year !==
+                                                  currentWeek.year;
                                               setReadOnly(isPastWeek);
                                               setWeekInfo({
                                                 week: report.week_number,
@@ -1257,13 +1261,18 @@ export default function StaffOpReport() {
                                           >
                                             <ChevronRight className="w-3 h-3" />{" "}
                                             {(() => {
-                                              const currentWeek = getCurrentWeek();
+                                              const currentWeek =
+                                                getCurrentWeek();
                                               const isPastWeek =
-                                                report.week_number !== currentWeek.week ||
-                                                report.year !== currentWeek.year;
+                                                report.week_number !==
+                                                  currentWeek.week ||
+                                                report.year !==
+                                                  currentWeek.year;
                                               return isPastWeek
                                                 ? t("staff.opReport.view")
-                                                : t("staff.opReport.editStandup");
+                                                : t(
+                                                    "staff.opReport.editStandup",
+                                                  );
                                             })()}
                                           </button>
                                         </div>
@@ -1477,10 +1486,13 @@ export default function StaffOpReport() {
                                         <div className="mt-3">
                                           <button
                                             onClick={() => {
-                                              const currentWeek = getCurrentWeek();
+                                              const currentWeek =
+                                                getCurrentWeek();
                                               const isPastWeek =
-                                                report.week_number !== currentWeek.week ||
-                                                report.year !== currentWeek.year;
+                                                report.week_number !==
+                                                  currentWeek.week ||
+                                                report.year !==
+                                                  currentWeek.year;
                                               setReadOnly(isPastWeek);
                                               setWeekInfo({
                                                 week: report.week_number,
@@ -1530,7 +1542,8 @@ export default function StaffOpReport() {
                               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                             >
                               <>
-                                <Plus className="w-4 h-4" /> {t("staff.opReport.createNewStandup")}
+                                <Plus className="w-4 h-4" />{" "}
+                                {t("staff.opReport.createNewStandup")}
                               </>
                             </button>
                           </td>
@@ -1767,59 +1780,94 @@ export default function StaffOpReport() {
                                                                 task.subtasks
                                                                   ?.length > 0
                                                               ) {
-                                                                const subtaskResults = await Promise.all(
-                                                                  task.subtasks.map(
-                                                                    async (st) => {
-                                                                      const r = await fetch(
-                                                                        "/api/tasks",
-                                                                        {
-                                                                          method:
-                                                                            "PUT",
-                                                                          headers:
+                                                                const subtaskResults =
+                                                                  await Promise.all(
+                                                                    task.subtasks.map(
+                                                                      async (
+                                                                        st,
+                                                                      ) => {
+                                                                        const r =
+                                                                          await fetch(
+                                                                            "/api/tasks",
                                                                             {
-                                                                              "Content-Type":
-                                                                                "application/json",
+                                                                              method:
+                                                                                "PUT",
+                                                                              headers:
+                                                                                {
+                                                                                  "Content-Type":
+                                                                                    "application/json",
+                                                                                },
+                                                                              body: JSON.stringify(
+                                                                                {
+                                                                                  id: st.id,
+                                                                                  status:
+                                                                                    "completed",
+                                                                                },
+                                                                              ),
                                                                             },
-                                                                          body: JSON.stringify(
-                                                                            {
-                                                                              id: st.id,
-                                                                              status:
-                                                                                "completed",
-                                                                            },
-                                                                          ),
-                                                                        },
-                                                                      );
-                                                                      return { subtaskId: st.id, data: await r.json() };
-                                                                    },
-                                                                  ),
-                                                                );
-                                                                const blockedSubtasks = subtaskResults.filter(r => r.data?.hasActiveBlockers);
-                                                                if (blockedSubtasks.length > 0) {
+                                                                          );
+                                                                        return {
+                                                                          subtaskId:
+                                                                            st.id,
+                                                                          data: await r.json(),
+                                                                        };
+                                                                      },
+                                                                    ),
+                                                                  );
+                                                                const blockedSubtasks =
+                                                                  subtaskResults.filter(
+                                                                    (r) =>
+                                                                      r.data
+                                                                        ?.hasActiveBlockers,
+                                                                  );
+                                                                if (
+                                                                  blockedSubtasks.length >
+                                                                  0
+                                                                ) {
                                                                   blocked = true;
-                                                                  setBlockerModal({ type: "api", taskId: task.id });
+                                                                  setBlockerModal(
+                                                                    {
+                                                                      type: "api",
+                                                                      taskId:
+                                                                        task.id,
+                                                                    },
+                                                                  );
                                                                 }
                                                               }
                                                               if (!blocked) {
-                                                                const res = await fetch(
-                                                                  "/api/tasks",
-                                                                  {
-                                                                    method: "PUT",
-                                                                    headers: {
-                                                                      "Content-Type":
-                                                                        "application/json",
-                                                                    },
-                                                                    body: JSON.stringify(
-                                                                      {
-                                                                        id: task.id,
-                                                                        status:
-                                                                          newStatus,
+                                                                const res =
+                                                                  await fetch(
+                                                                    "/api/tasks",
+                                                                    {
+                                                                      method:
+                                                                        "PUT",
+                                                                      headers: {
+                                                                        "Content-Type":
+                                                                          "application/json",
                                                                       },
-                                                                    ),
-                                                                  },
-                                                                );
-                                                                const data = await res.json();
-                                                                if (data.success === false && data.hasActiveBlockers) {
-                                                                  setBlockerModal({ type: "api", taskId: task.id });
+                                                                      body: JSON.stringify(
+                                                                        {
+                                                                          id: task.id,
+                                                                          status:
+                                                                            newStatus,
+                                                                        },
+                                                                      ),
+                                                                    },
+                                                                  );
+                                                                const data =
+                                                                  await res.json();
+                                                                if (
+                                                                  data.success ===
+                                                                    false &&
+                                                                  data.hasActiveBlockers
+                                                                ) {
+                                                                  setBlockerModal(
+                                                                    {
+                                                                      type: "api",
+                                                                      taskId:
+                                                                        task.id,
+                                                                    },
+                                                                  );
                                                                 } else {
                                                                   fetchTasks();
                                                                 }
@@ -1944,31 +1992,43 @@ export default function StaffOpReport() {
                                                                             }),
                                                                           );
                                                                           try {
-                                                                            const stRes = await fetch(
-                                                                              "/api/tasks",
-                                                                              {
-                                                                                method:
-                                                                                  "PUT",
-                                                                                headers:
-                                                                                  {
-                                                                                    "Content-Type":
-                                                                                      "application/json",
-                                                                                  },
-                                                                                body: JSON.stringify(
-                                                                                  {
-                                                                                    id: st.id,
-                                                                                    status:
-                                                                                      st.status ===
-                                                                                      "completed"
-                                                                                        ? "in_progress"
-                                                                                        : "completed",
-                                                                                  },
-                                                                                ),
-                                                                              },
-                                                                            );
-                                                                            const stData = await stRes.json();
-                                                                            if (stData.success === false && stData.hasActiveBlockers) {
-                                                                              setBlockerModal({ type: "api", taskId: st.id });
+                                                                            const stRes =
+                                                                              await fetch(
+                                                                                "/api/tasks",
+                                                                                {
+                                                                                  method:
+                                                                                    "PUT",
+                                                                                  headers:
+                                                                                    {
+                                                                                      "Content-Type":
+                                                                                        "application/json",
+                                                                                    },
+                                                                                  body: JSON.stringify(
+                                                                                    {
+                                                                                      id: st.id,
+                                                                                      status:
+                                                                                        st.status ===
+                                                                                        "completed"
+                                                                                          ? "in_progress"
+                                                                                          : "completed",
+                                                                                    },
+                                                                                  ),
+                                                                                },
+                                                                              );
+                                                                            const stData =
+                                                                              await stRes.json();
+                                                                            if (
+                                                                              stData.success ===
+                                                                                false &&
+                                                                              stData.hasActiveBlockers
+                                                                            ) {
+                                                                              setBlockerModal(
+                                                                                {
+                                                                                  type: "api",
+                                                                                  taskId:
+                                                                                    st.id,
+                                                                                },
+                                                                              );
                                                                             } else {
                                                                               fetchTasks();
                                                                             }
@@ -3143,7 +3203,10 @@ export default function StaffOpReport() {
       {showStandupModal && (
         <div
           className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => { setShowStandupModal(false); setReadOnly(false); }}
+          onClick={() => {
+            setShowStandupModal(false);
+            setReadOnly(false);
+          }}
         >
           <div
             className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-secondary border border-[var(--border-primary)] rounded-2xl shadow-2xl"
@@ -3161,7 +3224,10 @@ export default function StaffOpReport() {
                   </p>
                 </div>
                 <button
-                  onClick={() => { setShowStandupModal(false); setReadOnly(false); }}
+                  onClick={() => {
+                    setShowStandupModal(false);
+                    setReadOnly(false);
+                  }}
                   className="p-1.5 hover:bg-tertiary rounded-md transition-all"
                 >
                   <X className="w-4 h-4" />
@@ -3218,49 +3284,53 @@ export default function StaffOpReport() {
                           </div>
                         </div>
                         {!readOnly && (
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            onClick={async () => {
-                              // Update old task to 'carried_over'
-                              await fetch("/api/tasks", {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  id: task.id,
-                                  status: "carried_over",
-                                  user_id: user?.cid || user?.id,
-                                }),
-                              });
-                              // Clone task to current week
-                              await fetch("/api/tasks", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  title: task.title,
-                                  description: task.description || null,
-                                  project_id: task.project_id || null,
-                                  category: task.category || null,
-                                  user_id: user?.cid || user?.id,
-                                  user_name: user?.name || "",
-                                  status: "in_progress",
-                                  created_week: weekInfo.week,
-                                  created_year: weekInfo.year,
-                                  parent_task_id: null,
-                                  start_date: task.start_date || null,
-                                  end_date: task.end_date || null,
-                                  carried_over_from_task_id: task.id,
-                                }),
-                              });
-                              setCarryoverTasks((prev) =>
-                                prev.filter((t) => t.id !== task.id),
-                              );
-                              fetchTasks();
-                            }}
-                            className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
-                          >
-                            {t("staff.opReport.continue")}
-                          </button>
-                        </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              onClick={async () => {
+                                // Update old task to 'carried_over'
+                                await fetch("/api/tasks", {
+                                  method: "PUT",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    id: task.id,
+                                    status: "carried_over",
+                                    user_id: user?.cid || user?.id,
+                                  }),
+                                });
+                                // Clone task to current week
+                                await fetch("/api/tasks", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    title: task.title,
+                                    description: task.description || null,
+                                    project_id: task.project_id || null,
+                                    category: task.category || null,
+                                    user_id: user?.cid || user?.id,
+                                    user_name: user?.name || "",
+                                    status: "in_progress",
+                                    created_week: weekInfo.week,
+                                    created_year: weekInfo.year,
+                                    parent_task_id: null,
+                                    start_date: task.start_date || null,
+                                    end_date: task.end_date || null,
+                                    carried_over_from_task_id: task.id,
+                                  }),
+                                });
+                                setCarryoverTasks((prev) =>
+                                  prev.filter((t) => t.id !== task.id),
+                                );
+                                fetchTasks();
+                              }}
+                              className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
+                            >
+                              {t("staff.opReport.continue")}
+                            </button>
+                          </div>
                         )}
                       </div>
                     ))}
@@ -3298,28 +3368,28 @@ export default function StaffOpReport() {
                             </div>
                           </div>
                           {!readOnly && (
-                          <div className="flex gap-1 shrink-0">
-                            <button
-                              onClick={async () => {
-                                await fetch("/api/tasks", {
-                                  method: "PUT",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    id: task.id,
-                                    status: "in_progress",
-                                    user_id: user?.cid || user?.id,
-                                  }),
-                                });
-                                fetchTasks();
-                              }}
-                              className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
-                            >
-                              <RotateCcw className="w-2.5 h-2.5 inline mr-1" />
-                              Unarchive
-                            </button>
-                          </div>
+                            <div className="flex gap-1 shrink-0">
+                              <button
+                                onClick={async () => {
+                                  await fetch("/api/tasks", {
+                                    method: "PUT",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      id: task.id,
+                                      status: "in_progress",
+                                      user_id: user?.cid || user?.id,
+                                    }),
+                                  });
+                                  fetchTasks();
+                                }}
+                                className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
+                              >
+                                <RotateCcw className="w-2.5 h-2.5 inline mr-1" />
+                                Unarchive
+                              </button>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -3341,7 +3411,7 @@ export default function StaffOpReport() {
                   taskList={tasks}
                   onTasksChange={fetchTasks}
                   weekInfo={weekInfo}
-                  showCarryOver={false}
+                  showCarryOver={true}
                   readOnly={readOnly}
                 />
               </div>
@@ -3369,30 +3439,30 @@ export default function StaffOpReport() {
 
             {/* Action Buttons */}
             {!readOnly && (
-            <div className="flex gap-3 pt-4 border-t border-[var(--border-primary)] sticky bottom-0 bg-primary px-6 py-4">
-              <button
-                onClick={() => {
-                  handleSubmit("draft");
-                  setShowStandupModal(false);
-                }}
-                disabled={saving}
-                className="flex-1 btn btn-secondary gap-2 py-4"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? t("common.saving") : t("reports.saveDraft")}
-              </button>
-              <button
-                onClick={() => {
-                  handleSubmit("submitted");
-                  setShowStandupModal(false);
-                }}
-                disabled={saving}
-                className="flex-1 btn btn-primary gap-2 py-4"
-              >
-                <Send className="w-4 h-4" />
-                {saving ? "Saving..." : "Save"}
-              </button>
-            </div>
+              <div className="flex gap-3 pt-4 border-t border-[var(--border-primary)] sticky bottom-0 bg-primary px-6 py-4">
+                <button
+                  onClick={() => {
+                    handleSubmit("draft");
+                    setShowStandupModal(false);
+                  }}
+                  disabled={saving}
+                  className="flex-1 btn btn-secondary gap-2 py-4"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? t("common.saving") : t("reports.saveDraft")}
+                </button>
+                <button
+                  onClick={() => {
+                    handleSubmit("submitted");
+                    setShowStandupModal(false);
+                  }}
+                  disabled={saving}
+                  className="flex-1 btn btn-primary gap-2 py-4"
+                >
+                  <Send className="w-4 h-4" />
+                  {saving ? "Saving..." : "Save"}
+                </button>
+              </div>
             )}
           </div>
         </div>
