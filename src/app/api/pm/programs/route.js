@@ -198,11 +198,7 @@ export async function POST(req) {
       assigned_segments,
       kpis,
     } = await req.json();
-    const id =
-      "P-" +
-      new Date().getFullYear() +
-      "-" +
-      uuidv4().split("-")[0].toUpperCase();
+    const id = uuidv4();
 
     await db.execute({
       sql: `INSERT INTO v2_programs (id, name, description, concept_note, vision, objectives, program_type, visibility, participant_limit, registration_window, language, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
