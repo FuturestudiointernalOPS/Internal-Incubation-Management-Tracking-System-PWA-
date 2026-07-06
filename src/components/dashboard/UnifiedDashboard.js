@@ -934,12 +934,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     <div
                       key={t.id}
                       onClick={() => {
-                        const r =
-                          user?.role === "super_admin" ||
-                          user?.role === "developer"
-                            ? "admin"
-                            : "staff";
-                        router.push("/" + r + "/op-report");
+                        router.push("/staff/op-report");
                       }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 cursor-pointer hover:brightness-110 transition-all"
                     >
@@ -961,8 +956,10 @@ export default function UnifiedDashboard({ role: propRole }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ===== LEFT COLUMN (2/3) ===== */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Weekly Standup Banner for Staff/Devs */}
-            {(effectiveRole === "developer" || effectiveRole === "staff") && (
+            {/* Weekly Standup Banner for all roles */}
+            {(effectiveRole === "developer" ||
+              effectiveRole === "staff" ||
+              effectiveRole === "super_admin") && (
               <div
                 className="card flex items-center justify-between !p-4 border-l-4 border-l-[var(--brand-orange)] cursor-pointer hover:border-[var(--brand-orange)]/50 transition-all bg-[var(--brand-orange)]/5"
                 onClick={() => {
