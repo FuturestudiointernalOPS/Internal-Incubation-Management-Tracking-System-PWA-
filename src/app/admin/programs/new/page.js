@@ -93,6 +93,9 @@ export default function NewProgram() {
   const [createdKB, setCreatedKB] = useState(null);
   const [kpisList, setKpisList] = useState([]);
   const [kpiInput, setKpiInput] = useState({ title: "", target_value: 80 });
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const [segments, setSegments] = useState([]);
 
@@ -120,18 +123,21 @@ export default function NewProgram() {
     async function loadAssets() {
       setLoadingAssets(true);
       try {
-        const [knowRes, staffRes, segRes] = await Promise.all([
+        const [knowRes, staffRes, segRes, tmplRes] = await Promise.all([
           fetch("/api/knowledge"),
           fetch("/api/contacts"),
           fetch("/api/families"),
+          fetch("/api/pm/programs/templates"),
         ]);
 
         const knowData = await knowRes.json();
         const staffData = await staffRes.json();
         const segData = await segRes.json();
+        const tmplData = await tmplRes.json();
 
         if (knowData.success) setKnowledgeNodes(knowData.conceptNotes || []);
         if (segData.success) setSegments(segData.families || []);
+        if (tmplData.success) setTemplates(tmplData.templates || []);
         // Filter: Only Future Studio Staff (role='staff' or 'admin')
         if (staffData.success) {
           const staffOnly = (staffData.contacts || []).filter(
@@ -395,6 +401,67 @@ export default function NewProgram() {
         </header>
 
         <form onSubmit={handleDeploy} className="space-y-10">
+          {/* Template Selector */}
+          {templates.length > 0 && (
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Start from Template
+              </label>
+              <div className="flex gap-3">
+                <select
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+                >
+                  <option value="">Select a template...</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.program_type || "incubation"})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!selectedTemplate || applyingTemplate}
+                  onClick={async () => {
+                    if (!selectedTemplate) return;
+                    setApplyingTemplate(true);
+                    try {
+                      const t = templates.find(
+                        (x) => x.id === selectedTemplate,
+                      );
+                      const res = await fetch(
+                        "/api/pm/programs/templates?action=apply",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            template_id: selectedTemplate,
+                            name: program.name || t?.name || "New Program",
+                          }),
+                        },
+                      );
+                      const data = await res.json();
+                      if (data.success) {
+                        notify("success", "Program created from template!");
+                        setTimeout(() => router.push("/admin/programs"), 1500);
+                      } else {
+                        notify("error", data.error || "Failed");
+                      }
+                    } catch (e) {
+                      notify("error", e.message);
+                    } finally {
+                      setApplyingTemplate(false);
+                    }
+                  }}
+                  className="px-6 py-3 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all disabled:opacity-40"
+                >
+                  {applyingTemplate ? "Creating..." : "Apply"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* SECTION: BASIC IDENTITY */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-2">

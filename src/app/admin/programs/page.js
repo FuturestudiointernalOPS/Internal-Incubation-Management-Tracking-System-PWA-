@@ -1203,6 +1203,35 @@ export default function ProgramManagement() {
                   "Save"
                 )}
               </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const name = prompt("Template name:");
+                  if (!name || !editingProgram?.id) return;
+                  const res = await fetch(
+                    "/api/pm/programs/templates?action=save",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        program_id: editingProgram.id,
+                        template_name: name,
+                      }),
+                    },
+                  );
+                  const data = await res.json();
+                  if (data.success) {
+                    window.dispatchEvent(
+                      new CustomEvent("impactos:notify", {
+                        detail: { type: "success", message: "Template saved!" },
+                      }),
+                    );
+                  }
+                }}
+                className="btn btn-secondary w-full py-5 uppercase font-black tracking-[0.2em] mt-3"
+              >
+                <FileText className="w-4 h-4" /> Save as Template
+              </button>
             </form>
           </div>
         </div>
