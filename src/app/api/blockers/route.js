@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
+import { getTaskTitleById } from "@/lib/db/queries/tasks";
 
 /**
  * BLOCKERS API
@@ -72,7 +73,16 @@ export async function POST(req) {
     const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
-    const { task_id, user_id, user_name, title, description, severity } = body;
+    const {
+      task_id,
+      user_id,
+      user_name,
+      title,
+      description,
+      severity,
+      reference_url,
+      notes,
+    } = body;
 
     if (!task_id || !user_id || !title) {
       return NextResponse.json(
@@ -114,8 +124,8 @@ export async function POST(req) {
 
     const result = await db.execute({
       sql: `INSERT INTO blockers
-        (task_id, user_id, user_name, title, description, severity)
-        VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+        (task_id, user_id, user_name, title, description, severity, reference_url, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         parseInt(task_id),
         user_id,
@@ -123,6 +133,8 @@ export async function POST(req) {
         title,
         description || null,
         severity || "medium",
+        reference_url || null,
+        notes || null,
       ],
     });
 
@@ -147,12 +159,15 @@ export async function POST(req) {
 
     // Notify all Super Admins (direct DB insert, recipient_id = "sa" for bell)
     try {
+      const taskTitle =
+        (await getTaskTitleById(parseInt(task_id))) || `#${task_id}`;
+      const now = new Date().toISOString().split("T")[0];
       await db.execute({
         sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
         args: [
           "sa",
           "New Blocker Created",
-          `${user_name || user_id} added blocker "${title}" on task #${task_id}`,
+          `${user_name || user_id} added blocker "${title}" on task "${taskTitle}" (${now})`,
           "blocker",
         ],
       });
@@ -205,24 +220,13 @@ export async function PUT(req) {
 
     const blocker = blockerCheck.rows[0];
 
-    // Resolving a blocker: the blocker creator OR the task owner can resolve
+    // Resolving a blocker: only the blocker creator may resolve (Rule 22 + 23)
     if (status === "resolved") {
-      // Fetch task owner to check if resolver is the task owner
-      const taskOwnerRes = await db.execute({
-        sql: "SELECT user_id FROM tasks WHERE id = ?",
-        args: [blocker.task_id],
-      });
-      const taskOwnerId = taskOwnerRes.rows[0]?.user_id;
-
-      const isBlockerCreator = !resolved_by || resolved_by === blocker.user_id;
-      const isTaskOwner = resolved_by && resolved_by === taskOwnerId;
-
-      if (!isBlockerCreator && !isTaskOwner) {
+      if (!resolved_by || resolved_by !== blocker.user_id) {
         return NextResponse.json(
           {
             success: false,
-            error:
-              "Only the blocker creator or the task owner can mark it as resolved",
+            error: "Only the blocker creator can mark it as resolved",
           },
           { status: 403 },
         );

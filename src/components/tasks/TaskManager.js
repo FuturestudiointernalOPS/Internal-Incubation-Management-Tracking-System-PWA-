@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import { uploadFile } from "@/lib/storage";
+import { useI18n } from "@/lib/i18n";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -94,6 +95,7 @@ export default function TaskManager({
   showCarryOver = true, // show carry-over tasks section
   readOnly = false, // past-week read-only mode
 }) {
+  const { t } = useI18n();
   const uid = userId;
   // Get current logged-in user for permission checks
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -166,6 +168,10 @@ export default function TaskManager({
   const [resourceFile, setResourceFile] = useState(null);
   const [blockerModal, setBlockerModal] = useState(null); // { taskId, taskTitle } or null
   const [blockerTitle, setBlockerTitle] = useState("");
+  const [blockerDescription, setBlockerDescription] = useState("");
+  const [blockerPriority, setBlockerPriority] = useState("medium");
+  const [blockerRefUrl, setBlockerRefUrl] = useState("");
+  const [blockerNotes, setBlockerNotes] = useState("");
   const [blockerAdding, setBlockerAdding] = useState(false);
   // ── Blocker Discussions (Ticket 1.9) ──
   const [openBlockerDiscuss, setOpenBlockerDiscuss] = useState(null); // blocker id or null
@@ -379,11 +385,19 @@ export default function TaskManager({
           user_id: uid,
           user_name: userName || "User",
           title: blockerTitle.trim(),
+          description: blockerDescription.trim() || null,
+          severity: blockerPriority,
+          reference_url: blockerRefUrl.trim() || null,
+          notes: blockerNotes.trim() || null,
         }),
       });
       if (res.ok) {
         setBlockerModal(null);
         setBlockerTitle("");
+        setBlockerDescription("");
+        setBlockerPriority("medium");
+        setBlockerRefUrl("");
+        setBlockerNotes("");
         if (onTasksChange) onTasksChange();
       }
     } catch (e) {
@@ -691,13 +705,13 @@ export default function TaskManager({
 
   const carryOverTasks = useMemo(
     () =>
-      tasks.filter(
+      filteredTasks.filter(
         (t) =>
           (t.carried_over_from_task_id !== null ||
             t.status === "carried_over") &&
           !t.parent_task_id,
       ),
-    [tasks],
+    [filteredTasks],
   );
 
   const activeTasks = useMemo(
@@ -2049,9 +2063,14 @@ export default function TaskManager({
                           className="flex flex-col p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-rose-400 font-bold">
-                              {b.title}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-rose-400 font-bold">
+                                {b.title}
+                              </span>
+                              <span className="text-[7px] font-black uppercase text-rose-500/60">
+                                {b.severity || "medium"}
+                              </span>
+                            </div>
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => toggleBlockerDiscuss(b.id)}
@@ -2069,6 +2088,30 @@ export default function TaskManager({
                               )}
                             </div>
                           </div>
+                          {(b.description || b.reference_url || b.notes) && (
+                            <div className="mt-1.5 pt-1.5 border-t border-rose-500/10 space-y-1">
+                              {b.description && (
+                                <p className="text-[9px] text-slate-400">
+                                  {b.description}
+                                </p>
+                              )}
+                              {b.reference_url && (
+                                <a
+                                  href={b.reference_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[8px] text-blue-400 underline break-all"
+                                >
+                                  {b.reference_url}
+                                </a>
+                              )}
+                              {b.notes && (
+                                <p className="text-[8px] text-slate-500 italic">
+                                  {b.notes}
+                                </p>
+                              )}
+                            </div>
+                          )}
                           {/* Discussion thread */}
                           {openBlockerDiscuss === b.id && (
                             <div className="mt-2 pt-2 border-t border-rose-500/10 space-y-1.5">
@@ -2137,25 +2180,64 @@ export default function TaskManager({
 
             {/* New blocker input */}
             {!readOnly && (
-              <div className="flex gap-2">
+              <div className="space-y-2">
                 <input
                   type="text"
                   value={blockerTitle}
                   onChange={(e) => setBlockerTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && blockerTitle.trim())
-                      handleAddBlocker();
-                  }}
-                  placeholder="Describe the blocker..."
-                  className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
+                  placeholder={t("staff.opReport.blockerTitlePlaceholder")}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
                   autoFocus
+                />
+                <textarea
+                  value={blockerDescription}
+                  onChange={(e) => setBlockerDescription(e.target.value)}
+                  placeholder={t(
+                    "staff.opReport.blockerDescriptionPlaceholder",
+                  )}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50 resize-none"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={blockerPriority}
+                    onChange={(e) => setBlockerPriority(e.target.value)}
+                    className="flex-1 px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
+                  >
+                    <option value="low">{t("staff.opReport.priorityLow")}</option>
+                    <option value="medium">
+                      {t("staff.opReport.priorityMedium")}
+                    </option>
+                    <option value="high">{t("staff.opReport.priorityHigh")}</option>
+                    <option value="critical">
+                      {t("staff.opReport.priorityCritical")}
+                    </option>
+                  </select>
+                  <input
+                    type="url"
+                    value={blockerRefUrl}
+                    onChange={(e) => setBlockerRefUrl(e.target.value)}
+                    placeholder={t(
+                      "staff.opReport.blockerReferenceUrlPlaceholder",
+                    )}
+                    className="flex-[2] px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50"
+                  />
+                </div>
+                <textarea
+                  value={blockerNotes}
+                  onChange={(e) => setBlockerNotes(e.target.value)}
+                  placeholder={t("staff.opReport.blockerNotesPlaceholder")}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50 resize-none"
                 />
                 <button
                   onClick={handleAddBlocker}
                   disabled={!blockerTitle.trim() || blockerAdding}
-                  className="px-4 py-2 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
+                  className="w-full px-4 py-2 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
                 >
-                  {blockerAdding ? "..." : "Add"}
+                  {blockerAdding
+                    ? t("staff.opReport.addingBlocker")
+                    : t("staff.opReport.addBlockerButton")}
                 </button>
               </div>
             )}
