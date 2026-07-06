@@ -470,7 +470,7 @@ export default function AdminProjects() {
                 </div>
                 <div>
                   <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                    {t("admin.blockerRate")}
+                    {t("admin.activeBlockerRate")}
                   </p>
                   <p className="text-base font-black text-orange-500">
                     {analytics.blockerRate}%
