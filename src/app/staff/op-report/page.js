@@ -3426,7 +3426,7 @@ export default function StaffOpReport() {
                   taskList={tasks}
                   onTasksChange={fetchTasks}
                   weekInfo={weekInfo}
-                  showCarryOver={false}
+                  showCarryOver={true}
                   readOnly={readOnly}
                 />
               </div>
