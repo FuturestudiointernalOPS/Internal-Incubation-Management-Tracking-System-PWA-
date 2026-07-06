@@ -351,10 +351,7 @@ export async function PUT(req) {
           sql: `INSERT INTO participant_programs (participant_id, program_id)
                 VALUES (?, ?)
                 ON CONFLICT (participant_id, program_id) DO NOTHING`,
-          args: [
-            data.cid,
-            data.program_id,
-          ],
+          args: [data.cid, data.program_id],
         });
       } catch (e) {
         console.error(`PUT program sync error for ${data.cid}:`, e.message);
@@ -431,9 +428,15 @@ export async function GET(req) {
         sql: "SELECT * FROM contacts WHERE cid = ?",
         args: [session.cid],
       });
-    } else {
+    } else if (session.role === "super_admin") {
+      // Super admins see ALL users including pending/inactive
       result = await db.execute(
-        "SELECT * FROM contacts ORDER BY created_at DESC",
+        "SELECT * FROM contacts WHERE deleted = 0 ORDER BY name ASC",
+      );
+    } else {
+      // Other roles only see active users
+      result = await db.execute(
+        "SELECT * FROM contacts WHERE deleted = 0 AND status = 'active' ORDER BY name ASC",
       );
     }
     return NextResponse.json({ success: true, contacts: result.rows });
