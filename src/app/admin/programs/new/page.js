@@ -50,6 +50,17 @@ export default function NewProgram() {
     duration_weeks: 4,
     materials: [],
     assigned_segments: [],
+    name: "",
+    description: "",
+    concept_note: "",
+    vision: "",
+    objectives: "",
+    program_type: "incubation",
+    visibility: "private",
+    participant_limit: 0,
+    registration_window: "",
+    language: "en",
+    assigned_pm_id: "",
   });
 
   // Date validation
@@ -289,7 +300,30 @@ export default function NewProgram() {
       const res = await fetch("/api/pm/programs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...program, kpis: kpisList }),
+        body: JSON.stringify({
+          name: program.name,
+          description: program.description || null,
+          concept_note:
+            program.conceptNoteType === "link"
+              ? program.conceptNoteLink
+              : program.description || null,
+          vision: program.vision || null,
+          objectives: program.objectives || null,
+          program_type: program.program_type || "incubation",
+          visibility: program.visibility || "private",
+          participant_limit: program.participant_limit || 0,
+          registration_window: program.registration_window || null,
+          language: program.language || "en",
+          start_date: program.start_date,
+          end_date: program.end_date,
+          duration_weeks: program.duration_weeks,
+          assigned_pm_id: program.assigned_pm_id,
+          assigned_assistant_id: program.assigned_assistant_id || null,
+          note_id: program.note_id || null,
+          materials: program.materials,
+          assigned_segments: program.assigned_segments,
+          kpis: kpisList,
+        }),
       });
       const data = await res.json();
 
@@ -413,6 +447,129 @@ export default function NewProgram() {
                   {dateError}
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* Program Type & Vision & Objectives */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Program Type
+              </label>
+              <select
+                value={program.program_type || "incubation"}
+                onChange={(e) =>
+                  setProgram({ ...program, program_type: e.target.value })
+                }
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              >
+                <option value="incubation">Incubation</option>
+                <option value="acceleration">Acceleration</option>
+                <option value="bootcamp">Bootcamp</option>
+                <option value="workshop">Workshop</option>
+                <option value="fellowship">Fellowship</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Visibility
+              </label>
+              <select
+                value={program.visibility || "private"}
+                onChange={(e) =>
+                  setProgram({ ...program, visibility: e.target.value })
+                }
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              >
+                <option value="private">Private</option>
+                <option value="public">Public</option>
+                <option value="invite_only">Invite Only</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Language
+              </label>
+              <select
+                value={program.language || "en"}
+                onChange={(e) =>
+                  setProgram({ ...program, language: e.target.value })
+                }
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              >
+                <option value="en">English</option>
+                <option value="fr">French</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Vision
+              </label>
+              <textarea
+                rows={3}
+                value={program.vision || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, vision: e.target.value })
+                }
+                placeholder="What is the long-term vision for this program?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Objectives
+              </label>
+              <textarea
+                rows={3}
+                value={program.objectives || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, objectives: e.target.value })
+                }
+                placeholder="What are the key objectives?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Participant Limit
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={program.participant_limit || 0}
+                onChange={(e) =>
+                  setProgram({
+                    ...program,
+                    participant_limit: parseInt(e.target.value) || 0,
+                  })
+                }
+                placeholder="0 = unlimited"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Registration Window
+              </label>
+              <input
+                type="text"
+                value={program.registration_window || ""}
+                onChange={(e) =>
+                  setProgram({
+                    ...program,
+                    registration_window: e.target.value,
+                  })
+                }
+                placeholder="e.g. 2024-01-01 to 2024-02-01"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              />
             </div>
           </div>
 
