@@ -330,3 +330,40 @@ export async function PUT(req) {
     );
   }
 }
+
+export async function DELETE(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "id is required" },
+        { status: 400 },
+      );
+    }
+
+    // Remove project members first
+    await db.execute({
+      sql: "DELETE FROM project_members WHERE project_id::text = ?",
+      args: [id],
+    });
+
+    // Then delete the project
+    await db.execute({
+      sql: "DELETE FROM v2_projects WHERE id::text = ?",
+      args: [id],
+    });
+
+    return NextResponse.json({ success: true, action: "deleted" });
+  } catch (error) {
+    console.error("DELETE /api/projects error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
