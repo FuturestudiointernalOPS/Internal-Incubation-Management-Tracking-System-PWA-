@@ -81,6 +81,34 @@ export async function GET(req) {
     if (id) {
       sql += " AND id = ?";
       args.push(parseInt(id));
+      // When fetching by ID, skip user scope (detail view is read-only)
+      const result = await db.execute({ sql, args });
+      if (result.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Task not found" },
+          { status: 404 },
+        );
+      }
+      const task = result.rows[0];
+      // Fetch blockers + subtasks for this single task
+      const blockerRes = await db.execute({
+        sql: "SELECT id, title, status, severity FROM blockers WHERE task_id = ?",
+        args: [parseInt(id)],
+      });
+      const subtaskRes = await db.execute({
+        sql: "SELECT id, title, status FROM tasks WHERE parent_task_id = ?",
+        args: [parseInt(id)],
+      });
+      return NextResponse.json({
+        success: true,
+        tasks: [
+          {
+            ...task,
+            blockers: blockerRes.rows || [],
+            subtasks: subtaskRes.rows || [],
+          },
+        ],
+      });
     }
 
     // SECURITY: Force scope to own tasks if not super_admin and no explicit filter
@@ -320,6 +348,29 @@ export async function POST(req) {
     // Task must have project_id OR category — auto-assign "General" as fallback
     if (!finalProjectId && !finalCategory) {
       finalCategory = "General";
+    }
+
+    // Prevent task creation on closed projects
+    if (finalProjectId) {
+      try {
+        const projCheck = await db.execute({
+          sql: "SELECT status FROM v2_projects WHERE id::text = ?",
+          args: [finalProjectId],
+        });
+        if (
+          projCheck.rows.length > 0 &&
+          (projCheck.rows[0].status === "Closed" ||
+            projCheck.rows[0].status === "Archived")
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Cannot add tasks to a closed or archived project.",
+            },
+            { status: 400 },
+          );
+        }
+      } catch (_) {}
     }
 
     // Phase 5: Auto-generate start_date from created_at if not provided

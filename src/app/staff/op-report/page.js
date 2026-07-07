@@ -29,7 +29,7 @@ import {
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
-import TaskManager from "@/components/tasks/TaskManager";
+import TaskDetailModal from "@/components/ui/TaskDetailModal";
 
 /**
  * STAFF OPERATIONAL REPORT PAGE
@@ -206,6 +206,7 @@ export default function StaffOpReport() {
   const [staffSearch, setStaffSearch] = useState("");
   const [expandedTasks, setExpandedTasks] = useState({}); // taskId -> boolean
   const [updatingTasks, setUpdatingTasks] = useState({}); // taskId -> boolean
+  const [taskDetail, setTaskDetail] = useState(null); // task object for detail modal
 
   // Summary tab state
   const [summaryTasks, setSummaryTasks] = useState([]);
@@ -1424,7 +1425,14 @@ export default function StaffOpReport() {
                                                               <div
                                                                 className={`w-1.5 h-1.5 rounded-full ${config.color.replace("text-", "bg-")} shrink-0`}
                                                               />
-                                                              <span className="text-[12px] font-medium text-[var(--text-primary)]">
+                                                              <span
+                                                                className="text-[12px] font-medium text-[var(--text-primary)] cursor-pointer hover:text-[var(--brand-orange)]"
+                                                                onClick={() =>
+                                                                  setTaskDetail(
+                                                                    task,
+                                                                  )
+                                                                }
+                                                              >
                                                                 {task.title}
                                                               </span>
                                                               {task.priority &&
@@ -3724,6 +3732,8 @@ export default function StaffOpReport() {
           </div>
         </div>
       )}
+
+      <TaskDetailModal task={taskDetail} onClose={() => setTaskDetail(null)} />
     </DashboardLayout>
   );
 }

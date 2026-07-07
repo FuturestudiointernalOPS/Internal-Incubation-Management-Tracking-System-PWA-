@@ -91,6 +91,7 @@ export default function AdminProjects() {
     type: "",
     description: "",
     status: "Active",
+    priority: "medium",
     leads: [],
     conceptNoteUrl: "",
     start_date: "",
@@ -108,7 +109,9 @@ export default function AdminProjects() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const projRes = await fetch("/api/admin/projects");
+      const archivedParam =
+        filterStatus === "Archived" ? "?include_archived=true" : "";
+      const projRes = await fetch(`/api/admin/projects${archivedParam}`);
       const projData = await projRes.json();
       if (projData.success) {
         setProjects(projData.projects || []);
@@ -129,7 +132,7 @@ export default function AdminProjects() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterStatus]);
 
   const fetchStaff = useCallback(async () => {
     try {
@@ -190,6 +193,7 @@ export default function AdminProjects() {
           status: editProject.status,
           start_date: editProject.start_date || null,
           end_date: editProject.end_date || null,
+          priority: editProject.priority || "medium",
           assigned_pm_ids: editProject.leads,
         }),
       });
@@ -198,6 +202,48 @@ export default function AdminProjects() {
       console.error(e);
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const handleArchiveProject = async (project) => {
+    if (!window.confirm("Archive this project?")) return;
+    try {
+      await fetch("/api/projects", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: project.id, status: "Archived" }),
+      });
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUnarchiveProject = async (project) => {
+    if (!window.confirm("Restore this project?")) return;
+    try {
+      await fetch("/api/projects", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: project.id, status: "Active" }),
+      });
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const quickStatus = async (project, newStatus, confirmMsg) => {
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    try {
+      await fetch("/api/projects", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: project.id, status: newStatus }),
+      });
+      fetchData();
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -548,6 +594,7 @@ export default function AdminProjects() {
               <option value="Active">Active</option>
               <option value="Completed">Completed</option>
               <option value="Paused">Paused</option>
+              <option value="Archived">Archived</option>
             </select>
           </div>
         </div>
@@ -578,6 +625,9 @@ export default function AdminProjects() {
                       Status
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      Priority
+                    </th>
+                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                       Tasks
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
@@ -595,6 +645,7 @@ export default function AdminProjects() {
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                       End
                     </th>
+                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -605,24 +656,6 @@ export default function AdminProjects() {
                       onClick={() =>
                         router.push(`/admin/projects/${project.id}`)
                       }
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setShowMemberModal(project.id);
-                        setEditProject({
-                          id: project.id,
-                          name: project.name || "",
-                          description: project.meta?.description || "",
-                          status: project.status || "Active",
-                          leads:
-                            project.meta?.assigned_pm_ids ||
-                            (project.assigned_pm_id
-                              ? [project.assigned_pm_id]
-                              : []),
-                          conceptNoteUrl: project.meta?.concept_note_url || "",
-                        });
-                        fetchMembers(project.id);
-                        fetchStaff();
-                      }}
                     >
                       <td className="p-4">
                         <div className="flex items-center gap-3">
@@ -642,6 +675,21 @@ export default function AdminProjects() {
                           className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
                         >
                           {project.status}
+                        </span>
+                      </td>
+                      <td className="text-center p-4">
+                        <span
+                          className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${
+                            project.priority === "critical"
+                              ? "bg-red-500/10 text-red-400"
+                              : project.priority === "high"
+                                ? "bg-amber-500/10 text-amber-400"
+                                : project.priority === "low"
+                                  ? "bg-slate-500/10 text-slate-400"
+                                  : "bg-blue-500/10 text-blue-400"
+                          }`}
+                        >
+                          {project.priority || "medium"}
                         </span>
                       </td>
                       <td className="text-center p-4">
@@ -705,6 +753,94 @@ export default function AdminProjects() {
                               )
                             : "—"}
                         </span>
+                      </td>
+                      <td className="text-center p-4">
+                        <div className="flex items-center justify-center gap-2">
+                          {/* Status quick actions */}
+                          {project.status === "Active" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                quickStatus(project, "Paused");
+                              }}
+                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white transition-all"
+                            >
+                              Pause
+                            </button>
+                          )}
+                          {project.status === "Paused" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                quickStatus(project, "Active");
+                              }}
+                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"
+                            >
+                              Resume
+                            </button>
+                          )}
+                          {project.status === "Active" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                quickStatus(
+                                  project,
+                                  "Completed",
+                                  "Mark as completed?",
+                                );
+                              }}
+                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white transition-all"
+                            >
+                              Complete
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowMemberModal(project.id);
+                              setEditProject({
+                                id: project.id,
+                                name: project.name || "",
+                                description: project.meta?.description || "",
+                                status: project.status || "Active",
+                                priority: project.priority || "medium",
+                                start_date: project.start_date || "",
+                                end_date: project.end_date || "",
+                                leads:
+                                  project.meta?.assigned_pm_ids ||
+                                  (project.assigned_pm_id
+                                    ? [project.assigned_pm_id]
+                                    : []),
+                                conceptNoteUrl:
+                                  project.meta?.concept_note_url || "",
+                              });
+                              fetchMembers(project.id);
+                              fetchStaff();
+                            }}
+                            className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-black transition-all"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (project.status === "Archived") {
+                                handleUnarchiveProject(project);
+                              } else {
+                                handleArchiveProject(project);
+                              }
+                            }}
+                            className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider transition-all ${
+                              project.status === "Archived"
+                                ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white"
+                                : "bg-slate-500/10 text-slate-500 hover:bg-rose-500 hover:text-white"
+                            }`}
+                          >
+                            {project.status === "Archived"
+                              ? "Restore"
+                              : "Archive"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -780,7 +916,55 @@ export default function AdminProjects() {
                   <option value="Active">Active</option>
                   <option value="Paused">Paused</option>
                   <option value="Completed">Completed</option>
+                  <option value="Archived">Archived</option>
+                  <option value="Closed">Closed</option>
                 </select>
+              </div>
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Priority
+                </label>
+                <select
+                  value={editProject.priority || "medium"}
+                  onChange={(e) =>
+                    setEditProject((p) => ({ ...p, priority: e.target.value }))
+                  }
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none appearance-none cursor-pointer"
+                >
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={editProject.start_date || ""}
+                  onChange={(e) =>
+                    setEditProject((p) => ({
+                      ...p,
+                      start_date: e.target.value,
+                    }))
+                  }
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={editProject.end_date || ""}
+                  onChange={(e) =>
+                    setEditProject((p) => ({ ...p, end_date: e.target.value }))
+                  }
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                />
               </div>
               <div className="col-span-2">
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">

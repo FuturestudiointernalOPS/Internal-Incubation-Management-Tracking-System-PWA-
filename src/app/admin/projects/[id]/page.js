@@ -226,6 +226,12 @@ export default function ProjectDetail() {
     if (!projectId) return;
     setUpdatesLoading(true);
     try {
+      // Auto-generate report if none exists for current week
+      try {
+        await fetch(`/api/admin/projects/${projectId}/reports/generate`, {
+          method: "POST",
+        });
+      } catch (_) {}
       const res = await fetch(`/api/admin/projects/${projectId}/updates`);
       const data = await res.json();
       if (data.success) setUpdates(data.updates || []);
@@ -410,13 +416,18 @@ export default function ProjectDetail() {
                   {project.start_date && (
                     <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
                       <Calendar className="w-3 h-3" />
-                      <span className="font-bold">Start {new Date(project.start_date).toLocaleDateString()}</span>
+                      <span className="font-bold">
+                        Start{" "}
+                        {new Date(project.start_date).toLocaleDateString()}
+                      </span>
                     </div>
                   )}
                   {project.end_date && (
                     <div className="flex items-center gap-1.5 text-[10px] text-amber-400">
                       <Calendar className="w-3 h-3" />
-                      <span className="font-bold">End {new Date(project.end_date).toLocaleDateString()}</span>
+                      <span className="font-bold">
+                        End {new Date(project.end_date).toLocaleDateString()}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -938,6 +949,24 @@ export default function ProjectDetail() {
                 <h3 className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-widest">
                   This Week&apos;s Update
                 </h3>
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(
+                        `/api/admin/projects/${projectId}/reports/generate`,
+                        { method: "POST" },
+                      );
+                      const data = await res.json();
+                      if (data.success) {
+                        fetchUpdates();
+                        alert("Report generated for Week " + data.week);
+                      } else alert(data.error || "Failed");
+                    } catch (_) {}
+                  }}
+                  className="ml-auto px-3 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"
+                >
+                  Generate Report
+                </button>
               </div>
               <div className="space-y-3">
                 <div>
