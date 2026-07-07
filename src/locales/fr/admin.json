@@ -93,6 +93,28 @@
       "browseArchive": "Parcourir tous les rapports soumis et données historiques",
       "historicalReports": "Rapports historiques des programmes et soumissions de formulaires",
       "pmReportResponses": "Toutes les réponses aux rapports des gestionnaires de programme"
-    }
+    },
+    "programsList": "Programmes",
+    "all": "Tout",
+    "edit": "Modifier",
+    "save": "Enregistrer",
+    "archive": "Archiver",
+    "restore": "Restaurer",
+    "search": "Rechercher des programmes...",
+    "noPrograms": "Aucun programme trouvé",
+    "tabActive": "Actif",
+    "tabPending": "En attente",
+    "tabCompleted": "Terminé",
+    "tabArchived": "Archivé",
+    "tabAll": "Tout",
+    "programPersonnel": "Personnel du programme",
+    "selectManager": "Sélectionner le gestionnaire",
+    "unassigned": "Non assigné",
+    "durationWeeks": "Durée (semaines)",
+    "kpiTitle": "Titre du KPI",
+    "targetValue": "Valeur cible",
+    "addKpi": "Ajouter KPI",
+    "startDate": "Date de début",
+    "endDate": "Date de fin"
   }
 }

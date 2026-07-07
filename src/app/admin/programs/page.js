@@ -14,7 +14,7 @@ import {
   Archive,
   RotateCcw,
   Trash2,
-  Settings,
+  {t("navigation.settings")},
   ArrowLeft,
   Signal,
   FileText,
@@ -25,9 +25,11 @@ import {
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { uploadFile } from "@/lib/storage";
+import { useI18n } from "@/lib/i18n";
 
 export default function ProgramManagement() {
-  const [programs, setPrograms] = useState([]);
+  const { t } = useI18n();
+  const [{t("admin.programsList")}, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTab, setTab] = useState("active");
@@ -412,7 +414,7 @@ export default function ProgramManagement() {
                 </span>
               </div>
               <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)]">
-                PROGRAMS DASHBOARD
+                {t("admin.programsList")}
               </h1>
             </div>
           </div>
@@ -428,7 +430,7 @@ export default function ProgramManagement() {
               onClick={() => router.push("/admin/programs/new")}
               className="btn btn-primary gap-2"
             >
-              <Plus className="w-4 h-4" /> Create Program
+              <Plus className="w-4 h-4" /> {t("admin.newProgram")}
             </button>
           </div>
         </header>
@@ -441,11 +443,11 @@ export default function ProgramManagement() {
               onChange={(e) => setTab(e.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
             >
-              <option value="active">Active Programs</option>
-              <option value="pending">Pending</option>
-              <option value="archived">Archived</option>
-              <option value="completed">Completed</option>
-              <option value="all">All Programs</option>
+              <option value="active">{t("admin.tabActive")}</option>
+              <option value="pending">{t("admin.tabPending")}</option>
+              <option value="archived">{t("admin.tabArchived")}</option>
+              <option value="completed">{t("admin.tabCompleted")}</option>
+              <option value="all">{t("admin.tabAll")}</option>
             </select>
           </div>
 
@@ -454,7 +456,7 @@ export default function ProgramManagement() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by program name..."
+              placeholder="{t("admin.search")}"
               className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
             />
           </div>
@@ -531,7 +533,7 @@ export default function ProgramManagement() {
                       <div className="flex items-center gap-2">
                         <User className="w-3 h-3 text-[var(--brand-orange)]" />
                         <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">
-                          {p?.pm_name || "Unassigned"}
+                          {p?.pm_name || "{t("admin.unassigned")}"}
                         </span>
                       </div>
                     </td>
@@ -592,7 +594,7 @@ export default function ProgramManagement() {
                                 e.stopPropagation();
                                 setEditingProgram(p);
                               }}
-                              title="Edit"
+                              title={t("admin.edit")}
                               className="p-2 hover:text-[var(--brand-orange)]"
                             >
                               <Edit3 className="w-4 h-4" />
@@ -690,7 +692,7 @@ export default function ProgramManagement() {
                   PROGRAM PERSONNEL (STAFF)
                 </label>
                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
-                  Select staff members assigned to assist the Program Manager in
+                  Select staff members assigned to assist the {t("admin.selectManager")} in
                   oversight.
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-primary rounded-2xl border border-[var(--border-primary)]">
@@ -704,7 +706,7 @@ export default function ProgramManagement() {
                       const mId = member.cid || member.id;
                       let assistantIds = [];
                       if (
-                        typeof editingProgram?.assigned_assistant_id ===
+                        type{t("common.of")} editingProgram?.assigned_assistant_id ===
                         "string"
                       ) {
                         try {
@@ -857,7 +859,7 @@ export default function ProgramManagement() {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  Program Status
+                  {t("admin.programStatus")}
                 </label>
                 <select
                   value={editingProgram?.status || "active"}
@@ -1126,7 +1128,7 @@ export default function ProgramManagement() {
                           {kpi.title}
                         </p>
                         <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">
-                          Target Value: {kpi.target_value}%
+                          {t("admin.targetValue")}: {kpi.target_value}%
                         </p>
                       </div>
                       <button
@@ -1152,7 +1154,7 @@ export default function ProgramManagement() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <input
-                        placeholder="KPI Title (e.g. Attendance)..."
+                        placeholder="{t("admin.kpiTitle")} (e.g. Attendance)..."
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
                         value={editKpiInput.title}
                         onChange={(e) =>
@@ -1201,7 +1203,7 @@ export default function ProgramManagement() {
                 {isUpdating ? (
                   <div className="flex items-center justify-center gap-3">
                     <Loader2 className="w-5 h-5 animate-spin" />{" "}
-                    <span>Saving...</span>
+                    <span>{t("common.saving")}</span>
                   </div>
                 ) : (
                   "Save"

@@ -93,6 +93,28 @@
       "browseArchive": "Browse all submitted reports and historical data",
       "historicalReports": "Historical program reports and form submissions",
       "pmReportResponses": "All submitted program manager report responses"
-    }
+    },
+    "programsList": "Programs",
+    "all": "All",
+    "edit": "Edit",
+    "save": "Save",
+    "archive": "Archive",
+    "restore": "Restore",
+    "search": "Search programs...",
+    "noPrograms": "No programs found",
+    "tabActive": "Active",
+    "tabPending": "Pending",
+    "tabCompleted": "Completed",
+    "tabArchived": "Archived",
+    "tabAll": "All",
+    "programPersonnel": "Program Personnel (Staff)",
+    "selectManager": "Select Program Manager",
+    "unassigned": "Unassigned",
+    "durationWeeks": "Duration (weeks)",
+    "kpiTitle": "KPI Title",
+    "targetValue": "Target Value",
+    "addKpi": "Add KPI",
+    "startDate": "Start Date",
+    "endDate": "End Date"
   }
 }
