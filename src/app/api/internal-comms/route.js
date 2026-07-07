@@ -99,6 +99,8 @@ export async function POST(req) {
       subject,
       body,
       priority,
+      attachment_url,
+      attachment_name,
     } = await req.json();
 
     // SECURITY: Sender must match the authenticated user.
@@ -133,8 +135,20 @@ export async function POST(req) {
       );
     } catch (_) {}
 
+    // Ensure attachment columns exist (safe migration)
+    try {
+      await db.execute(
+        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT",
+      );
+    } catch (_) {}
+    try {
+      await db.execute(
+        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS attachment_name TEXT",
+      );
+    } catch (_) {}
+
     const insertRes = await db.execute({
-      sql: "INSERT INTO v2_messages (sender_id, recipient_id, target_type, target_id, subject, body, priority, is_read) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+      sql: "INSERT INTO v2_messages (sender_id, recipient_id, target_type, target_id, subject, body, priority, is_read, attachment_url, attachment_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
       args: [
         effectiveSenderId,
         recipient_id || null,
@@ -144,6 +158,8 @@ export async function POST(req) {
         body,
         priority || "normal",
         0,
+        attachment_url || null,
+        attachment_name || null,
       ],
     });
     const newMessageId = insertRes.rows[0]?.id;
@@ -252,6 +268,13 @@ export async function PUT(req) {
         sql: `UPDATE v2_messages SET is_read = 1 WHERE id IN (${placeholders})`,
         args: messageIds,
       });
+      // Mark corresponding notifications as read
+      try {
+        await db.execute({
+          sql: "UPDATE v2_notifications SET is_read = 1 WHERE recipient_id = ? AND type = 'message' AND is_read = 0",
+          args: [sessionCid],
+        });
+      } catch (_) {}
     } else if (conversationWith) {
       // Mark all messages from a specific sender as read
       await db.execute({

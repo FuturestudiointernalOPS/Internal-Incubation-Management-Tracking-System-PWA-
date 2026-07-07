@@ -16,9 +16,13 @@ import {
   User,
   X,
   Check,
+  CheckCheck,
   Building2,
   Trash2,
+  Paperclip,
+  ExternalLink,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -244,6 +248,9 @@ export default function MessagingChat({ role = "super_admin" }) {
   const [loading, setLoading] = useState(true);
   const [activeConversation, setActiveConversation] = useState(null);
   const [replyText, setReplyText] = useState("");
+  const [replyAttachmentUrl, setReplyAttachmentUrl] = useState("");
+  const [replyAttachmentName, setReplyAttachmentName] = useState("");
+  const [replyShowAttachment, setReplyShowAttachment] = useState(false);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
   const [deletingMessageId, setDeletingMessageId] = useState(null);
@@ -255,6 +262,9 @@ export default function MessagingChat({ role = "super_admin" }) {
   const [composeGroupId, setComposeGroupId] = useState("");
   const [composeProgram, setComposeProgram] = useState("");
   const [composeBody, setComposeBody] = useState("");
+  const [composeAttachmentUrl, setComposeAttachmentUrl] = useState("");
+  const [composeAttachmentName, setComposeAttachmentName] = useState("");
+  const [composeShowAttachment, setComposeShowAttachment] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
   const [programSearch, setProgramSearch] = useState("");
   const [showContactDropdown, setShowContactDropdown] = useState(false);
@@ -265,6 +275,7 @@ export default function MessagingChat({ role = "super_admin" }) {
 
   const chatEndRef = useRef(null);
   const replyInputRef = useRef(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
@@ -441,7 +452,7 @@ export default function MessagingChat({ role = "super_admin" }) {
         icon = "user";
       } else if (msg.target_type === "all") {
         threadId = "broadcast_all";
-        label = "Broadcast (All Users)";
+        label = t("messaging.broadcastAllUsers");
         icon = "broadcast";
       } else if (msg.target_type === "role") {
         threadId = `role_${msg.target_id}`;
@@ -449,12 +460,14 @@ export default function MessagingChat({ role = "super_admin" }) {
         const fam = families.find(
           (f) => String(f.id) === String(msg.target_id),
         );
-        label = fam ? fam.name : msg.target_id || "Group";
+        label = fam ? fam.name : msg.target_id || t("messaging.groupFallback");
         icon = "group";
       } else if (msg.target_type === "program") {
         threadId = `program_${msg.target_id}`;
         const prog = allPrograms.find((p) => p.id === msg.target_id);
-        label = `Program: ${prog?.name || msg.target_id}`;
+        label = t("messaging.programLabel", {
+          name: prog?.name || msg.target_id,
+        });
         icon = "program";
       } else {
         continue;
@@ -569,6 +582,8 @@ export default function MessagingChat({ role = "super_admin" }) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ messageIds: unreadIds }),
           });
+          // Also mark notifications as read so sidebar badge updates
+          window.dispatchEvent(new Event("notifications:refresh"));
         } catch (_) {}
       }
     },
@@ -581,40 +596,50 @@ export default function MessagingChat({ role = "super_admin" }) {
     setSending(true);
     try {
       let payload;
+      const attUrl = replyAttachmentUrl.trim() || null;
+      const attName = replyAttachmentName.trim() || attUrl || null;
       if (activeConversation.type === "individual") {
         payload = {
           sender_id: uid,
           recipient_id: activeConversation.targetId,
           target_type: "individual",
-          subject: "(No subject)",
+          subject: t("messaging.noSubject"),
           body: replyText,
           priority: "normal",
+          attachment_url: attUrl,
+          attachment_name: attName,
         };
       } else if (activeConversation.type === "role") {
         payload = {
           sender_id: uid,
           target_type: "role",
           target_id: activeConversation.targetId,
-          subject: "Reply to " + activeConversation.label,
+          subject: t("messaging.replyTo", { label: activeConversation.label }),
           body: replyText,
           priority: "normal",
+          attachment_url: attUrl,
+          attachment_name: attName,
         };
       } else if (activeConversation.type === "program") {
         payload = {
           sender_id: uid,
           target_type: "program",
           target_id: activeConversation.targetId,
-          subject: "Reply to " + activeConversation.label,
+          subject: t("messaging.replyTo", { label: activeConversation.label }),
           body: replyText,
           priority: "normal",
+          attachment_url: attUrl,
+          attachment_name: attName,
         };
       } else if (activeConversation.type === "all") {
         payload = {
           sender_id: uid,
           target_type: "all",
-          subject: "Reply",
+          subject: t("messaging.reply"),
           body: replyText,
           priority: "normal",
+          attachment_url: attUrl,
+          attachment_name: attName,
         };
       }
       if (!payload) return;
@@ -624,6 +649,9 @@ export default function MessagingChat({ role = "super_admin" }) {
         body: JSON.stringify(payload),
       });
       setReplyText("");
+      setReplyAttachmentUrl("");
+      setReplyAttachmentName("");
+      setReplyShowAttachment(false);
       await fetchMessages();
     } catch (e) {
       console.error(e);
@@ -642,7 +670,7 @@ export default function MessagingChat({ role = "super_admin" }) {
 
   // ── Handle deleting a message (sender only, enforced server-side too) ──
   const handleDeleteMessage = async (messageId) => {
-    if (!window.confirm("Delete this message?")) return;
+    if (!window.confirm(t("messaging.deleteConfirm"))) return;
     setDeletingMessageId(messageId);
     try {
       const res = await fetch(`/api/internal-comms?id=${messageId}`, {
@@ -668,27 +696,34 @@ export default function MessagingChat({ role = "super_admin" }) {
     setSending(true);
     try {
       let payload;
+      const attUrl = composeAttachmentUrl.trim() || null;
+      const attName = composeAttachmentName.trim() || attUrl || null;
       if (sendMode === "individual") {
         payload = {
           sender_id: uid,
           recipient_id: composeRecipient,
           target_type: "individual",
-          subject: "(No subject)",
+          subject: t("messaging.noSubject"),
           body: composeBody,
           priority: "normal",
+          attachment_url: attUrl,
+          attachment_name: attName,
         };
       } else if (sendMode === "group") {
         payload = {
           sender_id: uid,
           target_type: "role", // uses target_id = family/group id
           target_id: composeGroupId,
-          subject:
-            "Message to " +
-            (availableGroups.find(
-              (g) => String(g.id) === String(composeGroupId),
-            )?.name || "Group"),
+          subject: t("messaging.messageTo", {
+            name:
+              availableGroups.find(
+                (g) => String(g.id) === String(composeGroupId),
+              )?.name || t("messaging.groupFallback"),
+          }),
           body: composeBody,
           priority: "normal",
+          attachment_url: attUrl,
+          attachment_name: attName,
         };
       } else if (sendMode === "program") {
         const prog = availablePrograms.find((p) => p.id === composeProgram);
@@ -696,17 +731,23 @@ export default function MessagingChat({ role = "super_admin" }) {
           sender_id: uid,
           target_type: "program",
           target_id: composeProgram,
-          subject: "Message to " + (prog?.name || "Program"),
+          subject: t("messaging.messageTo", {
+            name: prog?.name || t("messaging.program"),
+          }),
           body: composeBody,
           priority: "normal",
+          attachment_url: attUrl,
+          attachment_name: attName,
         };
       } else if (sendMode === "broadcast") {
         payload = {
           sender_id: uid,
           target_type: "all",
-          subject: "Broadcast",
+          subject: t("messaging.broadcast"),
           body: composeBody,
           priority: "normal",
+          attachment_url: attUrl,
+          attachment_name: attName,
         };
       }
       if (!payload) return;
@@ -722,6 +763,9 @@ export default function MessagingChat({ role = "super_admin" }) {
       setComposeGroupId("");
       setComposeProgram("");
       setComposeBody("");
+      setComposeAttachmentUrl("");
+      setComposeAttachmentName("");
+      setComposeShowAttachment(false);
       setContactSearch("");
       setProgramSearch("");
       setShowContactDropdown(false);
@@ -787,12 +831,18 @@ export default function MessagingChat({ role = "super_admin" }) {
       <div className="flex items-center justify-between mb-4 px-6 pt-6">
         <div>
           <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">
-            Messages
+            {t("messaging.title")}
           </h1>
           <p className="text-[10px] text-[var(--text-secondary)] mt-1">
             {totalUnread > 0
-              ? `${totalUnread} unread`
-              : `${conversations.length} conversation${conversations.length !== 1 ? "s" : ""}`}
+              ? t("messaging.unreadCount", { count: totalUnread })
+              : conversations.length !== 1
+                ? t("messaging.conversationCountPlural", {
+                    count: conversations.length,
+                  })
+                : t("messaging.conversationCount", {
+                    count: conversations.length,
+                  })}
           </p>
         </div>
         <button
@@ -801,6 +851,9 @@ export default function MessagingChat({ role = "super_admin" }) {
             setContactSearch("");
             setComposeRecipient("");
             setComposeBody("");
+            setComposeAttachmentUrl("");
+            setComposeAttachmentName("");
+            setComposeShowAttachment(false);
             setSendMode(
               sendModes.includes("individual")
                 ? "individual"
@@ -809,7 +862,7 @@ export default function MessagingChat({ role = "super_admin" }) {
           }}
           className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
         >
-          <Send className="w-3.5 h-3.5" /> New
+          <Send className="w-3.5 h-3.5" /> {t("messaging.new")}
         </button>
       </div>
 
@@ -827,7 +880,7 @@ export default function MessagingChat({ role = "super_admin" }) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
               <input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder={t("messaging.search")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -845,11 +898,11 @@ export default function MessagingChat({ role = "super_admin" }) {
                 <MessageSquare className="w-10 h-10 text-[var(--text-secondary)] mb-3 opacity-30" />
                 <p className="text-[11px] font-bold text-[var(--text-secondary)]">
                   {search
-                    ? "No matching conversations"
-                    : "No conversations yet"}
+                    ? t("messaging.noMatchingConversations")
+                    : t("messaging.noConversations")}
                 </p>
                 <p className="text-[9px] text-[var(--text-secondary)] mt-1 opacity-50">
-                  Click &quot;New&quot; to start messaging
+                  {t("messaging.clickNewToStart")}
                 </p>
               </div>
             ) : (
@@ -899,9 +952,16 @@ export default function MessagingChat({ role = "super_admin" }) {
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        {thread.type === "individual" && !isLastFromOther && (
-                          <Check className="w-2.5 h-2.5 text-[var(--text-secondary)] shrink-0" />
-                        )}
+                        {thread.type === "individual" &&
+                          !isLastFromOther &&
+                          (lastMsg?.is_read === 1 ? (
+                            <span className="flex items-center gap-0.5 shrink-0">
+                              <Check className="w-2.5 h-2.5 text-emerald-400" />
+                              <Check className="w-2.5 h-2.5 text-emerald-400 -ml-1" />
+                            </span>
+                          ) : (
+                            <Check className="w-2.5 h-2.5 text-[var(--text-secondary)] shrink-0" />
+                          ))}
                         <p
                           className={cn(
                             "text-[9px] truncate flex-1",
@@ -939,10 +999,10 @@ export default function MessagingChat({ role = "super_admin" }) {
               <div className="text-center px-6">
                 <MessageSquare className="w-16 h-16 text-[var(--text-secondary)] mx-auto mb-4 opacity-20" />
                 <p className="text-sm font-bold text-[var(--text-secondary)]">
-                  Select a conversation
+                  {t("messaging.selectConversation")}
                 </p>
                 <p className="text-[10px] text-[var(--text-secondary)] mt-1 opacity-50">
-                  Messages with unread replies are highlighted in orange
+                  {t("messaging.unreadHighlight")}
                 </p>
               </div>
             </div>
@@ -980,8 +1040,13 @@ export default function MessagingChat({ role = "super_admin" }) {
                     {activeConversation.label}
                   </p>
                   <p className="text-[8px] text-[var(--text-secondary)]">
-                    {activeMessages.length} message
-                    {activeMessages.length !== 1 ? "s" : ""}
+                    {activeMessages.length !== 1
+                      ? t("messaging.messageCountPlural", {
+                          count: activeMessages.length,
+                        })
+                      : t("messaging.messageCount", {
+                          count: activeMessages.length,
+                        })}
                   </p>
                 </div>
               </div>
@@ -991,7 +1056,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                 {activeMessages.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <p className="text-[10px] text-[var(--text-secondary)] italic">
-                      No messages yet. Say hello!
+                      {t("messaging.noMessages")}
                     </p>
                   </div>
                 ) : (
@@ -1012,7 +1077,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                           <button
                             onClick={() => handleDeleteMessage(msg.id)}
                             disabled={isDeleting}
-                            title="Delete message"
+                            title={t("messaging.deleteMessage")}
                             className="shrink-0 opacity-0 group-hover:opacity-100 disabled:opacity-30 text-[var(--text-secondary)] hover:text-red-500 transition-all"
                           >
                             {isDeleting ? (
@@ -1033,6 +1098,24 @@ export default function MessagingChat({ role = "super_admin" }) {
                           <p className="text-[11px] leading-relaxed whitespace-pre-wrap break-words">
                             {msg.body}
                           </p>
+                          {msg.attachment_url && (
+                            <a
+                              href={msg.attachment_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={cn(
+                                "flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded-md text-[9px] font-bold transition-colors",
+                                isSent
+                                  ? "bg-black/10 text-black hover:bg-black/20"
+                                  : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20",
+                              )}
+                            >
+                              <ExternalLink className="w-3 h-3 shrink-0" />
+                              <span className="truncate max-w-[200px]">
+                                {msg.attachment_name || msg.attachment_url}
+                              </span>
+                            </a>
+                          )}
                           <div
                             className={cn(
                               "flex items-center gap-1 mt-1",
@@ -1043,9 +1126,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                               {formatTime(msg.created_at)}
                             </span>
                             {showRead && (
-                              <span className="text-[8px] text-black/50 flex items-center gap-0.5">
-                                <Check className="w-2.5 h-2.5" /> Read
-                              </span>
+                              <CheckCheck className="w-3 h-3 text-emerald-500 shrink-0" />
                             )}
                           </div>
                         </div>
@@ -1057,12 +1138,56 @@ export default function MessagingChat({ role = "super_admin" }) {
               </div>
 
               {/* Quick reply */}
-              <div className="p-3 border-t border-[var(--border-primary)] flex-shrink-0">
+              <div className="p-3 border-t border-[var(--border-primary)] flex-shrink-0 space-y-2">
+                {/* Attachment fields */}
+                {replyShowAttachment && (
+                  <div className="space-y-2 px-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder={t("messaging.attachmentUrlPlaceholder")}
+                        value={replyAttachmentUrl}
+                        onChange={(e) => setReplyAttachmentUrl(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-orange)] transition-all"
+                      />
+                      <button
+                        onClick={() => {
+                          setReplyShowAttachment(false);
+                          setReplyAttachmentUrl("");
+                          setReplyAttachmentName("");
+                        }}
+                        className="text-[var(--text-secondary)] hover:text-red-500"
+                        title={t("messaging.removeAttachment")}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder={t("messaging.attachmentNamePlaceholder")}
+                      value={replyAttachmentName}
+                      onChange={(e) => setReplyAttachmentName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-orange)] transition-all"
+                    />
+                  </div>
+                )}
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => setReplyShowAttachment(!replyShowAttachment)}
+                    className={cn(
+                      "px-2.5 py-2.5 rounded-xl text-[9px] font-black transition-all",
+                      replyShowAttachment || replyAttachmentUrl
+                        ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)]"
+                        : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                    )}
+                    title={t("messaging.attachFile")}
+                  >
+                    <Paperclip className="w-3.5 h-3.5" />
+                  </button>
                   <input
                     ref={replyInputRef}
                     type="text"
-                    placeholder="Type a message..."
+                    placeholder={t("messaging.typeMessage")}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     onKeyDown={handleReplyKeyDown}
@@ -1077,7 +1202,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                       <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Send className="w-3.5 h-3.5" /> Send
+                        <Send className="w-3.5 h-3.5" /> {t("messaging.send")}
                       </>
                     )}
                   </button>
@@ -1100,7 +1225,7 @@ export default function MessagingChat({ role = "super_admin" }) {
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                New Message
+                {t("messaging.composeMessage")}
               </h2>
               <button onClick={() => setShowCompose(false)}>
                 <X className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -1118,10 +1243,10 @@ export default function MessagingChat({ role = "super_admin" }) {
                     broadcast: Send,
                   };
                   const labels = {
-                    individual: "Direct",
-                    group: "Group",
-                    program: "Program",
-                    broadcast: "Broadcast",
+                    individual: t("messaging.direct"),
+                    group: t("messaging.group"),
+                    program: t("messaging.program"),
+                    broadcast: t("messaging.broadcast"),
                   };
                   const Icon = icons[mode];
                   return (
@@ -1167,7 +1292,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                   <div>
                     <input
                       type="text"
-                      placeholder="Search for a person..."
+                      placeholder={t("messaging.searchPerson")}
                       value={contactSearch}
                       onChange={(e) => {
                         setContactSearch(e.target.value);
@@ -1180,7 +1305,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                       <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-xl">
                         {filteredContacts.length === 0 ? (
                           <p className="px-4 py-3 text-[10px] text-[var(--text-secondary)] italic">
-                            No contacts found
+                            {t("messaging.noContactsFound")}
                           </p>
                         ) : (
                           filteredContacts.map((c) => (
@@ -1213,14 +1338,16 @@ export default function MessagingChat({ role = "super_admin" }) {
             {sendMode === "group" && (
               <div className="space-y-2">
                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                  Select a contact group
+                  {t("messaging.selectGroup")}
                 </p>
                 <select
                   value={composeGroupId}
                   onChange={(e) => setComposeGroupId(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none"
                 >
-                  <option value="">Select a group...</option>
+                  <option value="">
+                    {t("messaging.selectGroupPlaceholder")}
+                  </option>
                   {availableGroups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name}
@@ -1228,7 +1355,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                   ))}
                 </select>
                 <p className="text-[8px] text-[var(--text-secondary)] italic">
-                  Message will be sent to all members of this group.
+                  {t("messaging.groupMessageInfo")}
                 </p>
               </div>
             )}
@@ -1256,7 +1383,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                   <div>
                     <input
                       type="text"
-                      placeholder="Search programs..."
+                      placeholder={t("messaging.searchPrograms")}
                       value={programSearch}
                       onChange={(e) => {
                         setProgramSearch(e.target.value);
@@ -1269,7 +1396,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                       <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-xl">
                         {filteredPrograms.length === 0 ? (
                           <p className="px-4 py-3 text-[10px] text-[var(--text-secondary)] italic">
-                            No programs found
+                            {t("messaging.noProgramsFound")}
                           </p>
                         ) : (
                           filteredPrograms.map((p) => (
@@ -1298,14 +1425,60 @@ export default function MessagingChat({ role = "super_admin" }) {
             {/* Broadcast info */}
             {sendMode === "broadcast" && (
               <div className="px-4 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-400">
-                This will send to ALL users across the platform.
+                {t("messaging.broadcastWarning")}
               </div>
             )}
+
+            {/* Attachment section */}
+            <div className="space-y-2">
+              {!composeShowAttachment && (
+                <button
+                  onClick={() => setComposeShowAttachment(true)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                >
+                  <Paperclip className="w-3.5 h-3.5" />
+                  {t("messaging.attachFile")}
+                </button>
+              )}
+              {composeShowAttachment && (
+                <div className="space-y-2 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder={t("messaging.attachmentUrlPlaceholder")}
+                      value={composeAttachmentUrl}
+                      onChange={(e) => setComposeAttachmentUrl(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-orange)] transition-all"
+                    />
+                    <button
+                      onClick={() => {
+                        setComposeShowAttachment(false);
+                        setComposeAttachmentUrl("");
+                        setComposeAttachmentName("");
+                      }}
+                      className="text-[var(--text-secondary)] hover:text-red-500"
+                      title={t("messaging.removeAttachment")}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder={t("messaging.attachmentNamePlaceholder")}
+                    value={composeAttachmentName}
+                    onChange={(e) => setComposeAttachmentName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-orange)] transition-all"
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Message body */}
             <textarea
               placeholder={
-                sendMode === "individual" ? "Type your message..." : "Message"
+                sendMode === "individual"
+                  ? t("messaging.typeYourMessage")
+                  : t("messaging.messagePlaceholder")
               }
               value={composeBody}
               onChange={(e) => setComposeBody(e.target.value)}
@@ -1328,7 +1501,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                 <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <Send className="w-3.5 h-3.5" /> Send Message
+                  <Send className="w-3.5 h-3.5" /> {t("messaging.sendMessage")}
                 </>
               )}
             </button>

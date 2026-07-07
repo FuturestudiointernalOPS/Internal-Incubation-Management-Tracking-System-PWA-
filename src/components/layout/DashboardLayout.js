@@ -34,6 +34,7 @@ import {
   ListTodo,
   Wrench,
   CheckSquare,
+  Megaphone,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -73,6 +74,7 @@ const NAV_KEY_MAP = {
   blockers: "reports.blockers",
   no_new_intel: "navigation.noNewIntel",
   intel_feed: "navigation.intelFeed",
+  announcements: "navigation.announcements",
 };
 
 function tnav(key) {
@@ -98,6 +100,8 @@ const SidebarContent = ({
   handleLogout,
   t,
   submissionCount,
+  unreadByType,
+  hasCommunicationActivity,
 }) => {
   return (
     <>
@@ -142,9 +146,15 @@ const SidebarContent = ({
                   className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isChildActive ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
                 >
                   <div className="flex items-center gap-4">
-                    <item.icon
-                      className={`w-4 h-4 flex-shrink-0 ${isChildActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
-                    />
+                    <div className="relative">
+                      <item.icon
+                        className={`w-4 h-4 flex-shrink-0 ${isChildActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
+                      />
+                      {item.id === "communication" &&
+                        hasCommunicationActivity && (
+                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
+                        )}
+                    </div>
                     {!collapsed && (
                       <span className="truncate">
                         {t(tnav(item.id)) || item.name}
@@ -157,6 +167,11 @@ const SidebarContent = ({
                       <span className="text-[8px] font-black bg-[var(--brand-orange)] text-black px-1.5 py-0.5 rounded-full mr-2">
                         {submissionCount}
                       </span>
+                    )}
+                  {!collapsed &&
+                    item.id === "communication" &&
+                    hasCommunicationActivity && (
+                      <span className="w-2 h-2 rounded-full bg-[var(--brand-orange)] shrink-0" />
                     )}
                   {!collapsed && (
                     <ChevronDown
@@ -180,6 +195,11 @@ const SidebarContent = ({
                               ? subItem.name
                               : t(tnav(subItem.id)) || subItem.name}
                           </span>
+                          {unreadByType && unreadByType[subItem.id] > 0 && (
+                            <span className="ml-auto w-5 h-5 rounded-full bg-[var(--brand-orange)] text-black text-[8px] font-black flex items-center justify-center shrink-0">
+                              {unreadByType[subItem.id]}
+                            </span>
+                          )}
                         </Link>
                       );
                     })}
@@ -294,6 +314,11 @@ const NAVIGATION_MATRIX = {
       icon: Send,
       subItems: [
         { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
+        {
+          id: "announcements",
+          name: "ANNOUNCEMENTS",
+          href: "/admin/announcements",
+        },
         {
           id: "campaigns",
           name: "CAMPAIGNS",
@@ -647,6 +672,7 @@ const NAV_RESPONSIBILITY_MAP = {
   // Additional nav items from other role matrices
   dashboard: null, // always visible
   projects: null, // always visible
+  announcements: "communications",
   access_summary: "user_management",
   engineering_dashboard: "engineering",
 };
@@ -743,6 +769,24 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   const router = useRouter();
   const pathname = usePathname();
   const [userResponsibilities, setUserResponsibilities] = useState([]);
+  const [pinnedAnnouncements, setPinnedAnnouncements] = useState([]);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
+
+  const fetchAnnouncements = useCallback(async () => {
+    try {
+      const res = await fetch("/api/announcements");
+      const data = await res.json();
+      if (data.success) {
+        // Only keep pinned, non-archived announcements for the banner
+        setPinnedAnnouncements(
+          (data.announcements || []).filter(
+            (a) => a.is_pinned && !a.is_archived,
+          ),
+        );
+      }
+    } catch (_) {}
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -762,6 +806,46 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
         );
       }
     } catch (e) {}
+  }, []);
+
+  // ── Fetch actual unread message count (not from notifications) ──
+  const fetchUnreadMessageCount = useCallback(async () => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (!savedUser) return;
+      const parsedUser = JSON.parse(savedUser);
+      const cid = parsedUser.cid || parsedUser.id;
+      if (!cid) return;
+      const res = await fetch(`/api/internal-comms?cid=${cid}`);
+      const data = await res.json();
+      if (data.success) {
+        const myMessages = data.messages.filter(
+          (m) =>
+            String(m.recipient_id) === String(cid) &&
+            (m.is_read === 0 || m.is_read === null),
+        );
+        setUnreadMessageCount(myMessages.length);
+      }
+    } catch (_) {}
+  }, []);
+
+  // ── Fetch pending user approvals count ──
+  const fetchPendingUsersCount = useCallback(async () => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (!savedUser) return;
+      const parsedUser = JSON.parse(savedUser);
+      if (parsedUser.role !== "super_admin") return;
+      const res = await fetch("/api/admin/pending-users");
+      const data = await res.json();
+      if (data.success) {
+        setPendingUsersCount(
+          (data.users || data.pendingUsers || []).filter(
+            (u) => u.status === "pending",
+          ).length,
+        );
+      }
+    } catch (_) {}
   }, []);
 
   // ── Fetch pending submission count for PM ──
@@ -794,7 +878,9 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       const parsedUser = JSON.parse(savedUser);
       const cid = parsedUser.cid || parsedUser.id;
       if (!cid) return;
-      const res = await fetch(`/api/projects/invitations?invitee_id=${cid}&status=pending`);
+      const res = await fetch(
+        `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+      );
       const data = await res.json();
       if (data.success) setPendingInvites(data.invitations || []);
     } catch (_) {}
@@ -807,7 +893,9 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       const parsedUser = JSON.parse(savedUser);
       const cid = parsedUser.cid || parsedUser.id;
       if (!cid) return;
-      const res = await fetch(`/api/tasks/assignments?assignee_id=${cid}&status=pending`);
+      const res = await fetch(
+        `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+      );
       const data = await res.json();
       if (data.success) setPendingAssignments(data.assignments || []);
     } catch (_) {}
@@ -818,10 +906,19 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     const onRefresh = () => {
       fetchNotifications();
       fetchSubmissionCount();
+      fetchAnnouncements();
+      fetchUnreadMessageCount();
+      fetchPendingUsersCount();
     };
     window.addEventListener("notifications:refresh", onRefresh);
     return () => window.removeEventListener("notifications:refresh", onRefresh);
-  }, [fetchNotifications, fetchSubmissionCount]);
+  }, [
+    fetchNotifications,
+    fetchSubmissionCount,
+    fetchAnnouncements,
+    fetchUnreadMessageCount,
+    fetchPendingUsersCount,
+  ]);
 
   useEffect(() => {
     // First load already done by initAuth — skip immediate fetch
@@ -830,11 +927,21 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       fetchSubmissionCount();
       fetchPendingInvites();
       fetchPendingAssignments();
+      fetchAnnouncements();
+      fetchUnreadMessageCount();
+      fetchPendingUsersCount();
       // Trigger deadline check (idempotent, safe)
       fetch("/api/tasks/notify-deadlines", { method: "POST" }).catch(() => {});
     }, 15000);
     return () => clearTimeout(id);
-  }, [fetchNotifications, fetchSubmissionCount, fetchPendingInvites, fetchPendingAssignments]);
+  }, [
+    fetchNotifications,
+    fetchSubmissionCount,
+    fetchPendingInvites,
+    fetchPendingAssignments,
+    fetchAnnouncements,
+    fetchPendingUsersCount,
+  ]);
 
   const { toggleTheme, theme } = useTheme();
   const [user, setUser] = useState({});
@@ -912,6 +1019,14 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
               }
             } catch (_) {}
           }
+
+          // Pre-fetch announcements for banner
+          fetchAnnouncements();
+
+          // Pre-fetch unread message count for badge
+          fetchUnreadMessageCount();
+          // Pre-fetch pending users count
+          fetchPendingUsersCount();
         } else {
           // Session API failed — fallback to localStorage
           const savedUser = localStorage.getItem("user");
@@ -968,6 +1083,42 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     if (!id) return;
     setOpenMenus((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
+
+  // Unread counts per nav type — messages from actual unread count, others from notifications
+  const unreadByType = useMemo(() => {
+    const counts = {
+      messages: unreadMessageCount,
+      announcements: 0,
+      campaigns: 0,
+      forms: 0,
+      all_contacts: 0,
+      pending_users: pendingUsersCount,
+      bulk_upload: 0,
+    };
+    for (const n of notifications) {
+      if (!n.is_read) {
+        if (n.type === "announcement") counts.announcements++;
+        if (n.type === "campaign") counts.campaigns++;
+        if (n.type === "form") counts.forms++;
+      }
+    }
+    return counts;
+  }, [notifications, unreadMessageCount, pendingUsersCount]);
+
+  // Whether the COMMUNICATION section has any activity in its sub-items
+  const hasCommunicationActivity = useMemo(() => {
+    if (!unreadByType) return false;
+    const commSubIds = [
+      "messages",
+      "announcements",
+      "campaigns",
+      "forms",
+      "all_contacts",
+      "pending_users",
+      "bulk_upload",
+    ];
+    return commSubIds.some((id) => unreadByType[id] > 0);
+  }, [unreadByType]);
 
   const navItems = useMemo(() => {
     // Priority: user.role (from session) > role (from prop) > fallback 'admin'
@@ -1093,6 +1244,8 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     handleLogout,
     t,
     submissionCount,
+    unreadByType,
+    hasCommunicationActivity,
   };
 
   if (!authChecked) {
@@ -1227,6 +1380,23 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                                   router.push("/participant/messages");
                                 setShowNotifications(false);
                               }
+                              if (
+                                n.type === "comment" ||
+                                n.type === "mention"
+                              ) {
+                                const role = user?.role || "";
+                                if (role === "developer")
+                                  router.push("/developer/standup");
+                                else router.push("/staff/op-report");
+                                setShowNotifications(false);
+                              }
+                              if (n.type === "blocker_discussion") {
+                                const role = user?.role || "";
+                                if (role === "super_admin")
+                                  router.push("/admin/blockers");
+                                else router.push("/staff/op-report");
+                                setShowNotifications(false);
+                              }
                             }}
                             className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.is_read ? "bg-[var(--brand-orange)]/5" : ""}`}
                           >
@@ -1243,72 +1413,198 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                             </p>
                             {/* Accept/Decline buttons for project invitations */}
                             {n.type === "project_invite" && (
-                              <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={async () => {
-                                  setPendingInvites([]);
-                                  try {
-                                    const saved = JSON.parse(localStorage.getItem("user") || "{}");
-                                    const cid = saved.cid || saved.id;
-                                    const invRes = await fetch(`/api/projects/invitations?invitee_id=${cid}&status=pending`);
-                                    const invData = await invRes.json();
-                                    const pendingInvite = invData.invitations?.[0];
-                                    if (pendingInvite) {
-                                      await fetch("/api/projects/invitations/respond", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ invitation_id: pendingInvite.id, action: "accept" }) });
-                                    }
-                                    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
-                                    fetchNotifications();
-                                  } catch (_) {}
-                                }} className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase">Accept</button>
-                                <button onClick={async () => {
-                                  setPendingInvites([]);
-                                  try {
-                                    const saved = JSON.parse(localStorage.getItem("user") || "{}");
-                                    const cid = saved.cid || saved.id;
-                                    const invRes = await fetch(`/api/projects/invitations?invitee_id=${cid}&status=pending`);
-                                    const invData = await invRes.json();
-                                    const pendingInvite = invData.invitations?.[0];
-                                    if (pendingInvite) {
-                                      await fetch("/api/projects/invitations/respond", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ invitation_id: pendingInvite.id, action: "decline" }) });
-                                    }
-                                    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
-                                    fetchNotifications();
-                                  } catch (_) {}
-                                }} className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase">Decline</button>
+                              <div
+                                className="flex gap-2 mt-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={async () => {
+                                    setPendingInvites([]);
+                                    try {
+                                      const saved = JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      );
+                                      const cid = saved.cid || saved.id;
+                                      const invRes = await fetch(
+                                        `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+                                      );
+                                      const invData = await invRes.json();
+                                      const pendingInvite =
+                                        invData.invitations?.[0];
+                                      if (pendingInvite) {
+                                        await fetch(
+                                          "/api/projects/invitations/respond",
+                                          {
+                                            method: "POST",
+                                            headers: {
+                                              "Content-Type":
+                                                "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                              invitation_id: pendingInvite.id,
+                                              action: "accept",
+                                            }),
+                                          },
+                                        );
+                                      }
+                                      await fetch("/api/notifications", {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          id: n.id,
+                                          action: "read",
+                                        }),
+                                      });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    setPendingInvites([]);
+                                    try {
+                                      const saved = JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      );
+                                      const cid = saved.cid || saved.id;
+                                      const invRes = await fetch(
+                                        `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+                                      );
+                                      const invData = await invRes.json();
+                                      const pendingInvite =
+                                        invData.invitations?.[0];
+                                      if (pendingInvite) {
+                                        await fetch(
+                                          "/api/projects/invitations/respond",
+                                          {
+                                            method: "POST",
+                                            headers: {
+                                              "Content-Type":
+                                                "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                              invitation_id: pendingInvite.id,
+                                              action: "decline",
+                                            }),
+                                          },
+                                        );
+                                      }
+                                      await fetch("/api/notifications", {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          id: n.id,
+                                          action: "read",
+                                        }),
+                                      });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Decline
+                                </button>
                               </div>
                             )}
                             {/* Accept/Decline for task assignments */}
                             {n.type === "task_assignment" && (
-                              <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={async () => {
-                                  setPendingAssignments([]);
-                                  try {
-                                    const saved = JSON.parse(localStorage.getItem("user") || "{}");
-                                    const cid = saved.cid || saved.id;
-                                    const assRes = await fetch(`/api/tasks/assignments?assignee_id=${cid}&status=pending`);
-                                    const assData = await assRes.json();
-                                    const pendingAss = assData.assignments?.[0];
-                                    if (pendingAss) {
-                                      await fetch("/api/tasks/assignments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignment_id: pendingAss.id, action: "accept" }) });
-                                    }
-                                    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
-                                    fetchNotifications();
-                                  } catch (_) {}
-                                }} className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase">Accept</button>
-                                <button onClick={async () => {
-                                  setPendingAssignments([]);
-                                  try {
-                                    const saved = JSON.parse(localStorage.getItem("user") || "{}");
-                                    const cid = saved.cid || saved.id;
-                                    const assRes = await fetch(`/api/tasks/assignments?assignee_id=${cid}&status=pending`);
-                                    const assData = await assRes.json();
-                                    const pendingAss = assData.assignments?.[0];
-                                    if (pendingAss) {
-                                      await fetch("/api/tasks/assignments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignment_id: pendingAss.id, action: "decline" }) });
-                                    }
-                                    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
-                                    fetchNotifications();
-                                  } catch (_) {}
-                                }} className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase">Decline</button>
+                              <div
+                                className="flex gap-2 mt-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={async () => {
+                                    setPendingAssignments([]);
+                                    try {
+                                      const saved = JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      );
+                                      const cid = saved.cid || saved.id;
+                                      const assRes = await fetch(
+                                        `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+                                      );
+                                      const assData = await assRes.json();
+                                      const pendingAss =
+                                        assData.assignments?.[0];
+                                      if (pendingAss) {
+                                        await fetch("/api/tasks/assignments", {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                            assignment_id: pendingAss.id,
+                                            action: "accept",
+                                          }),
+                                        });
+                                      }
+                                      await fetch("/api/notifications", {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          id: n.id,
+                                          action: "read",
+                                        }),
+                                      });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    setPendingAssignments([]);
+                                    try {
+                                      const saved = JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      );
+                                      const cid = saved.cid || saved.id;
+                                      const assRes = await fetch(
+                                        `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+                                      );
+                                      const assData = await assRes.json();
+                                      const pendingAss =
+                                        assData.assignments?.[0];
+                                      if (pendingAss) {
+                                        await fetch("/api/tasks/assignments", {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                            assignment_id: pendingAss.id,
+                                            action: "decline",
+                                          }),
+                                        });
+                                      }
+                                      await fetch("/api/notifications", {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          id: n.id,
+                                          action: "read",
+                                        }),
+                                      });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Decline
+                                </button>
                               </div>
                             )}
                           </div>
@@ -1337,6 +1633,39 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           </header>
 
           <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
+            {/* Pinned Announcements Banner */}
+            {pinnedAnnouncements.length > 0 && (
+              <div className="mb-6 space-y-2">
+                {pinnedAnnouncements.map((ann) => (
+                  <div
+                    key={ann.id}
+                    className="p-4 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 flex items-center justify-between flex-wrap gap-3 cursor-pointer hover:bg-[var(--brand-orange)]/15 transition-all"
+                    onClick={() => router.push("/admin/announcements")}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Megaphone className="w-5 h-5 text-[var(--brand-orange)]" />
+                      <div>
+                        <p className="text-[11px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+                          {t(tnav("announcements"))}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">
+                          <span className="font-bold text-[var(--text-primary)]">
+                            {ann.title}
+                          </span>
+                          {" — "}
+                          {ann.body.length > 120
+                            ? ann.body.substring(0, 117) + "..."
+                            : ann.body}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[9px] text-[var(--text-secondary)] uppercase">
+                      {t("common.viewAll")} →
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Project Invitation Banner */}
             {pendingInvites.length > 0 && (
               <div className="mb-6 p-4 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 flex items-center justify-between flex-wrap gap-3">
@@ -1347,7 +1676,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                       Project Invitation
                     </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You've been invited to join <span className="font-bold text-[var(--text-primary)]">{pendingInvites[0].project_name || "a project"}</span>
+                      You've been invited to join{" "}
+                      <span className="font-bold text-[var(--text-primary)]">
+                        {pendingInvites[0].project_name || "a project"}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -1359,7 +1691,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                         await fetch("/api/projects/invitations/respond", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ invitation_id: pendingInvites[0].id, action: "accept" }),
+                          body: JSON.stringify({
+                            invitation_id: pendingInvites[0].id,
+                            action: "accept",
+                          }),
                         });
                         fetchNotifications();
                       } catch (_) {}
@@ -1375,7 +1710,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                         await fetch("/api/projects/invitations/respond", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ invitation_id: pendingInvites[0].id, action: "decline" }),
+                          body: JSON.stringify({
+                            invitation_id: pendingInvites[0].id,
+                            action: "decline",
+                          }),
                         });
                         fetchNotifications();
                       } catch (_) {}
@@ -1393,9 +1731,14 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                 <div className="flex items-center gap-3">
                   <ListTodo className="w-5 h-5 text-emerald-500" />
                   <div>
-                    <p className="text-[11px] font-black text-emerald-500 uppercase tracking-wider">Task Assignment</p>
+                    <p className="text-[11px] font-black text-emerald-500 uppercase tracking-wider">
+                      Task Assignment
+                    </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You've been assigned: <span className="font-bold text-[var(--text-primary)]">{pendingAssignments[0].task_title || "a task"}</span>
+                      You've been assigned:{" "}
+                      <span className="font-bold text-[var(--text-primary)]">
+                        {pendingAssignments[0].task_title || "a task"}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -1407,7 +1750,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                         await fetch("/api/tasks/assignments", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ assignment_id: pendingAssignments[0].id, action: "accept" }),
+                          body: JSON.stringify({
+                            assignment_id: pendingAssignments[0].id,
+                            action: "accept",
+                          }),
                         });
                         fetchNotifications();
                       } catch (_) {}
@@ -1423,7 +1769,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                         await fetch("/api/tasks/assignments", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ assignment_id: pendingAssignments[0].id, action: "decline" }),
+                          body: JSON.stringify({
+                            assignment_id: pendingAssignments[0].id,
+                            action: "decline",
+                          }),
                         });
                         fetchNotifications();
                       } catch (_) {}
