@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { uploadFile } from "@/lib/storage";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * IMPACTOS MISSION DEPLOYMENT — STRATEGIC CONFIGURATION
@@ -34,6 +35,7 @@ import { useRouter } from "next/navigation";
 
 export default function NewProgram() {
   const router = useRouter();
+  const { t } = useI18n();
   const [isDeploying, setIsDeploying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -405,7 +407,7 @@ export default function NewProgram() {
           {templates.length > 0 && (
             <div className="space-y-3">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Start from Template
+                {t("admin.startFromTemplate")}
               </label>
               <div className="flex gap-3">
                 <select
@@ -413,7 +415,7 @@ export default function NewProgram() {
                   onChange={(e) => setSelectedTemplate(e.target.value)}
                   className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
                 >
-                  <option value="">Select a template...</option>
+                  <option value="">{t("admin.selectTemplate")}</option>
                   {templates.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name} ({t.program_type || "incubation"})
@@ -456,7 +458,7 @@ export default function NewProgram() {
                   }}
                   className="px-6 py-3 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all disabled:opacity-40"
                 >
-                  {applyingTemplate ? "Creating..." : "Apply"}
+                  {applyingTemplate ? "Creating..." : t("admin.apply")}
                 </button>
               </div>
             </div>
@@ -466,7 +468,7 @@ export default function NewProgram() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Program Identity
+                {t("admin.programName")}
               </label>
               <input
                 required
@@ -521,7 +523,7 @@ export default function NewProgram() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Program Type
+                {t("admin.programType")}
               </label>
               <select
                 value={program.program_type || "incubation"}
@@ -530,17 +532,27 @@ export default function NewProgram() {
                 }
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               >
-                <option value="incubation">Incubation</option>
-                <option value="acceleration">Acceleration</option>
-                <option value="bootcamp">Bootcamp</option>
-                <option value="workshop">Workshop</option>
-                <option value="fellowship">Fellowship</option>
-                <option value="custom">Custom</option>
+                <option value="incubation">
+                  {t("admin.programTypes.incubation")}
+                </option>
+                <option value="acceleration">
+                  {t("admin.programTypes.acceleration")}
+                </option>
+                <option value="bootcamp">
+                  {t("admin.programTypes.bootcamp")}
+                </option>
+                <option value="workshop">
+                  {t("admin.programTypes.workshop")}
+                </option>
+                <option value="fellowship">
+                  {t("admin.programTypes.fellowship")}
+                </option>
+                <option value="custom">{t("admin.programTypes.custom")}</option>
               </select>
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Visibility
+                {t("admin.visibility")}
               </label>
               <select
                 value={program.visibility || "private"}
@@ -549,14 +561,20 @@ export default function NewProgram() {
                 }
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               >
-                <option value="private">Private</option>
-                <option value="public">Public</option>
-                <option value="invite_only">Invite Only</option>
+                <option value="private">
+                  {t("admin.visibilityOptions.private")}
+                </option>
+                <option value="public">
+                  {t("admin.visibilityOptions.public")}
+                </option>
+                <option value="invite_only">
+                  {t("admin.visibilityOptions.inviteOnly")}
+                </option>
               </select>
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Language
+                {t("admin.language")}
               </label>
               <select
                 value={program.language || "en"}
@@ -574,7 +592,7 @@ export default function NewProgram() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Vision
+                {t("admin.vision")}
               </label>
               <textarea
                 rows={3}
@@ -588,7 +606,7 @@ export default function NewProgram() {
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Objectives
+                {t("admin.objectives")}
               </label>
               <textarea
                 rows={3}
@@ -605,7 +623,7 @@ export default function NewProgram() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Participant Limit
+                {t("admin.participantLimit")}
               </label>
               <input
                 type="number"
@@ -617,13 +635,13 @@ export default function NewProgram() {
                     participant_limit: parseInt(e.target.value) || 0,
                   })
                 }
-                placeholder="0 = unlimited"
+                placeholder={t("admin.unlimited")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Registration Window
+                {t("admin.registrationWindow")}
               </label>
               <input
                 type="text"
@@ -642,15 +660,19 @@ export default function NewProgram() {
 
           <div className="space-y-4">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-              Concept Note
+              {t("admin.conceptNote")}
             </label>
 
             {/* Input type selector */}
             <div className="flex gap-2 bg-primary rounded-xl p-1.5 border border-[var(--border-primary)] w-fit">
               {[
-                { id: "text", label: "Rich Text", icon: FileText },
-                { id: "link", label: "External Link", icon: Plus },
-                { id: "upload", label: "Upload Document", icon: Upload },
+                { id: "text", label: t("admin.richText"), icon: FileText },
+                { id: "link", label: t("admin.externalLink"), icon: Plus },
+                {
+                  id: "upload",
+                  label: t("admin.uploadDocument"),
+                  icon: Upload,
+                },
               ].map((opt) => (
                 <button
                   key={opt.id}
