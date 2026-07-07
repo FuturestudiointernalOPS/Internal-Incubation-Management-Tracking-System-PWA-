@@ -14,7 +14,7 @@ import {
   Archive,
   RotateCcw,
   Trash2,
-  {t("navigation.settings")},
+  Settings,
   ArrowLeft,
   Signal,
   FileText,
@@ -424,7 +424,7 @@ export default function ProgramManagement() {
               onClick={() => router.push("/admin/standardization")}
               className="btn btn-secondary gap-2"
             >
-              <Settings className="w-4 h-4" /> Settings
+              <Settings className="w-4 h-4" /> {t("navigation.settings")}
             </button>
             <button
               onClick={() => router.push("/admin/programs/new")}
@@ -1229,14 +1229,14 @@ export default function ProgramManagement() {
                   if (data.success) {
                     window.dispatchEvent(
                       new CustomEvent("impactos:notify", {
-                        detail: { type: "success", message: "Template saved!" },
+                        detail: { type: "success", message: t("admin.templateSaved") },
                       }),
                     );
                   }
                 }}
                 className="btn btn-secondary w-full py-5 uppercase font-black tracking-[0.2em] mt-3"
               >
-                <FileText className="w-4 h-4" /> Save as Template
+                <FileText className="w-4 h-4" /> {t("admin.saveAsTemplate")}
               </button>
             </form>
           </div>
