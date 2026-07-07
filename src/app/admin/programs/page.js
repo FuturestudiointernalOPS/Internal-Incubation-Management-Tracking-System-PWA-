@@ -29,7 +29,7 @@ import { useI18n } from "@/lib/i18n";
 
 export default function ProgramManagement() {
   const { t } = useI18n();
-  const [{t("admin.programsList")}, setPrograms] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTab, setTab] = useState("active");
@@ -456,7 +456,7 @@ export default function ProgramManagement() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="{t("admin.search")}"
+              placeholder={t("admin.search")}
               className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
             />
           </div>
@@ -533,7 +533,7 @@ export default function ProgramManagement() {
                       <div className="flex items-center gap-2">
                         <User className="w-3 h-3 text-[var(--brand-orange)]" />
                         <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">
-                          {p?.pm_name || "{t("admin.unassigned")}"}
+                          {p?.pm_name || t("admin.unassigned")}
                         </span>
                       </div>
                     </td>
@@ -692,8 +692,8 @@ export default function ProgramManagement() {
                   PROGRAM PERSONNEL (STAFF)
                 </label>
                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
-                  Select staff members assigned to assist the {t("admin.selectManager")} in
-                  oversight.
+                  Select staff members assigned to assist the{" "}
+                  {t("admin.selectManager")} in oversight.
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-primary rounded-2xl border border-[var(--border-primary)]">
                   {(Array.isArray(teams) ? teams : [])
@@ -706,7 +706,7 @@ export default function ProgramManagement() {
                       const mId = member.cid || member.id;
                       let assistantIds = [];
                       if (
-                        type{t("common.of")} editingProgram?.assigned_assistant_id ===
+                        typeof editingProgram?.assigned_assistant_id ===
                         "string"
                       ) {
                         try {
@@ -1154,7 +1154,9 @@ export default function ProgramManagement() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <input
-                        placeholder="{t("admin.kpiTitle")} (e.g. Attendance)..."
+                        placeholder={
+                          t("admin.kpiTitle") + " (e.g. Attendance)..."
+                        }
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
                         value={editKpiInput.title}
                         onChange={(e) =>
@@ -1229,7 +1231,10 @@ export default function ProgramManagement() {
                   if (data.success) {
                     window.dispatchEvent(
                       new CustomEvent("impactos:notify", {
-                        detail: { type: "success", message: t("admin.templateSaved") },
+                        detail: {
+                          type: "success",
+                          message: t("admin.templateSaved"),
+                        },
                       }),
                     );
                   }
