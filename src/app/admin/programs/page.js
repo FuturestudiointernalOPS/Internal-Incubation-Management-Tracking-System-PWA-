@@ -661,9 +661,156 @@ export default function ProgramManagement() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    {t?.("admin.startDate") || "Start Date"}
+                  </label>
+                  <input
+                    type="date"
+                    value={editingProgram?.start_date || ""}
+                    onChange={(e) =>
+                      setEditingProgram({
+                        ...editingProgram,
+                        start_date: e.target.value,
+                      })
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    {t?.("admin.endDate") || "End Date"}
+                  </label>
+                  <input
+                    type="date"
+                    value={editingProgram?.end_date || ""}
+                    onChange={(e) =>
+                      setEditingProgram({
+                        ...editingProgram,
+                        end_date: e.target.value,
+                      })
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    {t?.("admin.visibility") || "Visibility"}
+                  </label>
+                  <select
+                    value={editingProgram?.visibility || "private"}
+                    onChange={(e) =>
+                      setEditingProgram({
+                        ...editingProgram,
+                        visibility: e.target.value,
+                      })
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
+                  >
+                    <option value="private">{t?.("admin.visibilityOptions.private") || "Private"}</option>
+                    <option value="public">{t?.("admin.visibilityOptions.public") || "Public"}</option>
+                    <option value="invite_only">{t?.("admin.visibilityOptions.inviteOnly") || "Invite Only"}</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    {t?.("admin.language") || "Language"}
+                  </label>
+                  <select
+                    value={editingProgram?.language || "en"}
+                    onChange={(e) =>
+                      setEditingProgram({
+                        ...editingProgram,
+                        language: e.target.value,
+                      })
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
+                  >
+                    <option value="en">English</option>
+                    <option value="fr">French</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    {t?.("admin.vision") || "Vision"}
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editingProgram?.vision || ""}
+                    onChange={(e) =>
+                      setEditingProgram({
+                        ...editingProgram,
+                        vision: e.target.value,
+                      })
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    {t?.("admin.objectives") || "Objectives"}
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editingProgram?.objectives || ""}
+                    onChange={(e) =>
+                      setEditingProgram({
+                        ...editingProgram,
+                        objectives: e.target.value,
+                      })
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    {t?.("admin.participantLimit") || "Participant Limit"}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingProgram?.participant_limit || 0}
+                    onChange={(e) =>
+                      setEditingProgram({
+                        ...editingProgram,
+                        participant_limit: parseInt(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    {t?.("admin.registrationWindow") || "Registration Window"}
+                  </label>
+                  <input
+                    type="text"
+                    value={editingProgram?.registration_window || ""}
+                    onChange={(e) =>
+                      setEditingProgram({
+                        ...editingProgram,
+                        registration_window: e.target.value,
+                      })
+                    }
+                    placeholder="e.g. 2024-01-01 to 2024-02-01"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  PROGRAM MANAGER
+                  {t?.("admin.selectManager") || "PROGRAM MANAGER"}
                 </label>
                 <select
                   value={editingProgram?.assigned_pm_id || ""}
@@ -675,7 +822,7 @@ export default function ProgramManagement() {
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
                 >
-                  <option value="">Unassigned</option>
+                  <option value="">{t?.("admin.unassigned") || "Unassigned"}</option>
                   {(Array.isArray(teams) ? teams : []).map(
                     (m) =>
                       m && (
@@ -689,7 +836,7 @@ export default function ProgramManagement() {
 
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  PROGRAM PERSONNEL (STAFF)
+                  {t?.("admin.programPersonnel") || "PROGRAM PERSONNEL (STAFF)"}
                 </label>
                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
                   Select staff members assigned to assist the{" "}
@@ -898,7 +1045,7 @@ export default function ProgramManagement() {
 
               <div className="space-y-4">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  Curriculum Materials (PDF)
+                  {t?.("admin.curriculumMaterials") || "Curriculum Materials (PDF)"}
                 </label>
                 <div className="grid grid-cols-1 gap-2">
                   {(() => {
@@ -919,7 +1066,7 @@ export default function ProgramManagement() {
                     if (mats.length === 0)
                       return (
                         <p className="text-[10px] italic opacity-40 ml-2">
-                          No program-specific PDFs uploaded.
+                          {t?.("admin.noProgramPdfs") || "No program-specific PDFs uploaded."}
                         </p>
                       );
 
@@ -972,7 +1119,7 @@ export default function ProgramManagement() {
                       <Upload className="w-4 h-4" />
                     )}
                     <span className="text-[10px] uppercase font-black">
-                      {isUploading ? "Syncing..." : "Upload Additional PDF"}
+                      {isUploading ? t?.("common.saving") || "Syncing..." : t?.("admin.uploadPdf") || "Upload Additional PDF"}
                     </span>
                   </button>
                   <input
@@ -987,10 +1134,10 @@ export default function ProgramManagement() {
 
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  TARGET STUDENT GROUPS
+                  {t?.("admin.targetGroups") || "TARGET STUDENT GROUPS"}
                 </label>
                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
-                  Assign this program to specific student cohorts or families.
+                  {t?.("admin.assignProgramToGroups") || "Assign this program to specific student cohorts or families."}
                 </p>
                 <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-primary rounded-2xl border border-[var(--border-primary)]">
                   {(Array.isArray(notes) ? notes : []).map((s) => {
@@ -1026,11 +1173,26 @@ export default function ProgramManagement() {
                         }`}
                       >
                         <Users
-                          className={`w-3.5 h-3.5 ${isActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
+                          className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
                         />
-                        <span className="text-[9px] font-black uppercase truncate italic">
-                          {s.name || "Unnamed"}
-                        </span>
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="text-[9px] font-black uppercase truncate italic">
+                            {s.name || "Unnamed"}
+                          </span>
+                          {isActive && (
+                            <span 
+                              className="text-[8px] font-medium text-emerald-400/80 hover:text-emerald-400 truncate mt-0.5"
+                              title="Click to copy registration link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(`${window.location.origin}/register/${s.id}`);
+                                window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t?.("admin.copied") || "Registration link copied to clipboard" } }));
+                              }}
+                            >
+                              {t?.("admin.copyLink") || "Copy Link"}
+                            </span>
+                          )}
+                        </div>
                       </button>
                     );
                   })}
@@ -1051,7 +1213,7 @@ export default function ProgramManagement() {
                     }}
                     className="text-[8px] font-bold text-blue-400 uppercase tracking-widest hover:underline"
                   >
-                    {isCreatingGroup ? "Cancel" : "+ Create New Group"}
+                    {isCreatingGroup ? t?.("common.cancel") || "Cancel" : t?.("admin.createNewGroup") || "+ Create New Group"}
                   </button>
                 </div>
 
@@ -1082,7 +1244,7 @@ export default function ProgramManagement() {
                       onClick={handleCreateGroupInline}
                       className="w-full py-2.5 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all"
                     >
-                      Create & Assign Group
+                      {t?.("common.create") || "Create & Assign Group"}
                     </button>
                   </div>
                 )}

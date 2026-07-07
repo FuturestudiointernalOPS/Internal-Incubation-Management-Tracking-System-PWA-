@@ -319,8 +319,8 @@ export async function PUT(req) {
       );
     }
 
-    // If is_archived is provided, handle archive/restore separately
-    if (is_archived !== undefined) {
+    // If is_archived is provided without a name, it's a quick archive action
+    if (is_archived !== undefined && !name) {
       const newStatus = is_archived ? "archived" : "active";
       await db.execute({
         sql: "UPDATE v2_programs SET is_archived = ?, status = ? WHERE id = ?",

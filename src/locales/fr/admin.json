@@ -115,6 +115,17 @@
     "targetValue": "Valeur cible",
     "addKpi": "Ajouter KPI",
     "startDate": "Date de début",
-    "endDate": "Date de fin"
+    "endDate": "Date de fin",
+    "programPersonnel": "Personnel du programme",
+    "selectManager": "Sélectionner le gestionnaire",
+    "unassigned": "Non assigné",
+    "curriculumMaterials": "Matériel pédagogique (PDF)",
+    "noProgramPdfs": "Aucun PDF spécifique au programme n'a été importé.",
+    "uploadPdf": "Importer un PDF",
+    "targetGroups": "GROUPES D'ÉTUDIANTS CIBLES",
+    "assignProgramToGroups": "Assigner ce programme à des cohortes ou familles spécifiques.",
+    "copyLink": "Copier le lien",
+    "copied": "Copié !",
+    "createNewGroup": "+ Créer un nouveau groupe"
   }
 }
