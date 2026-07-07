@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 
 function getWeekNumber(date) {
@@ -459,7 +460,15 @@ export default function AdminDashboard() {
 
   const calendarTasks = React.useMemo(() => {
     const cal = {};
-    (tasks || []).forEach((task) => {
+    const allTasks = [...(tasks || []), ...(assignments || [])];
+    // Deduplicate by task id
+    const seen = new Set();
+    const unique = allTasks.filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+    unique.forEach((task) => {
       if (task.start_date || task.end_date) {
         const start = task.start_date ? new Date(task.start_date) : null;
         const end = task.end_date ? new Date(task.end_date) : null;
@@ -1739,7 +1748,45 @@ export default function AdminDashboard() {
                     : "—"}
                 </p>
               </div>
+              <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  Priority
+                </p>
+                <p
+                  className={`text-xs font-bold ${selectedTask.priority === "critical" ? "text-red-400" : selectedTask.priority === "high" ? "text-amber-400" : "text-slate-400"}`}
+                >
+                  {selectedTask.priority || "medium"}
+                </p>
+              </div>
             </div>
+            {selectedTask.description && (
+              <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  Description
+                </p>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {selectedTask.description}
+                </p>
+              </div>
+            )}
+            {(selectedTask.blockers || []).filter((b) => b.status === "active")
+              .length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">
+                  Blockers
+                </p>
+                {selectedTask.blockers
+                  .filter((b) => b.status === "active")
+                  .map((b) => (
+                    <div
+                      key={b.id}
+                      className="p-2 rounded bg-rose-500/10 text-[9px] text-rose-400 font-bold"
+                    >
+                      {b.title}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { uploadFile } from "@/lib/storage";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * IMPACTOS MISSION DEPLOYMENT — STRATEGIC CONFIGURATION
@@ -34,6 +35,7 @@ import { useRouter } from "next/navigation";
 
 export default function NewProgram() {
   const router = useRouter();
+  const { t } = useI18n();
   const [isDeploying, setIsDeploying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -50,6 +52,17 @@ export default function NewProgram() {
     duration_weeks: 4,
     materials: [],
     assigned_segments: [],
+    name: "",
+    description: "",
+    concept_note: "",
+    vision: "",
+    objectives: "",
+    program_type: "incubation",
+    visibility: "private",
+    participant_limit: 0,
+    registration_window: "",
+    language: "en",
+    assigned_pm_id: "",
   });
 
   // Date validation
@@ -82,6 +95,9 @@ export default function NewProgram() {
   const [createdKB, setCreatedKB] = useState(null);
   const [kpisList, setKpisList] = useState([]);
   const [kpiInput, setKpiInput] = useState({ title: "", target_value: 80 });
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const [segments, setSegments] = useState([]);
 
@@ -109,18 +125,21 @@ export default function NewProgram() {
     async function loadAssets() {
       setLoadingAssets(true);
       try {
-        const [knowRes, staffRes, segRes] = await Promise.all([
+        const [knowRes, staffRes, segRes, tmplRes] = await Promise.all([
           fetch("/api/knowledge"),
           fetch("/api/contacts"),
           fetch("/api/families"),
+          fetch("/api/pm/programs/templates"),
         ]);
 
         const knowData = await knowRes.json();
         const staffData = await staffRes.json();
         const segData = await segRes.json();
+        const tmplData = await tmplRes.json();
 
         if (knowData.success) setKnowledgeNodes(knowData.conceptNotes || []);
         if (segData.success) setSegments(segData.families || []);
+        if (tmplData.success) setTemplates(tmplData.templates || []);
         // Filter: Only Future Studio Staff (role='staff' or 'admin')
         if (staffData.success) {
           const staffOnly = (staffData.contacts || []).filter(
@@ -289,7 +308,30 @@ export default function NewProgram() {
       const res = await fetch("/api/pm/programs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...program, kpis: kpisList }),
+        body: JSON.stringify({
+          name: program.name,
+          description: program.description || null,
+          concept_note:
+            program.conceptNoteType === "link"
+              ? program.conceptNoteLink
+              : program.description || null,
+          vision: program.vision || null,
+          objectives: program.objectives || null,
+          program_type: program.program_type || "incubation",
+          visibility: program.visibility || "private",
+          participant_limit: program.participant_limit || 0,
+          registration_window: program.registration_window || null,
+          language: program.language || "en",
+          start_date: program.start_date,
+          end_date: program.end_date,
+          duration_weeks: program.duration_weeks,
+          assigned_pm_id: program.assigned_pm_id,
+          assigned_assistant_id: program.assigned_assistant_id || null,
+          note_id: program.note_id || null,
+          materials: program.materials,
+          assigned_segments: program.assigned_segments,
+          kpis: kpisList,
+        }),
       });
       const data = await res.json();
 
@@ -361,11 +403,72 @@ export default function NewProgram() {
         </header>
 
         <form onSubmit={handleDeploy} className="space-y-10">
+          {/* Template Selector */}
+          {templates.length > 0 && (
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.startFromTemplate")}
+              </label>
+              <div className="flex gap-3">
+                <select
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+                >
+                  <option value="">{t("admin.selectTemplate")}</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.program_type || "incubation"})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!selectedTemplate || applyingTemplate}
+                  onClick={async () => {
+                    if (!selectedTemplate) return;
+                    setApplyingTemplate(true);
+                    try {
+                      const t = templates.find(
+                        (x) => x.id === selectedTemplate,
+                      );
+                      const res = await fetch(
+                        "/api/pm/programs/templates?action=apply",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            template_id: selectedTemplate,
+                            name: program.name || t?.name || "New Program",
+                          }),
+                        },
+                      );
+                      const data = await res.json();
+                      if (data.success) {
+                        notify("success", "Program created from template!");
+                        setTimeout(() => router.push("/admin/programs"), 1500);
+                      } else {
+                        notify("error", data.error || "Failed");
+                      }
+                    } catch (e) {
+                      notify("error", e.message);
+                    } finally {
+                      setApplyingTemplate(false);
+                    }
+                  }}
+                  className="px-6 py-3 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all disabled:opacity-40"
+                >
+                  {applyingTemplate ? "Creating..." : t("admin.apply")}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* SECTION: BASIC IDENTITY */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Program Identity
+                {t("admin.programName")}
               </label>
               <input
                 required
@@ -416,17 +519,160 @@ export default function NewProgram() {
             </div>
           </div>
 
+          {/* Program Type & Vision & Objectives */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.programType")}
+              </label>
+              <select
+                value={program.program_type || "incubation"}
+                onChange={(e) =>
+                  setProgram({ ...program, program_type: e.target.value })
+                }
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              >
+                <option value="incubation">
+                  {t("admin.programTypes.incubation")}
+                </option>
+                <option value="acceleration">
+                  {t("admin.programTypes.acceleration")}
+                </option>
+                <option value="bootcamp">
+                  {t("admin.programTypes.bootcamp")}
+                </option>
+                <option value="workshop">
+                  {t("admin.programTypes.workshop")}
+                </option>
+                <option value="fellowship">
+                  {t("admin.programTypes.fellowship")}
+                </option>
+                <option value="custom">{t("admin.programTypes.custom")}</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.visibility")}
+              </label>
+              <select
+                value={program.visibility || "private"}
+                onChange={(e) =>
+                  setProgram({ ...program, visibility: e.target.value })
+                }
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              >
+                <option value="private">
+                  {t("admin.visibilityOptions.private")}
+                </option>
+                <option value="public">
+                  {t("admin.visibilityOptions.public")}
+                </option>
+                <option value="invite_only">
+                  {t("admin.visibilityOptions.inviteOnly")}
+                </option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.language")}
+              </label>
+              <select
+                value={program.language || "en"}
+                onChange={(e) =>
+                  setProgram({ ...program, language: e.target.value })
+                }
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              >
+                <option value="en">English</option>
+                <option value="fr">French</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.vision")}
+              </label>
+              <textarea
+                rows={3}
+                value={program.vision || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, vision: e.target.value })
+                }
+                placeholder="What is the long-term vision for this program?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.objectives")}
+              </label>
+              <textarea
+                rows={3}
+                value={program.objectives || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, objectives: e.target.value })
+                }
+                placeholder="What are the key objectives?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.participantLimit")}
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={program.participant_limit || 0}
+                onChange={(e) =>
+                  setProgram({
+                    ...program,
+                    participant_limit: parseInt(e.target.value) || 0,
+                  })
+                }
+                placeholder={t("admin.unlimited")}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.registrationWindow")}
+              </label>
+              <input
+                type="text"
+                value={program.registration_window || ""}
+                onChange={(e) =>
+                  setProgram({
+                    ...program,
+                    registration_window: e.target.value,
+                  })
+                }
+                placeholder="e.g. 2024-01-01 to 2024-02-01"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              />
+            </div>
+          </div>
+
           <div className="space-y-4">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-              Concept Note
+              {t("admin.conceptNote")}
             </label>
 
             {/* Input type selector */}
             <div className="flex gap-2 bg-primary rounded-xl p-1.5 border border-[var(--border-primary)] w-fit">
               {[
-                { id: "text", label: "Rich Text", icon: FileText },
-                { id: "link", label: "External Link", icon: Plus },
-                { id: "upload", label: "Upload Document", icon: Upload },
+                { id: "text", label: t("admin.richText"), icon: FileText },
+                { id: "link", label: t("admin.externalLink"), icon: Plus },
+                {
+                  id: "upload",
+                  label: t("admin.uploadDocument"),
+                  icon: Upload,
+                },
               ].map((opt) => (
                 <button
                   key={opt.id}

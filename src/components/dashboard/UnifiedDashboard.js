@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import TaskDetailModal from "@/components/ui/TaskDetailModal";
 
 // ─── CONSTANTS ─────────────────────────────────────────────────────────────
 
@@ -559,7 +560,21 @@ export default function UnifiedDashboard({ role: propRole }) {
                       {dayEvents.map((ev) => (
                         <button
                           key={ev.id}
-                          onClick={() => setSelectedEvent(ev)}
+                          onClick={() => {
+                            if (ev.source === "task" && ev.id) {
+                              const taskId = String(ev.id).startsWith("task-")
+                                ? String(ev.id).split("-")[1]
+                                : ev.id;
+                              fetch(`/api/tasks?id=${taskId}`)
+                                .then((r) => r.json())
+                                .then((d) => {
+                                  if (d.success && d.tasks?.[0])
+                                    setSelectedTask(d.tasks[0]);
+                                });
+                            } else {
+                              setSelectedEvent(ev);
+                            }
+                          }}
                           className={cn(
                             "w-full text-left px-1 py-0.5 rounded text-[7px] font-bold truncate leading-tight hover:brightness-110 transition-all",
                             getEventStyle(ev),
@@ -934,12 +949,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     <div
                       key={t.id}
                       onClick={() => {
-                        const r =
-                          user?.role === "super_admin" ||
-                          user?.role === "developer"
-                            ? "admin"
-                            : "staff";
-                        router.push("/" + r + "/op-report");
+                        router.push("/staff/op-report");
                       }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 cursor-pointer hover:brightness-110 transition-all"
                     >
@@ -961,8 +971,10 @@ export default function UnifiedDashboard({ role: propRole }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ===== LEFT COLUMN (2/3) ===== */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Weekly Standup Banner for Staff/Devs */}
-            {(effectiveRole === "developer" || effectiveRole === "staff") && (
+            {/* Weekly Standup Banner for all roles */}
+            {(effectiveRole === "developer" ||
+              effectiveRole === "staff" ||
+              effectiveRole === "super_admin") && (
               <div
                 className="card flex items-center justify-between !p-4 border-l-4 border-l-[var(--brand-orange)] cursor-pointer hover:border-[var(--brand-orange)]/50 transition-all bg-[var(--brand-orange)]/5"
                 onClick={() => {
@@ -1541,102 +1553,11 @@ export default function UnifiedDashboard({ role: propRole }) {
         </div>
       )}
 
-      {/* ═══════ TASK DETAIL DRAWER ═══════ */}
       {selectedTask && (
-        <div
-          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => setSelectedTask(null)}
-        >
-          <div
-            className="card w-full max-w-lg space-y-5 border-[var(--brand-orange)]/30 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-start">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  {selectedTask.status && (
-                    <span
-                      className={cn(
-                        "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded",
-                        (
-                          STATUS_CONFIG[selectedTask.status] ||
-                          STATUS_CONFIG.pending
-                        ).bg,
-                        (
-                          STATUS_CONFIG[selectedTask.status] ||
-                          STATUS_CONFIG.pending
-                        ).color,
-                      )}
-                    >
-                      {
-                        (
-                          STATUS_CONFIG[selectedTask.status] ||
-                          STATUS_CONFIG.pending
-                        ).label
-                      }
-                    </span>
-                  )}
-                  {selectedTask.due_date && (
-                    <span className="text-[8px] font-black text-rose-400 uppercase bg-rose-500/10 px-1.5 py-0.5 rounded">
-                      Overdue
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-lg font-black text-[var(--text-primary)]">
-                  {selectedTask.title}
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedTask(null)}
-                className="p-1 hover:bg-white/5 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            {(selectedTask.due_date || selectedTask.start_date) && (
-              <div className="grid grid-cols-2 gap-3">
-                {selectedTask.start_date && (
-                  <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Start
-                    </p>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {new Date(selectedTask.start_date).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-                <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                    Due
-                  </p>
-                  <p className="text-xs font-bold text-[var(--text-primary)]">
-                    {selectedTask.due_date
-                      ? new Date(selectedTask.due_date).toLocaleDateString()
-                      : "—"}
-                  </p>
-                </div>
-              </div>
-            )}
-            {selectedTask.priority && (
-              <div className="flex items-center gap-2">
-                <span className="text-[8px] font-black text-slate-500 uppercase">
-                  Priority:
-                </span>
-                <span
-                  className={cn(
-                    "text-[8px] font-black uppercase px-2 py-0.5 rounded",
-                    selectedTask.priority === "critical" ||
-                      selectedTask.priority === "high"
-                      ? "bg-rose-500/10 text-rose-500"
-                      : "bg-slate-500/10 text-slate-500",
-                  )}
-                >
-                  {selectedTask.priority}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
+        <TaskDetailModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+        />
       )}
     </DashboardLayout>
   );

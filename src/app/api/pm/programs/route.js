@@ -83,7 +83,7 @@ export async function GET(req) {
     const [sessions, participants, docs, reports, segments, submissions] =
       await Promise.all([
         db.execute(
-          "SELECT program_id, COUNT(*) as count, COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed FROM v2_sessions WHERE status != 'archived' GROUP BY program_id",
+          "SELECT program_id, COUNT(*) as count, 0 as completed FROM v2_sessions GROUP BY program_id",
         ),
         db.execute(
           "SELECT program_id, COUNT(*) as count FROM v2_participants GROUP BY program_id",
@@ -180,6 +180,14 @@ export async function POST(req) {
     const {
       name,
       description,
+      concept_note,
+      vision,
+      objectives,
+      program_type,
+      visibility,
+      participant_limit,
+      registration_window,
+      language,
       note_id,
       assigned_pm_id,
       assigned_assistant_id,
@@ -190,25 +198,29 @@ export async function POST(req) {
       assigned_segments,
       kpis,
     } = await req.json();
-    const id =
-      "P-" +
-      new Date().getFullYear() +
-      "-" +
-      uuidv4().split("-")[0].toUpperCase();
+    const id = uuidv4();
 
     await db.execute({
-      sql: `INSERT INTO v2_programs (id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO v2_programs (id, name, description, concept_note, vision, objectives, program_type, visibility, participant_limit, registration_window, language, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
         name,
-        description,
+        description || null,
+        concept_note || null,
+        vision || null,
+        objectives || null,
+        program_type || "incubation",
+        visibility || "private",
+        participant_limit || 0,
+        registration_window || null,
+        language || "en",
         note_id || null,
         assigned_pm_id || null,
         assigned_assistant_id || null,
-        duration_weeks || 4,
-        "active",
+        parseInt(duration_weeks) || 4,
+        "Planned",
         0,
-        JSON.stringify(materials || []),
+        materials ? JSON.stringify(materials) : null,
         start_date || null,
         end_date || null,
       ],
@@ -268,6 +280,14 @@ export async function PUT(req) {
       id,
       name,
       description,
+      concept_note,
+      vision,
+      objectives,
+      program_type,
+      visibility,
+      participant_limit,
+      registration_window,
+      language,
       note_id,
       assigned_pm_id,
       assigned_assistant_id,
@@ -299,8 +319,8 @@ export async function PUT(req) {
       );
     }
 
-    // If is_archived is provided, handle archive/restore separately
-    if (is_archived !== undefined) {
+    // If is_archived is provided without a name, it's a quick archive action
+    if (is_archived !== undefined && !name) {
       const newStatus = is_archived ? "archived" : "active";
       await db.execute({
         sql: "UPDATE v2_programs SET is_archived = ?, status = ? WHERE id = ?",
@@ -314,11 +334,19 @@ export async function PUT(req) {
 
     await db.execute({
       sql: `UPDATE v2_programs
-                SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?
+                SET name = ?, description = ?, concept_note = ?, vision = ?, objectives = ?, program_type = ?, visibility = ?, participant_limit = ?, registration_window = ?, language = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?
                 WHERE id = ?`,
       args: [
         name,
         description,
+        concept_note || null,
+        vision || null,
+        objectives || null,
+        program_type || "incubation",
+        visibility || "private",
+        participant_limit || 0,
+        registration_window || null,
+        language || "en",
         note_id || null,
         assigned_pm_id || null,
         assigned_assistant_id || null,

@@ -57,12 +57,11 @@ export async function GET(req) {
         args: [userId],
       }),
 
-      // 2. Tasks with dates (calendar)
+      // 2. Tasks with dates (calendar) — include task_name/user_name
       db.execute({
-        sql: `SELECT id, title, start_date, end_date, status, project_id, user_id, assigned_to
+        sql: `SELECT id, title, description, start_date, end_date, status, priority, category, project_id, user_id, user_name, assigned_to, link
               FROM tasks
-              WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)
-                AND (user_id = ? OR assigned_to = ?)`,
+              WHERE (user_id = ? OR assigned_to = ?)`,
         args: [userId, userId],
       }),
 
@@ -254,7 +253,21 @@ export async function GET(req) {
       for (const t of taskDateRes.value.rows) {
         const startStr = toDateStr(t.start_date);
         const endStr = toDateStr(t.end_date);
-        if (!startStr && !endStr) continue;
+        // If no dates at all, show on today
+        if (!startStr && !endStr) {
+          calendarEvents.push({
+            id: `task-${t.id}-${todayStr}`,
+            title: t.title,
+            date: todayStr,
+            type: "task_active",
+            source: "task",
+            status: t.status,
+            priority: t.priority,
+            related_id: t.id,
+            project_id: t.project_id,
+          });
+          continue;
+        }
         // Determine the effective date range
         const rangeStart = startStr || endStr;
         const rangeEnd = endStr || startStr;
@@ -269,6 +282,7 @@ export async function GET(req) {
             type: isFirst ? "task_start" : isLast ? "task_due" : "task_active",
             source: "task",
             status: t.status,
+            priority: t.priority,
             related_id: t.id,
             project_id: t.project_id,
           });

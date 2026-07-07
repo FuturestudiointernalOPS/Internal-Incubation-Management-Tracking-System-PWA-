@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import { uploadFile } from "@/lib/storage";
+import { useI18n } from "@/lib/i18n";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -94,6 +95,7 @@ export default function TaskManager({
   showCarryOver = true, // show carry-over tasks section
   readOnly = false, // past-week read-only mode
 }) {
+  const { t } = useI18n();
   const uid = userId;
   // Get current logged-in user for permission checks
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -166,6 +168,10 @@ export default function TaskManager({
   const [resourceFile, setResourceFile] = useState(null);
   const [blockerModal, setBlockerModal] = useState(null); // { taskId, taskTitle } or null
   const [blockerTitle, setBlockerTitle] = useState("");
+  const [blockerDescription, setBlockerDescription] = useState("");
+  const [blockerPriority, setBlockerPriority] = useState("medium");
+  const [blockerRefUrl, setBlockerRefUrl] = useState("");
+  const [blockerNotes, setBlockerNotes] = useState("");
   const [blockerAdding, setBlockerAdding] = useState(false);
   // ── Blocker Discussions (Ticket 1.9) ──
   const [openBlockerDiscuss, setOpenBlockerDiscuss] = useState(null); // blocker id or null
@@ -379,11 +385,19 @@ export default function TaskManager({
           user_id: uid,
           user_name: userName || "User",
           title: blockerTitle.trim(),
+          description: blockerDescription.trim() || null,
+          severity: blockerPriority,
+          reference_url: blockerRefUrl.trim() || null,
+          notes: blockerNotes.trim() || null,
         }),
       });
       if (res.ok) {
         setBlockerModal(null);
         setBlockerTitle("");
+        setBlockerDescription("");
+        setBlockerPriority("medium");
+        setBlockerRefUrl("");
+        setBlockerNotes("");
         if (onTasksChange) onTasksChange();
       }
     } catch (e) {
@@ -412,53 +426,71 @@ export default function TaskManager({
   };
 
   // ── Blocker Discussions (Ticket 1.9) ──
-  const toggleBlockerDiscuss = useCallback(async (blockerId) => {
-    if (openBlockerDiscuss === blockerId) {
-      setOpenBlockerDiscuss(null);
-      return;
-    }
-    setOpenBlockerDiscuss(blockerId);
-    setNewBlockerMsg("");
-    if (!blockerMessages[blockerId]) {
+  const toggleBlockerDiscuss = useCallback(
+    async (blockerId) => {
+      if (openBlockerDiscuss === blockerId) {
+        setOpenBlockerDiscuss(null);
+        return;
+      }
+      setOpenBlockerDiscuss(blockerId);
+      setNewBlockerMsg("");
+      if (!blockerMessages[blockerId]) {
+        try {
+          const res = await fetch(
+            `/api/blockers/discuss?blocker_id=${blockerId}`,
+          );
+          const data = await res.json();
+          if (data.success) {
+            setBlockerMessages((prev) => ({
+              ...prev,
+              [blockerId]: data.messages || [],
+            }));
+          }
+        } catch (_) {}
+      }
+    },
+    [openBlockerDiscuss, blockerMessages],
+  );
+
+  const postBlockerMessage = useCallback(
+    async (blockerId) => {
+      const text = newBlockerMsg.trim();
+      if (!text) return;
+      setPostingBlockerMsg(true);
       try {
-        const res = await fetch(`/api/blockers/discuss?blocker_id=${blockerId}`);
+        const res = await fetch("/api/blockers/discuss", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            blocker_id: blockerId,
+            sender_id: uid,
+            sender_name: userName || "User",
+            body: text,
+          }),
+        });
         const data = await res.json();
         if (data.success) {
-          setBlockerMessages((prev) => ({ ...prev, [blockerId]: data.messages || [] }));
+          setBlockerMessages((prev) => ({
+            ...prev,
+            [blockerId]: [
+              ...(prev[blockerId] || []),
+              {
+                id: data.id,
+                sender_id: uid,
+                sender_name: userName || "User",
+                body: text,
+                blocker_id: blockerId,
+                created_at: new Date().toISOString(),
+              },
+            ],
+          }));
+          setNewBlockerMsg("");
         }
       } catch (_) {}
-    }
-  }, [openBlockerDiscuss, blockerMessages]);
-
-  const postBlockerMessage = useCallback(async (blockerId) => {
-    const text = newBlockerMsg.trim();
-    if (!text) return;
-    setPostingBlockerMsg(true);
-    try {
-      const res = await fetch("/api/blockers/discuss", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          blocker_id: blockerId,
-          sender_id: uid,
-          sender_name: userName || "User",
-          body: text,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setBlockerMessages((prev) => ({
-          ...prev,
-          [blockerId]: [
-            ...(prev[blockerId] || []),
-            { id: data.id, sender_id: uid, sender_name: userName || "User", body: text, blocker_id: blockerId, created_at: new Date().toISOString() },
-          ],
-        }));
-        setNewBlockerMsg("");
-      }
-    } catch (_) {}
-    setPostingBlockerMsg(false);
-  }, [newBlockerMsg, uid, userName]);
+      setPostingBlockerMsg(false);
+    },
+    [newBlockerMsg, uid, userName],
+  );
 
   // ── API: Update task status ──
   const updateStatus = useCallback(
@@ -673,13 +705,16 @@ export default function TaskManager({
 
   const carryOverTasks = useMemo(
     () =>
-      filteredTasks.filter(
+      tasks.filter(
         (t) =>
           (t.carried_over_from_task_id !== null ||
-            t.status === "carried_over") &&
+            t.status === "carried_over" ||
+            t.status === "in_progress" ||
+            t.status === "blocked") &&
+          t.created_week !== effectiveWeekInfo?.week &&
           !t.parent_task_id,
       ),
-    [filteredTasks],
+    [tasks, effectiveWeekInfo],
   );
 
   const activeTasks = useMemo(
@@ -943,132 +978,133 @@ export default function TaskManager({
 
           {/* Archive button — always visible */}
           {!readOnly && (
-          <button
-            onClick={async () => {
-              if (
-                !window.confirm(
-                  `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
+            <button
+              onClick={async () => {
+                if (
+                  !window.confirm(
+                    `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
+                  )
                 )
-              )
-                return;
-              try {
-                const res = await fetch(`/api/tasks?id=${task.id}`, {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ status: "archived" }),
-                });
-                const data = await res.json();
-                if (data.success) {
-                  if (onTasksChange) onTasksChange();
-                } else {
-                  alert(data.error || "Failed to archive task.");
+                  return;
+                try {
+                  const res = await fetch(`/api/tasks?id=${task.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: "archived" }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    if (onTasksChange) onTasksChange();
+                  } else {
+                    alert(data.error || "Failed to archive task.");
+                  }
+                } catch (e) {
+                  alert("Network error while archiving task.");
                 }
-              } catch (e) {
-                alert("Network error while archiving task.");
-              }
-            }}
-            className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
-            title="Archive task"
-          >
-            <Archive className="w-3 h-3" />
-          </button>
+              }}
+              className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
+              title="Archive task"
+            >
+              <Archive className="w-3 h-3" />
+            </button>
           )}
 
           {/* Duplicate button — always visible */}
           {!readOnly && (
-          <button
-            onClick={async () => {
-              try {
-                const res = await fetch("/api/tasks/duplicate", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ task_id: task.id }),
-                });
-                const data = await res.json();
-                if (data.success) {
-                  if (onTasksChange) onTasksChange();
-                } else {
-                  alert(data.error || "Failed to duplicate task.");
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/tasks/duplicate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ task_id: task.id }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    if (onTasksChange) onTasksChange();
+                  } else {
+                    alert(data.error || "Failed to duplicate task.");
+                  }
+                } catch (e) {
+                  alert("Network error while duplicating task.");
                 }
-              } catch (e) {
-                alert("Network error while duplicating task.");
-              }
-            }}
-            className="text-slate-500 hover:text-[var(--brand-orange)] transition-all shrink-0"
-            title="Duplicate task"
-          >
-            <Copy className="w-3 h-3" />
-          </button>
+              }}
+              className="text-slate-500 hover:text-[var(--brand-orange)] transition-all shrink-0"
+              title="Duplicate task"
+            >
+              <Copy className="w-3 h-3" />
+            </button>
           )}
 
           {/* Delete / Archive based on week — parent AND sub tasks */}
-          {!readOnly && (() => {
-            const isPastWeek =
-              effectiveWeekInfo &&
-              (task.created_week !== effectiveWeekInfo.week ||
-                task.created_year !== effectiveWeekInfo.year);
-            if (isPastWeek) {
-              // Past-week tasks can only be archived, not deleted
+          {!readOnly &&
+            (() => {
+              const isPastWeek =
+                effectiveWeekInfo &&
+                (task.created_week !== effectiveWeekInfo.week ||
+                  task.created_year !== effectiveWeekInfo.year);
+              if (isPastWeek) {
+                // Past-week tasks can only be archived, not deleted
+                return (
+                  <button
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
+                        )
+                      )
+                        return;
+                      try {
+                        const res = await fetch(`/api/tasks?id=${task.id}`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ status: "archived" }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          if (onTasksChange) onTasksChange();
+                        } else {
+                          alert(data.error || "Failed to archive task.");
+                        }
+                      } catch (e) {
+                        alert("Network error while archiving task.");
+                      }
+                    }}
+                    className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
+                    title="Archive task (past week — cannot delete)"
+                  >
+                    <Archive className="w-3 h-3" />
+                  </button>
+                );
+              }
               return (
                 <button
                   onClick={async () => {
-                    if (
-                      !window.confirm(
-                        `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
-                      )
-                    )
-                      return;
+                    if (!window.confirm(`Delete task "${task.title}"?`)) return;
                     try {
                       const res = await fetch(`/api/tasks?id=${task.id}`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ status: "archived" }),
+                        method: "DELETE",
                       });
                       const data = await res.json();
                       if (data.success) {
                         if (onTasksChange) onTasksChange();
                       } else {
-                        alert(data.error || "Failed to archive task.");
+                        alert(
+                          data.error ||
+                            "Cannot delete this task. It may be locked (older than 12 hours).",
+                        );
                       }
                     } catch (e) {
-                      alert("Network error while archiving task.");
+                      alert("Network error while deleting task.");
                     }
                   }}
-                  className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
-                  title="Archive task (past week — cannot delete)"
+                  className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
+                  title="Delete task"
                 >
-                  <Archive className="w-3 h-3" />
+                  <Trash2 className="w-3 h-3" />
                 </button>
               );
-            }
-            return (
-              <button
-                onClick={async () => {
-                  if (!window.confirm(`Delete task "${task.title}"?`)) return;
-                  try {
-                    const res = await fetch(`/api/tasks?id=${task.id}`, {
-                      method: "DELETE",
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                      if (onTasksChange) onTasksChange();
-                    } else {
-                      alert(
-                        data.error ||
-                          "Cannot delete this task. It may be locked (older than 12 hours).",
-                      );
-                    }
-                  } catch (e) {
-                    alert("Network error while deleting task.");
-                  }
-                }}
-                className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
-                title="Delete task"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            );
-          })()}
+            })()}
 
           {/* Move up/down buttons */}
           {!readOnly && !isSub && (
@@ -1122,13 +1158,13 @@ export default function TaskManager({
                   <Copy className="w-2.5 h-2.5" />
                 </button>
                 {!readOnly && (
-                <button
-                  onClick={() => handleDeleteResource(r.id)}
-                  className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity"
-                  title="Remove URL"
-                >
-                  <Trash2 className="w-2.5 h-2.5" />
-                </button>
+                  <button
+                    onClick={() => handleDeleteResource(r.id)}
+                    className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity"
+                    title="Remove URL"
+                  >
+                    <Trash2 className="w-2.5 h-2.5" />
+                  </button>
                 )}
               </div>
             ))}
@@ -1193,12 +1229,12 @@ export default function TaskManager({
           className={`mt-1 flex items-center gap-3 ${isSub ? "ml-10" : "ml-8"}`}
         >
           {!readOnly && (
-          <button
-            onClick={() => setAddResourceTaskId(task.id)}
-            className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors"
-          >
-            <Plus className="w-2.5 h-2.5" /> Resource
-          </button>
+            <button
+              onClick={() => setAddResourceTaskId(task.id)}
+              className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors"
+            >
+              <Plus className="w-2.5 h-2.5" /> Resource
+            </button>
           )}
           <button
             onClick={() => toggleComments(task.id)}
@@ -1245,25 +1281,25 @@ export default function TaskManager({
               </div>
             )}
             {!readOnly && (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") postComment(task.id);
-                }}
-                placeholder="Write a comment..."
-                className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
-              />
-              <button
-                onClick={() => postComment(task.id)}
-                disabled={!newComment.trim() || postingComment}
-                className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase disabled:opacity-40"
-              >
-                Send
-              </button>
-            </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") postComment(task.id);
+                  }}
+                  placeholder="Write a comment..."
+                  className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+                />
+                <button
+                  onClick={() => postComment(task.id)}
+                  disabled={!newComment.trim() || postingComment}
+                  className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase disabled:opacity-40"
+                >
+                  Send
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -1557,12 +1593,12 @@ export default function TaskManager({
         </div>
       ) : (
         !readOnly && (
-        <button
-          onClick={() => setShowTaskForm(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all w-fit"
-        >
-          <Plus className="w-3 h-3" /> New Task
-        </button>
+          <button
+            onClick={() => setShowTaskForm(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all w-fit"
+          >
+            <Plus className="w-3 h-3" /> New Task
+          </button>
         )
       )}
 
@@ -2030,9 +2066,14 @@ export default function TaskManager({
                           className="flex flex-col p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-rose-400 font-bold">
-                              {b.title}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-rose-400 font-bold">
+                                {b.title}
+                              </span>
+                              <span className="text-[7px] font-black uppercase text-rose-500/60">
+                                {b.severity || "medium"}
+                              </span>
+                            </div>
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => toggleBlockerDiscuss(b.id)}
@@ -2041,42 +2082,77 @@ export default function TaskManager({
                                 Discuss
                               </button>
                               {!readOnly && (
-                              <button
-                                onClick={() => handleResolveBlocker(b.id)}
-                                className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
-                              >
-                                Resolve
-                              </button>
+                                <button
+                                  onClick={() => handleResolveBlocker(b.id)}
+                                  className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
+                                >
+                                  Resolve
+                                </button>
                               )}
                             </div>
                           </div>
+                          {(b.description || b.reference_url || b.notes) && (
+                            <div className="mt-1.5 pt-1.5 border-t border-rose-500/10 space-y-1">
+                              {b.description && (
+                                <p className="text-[9px] text-slate-400">
+                                  {b.description}
+                                </p>
+                              )}
+                              {b.reference_url && (
+                                <a
+                                  href={b.reference_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[8px] text-blue-400 underline break-all"
+                                >
+                                  {b.reference_url}
+                                </a>
+                              )}
+                              {b.notes && (
+                                <p className="text-[8px] text-slate-500 italic">
+                                  {b.notes}
+                                </p>
+                              )}
+                            </div>
+                          )}
                           {/* Discussion thread */}
                           {openBlockerDiscuss === b.id && (
                             <div className="mt-2 pt-2 border-t border-rose-500/10 space-y-1.5">
                               {(blockerMessages[b.id] || []).map((msg) => (
                                 <div key={msg.id} className="text-[9px]">
-                                  <span className="font-black text-[var(--text-primary)]">{msg.sender_name || msg.sender_id}: </span>
-                                  <span className="text-[var(--text-secondary)]">{msg.body}</span>
+                                  <span className="font-black text-[var(--text-primary)]">
+                                    {msg.sender_name || msg.sender_id}:{" "}
+                                  </span>
+                                  <span className="text-[var(--text-secondary)]">
+                                    {msg.body}
+                                  </span>
                                 </div>
                               ))}
                               {!readOnly && (
-                              <div className="flex items-center gap-1 pt-1">
-                                <input
-                                  type="text"
-                                  value={newBlockerMsg}
-                                  onChange={(e) => setNewBlockerMsg(e.target.value)}
-                                  onKeyDown={(e) => { if (e.key === "Enter") postBlockerMessage(b.id); }}
-                                  placeholder="Reply..."
-                                  className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
-                                />
-                                <button
-                                  onClick={() => postBlockerMessage(b.id)}
-                                  disabled={!newBlockerMsg.trim() || postingBlockerMsg}
-                                  className="px-2 py-1 bg-blue-500 text-white rounded text-[8px] font-bold uppercase disabled:opacity-40"
-                                >
-                                  Send
-                                </button>
-                              </div>
+                                <div className="flex items-center gap-1 pt-1">
+                                  <input
+                                    type="text"
+                                    value={newBlockerMsg}
+                                    onChange={(e) =>
+                                      setNewBlockerMsg(e.target.value)
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter")
+                                        postBlockerMessage(b.id);
+                                    }}
+                                    placeholder="Reply..."
+                                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+                                  />
+                                  <button
+                                    onClick={() => postBlockerMessage(b.id)}
+                                    disabled={
+                                      !newBlockerMsg.trim() || postingBlockerMsg
+                                    }
+                                    className="px-2 py-1 bg-blue-500 text-white rounded text-[8px] font-bold uppercase disabled:opacity-40"
+                                  >
+                                    Send
+                                  </button>
+                                </div>
                               )}
                             </div>
                           )}
@@ -2107,27 +2183,70 @@ export default function TaskManager({
 
             {/* New blocker input */}
             {!readOnly && (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={blockerTitle}
-                onChange={(e) => setBlockerTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && blockerTitle.trim())
-                    handleAddBlocker();
-                }}
-                placeholder="Describe the blocker..."
-                className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
-                autoFocus
-              />
-              <button
-                onClick={handleAddBlocker}
-                disabled={!blockerTitle.trim() || blockerAdding}
-                className="px-4 py-2 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
-              >
-                {blockerAdding ? "..." : "Add"}
-              </button>
-            </div>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={blockerTitle}
+                  onChange={(e) => setBlockerTitle(e.target.value)}
+                  placeholder={t("staff.opReport.blockerTitlePlaceholder")}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
+                  autoFocus
+                />
+                <textarea
+                  value={blockerDescription}
+                  onChange={(e) => setBlockerDescription(e.target.value)}
+                  placeholder={t(
+                    "staff.opReport.blockerDescriptionPlaceholder",
+                  )}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50 resize-none"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={blockerPriority}
+                    onChange={(e) => setBlockerPriority(e.target.value)}
+                    className="flex-1 px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
+                  >
+                    <option value="low">
+                      {t("staff.opReport.priorityLow")}
+                    </option>
+                    <option value="medium">
+                      {t("staff.opReport.priorityMedium")}
+                    </option>
+                    <option value="high">
+                      {t("staff.opReport.priorityHigh")}
+                    </option>
+                    <option value="critical">
+                      {t("staff.opReport.priorityCritical")}
+                    </option>
+                  </select>
+                  <input
+                    type="url"
+                    value={blockerRefUrl}
+                    onChange={(e) => setBlockerRefUrl(e.target.value)}
+                    placeholder={t(
+                      "staff.opReport.blockerReferenceUrlPlaceholder",
+                    )}
+                    className="flex-[2] px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50"
+                  />
+                </div>
+                <textarea
+                  value={blockerNotes}
+                  onChange={(e) => setBlockerNotes(e.target.value)}
+                  placeholder={t("staff.opReport.blockerNotesPlaceholder")}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50 resize-none"
+                />
+                <button
+                  onClick={handleAddBlocker}
+                  disabled={!blockerTitle.trim() || blockerAdding}
+                  className="w-full px-4 py-2 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
+                >
+                  {blockerAdding
+                    ? t("staff.opReport.addingBlocker")
+                    : t("staff.opReport.addBlockerButton")}
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -17,9 +17,14 @@ export async function GET(req) {
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
+    const include_archived = searchParams.get("include_archived");
 
     let projectSql = "SELECT * FROM v2_projects WHERE 1=1";
     const projectArgs = [];
+
+    if (include_archived !== "true") {
+      projectSql += " AND status != 'Archived'";
+    }
 
     if (program_id) {
       projectSql += " AND program_id = ?";
