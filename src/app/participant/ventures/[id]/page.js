@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Clock, History } from "lucide-react";
+import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Clock, History, Briefcase, Target, Lightbulb, TrendingUp, CheckSquare, ListChecks, ChevronDown, ChevronUp } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useRouter, useParams } from "next/navigation";
 
-const TABS = ["profile", "settings", "founders", "team", "dashboard", "history"];
+const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans"];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
 const STATUSES = ["active", "paused", "graduated", "archived"];
 const VISIBILITIES = ["private", "public", "inviteOnly"];
@@ -23,6 +23,24 @@ export default function VentureDetail() {
   const [members, setMembers] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
   const [historyData, setHistoryData] = useState(null);
+
+  // Track 2 state
+  const [bmData, setBmData] = useState(null);
+  const [interviews, setInterviews] = useState([]);
+  const [validations, setValidations] = useState([]);
+  const [assessments, setAssessments] = useState([]);
+  const [milestones, setMilestones] = useState([]);
+  const [actionPlans, setActionPlans] = useState([]);
+  const [showAddInterview, setShowAddInterview] = useState(false);
+  const [showAddValidation, setShowAddValidation] = useState(false);
+  const [showAddPmf, setShowAddPmf] = useState(false);
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [showAddAction, setShowAddAction] = useState(false);
+  const [interviewForm, setInterviewForm] = useState({});
+  const [validationForm, setValidationForm] = useState({ type: 'problem' });
+  const [pmfForm, setPmfForm] = useState({});
+  const [milestoneForm, setMilestoneForm] = useState({});
+  const [actionForm, setActionForm] = useState({});
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -83,6 +101,12 @@ export default function VentureDetail() {
     if (activeTab === "founders" || activeTab === "team") loadMembers();
     if (activeTab === "dashboard") loadDashboard();
     if (activeTab === "history") loadHistory();
+    if (activeTab === "businessModel") fetchBm();
+    if (activeTab === "discovery") fetchInterviews();
+    if (activeTab === "validation") fetchValidations();
+    if (activeTab === "pmf") fetchPmf();
+    if (activeTab === "milestones") fetchMilestones();
+    if (activeTab === "actionPlans") fetchActionPlans();
   }, [activeTab, venture, params.id]);
 
   async function loadMembers() {
@@ -107,6 +131,25 @@ export default function VentureDetail() {
       const d = await res.json();
       if (d.success) setHistoryData(d);
     } catch (e) { console.error(e); }
+  }
+
+  async function fetchBm() {
+    try { const r = await fetch(`/api/ventures/${params.id}/business-model`); const d = await r.json(); if (d.success) setBmData(d.business_model); } catch(e){}
+  }
+  async function fetchInterviews() {
+    try { const r = await fetch(`/api/ventures/${params.id}/interviews`); const d = await r.json(); if (d.success) setInterviews(d.interviews); } catch(e){}
+  }
+  async function fetchValidations() {
+    try { const r = await fetch(`/api/ventures/${params.id}/validations`); const d = await r.json(); if (d.success) setValidations(d.validations); } catch(e){}
+  }
+  async function fetchPmf() {
+    try { const r = await fetch(`/api/ventures/${params.id}/pmf`); const d = await r.json(); if (d.success) setAssessments(d.assessments); } catch(e){}
+  }
+  async function fetchMilestones() {
+    try { const r = await fetch(`/api/ventures/${params.id}/milestones`); const d = await r.json(); if (d.success) setMilestones(d.milestones); } catch(e){}
+  }
+  async function fetchActionPlans() {
+    try { const r = await fetch(`/api/ventures/${params.id}/action-plans`); const d = await r.json(); if (d.success) setActionPlans(d.action_plans); } catch(e){}
   }
 
   async function handleSave(e) {
@@ -545,6 +588,234 @@ export default function VentureDetail() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Business Model Tab */}
+        {activeTab === "businessModel" && (
+          <div className="space-y-4">
+            <form onSubmit={async (e) => { e.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(bmData||{})}); alert('Saved'); fetchBm(); }} className="space-y-4">
+              <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {['keyPartners','keyActivities','keyResources','valuePropositions','customerRelationships','channels','customerSegments','costStructure','revenueStreams'].map(f => (
+                    <div key={f}>
+                      <label className="block text-sm font-medium mb-1">{t(`venture.${f}`)}</label>
+                      <textarea className="w-full px-3 py-2 rounded-lg outline-none border text-sm" style={inputStyle} rows={3}
+                        value={bmData?.business_model_canvas?.[f]||''}
+                        onChange={(e) => {
+                          const c = {...(bmData?.business_model_canvas||{}),[f]:e.target.value};
+                          setBmData({...bmData, business_model_canvas: c, venture_id: params.id});
+                        }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end pt-4 border-t" style={{borderColor:'rgb(255 255 255 / 0.1)'}}>
+                  <button type="submit" className="px-6 py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Discovery Tab */}
+        {activeTab === "discovery" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.discovery')} ({interviews.length})</h2>
+              <button onClick={()=>setShowAddInterview(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Lightbulb size={16}/> {t('venture.addInterview')}</button>
+            </div>
+            {interviews.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No interviews yet</div>):
+              interviews.map((iv,i)=>(
+                <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
+                  <div className="flex justify-between">
+                    <div><p className="font-medium">{iv.interviewee_name||'Unknown'}</p><p className="text-xs" style={{color:'var(--text-secondary)'}}>{iv.customer_segment} {iv.interview_date&&`• ${new Date(iv.interview_date).toLocaleDateString()}`}</p></div>
+                  </div>
+                  {iv.notes&&<p className="text-sm mt-2" style={{color:'var(--text-secondary)'}}>{iv.notes}</p>}
+                  {iv.insights&&<p className="text-sm mt-1" style={{color:'var(--brand-orange)'}}>💡 {iv.insights}</p>}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Validation Tab */}
+        {activeTab === "validation" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.validation')} ({validations.length})</h2>
+              <button onClick={()=>setShowAddValidation(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Target size={16}/> {t('venture.addEntry')}</button>
+            </div>
+            {['problem','solution','product'].map(type=>{
+              const items = validations.filter(v=>v.validation_type===type);
+              return <div key={type} className="rounded-xl p-4 border" style={cardStyle}>
+                <h3 className="font-semibold capitalize mb-2">{t(`venture.${type}`)}</h3>
+                {items.length===0&&<p className="text-sm" style={{color:'var(--text-secondary)'}}>No entries</p>}
+                {items.map(v=>(
+                  <div key={v.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{borderColor:'rgb(255 255 255 / 0.05)'}}>
+                    <div><p className="text-sm">{v.notes||'—'}</p><p className="text-xs" style={{color:'var(--text-secondary)'}}>{new Date(v.created_at).toLocaleDateString()}</p></div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${v.status==='validated'?'bg-green-500/20 text-green-400':v.status==='invalidated'?'bg-red-500/20 text-red-400':v.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400'}`}>
+                      {t(`venture.${v.status||'notStarted'}`)}
+                    </span>
+                  </div>
+                ))}
+              </div>;
+            })}
+          </div>
+        )}
+
+        {/* PMF Tab */}
+        {activeTab === "pmf" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.pmf')} ({assessments.length})</h2>
+              <button onClick={()=>setShowAddPmf(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><TrendingUp size={16}/> {t('venture.addAssessment')}</button>
+            </div>
+            {assessments.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No assessments yet</div>):
+              assessments.map((a,i)=>(
+                <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs" style={{color:'var(--text-secondary)'}}>{new Date(a.created_at).toLocaleDateString()}</span>
+                    <span className="text-sm font-bold" style={{color:'var(--brand-orange)'}}>{a.pmf_progress||0}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-white/10 mb-2"><div className="h-full rounded-full transition-all" style={{width:`${a.pmf_progress||0}%`,backgroundColor:'var(--brand-orange)'}}/></div>
+                  {a.customer_feedback&&<p className="text-sm" style={{color:'var(--text-secondary)'}}>📝 {a.customer_feedback}</p>}
+                  {a.improvements&&<p className="text-sm" style={{color:'var(--text-secondary)'}}>🔧 {a.improvements}</p>}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Milestones Tab */}
+        {activeTab === "milestones" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.milestones')} ({milestones.length})</h2>
+              <button onClick={()=>setShowAddMilestone(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><CheckSquare size={16}/> {t('venture.addMilestone')}</button>
+            </div>
+            {milestones.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No milestones yet</div>):
+              milestones.map(m=>{
+                const plans = actionPlans.filter(p=>p.milestone_id===m.id);
+                return <div key={m.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <div className="flex items-start justify-between">
+                    <div><h3 className="font-semibold">{m.title}</h3>{m.description&&<p className="text-sm" style={{color:'var(--text-secondary)'}}>{m.description}</p>}</div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${m.status==='completed'?'bg-green-500/20 text-green-400':m.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400'}`}>{t(`venture.${m.status||'notStarted'}`)}</span>
+                  </div>
+                  {m.target_date&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>🎯 {new Date(m.target_date).toLocaleDateString()}</p>}
+                  <div className="mt-2 w-full h-2 rounded-full bg-white/10"><div className="h-full rounded-full transition-all" style={{width:`${m.progress||0}%`,backgroundColor:'var(--brand-orange)'}}/></div>
+                  <p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>{m.progress||0}%</p>
+                  {plans.length>0&&<div className="mt-2 space-y-1"><p className="text-xs font-medium" style={{color:'var(--text-secondary)'}}>{t('venture.actionPlans')}:</p>{plans.map(p=>(
+                    <div key={p.id} className="text-xs flex items-center gap-2" style={{color:'var(--text-secondary)'}}><span>• {p.title}</span><span className={`px-1.5 py-0.5 rounded ${p.priority==='high'?'bg-red-500/20 text-red-400':p.priority==='medium'?'bg-amber-500/20 text-amber-400':'bg-blue-500/20 text-blue-400'}`}>{t(`venture.${p.priority}`)}</span></div>
+                  ))}</div>}
+                </div>;
+              })
+            }
+          </div>
+        )}
+
+        {/* Action Plans Tab */}
+        {activeTab === "actionPlans" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.actionPlans')} ({actionPlans.length})</h2>
+              <button onClick={()=>setShowAddAction(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><ListChecks size={16}/> {t('venture.addAction')}</button>
+            </div>
+            {actionPlans.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No actions yet</div>):
+              actionPlans.map((p,i)=>(
+                <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
+                  <div className="flex items-start justify-between">
+                    <div><h3 className="font-semibold">{p.title}</h3>{p.owner_name&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>👤 {p.owner_name}</p>}</div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${p.status==='done'?'bg-green-500/20 text-green-400':p.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400'}`}>{t(`venture.${p.status||'open'}`)}</span>
+                  </div>
+                  <div className="flex gap-2 mt-1">
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${p.priority==='high'?'bg-red-500/20 text-red-400':p.priority==='medium'?'bg-amber-500/20 text-amber-400':'bg-blue-500/20 text-blue-400'}`}>{t(`venture.${p.priority}`)}</span>
+                    {p.deadline&&<span className="text-xs" style={{color:'var(--text-secondary)'}}>📅 {new Date(p.deadline).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Add Interview Modal */}
+        {showAddInterview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddInterview(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addInterview')}</h2><button onClick={()=>setShowAddInterview(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/interviews`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...interviewForm,created_by:user.cid})});setShowAddInterview(false);setInterviewForm({});fetchInterviews();}} className="space-y-3">
+                <input placeholder={t('venture.interviewee')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={interviewForm.interviewee_name||''} onChange={e=>setInterviewForm({...interviewForm,interviewee_name:e.target.value})} />
+                <input placeholder={t('venture.segment')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={interviewForm.customer_segment||''} onChange={e=>setInterviewForm({...interviewForm,customer_segment:e.target.value})} />
+                <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={interviewForm.interview_date||''} onChange={e=>setInterviewForm({...interviewForm,interview_date:e.target.value})} />
+                <textarea placeholder={t('venture.notes')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={interviewForm.notes||''} onChange={e=>setInterviewForm({...interviewForm,notes:e.target.value})} />
+                <textarea placeholder={t('venture.insights')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={interviewForm.insights||''} onChange={e=>setInterviewForm({...interviewForm,insights:e.target.value})} />
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Validation Modal */}
+        {showAddValidation && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddValidation(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addEntry')}</h2><button onClick={()=>setShowAddValidation(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/validations`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({validation_type:validationForm.type,notes:validationForm.notes,status:validationForm.status})});setShowAddValidation(false);setValidationForm({type:'problem'});fetchValidations();}} className="space-y-3">
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={validationForm.type} onChange={e=>setValidationForm({...validationForm,type:e.target.value})}>
+                  {['problem','solution','product'].map(t=><option key={t} value={t}>{t(`venture.${t}`)}</option>)}
+                </select>
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={validationForm.status||'in_progress'} onChange={e=>setValidationForm({...validationForm,status:e.target.value})}>
+                  {['not_started','in_progress','validated','invalidated'].map(s=><option key={s} value={s}>{t(`venture.${s}`)}</option>)}
+                </select>
+                <textarea placeholder={t('venture.notes')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={3} value={validationForm.notes||''} onChange={e=>setValidationForm({...validationForm,notes:e.target.value})} />
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add PMF Modal */}
+        {showAddPmf && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddPmf(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAssessment')}</h2><button onClick={()=>setShowAddPmf(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/pmf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pmfForm)});setShowAddPmf(false);setPmfForm({});fetchPmf();}} className="space-y-3">
+                <textarea placeholder={t('venture.feedback')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={pmfForm.customer_feedback||''} onChange={e=>setPmfForm({...pmfForm,customer_feedback:e.target.value})} />
+                <textarea placeholder={t('venture.improvements')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={pmfForm.improvements||''} onChange={e=>setPmfForm({...pmfForm,improvements:e.target.value})} />
+                <div><label className="block text-sm mb-1">{t('venture.progress')}: {pmfForm.pmf_progress||0}%</label><input type="range" min="0" max="100" className="w-full" value={pmfForm.pmf_progress||0} onChange={e=>setPmfForm({...pmfForm,pmf_progress:parseInt(e.target.value)})} /></div>
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Milestone Modal */}
+        {showAddMilestone && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddMilestone(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addMilestone')}</h2><button onClick={()=>setShowAddMilestone(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/milestones`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(milestoneForm)});setShowAddMilestone(false);setMilestoneForm({});fetchMilestones();}} className="space-y-3">
+                <input placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={milestoneForm.title||''} onChange={e=>setMilestoneForm({...milestoneForm,title:e.target.value})} required />
+                <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={milestoneForm.description||''} onChange={e=>setMilestoneForm({...milestoneForm,description:e.target.value})} />
+                <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={milestoneForm.target_date||''} onChange={e=>setMilestoneForm({...milestoneForm,target_date:e.target.value})} />
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Action Plan Modal */}
+        {showAddAction && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddAction(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAction')}</h2><button onClick={()=>setShowAddAction(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/action-plans`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(actionForm)});setShowAddAction(false);setActionForm({});fetchActionPlans();}} className="space-y-3">
+                <input placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={actionForm.title||''} onChange={e=>setActionForm({...actionForm,title:e.target.value})} required />
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={actionForm.priority||'medium'} onChange={e=>setActionForm({...actionForm,priority:e.target.value})}>
+                  {['low','medium','high'].map(p=><option key={p} value={p}>{t(`venture.${p}`)}</option>)}
+                </select>
+                <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={actionForm.deadline||''} onChange={e=>setActionForm({...actionForm,deadline:e.target.value})} />
+                {milestones.length>0&&<select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={actionForm.milestone_id||''} onChange={e=>setActionForm({...actionForm,milestone_id:e.target.value||null})}>
+                  <option value="">{t('venture.unassigned')}</option>
+                  {milestones.map(m=><option key={m.id} value={m.id}>{m.title}</option>)}
+                </select>}
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
           </div>
         )}
 
