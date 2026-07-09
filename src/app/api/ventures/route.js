@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 export async function GET(req) {
   try {
@@ -15,9 +15,16 @@ export async function GET(req) {
     ]);
     if (authError) return authError;
 
+    const session = await getSession();
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
-    const contactId = searchParams.get("contact_id");
+    // Participants can only ever see ventures they're a member of — ignore
+    // any client-supplied contact_id and force their own session cid so one
+    // participant can't enumerate another's ventures.
+    const contactId =
+      session.role === "participant"
+        ? session.cid
+        : searchParams.get("contact_id");
 
     let sql, args;
     if (contactId) {
@@ -159,6 +166,7 @@ export async function PUT(req) {
     ]);
     if (authError) return authError;
 
+    const session = await getSession();
     const body = await req.json();
     const { id, ...fields } = body;
 
@@ -167,6 +175,23 @@ export async function PUT(req) {
         { success: false, error: "id is required" },
         { status: 400 },
       );
+    }
+
+    // Business rule 10: founders can update Venture information. Participants
+    // must be an active founder of this venture; staff/PM/super_admin/teacher
+    // bypass since they have organization-wide oversight.
+    if (session.role === "participant") {
+      const founderCheck = await db.execute({
+        sql: `SELECT 1 FROM venture_members
+              WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL`,
+        args: [id, session.cid],
+      });
+      if (!founderCheck.rows || founderCheck.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Only founders can update this venture." },
+          { status: 403 },
+        );
+      }
     }
 
     const allowedFields = [

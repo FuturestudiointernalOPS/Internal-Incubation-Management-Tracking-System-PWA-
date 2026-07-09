@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 export async function GET(req, { params }) {
   try {
@@ -15,6 +15,7 @@ export async function GET(req, { params }) {
     ]);
     if (authError) return authError;
 
+    const session = await getSession();
     const { id } = await params;
 
     const result = await db.execute({
@@ -35,7 +36,24 @@ export async function GET(req, { params }) {
       );
     }
 
-    return NextResponse.json({ success: true, venture: result.rows[0] });
+    const venture = result.rows[0];
+
+    // Participants may only view ventures they belong to, unless the venture
+    // has been explicitly made public.
+    if (session.role === "participant" && venture.visibility !== "public") {
+      const memberCheck = await db.execute({
+        sql: `SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL`,
+        args: [id, session.cid],
+      });
+      if (!memberCheck.rows || memberCheck.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Venture not found" },
+          { status: 404 },
+        );
+      }
+    }
+
+    return NextResponse.json({ success: true, venture });
   } catch (error) {
     console.error("GET /api/ventures/[id] error:", error);
     return NextResponse.json(
