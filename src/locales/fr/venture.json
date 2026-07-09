@@ -1,0 +1,60 @@
+{
+  "venture": {
+    "title": "Ventures",
+    "createVenture": "Créer une venture",
+    "namePlaceholder": "Nom de la venture",
+    "description": "Description",
+    "mission": "Mission",
+    "vision": "Vision",
+    "industry": "Industrie",
+    "sector": "Secteur",
+    "businessStage": "Stade d'activité",
+    "stages": {
+      "idea": "Idée",
+      "validation": "Validation",
+      "mvp": "MVP",
+      "growth": "Croissance",
+      "scale": "Passage à l'échelle"
+    },
+    "website": "Site web",
+    "socialMedia": "Réseaux sociaux",
+    "status": "Statut",
+    "statuses": {
+      "active": "Actif",
+      "paused": "En pause",
+      "graduated": "Diplômé",
+      "archived": "Archivé"
+    },
+    "visibility": "Visibilité",
+    "visibilityOptions": {
+      "private": "Privé",
+      "public": "Public",
+      "inviteOnly": "Sur invitation"
+    },
+    "branding": "Image de marque",
+    "brandColor": "Couleur de marque",
+    "language": "Langue",
+    "save": "Enregistrer",
+    "founders": "Fondateurs",
+    "founderCount": "Fondateurs",
+    "noVentures": "Aucune venture pour le moment. Créez votre première venture pour commencer.",
+    "myVentures": "Mes Ventures",
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "cancel": "Annuler",
+    "creating": "Création...",
+    "saving": "Enregistrement...",
+    "createSuccess": "Venture créée avec succès",
+    "updateSuccess": "Venture mise à jour avec succès",
+    "loadError": "Échec du chargement des ventures",
+    "createError": "Échec de la création de la venture",
+    "updateError": "Échec de la mise à jour de la venture",
+    "twitter": "Twitter",
+    "linkedin": "LinkedIn",
+    "instagram": "Instagram",
+    "allVentures": "Toutes les ventures",
+    "manageVentures": "Gérer les ventures",
+    "view": "Voir",
+    "memberCount": "Membres"
+  }
+}
