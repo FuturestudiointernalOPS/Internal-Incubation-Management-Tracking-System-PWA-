@@ -9,6 +9,8 @@ const SESSION_DURATION_HOURS = 24;
 const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
 const SESSION_CACHE_TTL = 5000; // 5s cache for session lookups
 const _sessionCache = new Map();
+const _failureCache = new Map(); // Cache DB failures to avoid cascading timeouts
+const FAILURE_CACHE_TTL = 30000; // If DB fails, don't retry for 30s
 
 /**
  * Creates a new session for a user.
@@ -61,6 +63,12 @@ export async function createSession(userCid, userRole) {
  */
 export async function getSession() {
   try {
+    // Global failure cache: if DB was down in the last 30s, short-circuit immediately
+    if (_failureCache.has("db_down")) {
+      console.log("[session] DB failure cache active, skipping query");
+      return null;
+    }
+
     await initDb();
 
     const cookieStore = await cookies();
@@ -138,7 +146,10 @@ export async function getSession() {
 
     return result_session;
   } catch (error) {
-    console.error("Session validation error:", error);
+    console.error("Session validation error:", error.message);
+    // Cache failure to prevent cascading timeouts (e.g., Supabase paused)
+    _failureCache.set("db_down", Date.now() + FAILURE_CACHE_TTL);
+    setTimeout(() => _failureCache.delete("db_down"), FAILURE_CACHE_TTL);
     return null;
   }
 }

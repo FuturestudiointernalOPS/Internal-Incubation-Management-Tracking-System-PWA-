@@ -2,8 +2,9 @@ import { Pool } from "pg";
 
 /**
  * IMPACTOS DATA ARCHITECTURE — UNIFIED DB ENGINE (SUPABASE EDITION)
- * Version: 2.1.0 (Forensic Enhanced)
- * Optimized for Supabase/PostgreSQL with serverless lazy-loading and execution tracing.
+ * Version: 2.2.0 (Forensic Enhanced + Pool Resilience)
+ * Optimized for Supabase/PostgreSQL with serverless lazy-loading,
+ * execution tracing, and connection error recovery.
  */
 
 let pgPool = null;
@@ -24,11 +25,31 @@ const getPool = () => {
       connectionString: dbUrl,
       ssl: { rejectUnauthorized: false },
       max: 10,
-      idleTimeoutMillis: 300000,
-      connectionTimeoutMillis: 15000,
+      idleTimeoutMillis: 60000, // Recycle idle connections after 60s instead of 300s
+      connectionTimeoutMillis: 10000, // More time for initial connection
+      query_timeout: 30000, // Kill queries running longer than 30s (client-side)
       keepAlive: true,
       keepAliveInitialDelayMillis: 10000,
     });
+
+    // Set statement timeout at the session level for all pooled connections
+    pgPool.on("connect", (client) => {
+      client.query("SET statement_timeout = '30s'", (err) => {
+        if (err)
+          console.error(
+            " forensics | Failed to set statement_timeout:",
+            err.message,
+          );
+      });
+    });
+
+    // Prevent uncaughtException when idle connections fail (e.g. read ETIMEDOUT)
+    pgPool.on("error", (err) => {
+      console.error(
+        ` forensics | Pool error — idle client failed: ${err.message}`,
+      );
+    });
+
     return pgPool;
   } catch (e) {
     console.error(" forensics | DB Pool Creation Error:", e.message);

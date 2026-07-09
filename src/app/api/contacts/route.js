@@ -63,8 +63,10 @@ export async function POST(req) {
         uuidv4().split("-")[0].toUpperCase() +
         Math.floor(Math.random() * 10000);
 
-      // No password — user sets it via activation link
-      const hashedPassword = null;
+      // Hash password if provided; otherwise generate a temp hash (DB column is NOT NULL)
+      const hashedPassword = rawPassword
+        ? await bcrypt.hash(rawPassword, 10)
+        : await bcrypt.hash(uuidv4(), 10);
 
       // Gated Status Logic (UPPERCASE NORMALIZATION)
       const groupName = (c.group_name || "unassigned").toUpperCase();
