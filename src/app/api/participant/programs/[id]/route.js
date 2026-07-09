@@ -237,7 +237,7 @@ export async function GET(req, { params }) {
     for (const [wn, data] of weekMap) {
       const completedDels = data.deliverables.filter((d) =>
         submissions.some(
-          (s) => s.document_id === d.id && s.status === "approved",
+          (s) => String(s.deliverable_id) === String(d.id) && s.status === "approved",
         ),
       ).length;
       
@@ -248,7 +248,7 @@ export async function GET(req, { params }) {
         sessions: data.sessions,
         locked: !isWeekUnlocked,
         deliverables: data.deliverables.map((d) => {
-          const sub = submissions.find((s) => s.document_id === d.id);
+          const sub = submissions.find((s) => String(s.deliverable_id) === String(d.id));
           return {
             id: d.id,
             title: d.title,
@@ -316,7 +316,7 @@ export async function GET(req, { params }) {
     const totalDeliverables = unlockedDeliverables.length || 1;
     const completedDeliverables = unlockedDeliverables.filter((d) =>
       submissions.some(
-        (s) => s.document_id === d.id && s.status === "approved",
+        (s) => String(s.deliverable_id) === String(d.id) && s.status === "approved",
       ),
     ).length;
     const percentComplete = Math.round(

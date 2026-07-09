@@ -97,7 +97,7 @@ export async function PATCH(req) {
                   prog.name as program_name
            FROM v2_submissions s
            LEFT JOIN contacts c ON s.participant_id = c.cid
-           LEFT JOIN v2_document_requirements d ON s.deliverable_id = d.id
+           LEFT JOIN v2_document_requirements d ON s.deliverable_id = CAST(d.id AS TEXT)
            LEFT JOIN v2_programs prog ON s.program_id = prog.id
            WHERE s.id = ?
         `,
@@ -162,9 +162,9 @@ export async function GET(req) {
        SELECT s.*, d.title as deliverable_title, d.week_number as deliverable_week,
               p.name as participant_name, g.name as group_name
        FROM v2_submissions s
-       LEFT JOIN v2_deliverables d ON s.deliverable_id = d.id
-       LEFT JOIN v2_participants p ON s.participant_id = p.id
-       LEFT JOIN v2_groups g ON s.group_id = g.id
+       LEFT JOIN v2_deliverables d ON s.deliverable_id = CAST(d.id AS TEXT)
+       LEFT JOIN v2_participants p ON s.participant_id = CAST(p.id AS TEXT)
+       LEFT JOIN v2_groups g ON s.group_id = CAST(g.id AS TEXT)
        WHERE 1=1
     `;
     let args = [];

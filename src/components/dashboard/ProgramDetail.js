@@ -31,6 +31,7 @@ import {
   Upload,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -52,7 +53,7 @@ function StatusBadge({ status }) {
 }
 
 // ─── Week Card (simplified) ────────────────────────────────────────
-function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
+function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
   const completedCount = week.deliverables.filter(
     (d) => d.submission?.status === "approved",
   ).length;
@@ -88,24 +89,25 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-[var(--text-primary)]">
-                Week {week.number}
+                {t("participant.week")} {week.number}
               </span>
               {week.isCurrent && (
                 <span className="text-[10px] font-semibold text-[var(--brand-orange)]">
-                  (Current)
+                  ({t("participant.current")})
                 </span>
               )}
               {week.locked && (
                 <span className="text-[10px] text-[var(--text-tertiary)]">
-                  (Locked)
+                  ({t("participant.locked")})
                 </span>
               )}
             </div>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               {week.sessions.length > 0
                 ? week.sessions.map((s) => s.title).join(", ")
-                : `${totalCount} deliverable${totalCount > 1 ? "s" : ""}`}
-            </p>
+                : `${totalCount} ${t("participant.deliverables").toLowerCase()}`
+            }
+          </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -127,7 +129,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
           {week.sessions.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
-                Sessions
+                {t("participant.sessions")}
               </h4>
               {week.sessions.map((session) => (
                 <div
@@ -202,7 +204,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
           {week.deliverables.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
-                Deliverables
+                {t("participant.deliverables")}
               </h4>
               {week.deliverables.map((del) => (
                 <div
@@ -267,7 +269,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
                         }}
                         className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-xs font-medium hover:brightness-110"
                       >
-                        Submit
+                        {t("participant.submit")}
                       </button>
                     )}
                   </div>
@@ -281,7 +283,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
   );
 }
 
-function SubmitForm({ programId, deliverableId, onDone }) {
+function SubmitForm({ programId, deliverableId, onDone, t }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -377,7 +379,7 @@ function SubmitForm({ programId, deliverableId, onDone }) {
           "Submitting..."
         ) : (
           <>
-            <Upload className="w-4 h-4" /> Submit
+            <Upload className="w-4 h-4" /> {t ? t("participant.submit") : "Submit"}
           </>
         )}
       </button>
@@ -473,6 +475,7 @@ function DetailSkeleton() {
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProgramDetail({ programId }) {
+  const { t } = useI18n();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -564,7 +567,7 @@ export default function ProgramDetail({ programId }) {
   const generalResources = resources?.general || [];
 
   const tabs = [
-    { id: "curriculum", label: "Curriculum", icon: Layers },
+    { id: "curriculum", label: t("participant.curriculum"), icon: Layers },
     { id: "resources", label: "Resources", icon: BookOpen },
     { id: "progress", label: "Progress", icon: BarChart3 },
     { id: "details", label: "Details", icon: FileText },
@@ -695,7 +698,7 @@ export default function ProgramDetail({ programId }) {
             <div className="text-center py-12">
               <BookOpen className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
               <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                No curriculum available yet
+                {t("participant.noCurriculumYet")}
               </p>
             </div>
           ) : (
@@ -706,6 +709,7 @@ export default function ProgramDetail({ programId }) {
                 isExpanded={!!expandedWeeks[week.number]}
                 onToggle={toggleWeek}
                 programId={programId}
+                t={t}
                 onSubmit={(delId) =>
                   setSubmitModal({
                     deliverableId: delId,
