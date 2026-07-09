@@ -496,7 +496,6 @@ export default function ProgramWorkspace() {
         if (!silentFields.includes(field)) {
           notify("Session field synchronized.");
         }
-      }
         fetchProgramData(true);
 
         // When a staff member is assigned, create a task for their calendar
