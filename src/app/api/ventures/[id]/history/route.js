@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 export async function GET(req, { params }) {
   try {
@@ -10,6 +10,7 @@ export async function GET(req, { params }) {
     ]);
     if (authError) return authError;
 
+    const session = await getSession();
     const { id } = await params;
 
     const ventureRes = await db.execute({
@@ -22,6 +23,16 @@ export async function GET(req, { params }) {
     }
 
     const venture = ventureRes.rows[0];
+
+    if (session.role === "participant" && venture.visibility !== "public") {
+      const memberCheck = await db.execute({
+        sql: `SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL`,
+        args: [id, session.cid],
+      });
+      if (!memberCheck.rows?.length) {
+        return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+      }
+    }
 
     // Previous program info
     let program = null;
@@ -65,8 +76,8 @@ export async function GET(req, { params }) {
               SELECT pp.*, vp.name as program_name
               FROM participant_programs pp
               LEFT JOIN v2_programs vp ON CAST(pp.program_id AS TEXT) = CAST(vp.id AS TEXT)
-              WHERE pp.contact_id = ? AND CAST(pp.program_id AS TEXT) != CAST(? AS TEXT)
-              ORDER BY pp.joined_at DESC
+              WHERE pp.participant_id = ? AND CAST(pp.program_id AS TEXT) != CAST(? AS TEXT)
+              ORDER BY pp.enrolled_at DESC
             `,
             args: [founder.contact_id, venture.program_id],
           });

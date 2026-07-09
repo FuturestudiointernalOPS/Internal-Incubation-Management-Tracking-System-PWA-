@@ -18,12 +18,33 @@ async function isVentureMember(db, ventureId, cid) {
   return r.rows?.length > 0;
 }
 
+async function isVentureFounder(db, ventureId, cid) {
+  const r = await db.execute({
+    sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
+    args: [ventureId, cid],
+  });
+  return r.rows?.length > 0;
+}
+
+// View access: any active member (founder or team_member) can see the roster.
 async function checkAccess(db, ventureId, userRole, userCid) {
   if (["staff", "super_admin", "program_manager", "developer"].includes(userRole)) {
     return true;
   }
   if (userCid) {
     return await isVentureMember(db, ventureId, userCid);
+  }
+  return false;
+}
+
+// Mutation access (add/remove/edit members): founders manage the roster, not
+// any team_member — mirrors business rule 10 (founders update venture info).
+async function checkMutateAccess(db, ventureId, userRole, userCid) {
+  if (["staff", "super_admin", "program_manager", "developer"].includes(userRole)) {
+    return true;
+  }
+  if (userCid) {
+    return await isVentureFounder(db, ventureId, userCid);
   }
   return false;
 }
@@ -84,6 +105,13 @@ export async function POST(req, { params }) {
     if (!hasAccess) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     }
+    const canMutate = await checkMutateAccess(db, id, userRole, userCid);
+    if (!canMutate) {
+      return NextResponse.json(
+        { success: false, error: "Only founders can manage venture members." },
+        { status: 403 },
+      );
+    }
 
     if (!contact_id || !member_type) {
       return NextResponse.json(
@@ -141,6 +169,13 @@ export async function PATCH(req, { params }) {
     const hasAccess = await checkAccess(db, id, userRole, userCid);
     if (!hasAccess) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    }
+    const canMutate = await checkMutateAccess(db, id, userRole, userCid);
+    if (!canMutate) {
+      return NextResponse.json(
+        { success: false, error: "Only founders can manage venture members." },
+        { status: 403 },
+      );
     }
 
     if (!member_id) {
