@@ -107,7 +107,7 @@ export async function GET(req, { params }) {
           args: [cid, programId],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id = ? ORDER BY date ASC",
+          sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id = ? ORDER BY a.created_at ASC",
           args: [cid, programId],
         }),
         db.execute({
