@@ -310,6 +310,9 @@ export async function GET(req, { params }) {
       return true;
     });
 
+    const unlockedWeeks = weeks.filter((w) => !w.locked);
+    const unlockedDeliverables = unlockedWeeks.flatMap((w) => w.deliverables);
+
     const totalDeliverables = unlockedDeliverables.length || 1;
     const completedDeliverables = unlockedDeliverables.filter((d) =>
       submissions.some(
