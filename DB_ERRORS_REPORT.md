@@ -141,3 +141,77 @@ ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0;
 ```
 
 **File(s):** `src/app/api/families/route.js`
+
+---
+
+## 8. `operator does not exist: uuid = integer` in submissions query
+
+**Error:**
+```
+operator does not exist: uuid = integer
+```
+
+**Root cause:** The query in `src/app/api/pm/submissions/route.js` references `s.program_id IN (?)` where `?` is an integer/string, but `s.program_id` is of type UUID. PostgreSQL cannot implicitly compare UUID to integer/text without explicit casting.
+
+**Fix:** Cast `s.program_id` to text in the WHERE clause:
+```sql
+WHERE s.program_id::text IN (?)
+```
+
+**File(s):** `src/app/api/pm/submissions/route.js`
+
+---
+
+## 9. `operator does not exist: integer = uuid` in attendance query
+
+**Error:**
+```
+operator does not exist: integer = uuid
+```
+
+**Root cause:** In `src/app/api/participant/home/route.js`, the query `a.session_id = s.id` compares `a.session_id` (INTEGER) with `s.id` (UUID). PostgreSQL cannot implicitly compare these types.
+
+**Fix:** Cast both sides to text:
+```sql
+a.session_id::text = s.id::text
+```
+
+**File(s):** `src/app/api/participant/home/route.js`
+
+---
+
+## 10. `v2_attendance` missing `program_id` column
+
+**Error:**
+```
+column "program_id" does not exist (table: v2_attendance)
+```
+
+**Root cause:** The query `SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ?` references `program_id` which doesn't exist in `v2_attendance`.
+
+**Current `v2_attendance` columns:** `id`, `session_id`, `participant_id`, `status`, `created_at`
+
+**Fix:** JOIN with `v2_sessions` to get the program_id:
+```sql
+SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id = ? AND s.program_id = ?
+```
+
+**File(s):** `src/app/api/participant/home/route.js`
+
+---
+
+## 11. `invalid input syntax for type uuid` in v2_submissions
+
+**Error:**
+```
+invalid input syntax for type uuid: "USR-R25KDQIN"
+```
+
+**Root cause:** The query `SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ?` passes a text CID (`USR-...`) but `v2_submissions.participant_id` is of type UUID.
+
+**Fix:** Cast `participant_id` to text for comparison:
+```sql
+SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ?
+```
+
+**File(s):** `src/app/api/participant/home/route.js`

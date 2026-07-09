@@ -101,11 +101,11 @@ export async function GET(req) {
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ?",
+            sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ?",
             args: [cid, pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ?",
+            sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id = ? AND s.program_id = ?",
             args: [cid, pid],
           }),
           db.execute({

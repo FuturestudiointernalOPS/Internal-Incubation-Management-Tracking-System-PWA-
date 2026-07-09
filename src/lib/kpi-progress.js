@@ -85,6 +85,7 @@ export async function recalculateKpiProgress(programId) {
     return {
       kpi_id: kpi.id,
       program_id: programId,
+      kpi_name: kpi.title,
       linked_sessions: totalSessions,
       completed_sessions: completedSessions,
       linked_docs: totalDocs,
@@ -100,8 +101,8 @@ export async function recalculateKpiProgress(programId) {
   try {
     for (const entry of progressEntries) {
       await db.execute({
-        sql: `INSERT INTO kpi_progress (kpi_id, program_id, linked_sessions, completed_sessions, linked_docs, completed_docs, total_items, completed_items, progress, weight, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        sql: `INSERT INTO kpi_progress (kpi_id, program_id, kpi_name, linked_sessions, completed_sessions, linked_docs, completed_docs, total_items, completed_items, progress, weight, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
               ON CONFLICT (kpi_id, program_id)
               DO UPDATE SET
                 linked_sessions = EXCLUDED.linked_sessions,
@@ -116,6 +117,7 @@ export async function recalculateKpiProgress(programId) {
         args: [
           entry.kpi_id,
           entry.program_id,
+          entry.kpi_name,
           entry.linked_sessions,
           entry.completed_sessions,
           entry.linked_docs,
