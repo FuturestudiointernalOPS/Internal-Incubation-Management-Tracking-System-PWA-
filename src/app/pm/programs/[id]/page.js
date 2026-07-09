@@ -471,6 +471,13 @@ export default function ProgramWorkspace() {
     value,
     handlerName = null,
   ) => {
+    // Optimistic update: apply to local state immediately
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId ? { ...s, [field]: value } : s,
+      ),
+    );
+
     try {
       const res = await fetch("/api/pm/curriculum", {
         method: "PUT",
@@ -485,11 +492,11 @@ export default function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        // Only show notification for non-text fields to avoid spam on every keystroke
         const silentFields = ["title", "description", "notes"];
         if (!silentFields.includes(field)) {
           notify("Session field synchronized.");
         }
+      }
         fetchProgramData(true);
 
         // When a staff member is assigned, create a task for their calendar
