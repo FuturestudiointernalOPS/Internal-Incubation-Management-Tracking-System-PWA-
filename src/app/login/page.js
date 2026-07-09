@@ -55,11 +55,13 @@ export default function LoginPage() {
                     ? "/teacher"
                     : data.user.role === "developer"
                       ? "/developer"
-                      : data.user.role === "participant"
-                        ? "/participant"
-                        : data.user.role === "finance"
-                          ? "/finance"
-                          : "/participant";
+                      : data.user.role === "team"
+                        ? "/team/" + data.user.team_id
+                        : data.user.role === "participant"
+                          ? "/participant"
+                          : data.user.role === "finance"
+                            ? "/finance"
+                            : "/participant";
           window.location.href = target;
         }, 800);
       } else {

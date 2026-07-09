@@ -621,6 +621,21 @@ const NAVIGATION_MATRIX = {
       href: "/participant/messages",
     },
   ],
+
+  team: [
+    {
+      id: "dashboard",
+      name: "TEAM WORKSPACE",
+      icon: LayoutDashboard,
+      href: "/team",
+    },
+    {
+      id: "programs",
+      name: "DELIVERABLES",
+      icon: FileText,
+      href: "/team",
+    },
+  ],
 };
 
 // =============================================================================

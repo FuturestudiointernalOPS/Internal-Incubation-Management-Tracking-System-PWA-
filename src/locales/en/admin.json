@@ -116,6 +116,27 @@
     "targetValue": "Target Value",
     "addKpi": "Add KPI",
     "startDate": "Start Date",
-    "endDate": "End Date"
+    "endDate": "End Date",
+    "teams": {
+      "title": "Team Management",
+      "subtitle": "Manage teams and participant assignments for this program",
+      "createTeam": "Create Team",
+      "editTeam": "Edit Team",
+      "deleteTeam": "Delete Team",
+      "teamName": "Team Name",
+      "teamNamePlaceholder": "Enter team name...",
+      "handler": "Handler",
+      "handlerPlaceholder": "Select a staff handler...",
+      "members": "Members",
+      "membersCount": "{{count}} members",
+      "selectMembers": "Select participants...",
+      "noTeams": "No teams created yet",
+      "noTeamsDesc": "Create a team to organize participants into groups",
+      "createSuccess": "Team created successfully",
+      "updateSuccess": "Team updated successfully",
+      "deleteSuccess": "Team deleted successfully",
+      "deleteConfirm": "Are you sure you want to delete this team? This action cannot be undone.",
+      "backToPrograms": "Back to Programs"
+    }
   }
 }

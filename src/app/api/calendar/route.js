@@ -173,6 +173,44 @@ export async function GET(req) {
       console.error("Calendar: deliverables error:", e.message);
     }
 
+    // 5. Follow-ups (v2_followups with scheduled_at)
+    try {
+      let followupSql = `SELECT f.id, f.comment, f.scheduled_at, f.followup_type, f.team_id, f.program_id, t.name AS team_name, p.name AS program_name
+              FROM v2_followups f
+              LEFT JOIN v2_teams t ON f.team_id = t.id
+              LEFT JOIN v2_programs p ON f.program_id = p.id
+              WHERE f.scheduled_at IS NOT NULL`;
+      const followupArgs = [];
+
+      if (user_id) {
+        followupSql += ` AND (f.program_id IN (SELECT id FROM v2_programs WHERE assigned_pm_id = ?) OR f.team_id IN (SELECT id FROM v2_teams WHERE handler_id = ?))`;
+        followupArgs.push(user_id, user_id);
+      }
+
+      const followups = await db.execute({
+        sql: followupSql,
+        args: followupArgs,
+      });
+      for (const f of followups.rows) {
+        events.push({
+          id: `followup-${f.id}`,
+          title: f.team_name
+            ? `Coaching: ${f.team_name}`
+            : `Follow-up: ${f.program_name || ""}`,
+          date: f.scheduled_at,
+          type: "follow_up",
+          source: "followup",
+          status: "scheduled",
+          description: f.comment ? f.comment.substring(0, 80) : null,
+          related_id: f.id,
+          project_id: f.program_id,
+          user_id: null,
+        });
+      }
+    } catch (e) {
+      console.error("Calendar: followups error:", e.message);
+    }
+
     // Normalize dates to YYYY-MM-DD format
     const normalized = events.map((e) => {
       let dateStr = e.date;
