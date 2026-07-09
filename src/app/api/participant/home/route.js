@@ -64,7 +64,7 @@ export async function GET(req) {
     // Path 4: participant_programs junction table
     try {
       const ppRes = await db.execute({
-        sql: "SELECT program_id FROM participant_programs WHERE participant_id = ?",
+        sql: "SELECT program_id FROM participant_programs WHERE participant_id::text = ?",
         args: [cid],
       });
       ppRes.rows.forEach((r) => {

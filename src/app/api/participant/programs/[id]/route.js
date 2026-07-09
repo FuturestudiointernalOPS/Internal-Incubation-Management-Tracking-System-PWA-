@@ -43,7 +43,7 @@ export async function GET(req, { params }) {
       if (!isAssigned) {
         try {
           const ppRes = await db.execute({
-            sql: "SELECT 1 FROM participant_programs WHERE participant_id = ? AND program_id = ?",
+            sql: "SELECT 1 FROM participant_programs WHERE participant_id::text = ? AND program_id = ?",
             args: [cid, programId],
           });
           if (ppRes.rows.length > 0) isAssigned = true;
@@ -103,11 +103,11 @@ export async function GET(req, { params }) {
           args: [programId],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ? ORDER BY created_at DESC",
           args: [cid, programId],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ? ORDER BY date ASC",
+          sql: "SELECT * FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id = ? ORDER BY date ASC",
           args: [cid, programId],
         }),
         db.execute({

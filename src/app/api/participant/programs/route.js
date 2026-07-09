@@ -66,7 +66,7 @@ export async function GET(req) {
     // Path 4: participant_programs junction table (modern many-to-many assignments)
     try {
       const ppRes = await db.execute({
-        sql: "SELECT program_id FROM participant_programs WHERE participant_id = ?",
+        sql: "SELECT program_id FROM participant_programs WHERE participant_id::text = ?",
         args: [cid],
       });
       ppRes.rows.forEach((r) => {
@@ -103,11 +103,11 @@ export async function GET(req) {
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ?",
+            sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ?",
             args: [cid, pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ?",
+            sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id = ?",
             args: [cid, pid],
           }),
           db.execute({
