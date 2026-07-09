@@ -159,13 +159,10 @@ export async function POST(req) {
         finalRole = "developer";
       } else if (pmLeadAssignment.rows.length > 0) {
         finalRole = "program_manager";
+      } else if (user.role === "program_manager") {
+        finalRole = "program_manager";
       } else if (activeTeammateAssignment.rows.length > 0) {
         finalRole = "teacher";
-      } else if (user.role === "program_manager") {
-        // No program assignment found yet, but role is explicit — honor it
-        // instead of falling through to staff (was B6: PM/teacher accounts
-        // with zero program assignments always resolved to staff).
-        finalRole = "program_manager";
       } else if (user.role === "teacher") {
         finalRole = "teacher";
       } else if (user.role === "participant") {

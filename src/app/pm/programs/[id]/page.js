@@ -161,6 +161,7 @@ export default function ProgramWorkspace() {
     handler_ids: [],
     handler_names: [],
     scheduled_date: "",
+    end_date: "",
     start_time: "",
     end_time: "",
     notes: "",
@@ -181,6 +182,7 @@ export default function ProgramWorkspace() {
     description: "",
     allowed_format: "pdf",
     kpi_ids: [],
+    due_date: "",
   });
   const [newPMReport, setNewPMReport] = useState({
     summary: "",
@@ -407,6 +409,7 @@ export default function ProgramWorkspace() {
           description: newRequirement.description,
           allowed_format: newRequirement.allowed_format,
           kpi_ids: newRequirement.kpi_ids || [],
+          due_date: newRequirement.due_date || null,
         }),
       });
       const data = await res.json();
@@ -417,6 +420,8 @@ export default function ProgramWorkspace() {
           title: "",
           description: "",
           allowed_format: "pdf",
+          kpi_ids: [],
+          due_date: "",
         });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
@@ -1659,36 +1664,89 @@ export default function ProgramWorkspace() {
 
                               <div className="space-y-1">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  Assign Staff Member
+                                  Assign Staff Member(s)
                                 </label>
-                                <select
-                                  value={session.handler_id || ""}
-                                  onChange={(e) => {
-                                    const staff = assignedStaff.find(
-                                      (s) => String(s.cid) === e.target.value,
-                                    );
-                                    updateSessionField(
-                                      session.id,
-                                      "handler_id",
-                                      e.target.value,
-                                      staff?.name,
-                                    );
-                                  }}
-                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
-                                >
-                                  <option value="">Select Member...</option>
-                                  {programTeamMembers.length > 0
-                                    ? programTeamMembers.map((s) => (
-                                        <option key={s.cid} value={s.cid}>
+                                <div className="space-y-2 p-3 bg-tertiary border border-[var(--border-primary)] rounded-xl max-h-40 overflow-y-auto custom-scrollbar">
+                                  {(programTeamMembers.length > 0
+                                    ? programTeamMembers
+                                    : assignedStaff
+                                  ).map((s) => {
+                                    const stringId = String(s.cid);
+                                    let isSelected = false;
+                                    try {
+                                      const ids = JSON.parse(
+                                        session.handler_id || "[]",
+                                      );
+                                      isSelected = Array.isArray(ids)
+                                        ? ids.includes(stringId)
+                                        : session.handler_id === stringId;
+                                    } catch (e) {
+                                      isSelected = session.handler_id === stringId;
+                                    }
+                                    return (
+                                      <label
+                                        key={s.cid}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            let currentIds = [];
+                                            try {
+                                              currentIds = JSON.parse(
+                                                session.handler_id || "[]",
+                                              );
+                                              if (!Array.isArray(currentIds))
+                                                currentIds = session.handler_id
+                                                  ? [session.handler_id]
+                                                  : [];
+                                            } catch (err) {
+                                              currentIds = session.handler_id
+                                                ? [session.handler_id]
+                                                : [];
+                                            }
+
+                                            let newIds;
+                                            if (checked) {
+                                              newIds = [
+                                                ...new Set([...currentIds, stringId]),
+                                              ];
+                                            } else {
+                                              newIds = currentIds.filter(
+                                                (id) => id !== stringId,
+                                              );
+                                            }
+
+                                            const staffList =
+                                              programTeamMembers.length > 0
+                                                ? programTeamMembers
+                                                : assignedStaff;
+                                            const selectedStaff = staffList.filter(
+                                              (staff) =>
+                                                newIds.includes(String(staff.cid)),
+                                            );
+                                            const selectedNames = selectedStaff.map(
+                                              (staff) => staff.name,
+                                            );
+
+                                            updateSessionField(
+                                              session.id,
+                                              "handler_id",
+                                              JSON.stringify(newIds),
+                                              JSON.stringify(selectedNames),
+                                            );
+                                          }}
+                                          className="rounded border-[var(--border-primary)] bg-[var(--surface-2)] text-indigo-500"
+                                        />
+                                        <span className="text-[11px] font-bold text-[var(--text-primary)]">
                                           {s.name} ({s.role})
-                                        </option>
-                                      ))
-                                    : assignedStaff.map((s) => (
-                                        <option key={s.cid} value={s.cid}>
-                                          {s.name} ({s.role})
-                                        </option>
-                                      ))}
-                                </select>
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
                               </div>
 
                               <div className="grid grid-cols-2 gap-3">
@@ -1815,9 +1873,16 @@ export default function ProgramWorkspace() {
                                         <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
                                           {req.title}
                                         </p>
-                                        <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic">
-                                          Requirement:{" "}
-                                          {req.allowed_format || "PDF"}
+                                        <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic flex items-center gap-2">
+                                          <span>Requirement: {req.allowed_format || "PDF"}</span>
+                                          {req.due_date && (
+                                            <>
+                                              <span>•</span>
+                                              <span className="text-amber-500">
+                                                Due: {new Date(req.due_date).toLocaleDateString()}
+                                              </span>
+                                            </>
+                                          )}
                                         </p>
                                       </div>
                                     </div>
@@ -3667,33 +3732,59 @@ export default function ProgramWorkspace() {
                     placeholder="e.g. Project Proposal PDF"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Allowed Format
-                  </label>
-                  <select
-                    value={newRequirement.allowed_format}
-                    onChange={(e) =>
-                      setNewRequirement((p) => ({
-                        ...p,
-                        allowed_format: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="pdf">PDF Document</option>
-                    <option value="image">Image File</option>
-                    <option value="link">External Link</option>
-                    <option value="video">Video Upload</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Allowed Format
+                    </label>
+                    <select
+                      value={newRequirement.allowed_format}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          allowed_format: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="pdf">PDF Document</option>
+                      <option value="image">Image File</option>
+                      <option value="link">External Link</option>
+                      <option value="video">Video Upload</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <Calendar className="w-3 h-3" /> Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newRequirement.due_date || ""}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          due_date: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">

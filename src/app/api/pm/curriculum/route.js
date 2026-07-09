@@ -52,12 +52,13 @@ export async function POST(req) {
         extra_materials,
       } = payload;
       const result = await db.execute({
-        sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids, notes, extra_materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+        sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, type, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids, notes, extra_materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         args: [
           program_id,
           title,
           description,
           week_number || 1,
+          "session",
           "not started",
           1,
           scheduled_date || null,
@@ -77,10 +78,10 @@ export async function POST(req) {
     }
 
     if (action === "add_requirement") {
-      const { title, description, session_id, allowed_format, kpi_ids } =
+      const { title, description, session_id, allowed_format, kpi_ids, due_date } =
         payload;
       await db.execute({
-        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
+        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         args: [
           program_id,
           title,
@@ -89,6 +90,7 @@ export async function POST(req) {
           allowed_format || "pdf",
           1,
           JSON.stringify(kpi_ids || []),
+          due_date || null,
         ],
       });
       return NextResponse.json({ success: true });
@@ -310,6 +312,9 @@ export async function PUT(req) {
         sql =
           "UPDATE v2_sessions SET handler_id = ?, handler_name = ? WHERE id = ?";
         args = [value || null, handlerName || null, targetId];
+      } else if (field === "due_date") {
+        sql = "UPDATE v2_document_requirements SET due_date = ? WHERE id = ?";
+        args = [value || null, targetId];
       } else if (field === "kpi_ids") {
         sql = "UPDATE v2_sessions SET kpi_ids = ? WHERE id = ?";
         args = [JSON.stringify(value || []), targetId];
@@ -393,14 +398,15 @@ export async function PUT(req) {
       });
       recalculateKpiForProgram(program_id);
     } else {
-      const { title, description, allowed_format, kpi_ids } = payload;
+      const { title, description, allowed_format, kpi_ids, due_date } = payload;
       await db.execute({
-        sql: "UPDATE v2_document_requirements SET title = ?, description = ?, allowed_format = ?, weight = 1, kpi_ids = ? WHERE id = ?",
+        sql: "UPDATE v2_document_requirements SET title = ?, description = ?, allowed_format = ?, weight = 1, kpi_ids = ?, due_date = ? WHERE id = ?",
         args: [
           title,
           description,
           allowed_format,
           JSON.stringify(kpi_ids || []),
+          due_date || null,
           targetId,
         ],
       });
