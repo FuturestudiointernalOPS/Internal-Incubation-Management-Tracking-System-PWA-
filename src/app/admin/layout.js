@@ -24,7 +24,11 @@ export default function AdminLayout({ children }) {
         const data = await res.json();
         if (data.authenticated && data.user) {
           const role = data.user.role;
-          if (role === "super_admin" || role === "developer") {
+          if (
+            role === "super_admin" ||
+            role === "developer" ||
+            role === "program_manager"
+          ) {
             setAuthorized(true);
             return;
           }
@@ -46,7 +50,11 @@ export default function AdminLayout({ children }) {
         const saved = localStorage.getItem("user");
         if (saved) {
           const u = JSON.parse(saved);
-          if (u.role === "super_admin" || u.role === "developer") {
+          if (
+            u.role === "super_admin" ||
+            u.role === "developer" ||
+            u.role === "program_manager"
+          ) {
             setAuthorized(true);
             return;
           }

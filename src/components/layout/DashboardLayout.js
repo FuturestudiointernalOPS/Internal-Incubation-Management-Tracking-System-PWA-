@@ -277,6 +277,21 @@ const NAVIGATION_MATRIX = {
         },
         { id: "progress", name: "PROGRESS", href: "/admin/progress" },
         {
+          id: "completion",
+          name: "COMPLETION",
+          href: "/admin/completion",
+        },
+        {
+          id: "venture",
+          name: "VENTURE",
+          href: "/admin/venture",
+        },
+        {
+          id: "alumni",
+          name: "ALUMNI",
+          href: "/admin/alumni",
+        },
+        {
           id: "program_reports",
           name: "PROGRAM REPORTS",
           href: "/admin/reports/responses",
@@ -417,7 +432,18 @@ const NAVIGATION_MATRIX = {
   ],
   program_manager: [
     { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: "/pm" },
-    { id: "programs", name: "PROGRAMS", icon: Briefcase, href: "/pm/programs" },
+    {
+      id: "programs",
+      name: "PROGRAMS",
+      icon: Briefcase,
+      subItems: [
+        { id: "all_programs", name: "ALL PROGRAMS", href: "/pm/programs" },
+        { id: "submissions", name: "SUBMISSIONS", href: "/pm/submissions" },
+        { id: "completion", name: "COMPLETION", href: "/admin/completion" },
+        { id: "venture", name: "VENTURE", href: "/admin/venture" },
+        { id: "alumni", name: "ALUMNI", href: "/admin/alumni" },
+      ],
+    },
     {
       id: "communication",
       name: "COMMUNICATION",
@@ -639,6 +665,9 @@ const NAV_RESPONSIBILITY_MAP = {
   progress: "program_management",
   program_reports: "program_management",
   submissions: "program_management",
+  completion: "program_management",
+  venture: "program_management",
+  alumni: "program_management",
   all_projects: "project_ownership",
   create_project: "project_ownership",
   internal_ops_board: "operations",
@@ -1200,6 +1229,21 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                   name: "CREATE PROGRAM",
                   href: "/admin/programs/new",
                 },
+                {
+                  id: "completion",
+                  name: "COMPLETION",
+                  href: "/admin/completion",
+                },
+                {
+                  id: "venture",
+                  name: "VENTURE",
+                  href: "/admin/venture",
+                },
+                {
+                  id: "alumni",
+                  name: "ALUMNI",
+                  href: "/admin/alumni",
+                },
               ]
             : [
                 { id: "all_programs", name: "OVERVIEW", href: "/pm/programs" },
@@ -1207,6 +1251,21 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                   id: "submissions",
                   name: "SUBMISSIONS",
                   href: "/pm/submissions",
+                },
+                {
+                  id: "completion",
+                  name: "COMPLETION",
+                  href: "/admin/completion",
+                },
+                {
+                  id: "venture",
+                  name: "VENTURE",
+                  href: "/admin/venture",
+                },
+                {
+                  id: "alumni",
+                  name: "ALUMNI",
+                  href: "/admin/alumni",
                 },
               ];
 

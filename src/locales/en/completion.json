@@ -1,0 +1,27 @@
+{
+  "completion": {
+    "title": "Program Completion Records",
+    "subtitle": "Historical participant completion data — preserved and read-only after program closure",
+    "selectProgram": "Select a program...",
+    "noRecords": "No completion records yet",
+    "noRecordsHint": "Records are created when a program is marked complete, or manually here"
+  },
+  "venture": {
+    "title": "Venture Recommendations",
+    "subtitle": "Manual review workflow — no automatic transition into Venture OS",
+    "newRecommendation": "Recommend",
+    "noRecommendations": "No recommendations yet",
+    "submit": "Submit Recommendation"
+  },
+  "alumni": {
+    "title": "Alumni Network",
+    "subtitle": "Graduates remain connected to Future Studio — eligible for future programs and community participation",
+    "total": "Total",
+    "active": "Active",
+    "engaged": "Engaged",
+    "inactive": "Inactive",
+    "search": "Search alumni...",
+    "empty": "No alumni records yet",
+    "emptyHint": "Alumni records are created when participants graduate from a program"
+  }
+}

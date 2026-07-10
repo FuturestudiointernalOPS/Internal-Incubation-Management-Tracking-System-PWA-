@@ -1,0 +1,27 @@
+{
+  "completion": {
+    "title": "Archives de Complétion",
+    "subtitle": "Données historiques de complétion des participants — préservées et en lecture seule après la clôture du programme",
+    "selectProgram": "Sélectionner un programme...",
+    "noRecords": "Aucun enregistrement de complétion",
+    "noRecordsHint": "Les enregistrements sont créés lorsqu'un programme est marqué comme terminé, ou manuellement ici"
+  },
+  "venture": {
+    "title": "Recommandations Venture",
+    "subtitle": "Workflow de revue manuelle — aucune transition automatique vers Venture OS",
+    "newRecommendation": "Recommander",
+    "noRecommendations": "Aucune recommandation pour l'instant",
+    "submit": "Soumettre la recommandation"
+  },
+  "alumni": {
+    "title": "Réseau Alumni",
+    "subtitle": "Les diplômés restent connectés à Future Studio — éligibles pour de futurs programmes et la participation communautaire",
+    "total": "Total",
+    "active": "Actifs",
+    "engaged": "Engagés",
+    "inactive": "Inactifs",
+    "search": "Rechercher un alumni...",
+    "empty": "Aucun alumni pour l'instant",
+    "emptyHint": "Les enregistrements alumni sont créés lorsque les participants terminent un programme"
+  }
+}
