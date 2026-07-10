@@ -31,8 +31,14 @@ export async function PATCH(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
     const { id } = await params; const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
-    const { advisor_id, action } = await req.json();
-    if (action === "remove") { await db.execute({ sql: "UPDATE venture_advisors SET removed_at = NOW() WHERE id = ? AND venture_id = ?", args: [advisor_id, id] }); }
+    const { advisor_id, action, is_primary } = await req.json();
+    if (action === "remove") {
+      await db.execute({ sql: "UPDATE venture_advisors SET removed_at = NOW() WHERE id = ? AND venture_id = ?", args: [advisor_id, id] });
+    } else if (is_primary === true) {
+      // Only one is_primary=true per venture — clear the others first.
+      await db.execute({ sql: "UPDATE venture_advisors SET is_primary = false WHERE venture_id = ?", args: [id] });
+      await db.execute({ sql: "UPDATE venture_advisors SET is_primary = true WHERE id = ? AND venture_id = ?", args: [advisor_id, id] });
+    }
     return NextResponse.json({ success: true });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }

@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { getWeekNumber } from "@/lib/constants";
 
 const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
 const ALLOWED = ["participant","staff","program_manager","super_admin","teacher"];
@@ -26,9 +27,10 @@ export async function POST(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     const { title, description, parent_task_id, assigned_to, priority, due_date } = await req.json();
     if (!title) return NextResponse.json({ success: false, error: "title required" }, { status: 400 });
+    const now = new Date();
     await db.execute({
-      sql: "INSERT INTO tasks (title, description, parent_task_id, assigned_to, priority, due_date, venture_id, user_id) VALUES (?,?,?,?,?,?,?,?)",
-      args: [title, description||null, parent_task_id||null, assigned_to||null, priority||"medium", due_date||null, id, session.cid],
+      sql: "INSERT INTO tasks (title, description, parent_task_id, assigned_to, priority, end_date, venture_id, user_id, created_week, created_year) VALUES (?,?,?,?,?,?,?,?,?,?)",
+      args: [title, description||null, parent_task_id||null, assigned_to||null, priority||"medium", due_date||null, id, session.cid, getWeekNumber(now), now.getFullYear()],
     });
     return NextResponse.json({ success: true });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }

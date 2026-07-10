@@ -28,8 +28,17 @@ export async function POST(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     const { category, folder, name, storage_path, file_url, mime_type, size_bytes } = await req.json();
     if (!name || !file_url) return NextResponse.json({ success: false, error: "name and file_url required" }, { status: 400 });
-    await db.execute({ sql: "INSERT INTO venture_documents (venture_id, category, folder, name, storage_path, file_url, mime_type, size_bytes, uploaded_by) VALUES (?,?,?,?,?,?,?,?,?)", args: [id, category||"general", folder||null, name, storage_path || file_url, file_url, mime_type||null, size_bytes||null, session.cid] });
-    return NextResponse.json({ success: true });
+    const inserted = await db.execute({
+      sql: "INSERT INTO venture_documents (venture_id, category, folder, name, storage_path, file_url, mime_type, size_bytes, uploaded_by) VALUES (?,?,?,?,?,?,?,?,?) RETURNING id",
+      args: [id, category || "general", folder || null, name, storage_path || file_url, file_url, mime_type || null, size_bytes || null, session.cid],
+    });
+    const documentId = inserted.rows[0].id;
+    // Business rule 38: every uploaded document supports version history — the
+    // initial upload counts as version 1.
+    await db.execute({ sql: "INSERT INTO venture_document_versions (document_id, version_number, storage_path, file_url, uploaded_by) VALUES (?, 1, ?, ?, ?)", args: [documentId, storage_path || file_url, file_url, session.cid] });
+    // Business rule 40: default permissions on upload — founder/team edit, advisor view-only.
+    await db.execute({ sql: "INSERT INTO venture_document_permissions (document_id, role_scope, access_level) VALUES (?, 'founder', 'edit'), (?, 'team', 'edit'), (?, 'advisor', 'view')", args: [documentId, documentId, documentId] });
+    return NextResponse.json({ success: true, document_id: documentId });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }
 

@@ -50,6 +50,26 @@
     "completed": "Completed", "actionPlans": "Action Plans", "addAction": "Add Action",
     "priority": "Priority", "low": "Low", "medium": "Medium", "high": "High",
     "deadline": "Deadline", "owner": "Owner", "open": "Open",
-    "unassigned": "Unassigned", "linkMilestone": "Link Milestone"
+    "unassigned": "Unassigned", "linkMilestone": "Link Milestone",
+    "tasks": "Tasks", "addTask": "Add Task", "assignedTo": "Assigned to",
+    "standups": "Standups", "addStandup": "New Standup", "topPriorities": "Top Priorities",
+    "expectedDeliverables": "Expected Deliverables", "weeklyPriorities": "Weekly Priorities", "week": "Week",
+    "retros": "Retros", "addRetro": "New Retro", "completedTasks": "Completed Tasks",
+    "outstandingTasks": "Outstanding Tasks", "carryForwardNotes": "Carry-forward Notes",
+    "blockers": "Blockers", "addBlocker": "New Blocker", "resolve": "Resolve", "resolved": "Resolved",
+    "fromRetro": "From Retro", "selectRetro": "Select a retro",
+    "calendar": "Calendar", "noEvents": "No events yet",
+    "taskCompletion": "Task Completion", "avgMilestoneProgress": "Avg. Milestone Progress",
+    "standupsCount": "Standups Submitted", "retrosCount": "Retros Submitted",
+    "documents": "Documents", "upload": "Upload", "category": "Category", "folder": "Folder",
+    "versions": "Versions", "newVersion": "New Version", "versionNotes": "Version Notes",
+    "review": "Review", "approve": "Approve", "requestRevision": "Request Revision",
+    "transitionStatus": "Transition Status", "private": "Private", "pendingReview": "Pending Review",
+    "approved": "Approved", "sharedWithInvestor": "Shared with Investor",
+    "advisors": "Advisors", "addAdvisor": "Assign Advisor", "primary": "Primary", "makePrimary": "Make Primary",
+    "coaching": "Coaching", "addSession": "New Session", "sessionDate": "Session Date",
+    "observations": "Observations", "recommendations": "Recommendations",
+    "kpis": "KPIs", "assignKpi": "Assign KPI", "target": "Target", "current": "Current",
+    "autoCalculated": "Auto-calculated", "manualEntry": "Manual entry", "updateValue": "Update Value"
   }
 }

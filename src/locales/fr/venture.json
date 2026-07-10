@@ -50,6 +50,26 @@
     "completed": "Terminé", "actionPlans": "Plans d'action", "addAction": "Ajouter une action",
     "priority": "Priorité", "low": "Faible", "medium": "Moyen", "high": "Élevé",
     "deadline": "Échéance", "owner": "Responsable", "open": "Ouvert",
-    "unassigned": "Non assigné", "linkMilestone": "Lier un jalon"
+    "unassigned": "Non assigné", "linkMilestone": "Lier un jalon",
+    "tasks": "Tâches", "addTask": "Ajouter une tâche", "assignedTo": "Assigné à",
+    "standups": "Standups", "addStandup": "Nouveau standup", "topPriorities": "Priorités principales",
+    "expectedDeliverables": "Livrables attendus", "weeklyPriorities": "Priorités de la semaine", "week": "Semaine",
+    "retros": "Rétros", "addRetro": "Nouvelle rétro", "completedTasks": "Tâches terminées",
+    "outstandingTasks": "Tâches en attente", "carryForwardNotes": "Notes de report",
+    "blockers": "Blocages", "addBlocker": "Nouveau blocage", "resolve": "Résoudre", "resolved": "Résolu",
+    "fromRetro": "Depuis la rétro", "selectRetro": "Sélectionner une rétro",
+    "calendar": "Calendrier", "noEvents": "Aucun événement pour le moment",
+    "taskCompletion": "Achèvement des tâches", "avgMilestoneProgress": "Progrès moyen des jalons",
+    "standupsCount": "Standups soumis", "retrosCount": "Rétros soumises",
+    "documents": "Documents", "upload": "Téléverser", "category": "Catégorie", "folder": "Dossier",
+    "versions": "Versions", "newVersion": "Nouvelle version", "versionNotes": "Notes de version",
+    "review": "Revue", "approve": "Approuver", "requestRevision": "Demander une révision",
+    "transitionStatus": "Statut de transition", "private": "Privé", "pendingReview": "En revue",
+    "approved": "Approuvé", "sharedWithInvestor": "Partagé avec l'investisseur",
+    "advisors": "Conseillers", "addAdvisor": "Assigner un conseiller", "primary": "Principal", "makePrimary": "Définir comme principal",
+    "coaching": "Coaching", "addSession": "Nouvelle session", "sessionDate": "Date de session",
+    "observations": "Observations", "recommendations": "Recommandations",
+    "kpis": "KPIs", "assignKpi": "Assigner un KPI", "target": "Cible", "current": "Actuel",
+    "autoCalculated": "Calculé automatiquement", "manualEntry": "Saisie manuelle", "updateValue": "Mettre à jour"
   }
 }

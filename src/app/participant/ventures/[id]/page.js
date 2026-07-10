@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Clock, History, Briefcase, Target, Lightbulb, TrendingUp, CheckSquare, ListChecks, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Clock, History, Briefcase, Target, Lightbulb, TrendingUp, CheckSquare, ListChecks, ChevronDown, ChevronUp, ListTodo, MessageCircle, RotateCcw, AlertTriangle, CalendarDays, Activity, FileText, GraduationCap, Award, Gauge } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useRouter, useParams } from "next/navigation";
 
-const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans"];
+const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks", "standups", "retros", "blockers", "calendar", "progress", "documents", "advisors", "coaching", "kpis"];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
 const STATUSES = ["active", "paused", "graduated", "archived"];
 const VISIBILITIES = ["private", "public", "inviteOnly"];
@@ -41,6 +41,39 @@ export default function VentureDetail() {
   const [pmfForm, setPmfForm] = useState({});
   const [milestoneForm, setMilestoneForm] = useState({});
   const [actionForm, setActionForm] = useState({});
+
+  // Track 3 state
+  const [tasks, setTasks] = useState([]);
+  const [standups, setStandups] = useState([]);
+  const [retros, setRetros] = useState([]);
+  const [blockers, setBlockers] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [progressData, setProgressData] = useState(null);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [showAddStandup, setShowAddStandup] = useState(false);
+  const [showAddRetro, setShowAddRetro] = useState(false);
+  const [showAddBlocker, setShowAddBlocker] = useState(false);
+  const [taskForm, setTaskForm] = useState({});
+  const [standupForm, setStandupForm] = useState({});
+  const [retroForm, setRetroForm] = useState({});
+  const [blockerForm, setBlockerForm] = useState({});
+
+  // Track 4 state
+  const [documents, setDocuments] = useState([]);
+  const [showAddDocument, setShowAddDocument] = useState(false);
+  const [documentForm, setDocumentForm] = useState({});
+
+  // Track 5 state
+  const [advisors, setAdvisors] = useState([]);
+  const [coachingSessions, setCoachingSessions] = useState([]);
+  const [kpis, setKpis] = useState([]);
+  const [kpiDefinitions, setKpiDefinitions] = useState([]);
+  const [showAddAdvisor, setShowAddAdvisor] = useState(false);
+  const [showAddCoaching, setShowAddCoaching] = useState(false);
+  const [showAddKpi, setShowAddKpi] = useState(false);
+  const [advisorForm, setAdvisorForm] = useState({});
+  const [coachingForm, setCoachingForm] = useState({});
+  const [kpiForm, setKpiForm] = useState({});
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -107,6 +140,16 @@ export default function VentureDetail() {
     if (activeTab === "pmf") fetchPmf();
     if (activeTab === "milestones") fetchMilestones();
     if (activeTab === "actionPlans") fetchActionPlans();
+    if (activeTab === "tasks") fetchTasks();
+    if (activeTab === "standups") fetchStandups();
+    if (activeTab === "retros") fetchRetros();
+    if (activeTab === "blockers") { fetchBlockers(); fetchRetros(); fetchTasks(); }
+    if (activeTab === "calendar") fetchCalendar();
+    if (activeTab === "progress") fetchProgress();
+    if (activeTab === "documents") fetchDocuments();
+    if (activeTab === "advisors") fetchAdvisors();
+    if (activeTab === "coaching") { fetchCoaching(); fetchAdvisors(); }
+    if (activeTab === "kpis") { fetchKpis(); fetchKpiDefinitions(); }
   }, [activeTab, venture, params.id]);
 
   async function loadMembers() {
@@ -150,6 +193,55 @@ export default function VentureDetail() {
   }
   async function fetchActionPlans() {
     try { const r = await fetch(`/api/ventures/${params.id}/action-plans`); const d = await r.json(); if (d.success) setActionPlans(d.action_plans); } catch(e){}
+  }
+  async function fetchTasks() {
+    try { const r = await fetch(`/api/ventures/${params.id}/tasks`); const d = await r.json(); if (d.success) setTasks(d.tasks || []); } catch(e){}
+  }
+  async function fetchStandups() {
+    try { const r = await fetch(`/api/ventures/${params.id}/standups`); const d = await r.json(); if (d.success) setStandups(d.standups || []); } catch(e){}
+  }
+  async function fetchRetros() {
+    try { const r = await fetch(`/api/ventures/${params.id}/retros`); const d = await r.json(); if (d.success) setRetros(d.retros || []); } catch(e){}
+  }
+  async function fetchBlockers() {
+    try { const r = await fetch(`/api/ventures/${params.id}/blockers`); const d = await r.json(); if (d.success) setBlockers(d.blockers || []); } catch(e){}
+  }
+  async function fetchCalendar() {
+    try { const r = await fetch(`/api/ventures/${params.id}/calendar`); const d = await r.json(); if (d.success) setCalendarEvents(d.events || []); } catch(e){}
+  }
+  async function fetchProgress() {
+    try { const r = await fetch(`/api/ventures/${params.id}/progress`); const d = await r.json(); if (d.success) setProgressData(d.progress); } catch(e){}
+  }
+  async function fetchDocuments() {
+    try { const r = await fetch(`/api/ventures/${params.id}/documents`); const d = await r.json(); if (d.success) setDocuments(d.documents || []); } catch(e){}
+  }
+  async function fetchAdvisors() {
+    try { const r = await fetch(`/api/ventures/${params.id}/advisors`); const d = await r.json(); if (d.success) setAdvisors(d.advisors || []); } catch(e){}
+  }
+  async function fetchCoaching() {
+    try { const r = await fetch(`/api/ventures/${params.id}/coaching`); const d = await r.json(); if (d.success) setCoachingSessions(d.sessions || d.coaching_sessions || []); } catch(e){}
+  }
+  async function fetchKpis() {
+    try { const r = await fetch(`/api/ventures/${params.id}/kpis`); const d = await r.json(); if (d.success) setKpis(d.kpis || []); } catch(e){}
+  }
+  async function fetchKpiDefinitions() {
+    try { const r = await fetch(`/api/venture-kpi-definitions`); const d = await r.json(); if (d.success) setKpiDefinitions(d.kpi_definitions || []); } catch(e){}
+  }
+  async function handleResolveBlocker(blockerId) {
+    await fetch(`/api/ventures/${params.id}/blockers`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ blocker_id: blockerId, action: "resolve" }) });
+    fetchBlockers();
+  }
+  async function handleMakePrimaryAdvisor(advisorId) {
+    await fetch(`/api/ventures/${params.id}/advisors`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ advisor_id: advisorId, is_primary: true }) });
+    fetchAdvisors();
+  }
+  async function handleDocumentTransition(docId, approval_status) {
+    await fetch(`/api/ventures/${params.id}/documents/${docId}/transition`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ approval_status }) });
+    fetchDocuments();
+  }
+  async function handleUpdateKpi(assignmentId, current_value) {
+    await fetch(`/api/ventures/${params.id}/kpis`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: assignmentId, current_value }) });
+    fetchKpis();
   }
 
   async function handleSave(e) {
@@ -732,6 +824,206 @@ export default function VentureDetail() {
           </div>
         )}
 
+        {/* Tasks Tab */}
+        {activeTab === "tasks" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.tasks')} ({tasks.length})</h2>
+              <button onClick={()=>setShowAddTask(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><ListTodo size={16}/> {t('venture.addTask')}</button>
+            </div>
+            {tasks.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
+              tasks.map(tk=>(
+                <div key={tk.id} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
+                  <div><p className="font-medium">{tk.title}</p>{tk.assigned_to&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.assignedTo')}: {tk.assigned_to}</p>}</div>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">{tk.status||'open'}</span>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Standups Tab */}
+        {activeTab === "standups" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.standups')} ({standups.length})</h2>
+              <button onClick={()=>setShowAddStandup(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><MessageCircle size={16}/> {t('venture.addStandup')}</button>
+            </div>
+            {standups.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
+              standups.map(s=>(
+                <div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.week')} {s.week_number} • {s.year}</p>
+                  {s.top_priorities&&<p className="text-sm mt-1">{s.top_priorities}</p>}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Retros Tab */}
+        {activeTab === "retros" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.retros')} ({retros.length})</h2>
+              <button onClick={()=>setShowAddRetro(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><RotateCcw size={16}/> {t('venture.addRetro')}</button>
+            </div>
+            {retros.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
+              retros.map(r=>(
+                <div key={r.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.week')} {r.week_number} • {r.year}</p>
+                  {r.completed_tasks&&<p className="text-sm mt-1">✓ {r.completed_tasks}</p>}
+                  {r.outstanding_tasks&&<p className="text-sm mt-1" style={{color:'var(--text-secondary)'}}>{r.outstanding_tasks}</p>}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Blockers Tab */}
+        {activeTab === "blockers" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.blockers')} ({blockers.length})</h2>
+              <button onClick={()=>setShowAddBlocker(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><AlertTriangle size={16}/> {t('venture.addBlocker')}</button>
+            </div>
+            {blockers.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
+              blockers.map(b=>(
+                <div key={b.id} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
+                  <div><p className="font-medium">{b.title}</p>{b.description&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>{b.description}</p>}</div>
+                  {b.status==='resolved'?(
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">{t('venture.resolved')}</span>
+                  ):(
+                    <button onClick={()=>handleResolveBlocker(b.id)} className="text-xs px-3 py-1 rounded-lg" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}>{t('venture.resolve')}</button>
+                  )}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Calendar Tab */}
+        {activeTab === "calendar" && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2"><CalendarDays size={18}/> {t('venture.calendar')}</h2>
+            {calendarEvents.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
+              calendarEvents.map((ev,i)=>(
+                <div key={i} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
+                  <div><p className="font-medium">{ev.title}</p><p className="text-xs" style={{color:'var(--text-secondary)'}}>{ev.type}</p></div>
+                  {ev.date&&<span className="text-xs" style={{color:'var(--text-secondary)'}}>{new Date(ev.date).toLocaleDateString()}</span>}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Progress Tab */}
+        {activeTab === "progress" && (
+          <div className="space-y-4">
+            {!progressData?(<div className="text-center py-8"><Loader2 className="animate-spin mx-auto" style={{color:'var(--text-secondary)'}} size={24}/></div>):(
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  {label:t('venture.taskCompletion'),value:`${progressData.task_completion||0}%`,icon:Activity},
+                  {label:t('venture.avgMilestoneProgress'),value:`${progressData.avg_milestone_progress||0}%`,icon:CheckSquare},
+                  {label:t('venture.standupsCount'),value:progressData.standups_count||0,icon:MessageCircle},
+                  {label:t('venture.retrosCount'),value:progressData.retros_count||0,icon:RotateCcw},
+                ].map((stat,i)=>(
+                  <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
+                    <stat.icon size={18} className="mb-2" style={{color:'var(--brand-orange)'}}/>
+                    <p className="text-2xl font-bold">{stat.value}</p>
+                    <p className="text-xs" style={{color:'var(--text-secondary)'}}>{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Documents Tab */}
+        {activeTab === "documents" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.documents')} ({documents.length})</h2>
+              <button onClick={()=>setShowAddDocument(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><FileText size={16}/> {t('venture.upload')}</button>
+            </div>
+            {documents.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
+              documents.map(doc=>(
+                <div key={doc.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <div className="flex items-center justify-between">
+                    <div><a href={doc.file_url} target="_blank" rel="noreferrer" className="font-medium hover:underline">{doc.name}</a><p className="text-xs" style={{color:'var(--text-secondary)'}}>{doc.category}{doc.folder&&` / ${doc.folder}`}</p></div>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">{t(`venture.${doc.approval_status==='shared_with_investor'?'sharedWithInvestor':doc.approval_status==='pending_review'?'pendingReview':doc.approval_status}`)}</span>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    {['private','pending_review','approved','shared_with_investor'].map(s=>(
+                      <button key={s} onClick={()=>handleDocumentTransition(doc.id,s)} disabled={doc.approval_status===s}
+                        className="text-xs px-2 py-1 rounded-lg disabled:opacity-40" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}>
+                        {t(`venture.${s==='shared_with_investor'?'sharedWithInvestor':s==='pending_review'?'pendingReview':s}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Advisors Tab */}
+        {activeTab === "advisors" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.advisors')} ({advisors.length})</h2>
+              <button onClick={()=>setShowAddAdvisor(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><GraduationCap size={16}/> {t('venture.addAdvisor')}</button>
+            </div>
+            {advisors.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
+              advisors.map(a=>(
+                <div key={a.id} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
+                  <div><p className="font-medium">{a.advisor_contact_id}</p></div>
+                  {a.is_primary?(
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{t('venture.primary')}</span>
+                  ):(
+                    <button onClick={()=>handleMakePrimaryAdvisor(a.id)} className="text-xs px-3 py-1 rounded-lg" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}>{t('venture.makePrimary')}</button>
+                  )}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Coaching Tab */}
+        {activeTab === "coaching" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.coaching')} ({coachingSessions.length})</h2>
+              <button onClick={()=>setShowAddCoaching(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Award size={16}/> {t('venture.addSession')}</button>
+            </div>
+            {coachingSessions.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
+              coachingSessions.map(s=>(
+                <div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{s.advisor_name||s.advisor_contact_id} {s.session_date&&`• ${new Date(s.session_date).toLocaleDateString()}`}</p>
+                  {s.notes&&<p className="text-sm mt-1">{s.notes}</p>}
+                  {s.recommendations&&<p className="text-sm mt-1" style={{color:'var(--brand-orange)'}}>💡 {s.recommendations}</p>}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* KPIs Tab */}
+        {activeTab === "kpis" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.kpis')} ({kpis.length})</h2>
+              <button onClick={()=>setShowAddKpi(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Gauge size={16}/> {t('venture.assignKpi')}</button>
+            </div>
+            {kpis.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
+              kpis.map(k=>(
+                <div key={k.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium">{k.name}</p>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">{k.auto_calc_source?t('venture.autoCalculated'):t('venture.manualEntry')}</span>
+                  </div>
+                  <p className="text-sm mt-1" style={{color:'var(--text-secondary)'}}>{t('venture.current')}: {k.current_value ?? 0}{k.target_value&&` / ${t('venture.target')}: ${k.target_value}`} {k.unit}</p>
+                  {!k.auto_calc_source && (
+                    <button onClick={()=>{const v=prompt(t('venture.updateValue'),k.current_value||0); if(v!==null) handleUpdateKpi(k.id, parseFloat(v)||0);}}
+                      className="text-xs px-3 py-1 mt-2 rounded-lg" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}>{t('venture.updateValue')}</button>
+                  )}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
         {/* Add Interview Modal */}
         {showAddInterview && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddInterview(false)}>
@@ -813,6 +1105,136 @@ export default function VentureDetail() {
                   <option value="">{t('venture.unassigned')}</option>
                   {milestones.map(m=><option key={m.id} value={m.id}>{m.title}</option>)}
                 </select>}
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Task Modal */}
+        {showAddTask && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddTask(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addTask')}</h2><button onClick={()=>setShowAddTask(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(taskForm)});setShowAddTask(false);setTaskForm({});fetchTasks();}} className="space-y-3">
+                <input placeholder={t('venture.namePlaceholder')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={taskForm.title||''} onChange={e=>setTaskForm({...taskForm,title:e.target.value})} required />
+                <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={taskForm.description||''} onChange={e=>setTaskForm({...taskForm,description:e.target.value})} />
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Standup Modal */}
+        {showAddStandup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddStandup(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addStandup')}</h2><button onClick={()=>setShowAddStandup(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();const now=new Date();const week=Math.ceil((((now-new Date(now.getFullYear(),0,1))/86400000)+new Date(now.getFullYear(),0,1).getDay()+1)/7);const res=await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:standupForm.week_number||week,year:standupForm.year||now.getFullYear(),...standupForm})});const d=await res.json();if(!d.success)alert(d.error);setShowAddStandup(false);setStandupForm({});fetchStandups();}} className="space-y-3">
+                <textarea placeholder={t('venture.topPriorities')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={standupForm.top_priorities||''} onChange={e=>setStandupForm({...standupForm,top_priorities:e.target.value})} />
+                <textarea placeholder={t('venture.expectedDeliverables')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={standupForm.expected_deliverables||''} onChange={e=>setStandupForm({...standupForm,expected_deliverables:e.target.value})} />
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Retro Modal */}
+        {showAddRetro && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddRetro(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addRetro')}</h2><button onClick={()=>setShowAddRetro(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();const now=new Date();const week=Math.ceil((((now-new Date(now.getFullYear(),0,1))/86400000)+new Date(now.getFullYear(),0,1).getDay()+1)/7);const res=await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:retroForm.week_number||week,year:retroForm.year||now.getFullYear(),...retroForm})});const d=await res.json();if(!d.success)alert(d.error);setShowAddRetro(false);setRetroForm({});fetchRetros();}} className="space-y-3">
+                <textarea placeholder={t('venture.completedTasks')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={retroForm.completed_tasks||''} onChange={e=>setRetroForm({...retroForm,completed_tasks:e.target.value})} />
+                <textarea placeholder={t('venture.outstandingTasks')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={retroForm.outstanding_tasks||''} onChange={e=>setRetroForm({...retroForm,outstanding_tasks:e.target.value})} />
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Blocker Modal */}
+        {showAddBlocker && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddBlocker(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addBlocker')}</h2><button onClick={()=>setShowAddBlocker(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/blockers`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(blockerForm)});const d=await res.json();if(!d.success)alert(d.error);setShowAddBlocker(false);setBlockerForm({});fetchBlockers();}} className="space-y-3">
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={blockerForm.venture_retro_id||''} onChange={e=>setBlockerForm({...blockerForm,venture_retro_id:e.target.value})} required>
+                  <option value="">{t('venture.selectRetro')}</option>
+                  {retros.map(r=><option key={r.id} value={r.id}>{t('venture.week')} {r.week_number}/{r.year}</option>)}
+                </select>
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={blockerForm.task_id||''} onChange={e=>setBlockerForm({...blockerForm,task_id:e.target.value})} required>
+                  <option value="">{t('venture.tasks')}</option>
+                  {tasks.map(tk=><option key={tk.id} value={tk.id}>{tk.title}</option>)}
+                </select>
+                <input placeholder={t('venture.namePlaceholder')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={blockerForm.title||''} onChange={e=>setBlockerForm({...blockerForm,title:e.target.value})} required />
+                <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={blockerForm.description||''} onChange={e=>setBlockerForm({...blockerForm,description:e.target.value})} />
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Document Modal */}
+        {showAddDocument && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddDocument(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.upload')}</h2><button onClick={()=>setShowAddDocument(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/documents`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(documentForm)});setShowAddDocument(false);setDocumentForm({});fetchDocuments();}} className="space-y-3">
+                <input placeholder={t('venture.namePlaceholder')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.name||''} onChange={e=>setDocumentForm({...documentForm,name:e.target.value})} required />
+                <input placeholder="https://... (file URL)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.file_url||''} onChange={e=>setDocumentForm({...documentForm,file_url:e.target.value})} required />
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.category||'general'} onChange={e=>setDocumentForm({...documentForm,category:e.target.value})}>
+                  {['business','legal','financial','investment','brand','general'].map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Advisor Modal */}
+        {showAddAdvisor && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddAdvisor(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAdvisor')}</h2><button onClick={()=>setShowAddAdvisor(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/advisors`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(advisorForm)});const d=await res.json();if(!d.success)alert(d.error);setShowAddAdvisor(false);setAdvisorForm({});fetchAdvisors();}} className="space-y-3">
+                <input placeholder="Advisor contact ID (cid)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={advisorForm.advisor_contact_id||''} onChange={e=>setAdvisorForm({...advisorForm,advisor_contact_id:e.target.value})} required />
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Coaching Session Modal */}
+        {showAddCoaching && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddCoaching(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addSession')}</h2><button onClick={()=>setShowAddCoaching(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/coaching`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(coachingForm)});setShowAddCoaching(false);setCoachingForm({});fetchCoaching();}} className="space-y-3">
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.advisor_contact_id||''} onChange={e=>setCoachingForm({...coachingForm,advisor_contact_id:e.target.value})}>
+                  <option value="">{t('venture.advisors')}</option>
+                  {advisors.map(a=><option key={a.id} value={a.advisor_contact_id}>{a.advisor_contact_id}</option>)}
+                </select>
+                <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.session_date||''} onChange={e=>setCoachingForm({...coachingForm,session_date:e.target.value})} />
+                <textarea placeholder={t('venture.notes')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={coachingForm.notes||''} onChange={e=>setCoachingForm({...coachingForm,notes:e.target.value})} />
+                <textarea placeholder={t('venture.recommendations')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={coachingForm.recommendations||''} onChange={e=>setCoachingForm({...coachingForm,recommendations:e.target.value})} />
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Assign KPI Modal */}
+        {showAddKpi && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddKpi(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.assignKpi')}</h2><button onClick={()=>setShowAddKpi(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/kpis`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(kpiForm)});const d=await res.json();if(!d.success)alert(d.error);setShowAddKpi(false);setKpiForm({});fetchKpis();}} className="space-y-3">
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiForm.kpi_definition_id||''} onChange={e=>setKpiForm({...kpiForm,kpi_definition_id:e.target.value})} required>
+                  <option value="">{t('venture.kpis')}</option>
+                  {kpiDefinitions.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+                <input type="number" placeholder={t('venture.target')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiForm.target_value||''} onChange={e=>setKpiForm({...kpiForm,target_value:e.target.value})} />
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>
             </div>
