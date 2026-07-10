@@ -28,7 +28,7 @@ export async function POST(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     const { category, folder, name, storage_path, file_url, mime_type, size_bytes } = await req.json();
     if (!name || !file_url) return NextResponse.json({ success: false, error: "name and file_url required" }, { status: 400 });
-    await db.execute({ sql: "INSERT INTO venture_documents (venture_id, category, folder, name, storage_path, file_url, mime_type, size_bytes, uploaded_by) VALUES (?,?,?,?,?,?,?,?,?)", args: [id, category||"general", folder||null, name, storage_path||null, file_url, mime_type||null, size_bytes||null, session.cid] });
+    await db.execute({ sql: "INSERT INTO venture_documents (venture_id, category, folder, name, storage_path, file_url, mime_type, size_bytes, uploaded_by) VALUES (?,?,?,?,?,?,?,?,?)", args: [id, category||"general", folder||null, name, storage_path || file_url, file_url, mime_type||null, size_bytes||null, session.cid] });
     return NextResponse.json({ success: true });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }

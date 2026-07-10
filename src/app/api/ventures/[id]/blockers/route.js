@@ -19,10 +19,10 @@ export async function POST(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
     const { id } = await params; const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
-    const { title, description, venture_retro_id, priority } = await req.json();
+    const { title, description, venture_retro_id } = await req.json();
     if (!venture_retro_id) return NextResponse.json({ success: false, error: "venture_retro_id required - blockers must come from a retro" }, { status: 400 });
     if (!title) return NextResponse.json({ success: false, error: "title required" }, { status: 400 });
-    await db.execute({ sql: "INSERT INTO blockers (title, description, venture_id, venture_retro_id, status, priority, user_id) VALUES (?,?,?,?,'open',?,?)", args: [title, description||null, id, venture_retro_id, priority||"medium", session.cid] });
+    await db.execute({ sql: "INSERT INTO blockers (title, description, venture_id, venture_retro_id, status, user_id) VALUES (?,?,?,?,'open',?)", args: [title, description||null, id, venture_retro_id, session.cid] });
     return NextResponse.json({ success: true });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }
