@@ -141,7 +141,7 @@ export default function TeamDashboardPage({ params }) {
             // 4. Fetch submissions for this team
             try {
               const subRes = await fetch(
-                `/api/participant/submissions?team_id=${teamId}&program_id=${found.program_id}`,
+                `/api/submissions?team_id=${teamId}&program_id=${found.program_id}`,
               );
               const subData = await subRes.json();
               if (subData.success && subData.submissions) {
@@ -251,7 +251,7 @@ export default function TeamDashboardPage({ params }) {
         body: JSON.stringify({
           program_id: team.program_id,
           deliverable_id: selectedDeliverable.id,
-          group_id: teamId,
+          team_id: teamId,
           file_url: fileUrl,
           status: "pending",
         }),

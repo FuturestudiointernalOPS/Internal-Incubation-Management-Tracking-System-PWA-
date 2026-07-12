@@ -85,10 +85,14 @@ export async function POST(req) {
     const generatedUsername = `${slug}_${randomStr}`;
     const generatedPassword = `FST${randomStr}`;
 
+    // Generate Team ID
+    const teamId = `TEAM-${Date.now().toString(36).toUpperCase()}`;
+
     // 1. Create Team Record
     const result = await db.execute({
-      sql: "INSERT INTO v2_teams (program_id, name, handler_id, handler_name, password, team_username) VALUES (?, ?, ?, ?, ?, ?) RETURNING *",
+      sql: "INSERT INTO v2_teams (id, program_id, name, handler_id, handler_name, password, team_username) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
       args: [
+        teamId,
         program_id,
         name,
         handler_id || null,
@@ -100,50 +104,45 @@ export async function POST(req) {
 
     const team = result.rows[0];
 
-    // 2. Link Members to Team if provided
+    // 2. Link Members to Team if provided (supports both contacts CIDs and v2_participants UUIDs)
     if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
-      const placeholders = member_ids.map(() => "?").join(",");
-      await db.execute({
-        sql: `UPDATE contacts SET team_id = ? WHERE cid IN (${placeholders})`,
-        args: [team.id, ...member_ids],
+      // Try finding matching contacts by participant ID (v2_participants.email → contacts.email)
+      const pRes = await db.execute({
+        sql: `SELECT email FROM v2_participants WHERE id::text IN (${member_ids.map(() => "?").join(",")})`,
+        args: member_ids,
       });
+      const emails = pRes.rows.map(r => r.email).filter(Boolean);
 
-      // 3. Send Emails to Members
-      const memberRes = await db.execute({
-        sql: `SELECT email, name FROM contacts WHERE cid IN (${placeholders})`,
-        args: [...member_ids],
-      });
+      if (emails.length > 0) {
+        const emailPlaceholders = emails.map(() => "?").join(",");
+        await db.execute({
+          sql: `UPDATE contacts SET team_id = ? WHERE email IN (${emailPlaceholders})`,
+          args: [team.id, ...emails],
+        });
 
-      for (const member of memberRes.rows) {
-        try {
-          await sendEmail({
-            to: member.email,
-            subject: `Team Credentials: ${name}`,
-            body: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #FF6600;">Welcome to Team ${name}</h2>
-                <p>Hello ${member.name},</p>
-                <p>You have been added to a new team in the ImpactOS platform. Here are your shared team access credentials:</p>
-                <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
-                  <p style="margin: 5px 0;"><strong>Team Name:</strong> ${name}</p>
-                  <p style="margin: 5px 0;"><strong>Login Username:</strong> ${generatedUsername}</p>
-                  <p style="margin: 5px 0;"><strong>Password:</strong> ${generatedPassword}</p>
-                </div>
-                <p>Please use these credentials to log in to the platform at the link below:</p>
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://impactos-pwa.vercel.app"}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Access Platform</a>
-                <p style="margin-top: 30px; font-size: 12px; color: #64748b;">This is a shared team account. All members of your team will use these same credentials.</p>
-              </div>
-            `,
-            isHtml: true,
-          });
-        } catch (mailError) {
-          console.error(`Failed to send email to ${member.email}:`, mailError);
+        // Send welcome emails with team credentials
+        for (const email of emails) {
+          try {
+            await sendEmail({
+              to: email,
+              subject: `Team Credentials: ${name}`,
+              body: `<p>You've been added to <b>${name}</b>. Use username <b>${generatedUsername}</b> and password <b>${generatedPassword}</b> to log in.</p>`,
+            });
+          } catch (_) {}
         }
+      } else {
+        // Fallback: try direct CID match
+        const placeholders = member_ids.map(() => "?").join(",");
+        await db.execute({
+          sql: `UPDATE contacts SET team_id = ? WHERE cid IN (${placeholders})`,
+          args: [team.id, ...member_ids],
+        });
       }
     }
 
     return NextResponse.json({ success: true, team });
   } catch (error) {
+    console.error("POST /api/teams error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },

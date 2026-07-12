@@ -101,7 +101,7 @@ export async function PATCH(req) {
                   prog.name as program_name
            FROM v2_submissions s
            LEFT JOIN contacts c ON s.participant_id = c.cid
-           LEFT JOIN v2_deliverables d ON s.deliverable_id = d.id
+           LEFT JOIN v2_deliverables d ON s.deliverable_id::uuid = d.id
            LEFT JOIN v2_programs prog ON s.program_id = prog.id
            WHERE s.id = ?
         `,
@@ -222,9 +222,9 @@ export async function GET(req) {
               p.name as participant_name, g.name as group_name,
               t.name as team_name
        FROM v2_submissions s
-       LEFT JOIN v2_deliverables d ON s.deliverable_id = d.id
-       LEFT JOIN v2_participants p ON s.participant_id = p.id
-       LEFT JOIN v2_groups g ON s.group_id = g.id
+       LEFT JOIN v2_deliverables d ON s.deliverable_id::uuid = d.id
+       LEFT JOIN v2_participants p ON s.participant_id = p.user_id
+       LEFT JOIN v2_groups g ON s.group_id::uuid = g.id
        LEFT JOIN v2_teams t ON s.team_id = t.id
        WHERE 1=1
     `;
