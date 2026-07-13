@@ -46,6 +46,30 @@
     "sessions": "Sessions",
     "deliverables": "Deliverables",
     "submit": "Submit",
-    "score": "Score"
-  }
+    "score": "Score",
+        "overdue": "Overdue",
+        "dueSoon": "Due This Week",
+        "pending": "Pending Review",
+        "upcomingDeadlines": "Upcoming Sessions",
+        "version": "Version",
+        "submissionHistory": "Submission History",
+        "submitted": "Submitted",
+        "accepted": "Accepted",
+        "revisionRequested": "Revision Requested",
+        "pendingFollowup": "Pending Follow-up",
+        "followUpMeeting": "Follow-up Meeting",
+        "scheduleMeeting": "Schedule Meeting",
+        "evaluation": "Evaluation",
+        "academic": "Academic",
+        "incubation": "Incubation",
+        "startupReadiness": "Startup Readiness",
+        "meetingLink": "Meeting Link",
+        "teacher_feedback": "Instructor Feedback",
+        "rejectionReason": "Rejection Reason",
+        "requestRevision": "Request Revision",
+        "reject": "Reject",
+        "approve": "Approve",
+        "noDeliverables": "No deliverables assigned yet",
+        "dueDate": "Due Date"
+      }
 }

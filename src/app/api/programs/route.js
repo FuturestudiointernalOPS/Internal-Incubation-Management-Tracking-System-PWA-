@@ -21,6 +21,8 @@ export async function POST(req) {
       resources,
       assigned_pm_id,
       feedback_enabled,
+      grading_mode,
+      evaluation_config,
     } = body;
 
     if (!name) {
@@ -30,13 +32,14 @@ export async function POST(req) {
       );
     }
 
-    const programId = `P-2026-${uuidv4().slice(0, 8).toUpperCase()}`;
+    const programId = `P-2026-${uuid4().slice(0, 8).toUpperCase()}`;
 
     const result = await db.execute({
       sql: `INSERT INTO v2_programs (
         id, name, description, duration_weeks, duration_days,
-        topics, outcomes, deliverables, resources, assigned_pm_id, feedback_enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        topics, outcomes, deliverables, resources, assigned_pm_id, feedback_enabled,
+        grading_mode, evaluation_config
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         programId,
         name,
@@ -49,6 +52,8 @@ export async function POST(req) {
         JSON.stringify(resources || []),
         assigned_pm_id || null,
         feedback_enabled !== undefined ? (feedback_enabled ? 1 : 0) : 1,
+        grading_mode || 'graded',
+        evaluation_config ? JSON.stringify(evaluation_config) : '{}',
       ],
     });
 
@@ -143,6 +148,8 @@ export async function PUT(req) {
       "document_id",
       "feedback_enabled",
       "status",
+      "grading_mode",
+      "evaluation_config",
     ];
 
     for (const col of updatableColumns) {
@@ -153,6 +160,8 @@ export async function PUT(req) {
           args.push(JSON.stringify(data[col] || []));
         } else if (col === "feedback_enabled") {
           args.push(data[col] ? 1 : 0);
+        } else if (col === "evaluation_config") {
+          args.push(JSON.stringify(data[col] || {}));
         } else {
           args.push(data[col]);
         }
