@@ -34,10 +34,10 @@ export const GET = createHandler(
                    c.name as participant_name, c.group_name as participant_group,
                    prog.grading_mode
             FROM v2_submissions s
-            LEFT JOIN v2_document_requirements d ON s.deliverable_id = d.id
+            LEFT JOIN v2_document_requirements d ON s.deliverable_id = CAST(d.id AS TEXT)
             LEFT JOIN contacts c ON s.participant_id = c.cid
             LEFT JOIN v2_programs prog ON s.program_id = prog.id
-            WHERE s.program_id IN (${placeholders})
+            WHERE s.program_id::text IN (${placeholders})
             ORDER BY s.created_at DESC`,
       args: programIds,
     });
