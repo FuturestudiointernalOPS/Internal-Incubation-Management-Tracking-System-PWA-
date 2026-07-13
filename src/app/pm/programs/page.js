@@ -134,7 +134,7 @@ export default function PMProgramsRegistry() {
             onClick={() => setTab("all")}
             className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "all" ? "bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20" : "bg-secondary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            All Programs
+            {t("common.allPrograms", "Tous les Programmes")}
           </button>
           <button
             onClick={() => setTab("active")}
@@ -162,10 +162,10 @@ export default function PMProgramsRegistry() {
             <div className="flex items-center gap-2 mb-4">
               <ListTodo className="w-4 h-4 text-blue-400" />
               <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter italic">
-                My Tasks
+                {t("dashboard.myTasks", "Mes Tâches")}
               </h3>
               <span className="text-[10px] font-bold text-slate-500 ml-auto">
-                {tasks.length} total
+                {tasks.length} {t("common.total", "au total")}
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -218,7 +218,7 @@ export default function PMProgramsRegistry() {
             </div>
             {tasks.length > 6 && (
               <p className="text-[7px] text-slate-500 text-center pt-3">
-                +{tasks.length - 6} more tasks
+                +{tasks.length - 6} {t("dashboard.moreTasks", "tâches supplémentaires")}
               </p>
             )}
           </section>

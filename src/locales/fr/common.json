@@ -48,7 +48,49 @@
     "send": "Envoyer",
     "targeting": "Ciblage",
     "target": "Cible",
-    "audience": "Audience"
+    "audience": "Audience",
+    "allPrograms": "Tous les Programmes",
+    "due": "Échéance :",
+    "resolve": "Résoudre",
+    "project": "Projet :"
+  },
+  "dashboard": {
+    "myTasks": "Mes Tâches",
+    "assignedToMe": "ASSIGNÉES À MOI",
+    "awaitingAction": "en attente d'action",
+    "assignedBy": "Assigné par :",
+    "attentionRequired": "Attention Requise",
+    "overdueTasks": "Tâches en retard",
+    "criticalBlockers": "Bloqueurs critiques",
+    "dueToday": "À rendre aujourd'hui",
+    "weeklyStandup": "Point Hebdomadaire",
+    "submitReport": "Voir ou soumettre votre rapport opérationnel hebdomadaire",
+    "myPrograms": "Mes Programmes",
+    "noPrograms": "Aucun programme",
+    "progress": "Progression",
+    "openReport": "Ouvrir le rapport",
+    "noActiveTasks": "Aucune tâche active",
+    "recentActivity": "Activité Récente",
+    "quickStats": "Statistiques Rapides",
+    "programs": "Programmes",
+    "openTasks": "Tâches ouvertes",
+    "activeBlockers": "Bloqueurs Actifs",
+    "overdue": "En retard",
+    "myProjects": "Mes Projets",
+    "noProjects": "Aucun projet assigné",
+    "noActiveBlockers": "Aucun bloqueur actif",
+    "thisWeek": "Cette Semaine",
+    "moreTasks": "tâches supplémentaires"
+  },
+  "roles": {
+    "owner": "Propriétaire",
+    "collaborator": "Collaborateur"
+  },
+  "activity": {
+    "task created": "Tâche créée",
+    "task completed": "Tâche terminée",
+    "blocker resolved": "Bloqueur résolu",
+    "task assigned": "Tâche assignée"
   },
   "announcements": {
     "title": "Annonces",

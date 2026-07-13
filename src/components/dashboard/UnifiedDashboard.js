@@ -232,7 +232,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           setUser(stored);
           return;
         }
-      } catch (_) {}
+      } catch (_) { }
 
       router.replace("/login");
     }
@@ -726,11 +726,11 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-amber-400" />
               <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
-                Assigned To Me
+                {t("dashboard.assignedToMe", "ASSIGNÉES À MOI")}
               </span>
               <span className="text-[9px] font-bold text-slate-500 ml-auto">
                 {assignments.filter((a) => a.status === "pending").length}{" "}
-                awaiting action
+                {t("dashboard.awaitingAction", "en attente d'action")}
               </span>
             </div>
             <div className="space-y-1.5">
@@ -756,22 +756,21 @@ export default function UnifiedDashboard({ role: propRole }) {
                         </span>
                         {task.priority && task.priority !== "medium" && (
                           <span
-                            className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
-                              task.priority === "critical"
+                            className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${task.priority === "critical"
                                 ? "bg-red-500/10 text-red-400"
                                 : task.priority === "high"
                                   ? "bg-amber-500/10 text-amber-400"
                                   : "bg-slate-500/10 text-slate-400"
-                            }`}
+                              }`}
                           >
                             {task.priority}
                           </span>
                         )}
                       </div>
                       <p className="text-[8px] text-slate-500 mt-0.5">
-                        Assigned by: {task.user_name || "System"}
+                        {t("dashboard.assignedBy", "Assigné par:")} {task.user_name || "System"}
                         {task.end_date
-                          ? ` \u00B7 Due: ${new Date(task.end_date).toLocaleDateString()}`
+                          ? ` \u00B7 ${t("common.due", "Échéance:")} ${new Date(task.end_date).toLocaleDateString()}`
                           : ""}
                       </p>
                     </div>
@@ -784,7 +783,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                           disabled={actionLoading === task.id}
                           className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
                         >
-                          {actionLoading === task.id ? "..." : "Accept"}
+                          {actionLoading === task.id ? "..." : t("common.accept", "Accepter")}
                         </button>
                         <button
                           onClick={() =>
@@ -793,7 +792,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                           disabled={actionLoading === task.id}
                           className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
                         >
-                          {actionLoading === task.id ? "..." : "Decline"}
+                          {actionLoading === task.id ? "..." : t("common.decline", "Refuser")}
                         </button>
                       </div>
                     ) : (
@@ -807,7 +806,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         disabled={actionLoading === task.id}
                         className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0 disabled:opacity-50"
                       >
-                        {actionLoading === task.id ? "..." : "Complete"}
+                        {actionLoading === task.id ? "..." : t("common.complete", "Terminé")}
                       </button>
                     )}
                   </div>
@@ -825,7 +824,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   }
                   className="w-full text-center py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
                 >
-                  View All ({assignments.length})
+                  {t("common.viewAll", "Voir Tout")} ({assignments.length})
                 </button>
               )}
             </div>
@@ -838,7 +837,7 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-400" />
               <span className="text-[9px] font-black uppercase tracking-widest text-rose-400">
-                Attention Required
+                {t("dashboard.attentionRequired", "Attention Requise")}
               </span>
             </div>
 
@@ -847,7 +846,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-3.5 h-3.5 text-rose-500" />
                   <span className="text-[8px] font-black uppercase tracking-widest text-rose-500">
-                    Overdue Tasks ({attention.overdueTasks.length})
+                    {t("dashboard.overdueTasks", "Tâches en retard")} ({attention.overdueTasks.length})
                   </span>
                 </div>
                 <div className="space-y-1">
@@ -857,7 +856,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       onClick={() => {
                         const r =
                           user?.role === "super_admin" ||
-                          user?.role === "developer"
+                            user?.role === "developer"
                             ? "admin"
                             : "staff";
                         router.push(
@@ -899,7 +898,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center gap-2 mb-2">
                   <Shield className="w-3.5 h-3.5 text-rose-500" />
                   <span className="text-[8px] font-black uppercase tracking-widest text-rose-500">
-                    Critical Blockers ({attention.criticalBlockers.length})
+                    {t("dashboard.criticalBlockers", "Bloqueurs critiques")} ({attention.criticalBlockers.length})
                   </span>
                 </div>
                 <div className="space-y-1">
@@ -919,7 +918,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         </div>
                         {b.project_id && (
                           <p className="text-[8px] text-slate-500 mt-0.5">
-                            Project: #{b.project_id}
+                            {t("common.project", "Projet:")} #{b.project_id}
                           </p>
                         )}
                       </div>
@@ -928,7 +927,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         disabled={resolvingBlocker === b.id}
                         className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
                       >
-                        {resolvingBlocker === b.id ? "..." : "Resolve"}
+                        {resolvingBlocker === b.id ? "..." : t("common.resolve", "Résoudre")}
                       </button>
                     </div>
                   ))}
@@ -941,7 +940,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
                   <span className="text-[8px] font-black uppercase tracking-widest text-amber-400">
-                    Due Today ({attention.dueToday.length})
+                    {t("dashboard.dueToday", "À rendre aujourd'hui")} ({attention.dueToday.length})
                   </span>
                 </div>
                 <div className="space-y-1">
@@ -975,32 +974,32 @@ export default function UnifiedDashboard({ role: propRole }) {
             {(effectiveRole === "developer" ||
               effectiveRole === "staff" ||
               effectiveRole === "super_admin") && (
-              <div
-                className="card flex items-center justify-between !p-4 border-l-4 border-l-[var(--brand-orange)] cursor-pointer hover:border-[var(--brand-orange)]/50 transition-all bg-[var(--brand-orange)]/5"
-                onClick={() => {
-                  router.push(
-                    effectiveRole === "developer"
-                      ? "/staff/op-report"
-                      : "/staff/op-report",
-                  );
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
-                    <Activity className="w-5 h-5 text-[var(--brand-orange)]" />
+                <div
+                  className="card flex items-center justify-between !p-4 border-l-4 border-l-[var(--brand-orange)] cursor-pointer hover:border-[var(--brand-orange)]/50 transition-all bg-[var(--brand-orange)]/5"
+                  onClick={() => {
+                    router.push(
+                      effectiveRole === "developer"
+                        ? "/staff/op-report"
+                        : "/staff/op-report",
+                    );
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                      <Activity className="w-5 h-5 text-[var(--brand-orange)]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                        {t("dashboard.weeklyStandup", "Point Hebdomadaire")}
+                      </h3>
+                      <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+                        {t("dashboard.submitReport", "Voir ou soumettre votre rapport opérationnel hebdomadaire")}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                      Weekly Standup
-                    </h3>
-                    <p className="text-[10px] text-slate-500 font-bold mt-0.5">
-                      View or submit your weekly operational report
-                    </p>
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-400" />
                 </div>
-                <ChevronRight className="w-5 h-5 text-slate-400" />
-              </div>
-            )}
+              )}
 
             {/* My Programs — Rich Cards */}
             {visibility.showQuickPrograms && (
@@ -1009,7 +1008,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   <div className="flex items-center gap-2">
                     <Briefcase className="w-4 h-4 text-emerald-400" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                      My Programs
+                      {t("dashboard.myPrograms", "Mes Programmes")}
                     </span>
                     <span className="text-[9px] font-bold text-slate-500">
                       ({quickAccess.programs?.length || 0})
@@ -1019,7 +1018,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     onClick={() => router.push("/pm/programs")}
                     className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
                   >
-                    View All
+                    {t("common.viewAll", "Voir Tout")}
                   </button>
                 </div>
                 {fetching ? (
@@ -1034,7 +1033,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </div>
                 ) : quickAccess.programs?.length === 0 ? (
                   <p className="text-[10px] text-slate-500 italic py-6 text-center">
-                    No programs
+                    {t("dashboard.noPrograms", "Aucun programme")}
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1065,7 +1064,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                           <div className="mt-3 space-y-1">
                             <div className="flex justify-between items-end">
                               <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">
-                                Progress
+                                {t("dashboard.progress", "Progression")}
                               </span>
                               <span className="text-[9px] font-black text-emerald-400">
                                 {Number(progress).toFixed(0)}%
@@ -1093,7 +1092,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   <div className="flex items-center gap-2">
                     <ListTodo className="w-4 h-4 text-blue-400" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                      My Tasks
+                      {t("dashboard.myTasks", "Mes Tâches")}
                     </span>
                     <span className="text-[9px] font-bold text-slate-500">
                       ({quickAccess.tasks?.length || 0})
@@ -1109,7 +1108,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     }}
                     className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
                   >
-                    Open Report
+                    {t("dashboard.openReport", "Ouvrir le rapport")}
                   </button>
                 </div>
                 {fetching ? (
@@ -1124,7 +1123,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </div>
                 ) : quickAccess.tasks?.length === 0 ? (
                   <p className="text-[10px] text-slate-500 italic py-6 text-center">
-                    No active tasks
+                    {t("dashboard.noActiveTasks", "Aucune tâche active")}
                   </p>
                 ) : (
                   <div className="space-y-1.5">
@@ -1134,7 +1133,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         onClick={() => {
                           const r =
                             user?.role === "super_admin" ||
-                            user?.role === "developer"
+                              user?.role === "developer"
                               ? "admin"
                               : "staff";
                           router.push(
@@ -1193,14 +1192,14 @@ export default function UnifiedDashboard({ role: propRole }) {
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[var(--brand-orange)]" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                      Recent Activity
+                      {t("dashboard.recentActivity", "Activité Récente")}
                     </span>
                   </div>
                   <button
                     onClick={() => router.push("/admin/op-reports")}
                     className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
                   >
-                    View All
+                    {t("common.viewAll", "Voir Tout")}
                   </button>
                 </div>
                 <div className="space-y-1.5">
@@ -1211,7 +1210,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     >
                       <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
                         {act.action?.includes("completed") ||
-                        act.action?.includes("resolved") ? (
+                          act.action?.includes("resolved") ? (
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                         ) : act.action?.includes("blocker") ? (
                           <Shield className="w-3.5 h-3.5 text-rose-400" />
@@ -1221,7 +1220,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-bold text-[var(--text-primary)] capitalize truncate">
-                          {act.action?.replace(/_/g, " ")}
+                          {t(`activity.${act.action?.replace(/_/g, " ")}`, act.action?.replace(/_/g, " "))}
                         </p>
                         <p className="text-[8px] text-slate-500 truncate">
                           {act.description}
@@ -1246,7 +1245,7 @@ export default function UnifiedDashboard({ role: propRole }) {
               <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
                 <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  Quick Stats
+                  {t("dashboard.quickStats", "Statistiques Rapides")}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1255,7 +1254,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     {summary.programs || 0}
                   </p>
                   <p className="text-[7px] font-black text-emerald-600/60 uppercase tracking-widest mt-0.5">
-                    Programs
+                    {t("dashboard.programs", "Programmes")}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
@@ -1263,7 +1262,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     {summary.tasks?.open || 0}
                   </p>
                   <p className="text-[7px] font-black text-blue-600/60 uppercase tracking-widest mt-0.5">
-                    Open Tasks
+                    {t("dashboard.openTasks", "Tâches ouvertes")}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10">
@@ -1271,7 +1270,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     {summary.blockers?.active || 0}
                   </p>
                   <p className="text-[7px] font-black text-rose-600/60 uppercase tracking-widest mt-0.5">
-                    Active Blockers
+                    {t("dashboard.activeBlockers", "Bloqueurs Actifs")}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
@@ -1279,7 +1278,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     {summary.overdueTasks || 0}
                   </p>
                   <p className="text-[7px] font-black text-amber-600/60 uppercase tracking-widest mt-0.5">
-                    Overdue
+                    {t("dashboard.overdue", "En retard")}
                   </p>
                 </div>
               </div>
@@ -1291,7 +1290,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center gap-2 mb-3">
                   <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                    My Projects
+                    {t("dashboard.myProjects", "Mes Projets")}
                   </span>
                   <span className="text-[9px] font-bold text-slate-500 ml-auto">
                     {quickAccess.projects?.length || 0}
@@ -1316,7 +1315,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                             {p.status || "Active"}
                           </span>
                           <span className="text-[7px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
-                            {p.role === "owner" ? "Owner" : "Collaborator"}
+                            {p.role === "owner" ? t("roles.owner", "Propriétaire") : t("roles.collaborator", "Collaborateur")}
                           </span>
                         </div>
                       </div>
@@ -1324,10 +1323,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                   ))}
                   {(!quickAccess.projects ||
                     quickAccess.projects.length === 0) && (
-                    <p className="text-[10px] text-slate-500 italic py-4 text-center">
-                      No projects assigned
-                    </p>
-                  )}
+                      <p className="text-[10px] text-slate-500 italic py-4 text-center">
+                        {t("dashboard.noProjects", "Aucun projet assigné")}
+                      </p>
+                    )}
                 </div>
               </div>
             )}
@@ -1338,7 +1337,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center gap-2 mb-3">
                   <Shield className="w-4 h-4 text-rose-400" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                    Active Blockers
+                    {t("dashboard.activeBlockers", "Bloqueurs Actifs")}
                   </span>
                   <span className="text-[9px] font-bold text-slate-500 ml-auto">
                     {quickAccess.blockers?.length || 0}
@@ -1356,7 +1355,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </div>
                 ) : quickAccess.blockers?.length === 0 ? (
                   <p className="text-[10px] text-slate-500 italic py-4 text-center">
-                    No active blockers
+                    {t("dashboard.noActiveBlockers", "Aucun bloqueur actif")}
                   </p>
                 ) : (
                   <div className="space-y-1.5">
@@ -1381,7 +1380,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                           disabled={resolvingBlocker === b.id}
                           className="px-2 py-1 bg-emerald-500 text-black rounded-lg text-[7px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
                         >
-                          {resolvingBlocker === b.id ? "..." : "Resolve"}
+                          {resolvingBlocker === b.id ? "..." : t("common.resolve", "Résoudre")}
                         </button>
                       </div>
                     ))}
@@ -1396,7 +1395,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center gap-2 mb-3">
                   <Calendar className="w-4 h-4 text-blue-400" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                    This Week
+                    {t("dashboard.thisWeek", "Cette Semaine")}
                   </span>
                 </div>
                 <div className="space-y-1.5">

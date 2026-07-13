@@ -121,7 +121,7 @@ export default function ProgramWorkspace() {
       const unique = Array.from(
         new Map(allAvailable.map((s) => [s.cid, s])).values(),
       );
-      return unique.filter((s) => approvedIds.includes(s.cid));
+      return unique.filter((s) => approvedIds.includes(s.cid) && s.role !== "investor");
     } catch (e) {
       return [];
     }
@@ -290,15 +290,15 @@ export default function ProgramWorkspace() {
       const payload =
         teamAssignmentMode === "new"
           ? {
-              ...newTeam,
-              group_name: detectedGroupName,
-              program_id: id,
-              member_ids: selectedParticipants,
-            }
+            ...newTeam,
+            group_name: detectedGroupName,
+            program_id: id,
+            member_ids: selectedParticipants,
+          }
           : {
-              team_id: selectedExistingTeamId,
-              member_ids: selectedParticipants,
-            };
+            team_id: selectedExistingTeamId,
+            member_ids: selectedParticipants,
+          };
 
       const res = await fetch(endpoint, {
         method: method,
@@ -667,7 +667,7 @@ export default function ProgramWorkspace() {
       });
       notify("KPI removed.");
       fetchProgramData(true);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const assignStaff = async () => {
@@ -705,7 +705,7 @@ export default function ProgramWorkspace() {
         notify("Personnel removed.");
         fetchProgramData(true);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const deleteTeam = async (teamId) => {
@@ -742,7 +742,7 @@ export default function ProgramWorkspace() {
       });
       notify("Session archived.");
       fetchProgramData(true);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleReviewSubmission = async () => {
@@ -968,10 +968,10 @@ export default function ProgramWorkspace() {
                     Completion Rate:{" "}
                     {participants.length > 0
                       ? Math.round(
-                          (submissions.length /
-                            (participants.length * sessions.length || 1)) *
-                            100,
-                        )
+                        (submissions.length /
+                          (participants.length * sessions.length || 1)) *
+                        100,
+                      )
                       : 0}
                     %
                   </p>
@@ -1333,11 +1333,10 @@ export default function ProgramWorkspace() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowArchivedSessions((p) => !p)}
-                    className={`text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${
-                      showArchivedSessions
-                        ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                        : "bg-transparent border-white/10 text-slate-600 hover:text-slate-400"
-                    }`}
+                    className={`text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${showArchivedSessions
+                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                      : "bg-transparent border-white/10 text-slate-600 hover:text-slate-400"
+                      }`}
                   >
                     {showArchivedSessions ? "Showing Archived" : "Archived"}
                   </button>
@@ -1347,8 +1346,8 @@ export default function ProgramWorkspace() {
                         const nextWK =
                           sessions.length > 0
                             ? Math.max(
-                                ...sessions.map((s) => s.week_number || 0),
-                              ) + 1
+                              ...sessions.map((s) => s.week_number || 0),
+                            ) + 1
                             : 1;
                         setNewSession({
                           title: "",
@@ -1766,8 +1765,8 @@ export default function ProgramWorkspace() {
                                     value={
                                       session.scheduled_date
                                         ? new Date(session.scheduled_date)
-                                            .toISOString()
-                                            .split("T")[0]
+                                          .toISOString()
+                                          .split("T")[0]
                                         : ""
                                     }
                                     onChange={(e) =>
@@ -1790,8 +1789,8 @@ export default function ProgramWorkspace() {
                                     value={
                                       session.end_date
                                         ? new Date(session.end_date)
-                                            .toISOString()
-                                            .split("T")[0]
+                                          .toISOString()
+                                          .split("T")[0]
                                         : ""
                                     }
                                     onChange={(e) =>
@@ -1818,13 +1817,12 @@ export default function ProgramWorkspace() {
                                       e.target.value,
                                     )
                                   }
-                                  className={`w-full mt-1 px-4 py-3 rounded-xl border text-[10px] font-black uppercase outline-none transition-all cursor-pointer ${
-                                    session.status === "completed"
-                                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                                      : session.status === "in progress"
-                                        ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
-                                        : "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                                  }`}
+                                  className={`w-full mt-1 px-4 py-3 rounded-xl border text-[10px] font-black uppercase outline-none transition-all cursor-pointer ${session.status === "completed"
+                                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                                    : session.status === "in progress"
+                                      ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
+                                      : "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                    }`}
                                 >
                                   <option value="pending">PENDING</option>
                                   <option value="in progress">
@@ -1902,13 +1900,13 @@ export default function ProgramWorkspace() {
                               {requirements.filter(
                                 (r) => r.session_id === session.id,
                               ).length === 0 && (
-                                <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                                  <Shield className="w-10 h-10 mb-2" />
-                                  <p className="text-[10px] font-bold uppercase tracking-widest">
-                                    No Requirements Set
-                                  </p>
-                                </div>
-                              )}
+                                  <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
+                                    <Shield className="w-10 h-10 mb-2" />
+                                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                                      No Requirements Set
+                                    </p>
+                                  </div>
+                                )}
                             </div>
                             <p className="text-[8px] font-bold text-slate-500/50 uppercase tracking-widest italic text-center px-6">
                               These items are formal evidence submitted by
@@ -2145,8 +2143,8 @@ export default function ProgramWorkspace() {
                                     parsed = JSON.parse(parsed);
                                   materials = Array.isArray(parsed)
                                     ? parsed.filter(
-                                        (i) => i && i !== "[]" && i !== "",
-                                      )
+                                      (i) => i && i !== "[]" && i !== "",
+                                    )
                                     : [parsed];
                                 } catch (e) {
                                   materials = raw === "[]" ? [] : [raw];
@@ -2169,7 +2167,7 @@ export default function ProgramWorkspace() {
                                   if (typeof p === "string") p = JSON.parse(p);
                                   if (Array.isArray(p)) item = p[0];
                                   else item = p;
-                                } catch (e) {}
+                                } catch (e) { }
                               }
                               if (Array.isArray(item)) item = item[0];
                               if (item && typeof item === "object") {
@@ -2232,12 +2230,12 @@ export default function ProgramWorkspace() {
                             const rawName =
                               typeof file === "object"
                                 ? file.name ||
-                                  file.NAME ||
-                                  file.title ||
-                                  file.TITLE ||
-                                  (typeof (file.url || file.URL) === "string"
-                                    ? (file.url || file.URL).split("/").pop()
-                                    : "Program Document")
+                                file.NAME ||
+                                file.title ||
+                                file.TITLE ||
+                                (typeof (file.url || file.URL) === "string"
+                                  ? (file.url || file.URL).split("/").pop()
+                                  : "Program Document")
                                 : typeof file === "string"
                                   ? file.split("/").pop()
                                   : "Program Document";
@@ -2380,8 +2378,8 @@ export default function ProgramWorkspace() {
                           defaultValue={
                             program?.start_date
                               ? new Date(program.start_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                               : ""
                           }
                           className="w-full bg-primary border border-emerald-500/30 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 outline-none transition-all font-bold"
@@ -2398,8 +2396,8 @@ export default function ProgramWorkspace() {
                           defaultValue={
                             program?.end_date
                               ? new Date(program.end_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                               : ""
                           }
                           className="w-full bg-primary border border-rose-500/30 rounded-lg px-4 py-3 text-sm focus:border-rose-500 outline-none transition-all font-bold"
@@ -2786,11 +2784,10 @@ export default function ProgramWorkspace() {
         {/* TOAST */}
         {toast && (
           <div
-            className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${
-              toast.type === "error"
-                ? "bg-rose-50 text-rose-700 border-rose-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}
+            className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${toast.type === "error"
+              ? "bg-rose-50 text-rose-700 border-rose-200"
+              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+              }`}
           >
             {toast.msg}
           </div>
@@ -3179,11 +3176,10 @@ export default function ProgramWorkspace() {
                               }));
                             }
                           }}
-                          className={`flex items-center gap-2 p-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all text-left ${
-                            isSelected
-                              ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                              : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                          }`}
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-[11px] font-bold transition-all text-left ${isSelected
+                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
+                            : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
+                            }`}
                         >
                           <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[7px]">
                             {staff.name?.charAt(0)}
@@ -3250,11 +3246,10 @@ export default function ProgramWorkspace() {
                             name: "",
                           })
                         }
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
-                          newSessionMaterial.type === opt.id
-                            ? "bg-[var(--brand-orange)] text-black"
-                            : "text-slate-500 hover:text-white"
-                        }`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${newSessionMaterial.type === opt.id
+                          ? "bg-[var(--brand-orange)] text-black"
+                          : "text-slate-500 hover:text-white"
+                          }`}
                       >
                         <opt.icon className="w-3 h-3" />
                         {opt.label}
@@ -3413,11 +3408,10 @@ export default function ProgramWorkspace() {
                       <button
                         key={kpi.id}
                         onClick={() => toggleKpi("session", kpi.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                          (newSession.kpi_ids || []).includes(kpi.id)
-                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                            : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                        }`}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${(newSession.kpi_ids || []).includes(kpi.id)
+                          ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
+                          : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
+                          }`}
                       >
                         <span className="text-[10px] font-bold uppercase tracking-tight">
                           {kpi.title}
@@ -3803,11 +3797,10 @@ export default function ProgramWorkspace() {
                       <button
                         key={kpi.id}
                         onClick={() => toggleKpi("requirement", kpi.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                          (newRequirement.kpi_ids || []).includes(kpi.id)
-                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                            : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                        }`}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${(newRequirement.kpi_ids || []).includes(kpi.id)
+                          ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
+                          : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
+                          }`}
                       >
                         <span className="text-[10px] font-bold uppercase tracking-tight">
                           {kpi.title}
@@ -3899,15 +3892,14 @@ export default function ProgramWorkspace() {
                             [p.id]: e.target.value,
                           }))
                         }
-                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${
-                          status === "present"
-                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                            : status === "absent"
-                              ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
-                              : status === "excused"
-                                ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                                : "bg-blue-500/10 text-blue-500 border-blue-500/30"
-                        }`}
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${status === "present"
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                          : status === "absent"
+                            ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                            : status === "excused"
+                              ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                              : "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                          }`}
                       >
                         <option value="present">Present</option>
                         <option value="absent">Absent</option>
@@ -4025,11 +4017,10 @@ export default function ProgramWorkspace() {
                                 week_status: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.week_status === opt
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.week_status === opt
+                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt.replace("_", " ")}
                           </button>
@@ -4054,17 +4045,16 @@ export default function ProgramWorkspace() {
                                 week_rating: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.week_rating === opt
-                                ? opt === "excellent"
-                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                  : opt === "good"
-                                    ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                    : opt === "fair"
-                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                                      : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.week_rating === opt
+                              ? opt === "excellent"
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                                : opt === "good"
+                                  ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                                  : opt === "fair"
+                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                                    : "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt}
                           </button>
@@ -4121,11 +4111,10 @@ export default function ProgramWorkspace() {
                               assignment_given: true,
                             }))
                           }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.assignment_given === true
-                              ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.assignment_given === true
+                            ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
+                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
                         >
                           Yes
                         </button>
@@ -4140,11 +4129,10 @@ export default function ProgramWorkspace() {
                               assignment_outcome: "",
                             }))
                           }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.assignment_given === false
-                              ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.assignment_given === false
+                            ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
                         >
                           No
                         </button>
@@ -4184,16 +4172,15 @@ export default function ProgramWorkspace() {
                                         ...p,
                                         assignment_kpi_ids: isSelected
                                           ? p.assignment_kpi_ids.filter(
-                                              (id) => id !== kpi.id,
-                                            )
+                                            (id) => id !== kpi.id,
+                                          )
                                           : [...p.assignment_kpi_ids, kpi.id],
                                       }))
                                     }
-                                    className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold uppercase tracking-tight transition-all text-left ${
-                                      isSelected
-                                        ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
-                                        : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
-                                    }`}
+                                    className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold uppercase tracking-tight transition-all text-left ${isSelected
+                                      ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
+                                      : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
+                                      }`}
                                   >
                                     <span>{kpi.title}</span>
                                     <span className="text-[8px] opacity-50">
@@ -4277,11 +4264,10 @@ export default function ProgramWorkspace() {
                                 attendance_level: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.attendance_level === opt
-                                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.attendance_level === opt
+                              ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt}
                           </button>
@@ -4305,11 +4291,10 @@ export default function ProgramWorkspace() {
                                 participation_level: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.participation_level === opt
-                                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.participation_level === opt
+                              ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt.replace("_", " ")}
                           </button>
@@ -4332,18 +4317,16 @@ export default function ProgramWorkspace() {
                                 !p.participants_need_attention,
                             }))
                           }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.participants_need_attention
-                              ? "bg-amber-500"
-                              : "bg-white/10"
-                          }`}
+                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.participants_need_attention
+                            ? "bg-amber-500"
+                            : "bg-white/10"
+                            }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.participants_need_attention
-                                ? "left-5"
-                                : "left-0.5"
-                            }`}
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.participants_need_attention
+                              ? "left-5"
+                              : "left-0.5"
+                              }`}
                           />
                         </button>
                       </div>
@@ -4377,18 +4360,16 @@ export default function ProgramWorkspace() {
                               standout_participants: !p.standout_participants,
                             }))
                           }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.standout_participants
-                              ? "bg-emerald-500"
-                              : "bg-white/10"
-                          }`}
+                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.standout_participants
+                            ? "bg-emerald-500"
+                            : "bg-white/10"
+                            }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.standout_participants
-                                ? "left-5"
-                                : "left-0.5"
-                            }`}
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.standout_participants
+                              ? "left-5"
+                              : "left-0.5"
+                              }`}
                           />
                         </button>
                       </div>
@@ -4438,17 +4419,16 @@ export default function ProgramWorkspace() {
                                 delivery_quality: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.delivery_quality === opt
-                                ? opt === "excellent"
-                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                  : opt === "good"
-                                    ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                    : opt === "fair"
-                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                                      : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.delivery_quality === opt
+                              ? opt === "excellent"
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                                : opt === "good"
+                                  ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                                  : opt === "fair"
+                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                                    : "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt}
                           </button>
@@ -4472,11 +4452,10 @@ export default function ProgramWorkspace() {
                                 participant_understanding: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.participant_understanding === opt
-                                ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.participant_understanding === opt
+                              ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt}
                           </button>
@@ -4498,18 +4477,16 @@ export default function ProgramWorkspace() {
                               delivery_challenges: !p.delivery_challenges,
                             }))
                           }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.delivery_challenges
-                              ? "bg-rose-500"
-                              : "bg-white/10"
-                          }`}
+                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.delivery_challenges
+                            ? "bg-rose-500"
+                            : "bg-white/10"
+                            }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.delivery_challenges
-                                ? "left-5"
-                                : "left-0.5"
-                            }`}
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.delivery_challenges
+                              ? "left-5"
+                              : "left-0.5"
+                              }`}
                           />
                         </button>
                       </div>
@@ -4557,16 +4534,14 @@ export default function ProgramWorkspace() {
                               had_issues: !p.had_issues,
                             }))
                           }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.had_issues
-                              ? "bg-rose-500"
-                              : "bg-white/10"
-                          }`}
+                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.had_issues
+                            ? "bg-rose-500"
+                            : "bg-white/10"
+                            }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.had_issues ? "left-5" : "left-0.5"
-                            }`}
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.had_issues ? "left-5" : "left-0.5"
+                              }`}
                           />
                         </button>
                       </div>
@@ -4598,16 +4573,15 @@ export default function ProgramWorkspace() {
                                         ...p,
                                         issue_types: isSelected
                                           ? p.issue_types.filter(
-                                              (t) => t !== type,
-                                            )
+                                            (t) => t !== type,
+                                          )
                                           : [...p.issue_types, type],
                                       }))
                                     }
-                                    className={`px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${
-                                      isSelected
-                                        ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                        : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                                    }`}
+                                    className={`px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${isSelected
+                                      ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                                      : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                                      }`}
                                   >
                                     {type}
                                   </button>
@@ -4630,18 +4604,16 @@ export default function ProgramWorkspace() {
                                     !p.requires_admin_attention,
                                 }))
                               }
-                              className={`w-10 h-5 rounded-full transition-all relative ${
-                                newPMReport.requires_admin_attention
-                                  ? "bg-amber-500"
-                                  : "bg-white/10"
-                              }`}
+                              className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.requires_admin_attention
+                                ? "bg-amber-500"
+                                : "bg-white/10"
+                                }`}
                             >
                               <div
-                                className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                                  newPMReport.requires_admin_attention
-                                    ? "left-5"
-                                    : "left-0.5"
-                                }`}
+                                className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.requires_admin_attention
+                                  ? "left-5"
+                                  : "left-0.5"
+                                  }`}
                               />
                             </button>
                           </div>
@@ -4692,11 +4664,10 @@ export default function ProgramWorkspace() {
                               program_on_track: true,
                             }))
                           }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.program_on_track === true
-                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.program_on_track === true
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
                         >
                           Yes
                         </button>
@@ -4708,11 +4679,10 @@ export default function ProgramWorkspace() {
                               program_on_track: false,
                             }))
                           }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.program_on_track === false
-                              ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.program_on_track === false
+                            ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
                         >
                           No
                         </button>
@@ -4864,11 +4834,11 @@ export default function ProgramWorkspace() {
                             const avgScore =
                               participantSubmissions.length > 0
                                 ? Math.round(
-                                    participantSubmissions.reduce(
-                                      (acc, s) => acc + (s.score || 0),
-                                      0,
-                                    ) / participantSubmissions.length,
-                                  )
+                                  participantSubmissions.reduce(
+                                    (acc, s) => acc + (s.score || 0),
+                                    0,
+                                  ) / participantSubmissions.length,
+                                )
                                 : 0;
 
                             return (
@@ -4963,13 +4933,13 @@ export default function ProgramWorkspace() {
                   {participants.filter(
                     (p) => p.group_name === selectedTeam.name,
                   ).length === 0 && (
-                    <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                      <Users className="w-12 h-12 mb-4" />
-                      <p className="text-sm font-black uppercase tracking-[0.3em]">
-                        No members found in this team
-                      </p>
-                    </div>
-                  )}
+                      <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
+                        <Users className="w-12 h-12 mb-4" />
+                        <p className="text-sm font-black uppercase tracking-[0.3em]">
+                          No members found in this team
+                        </p>
+                      </div>
+                    )}
                 </div>
               </div>
 
