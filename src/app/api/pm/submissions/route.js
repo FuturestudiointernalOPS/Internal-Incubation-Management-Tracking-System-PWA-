@@ -22,7 +22,7 @@ export const GET = createHandler(
       args: [assignedPmId],
     });
     const programs = progRes.rows || [];
-    const programIds = programs.map((p) => p.id);
+    const programIds = programs.map((p) => String(p.id));
 
     if (programIds.length === 0) {
       return NextResponse.json({ success: true, submissions: [], programs });
