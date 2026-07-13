@@ -87,6 +87,7 @@ export default function AssignmentsView() {
         body: JSON.stringify({
           program_id: showSubmitModal.programId,
           deliverable_id: showSubmitModal.id,
+          document_id: showSubmitModal.id,
           file_url: submitUrl,
         }),
       });

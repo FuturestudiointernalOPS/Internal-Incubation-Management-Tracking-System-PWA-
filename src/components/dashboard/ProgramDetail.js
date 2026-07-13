@@ -312,6 +312,7 @@ function SubmitForm({ programId, deliverableId, onDone, deliverable, t }) {
         participant_id: user.cid || user.id,
         program_id: programId,
         deliverable_id: deliverableId,
+        document_id: deliverableId, // Track 2 compatibility (v2_document_requirements uses integer IDs)
         file_url: fileUrl,
         supporting_url: supportingUrl,
         status: "pending",

@@ -31,11 +31,12 @@ export async function POST(req) {
       supporting_url,
       status,
       feedback,
+      document_id,
     } = body;
 
-    if (!program_id || !deliverable_id) {
+    if (!program_id || (!deliverable_id && !document_id)) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields" },
+        { success: false, error: "Missing required fields (program_id and deliverable_id or document_id)" },
         { status: 400 },
       );
     }
@@ -43,16 +44,34 @@ export async function POST(req) {
     // Resolve file URL
     const resolvedFileUrl = file_url || submission_link || file_path || null;
 
+    // Auto-detect deliverable_id from document_id if needed
+    const finalDeliverableId = deliverable_id || null;
+    const finalDocumentId = document_id || 
+      (deliverable_id && !isNaN(Number(deliverable_id)) ? Number(deliverable_id) : null);
+
     // Determine version number: find the highest existing version for this participant+deliverable
     let nextVersion = 1;
     try {
-      const existingRes = await db.execute({
-        sql: "SELECT MAX(version_number) as max_ver FROM v2_submissions WHERE participant_id = ? AND deliverable_id = ? AND program_id = ?",
-        args: [participant_id || null, deliverable_id, program_id],
-      });
-      const existingVersion = existingRes.rows[0]?.max_ver;
-      if (existingVersion) {
-        nextVersion = Number(existingVersion) + 1;
+      let verSql = "SELECT MAX(version_number) as max_ver FROM v2_submissions WHERE participant_id = ? AND program_id = ? AND (";
+      let verArgs = [participant_id || null, program_id];
+      let conditions = [];
+      
+      if (finalDeliverableId) {
+        conditions.push("deliverable_id = ?");
+        verArgs.push(finalDeliverableId);
+      }
+      if (finalDocumentId) {
+        conditions.push("document_id = ?");
+        verArgs.push(finalDocumentId);
+      }
+      
+      if (conditions.length > 0) {
+        verSql += conditions.join(" OR ") + ")";
+        const existingRes = await db.execute({ sql: verSql, args: verArgs });
+        const existingVersion = existingRes.rows[0]?.max_ver;
+        if (existingVersion) {
+          nextVersion = Number(existingVersion) + 1;
+        }
       }
     } catch (_) {
       // version_number column might not exist yet (pre-migration)
@@ -60,12 +79,13 @@ export async function POST(req) {
 
     const result = await db.execute({
       sql: `INSERT INTO v2_submissions (
-          program_id, deliverable_id, group_id, participant_id,
+          program_id, deliverable_id, document_id, group_id, participant_id,
           file_url, supporting_url, status, feedback, version_number
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         program_id,
-        deliverable_id,
+        finalDeliverableId,
+        finalDocumentId,
         group_id || null,
         participant_id || null,
         resolvedFileUrl,
@@ -271,16 +291,20 @@ export async function GET(req) {
     const group_id = searchParams.get("group_id");
     const program_id = searchParams.get("program_id");
     const deliverable_id = searchParams.get("deliverable_id");
+    const document_id = searchParams.get("document_id");
     const status = searchParams.get("status");
     const include_versions = searchParams.get("include_versions") === "true";
     const latest_only = searchParams.get("latest_only") === "true";
 
     let sql = `
-       SELECT s.*, d.title as deliverable_title, d.week_number as deliverable_week,
-              d.due_date as deliverable_due_date,
+       SELECT s.*,
+              COALESCE(del.title, dr.title) as deliverable_title,
+              COALESCE(del.week_number, dr.week_number) as deliverable_week,
+              del.due_date as deliverable_due_date,
               p.name as participant_name, g.name as group_name
        FROM v2_submissions s
-       LEFT JOIN v2_deliverables d ON s.deliverable_id = d.id
+       LEFT JOIN v2_deliverables del ON s.deliverable_id = del.id
+       LEFT JOIN v2_document_requirements dr ON s.document_id = dr.id
        LEFT JOIN v2_participants p ON s.participant_id = p.id
        LEFT JOIN v2_groups g ON s.group_id = g.id
        WHERE 1=1
@@ -303,6 +327,10 @@ export async function GET(req) {
       sql += " AND s.deliverable_id = ?";
       args.push(deliverable_id);
     }
+    if (document_id) {
+      sql += " AND s.document_id = ?";
+      args.push(Number(document_id));
+    }
     if (status) {
       sql += " AND s.status = ?";
       args.push(status);
@@ -311,15 +339,18 @@ export async function GET(req) {
     // If latest_only, get the latest version per participant+deliverable
     if (latest_only) {
       sql = `
-        SELECT s1.*, d.title as deliverable_title, d.week_number as deliverable_week,
-               d.due_date as deliverable_due_date,
+        SELECT s1.*,
+               COALESCE(del.title, dr.title) as deliverable_title,
+               COALESCE(del.week_number, dr.week_number) as deliverable_week,
+               del.due_date as deliverable_due_date,
                p.name as participant_name, g.name as group_name
         FROM v2_submissions s1
-        LEFT JOIN v2_deliverables d ON s1.deliverable_id = d.id
+        LEFT JOIN v2_deliverables del ON s1.deliverable_id = del.id
+        LEFT JOIN v2_document_requirements dr ON s1.document_id = dr.id
         LEFT JOIN v2_participants p ON s1.participant_id = p.id
         LEFT JOIN v2_groups g ON s1.group_id = g.id
         INNER JOIN (
-          SELECT participant_id, deliverable_id, MAX(version_number) as max_ver
+          SELECT participant_id, COALESCE(deliverable_id, document_id::text) as lookup_id, MAX(version_number) as max_ver
           FROM v2_submissions
           WHERE 1=1
       `;
@@ -333,11 +364,12 @@ export async function GET(req) {
         innerArgs.push(program_id);
       }
       if (deliverable_id) {
-        sql += " AND deliverable_id = ?";
-        innerArgs.push(deliverable_id);
+        sql += " AND (deliverable_id = ? OR document_id = ?)";
+        innerArgs.push(deliverable_id, Number(deliverable_id) || 0);
       }
-      sql += " GROUP BY participant_id, deliverable_id) s2";
-      sql += " ON s1.participant_id = s2.participant_id AND s1.deliverable_id = s2.deliverable_id AND s1.version_number = s2.max_ver";
+      sql += " GROUP BY participant_id, COALESCE(deliverable_id, document_id::text)";
+      sql += " ) s2";
+      sql += " ON s1.participant_id = s2.participant_id AND COALESCE(s1.deliverable_id, s1.document_id::text) = s2.lookup_id AND s1.version_number = s2.max_ver";
       args = [...innerArgs];
     }
 
@@ -361,7 +393,8 @@ export async function GET(req) {
     if (include_versions && (participant_id || group_id)) {
       const grouped = {};
       for (const sub of submissions) {
-        const key = `${sub.program_id}-${sub.deliverable_id}`;
+        const groupId = sub.deliverable_id || sub.document_id || `doc-${sub.id}`;
+        const key = `${sub.program_id}-${groupId}`;
         if (!grouped[key]) {
           grouped[key] = {
             deliverable_id: sub.deliverable_id,
