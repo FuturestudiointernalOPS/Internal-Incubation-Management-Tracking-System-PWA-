@@ -371,9 +371,10 @@ export async function PUT(req) {
           const u = userRes.rows[0];
 
           // Fire invite for approved staff (participants already invited on registration)
-          if (u.role !== "participant") {
-            fireInvite(data.cid, u.name, u.email, u.role, null).catch(() => {});
-          }
+          // Commented out — invite is now sent on registration, not on approval
+          // if (u.role !== "participant") {
+          //   fireInvite(data.cid, u.name, u.email, u.role, null).catch(() => {});
+          // }
 
           // Clear notifications
           await db.execute({
