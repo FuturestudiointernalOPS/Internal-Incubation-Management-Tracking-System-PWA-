@@ -25,14 +25,11 @@ async function fireInvite(cid, name, email, role, groupId) {
       args: [cid],
     });
 
-    // Send email (non-blocking, fire and forget)
-    import("@/lib/email").then(({ sendInviteEmail }) => {
-      sendInviteEmail({ to: email, name, role, token }).catch((e) =>
-        console.error("Invite email failed:", e),
-      );
-    });
+    // Send email synchronously so Vercel doesn't kill the worker
+    const { sendInviteEmail } = await import("@/lib/email");
+    await sendInviteEmail({ to: email, name, role, token });
   } catch (e) {
-    console.error("Invite fire failed (non-blocking):", e.message);
+    console.error("Invite fire failed:", e.message || e);
   }
 }
 
@@ -160,9 +157,7 @@ export async function POST(req) {
 
         // Fire invite for ALL new contacts so they receive activation email
         if (vc.email) {
-          fireInvite(vc.cid, vc.name, vc.email, vc.role, vc.program_id).catch(
-            (e) => console.error("fireInvite error:", e.message || e),
-          );
+          await fireInvite(vc.cid, vc.name, vc.email, vc.role, vc.program_id);
         }
 
         // If program_ids or program_id provided, sync to participant_programs
