@@ -158,8 +158,8 @@ export async function POST(req) {
           });
         }
 
-        // Fire invite for auto-approved roles (participants) or pending that get auto-approved
-        if (vc.status === "approved" || vc.role === "participant") {
+        // Fire invite for ALL new contacts so they receive activation email
+        if (vc.email) {
           fireInvite(vc.cid, vc.name, vc.email, vc.role, vc.program_id).catch(
             () => {},
           );
