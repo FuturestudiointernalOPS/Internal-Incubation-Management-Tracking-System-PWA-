@@ -156,7 +156,7 @@ export async function POST(req) {
         // Fire invite for ALL new contacts so they receive activation email
         if (vc.email) {
           fireInvite(vc.cid, vc.name, vc.email, vc.role, vc.program_id).catch(
-            () => {},
+            (e) => console.error("fireInvite error:", e.message || e),
           );
         }
 
