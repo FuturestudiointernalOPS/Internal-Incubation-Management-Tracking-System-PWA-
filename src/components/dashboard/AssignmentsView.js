@@ -41,6 +41,7 @@ export default function AssignmentsView() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [showSubmitModal, setShowSubmitModal] = useState(null);
   const [submitUrl, setSubmitUrl] = useState("");
+  const [submitFile, setSubmitFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchAssignments = useCallback(async () => {
@@ -78,22 +79,33 @@ export default function AssignmentsView() {
   }, [fetchAssignments]);
 
   const handleSubmit = async () => {
-    if (!submitUrl || !showSubmitModal) return;
+    if ((!submitUrl && !submitFile) || !showSubmitModal) return;
     setSubmitting(true);
     try {
+      let fileUrl = submitUrl;
+      // If file is selected, read as base64
+      if (submitFile) {
+        fileUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(submitFile);
+        });
+      }
       const res = await fetch("/api/participant/assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           program_id: showSubmitModal.programId,
           deliverable_id: showSubmitModal.id,
-          file_url: submitUrl,
+          file_url: fileUrl,
         }),
       });
       const data = await res.json();
       if (data.success) {
         setShowSubmitModal(null);
         setSubmitUrl("");
+        setSubmitFile(null);
         fetchAssignments();
       }
     } catch (e) {
@@ -318,9 +330,20 @@ export default function AssignmentsView() {
                 onChange={(e) => setSubmitUrl(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-[var(--brand-orange)]"
               />
+              <div className="text-[9px] font-bold text-[var(--text-secondary)] text-center">— OR —</div>
+              <input
+                type="file"
+                onChange={(e) => { setSubmitFile(e.target.files[0] || null); setSubmitUrl(""); }}
+                className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:bg-[var(--brand-orange)] file:text-black hover:file:bg-white transition-all"
+              />
+              {submitFile && (
+                <p className="text-[9px] text-emerald-400 font-bold">
+                  Selected: {submitFile.name} ({(submitFile.size / 1024).toFixed(1)} KB)
+                </p>
+              )}
               <button
                 onClick={handleSubmit}
-                disabled={!submitUrl || submitting}
+                disabled={(!submitUrl && !submitFile) || submitting}
                 className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 flex items-center justify-center gap-2"
               >
                 {submitting ? (

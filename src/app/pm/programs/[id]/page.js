@@ -2802,6 +2802,76 @@ export default function ProgramWorkspace() {
 
           {activeTab === "reports" && (
             <div className="space-y-6">
+              {/* Export Bar */}
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mr-2">Export:</span>
+                {[
+                  { label: "Participants CSV", type: "participants", format: "csv" },
+                  { label: "Participants XLSX", type: "participants", format: "xlsx" },
+                  { label: "Attendance CSV", type: "attendance", format: "csv" },
+                  { label: "Submissions CSV", type: "submissions", format: "csv" },
+                  { label: "Teams CSV", type: "teams", format: "csv" },
+                ].map(({ label, type, format }) => (
+                  <button
+                    key={`${type}-${format}`}
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/pm/export?type=${type}&program_id=${id}&format=${format}`, {
+                          credentials: "include",
+                        });
+                        if (!res.ok) throw new Error("Export failed");
+                        if (format === "pdf") {
+                          const { rows: data, filename } = await res.json();
+                          const { default: jsPDF } = await import("jspdf");
+                          const doc = new jsPDF({ orientation: "landscape" });
+                          doc.setFontSize(12);
+                          doc.text(`${type.toUpperCase()} - Talent for Startups`, 10, 10);
+                          if (data && data.length > 0) {
+                            const headers = Object.keys(data[0]);
+                            let y = 20;
+                            doc.setFontSize(7);
+                            // Header row
+                            headers.forEach((h, i) => doc.text(String(h), 10 + i * 35, y));
+                            y += 5;
+                            // Data rows (max 40 rows per page)
+                            data.slice(0, 80).forEach((row, ri) => {
+                              if (y > 180) { doc.addPage(); y = 15; }
+                              headers.forEach((h, i) => {
+                                const val = String(row[h] ?? "").substring(0, 20);
+                                doc.text(val, 10 + i * 35, y);
+                              });
+                              y += 4;
+                            });
+                          }
+                          doc.save(filename);
+                        } else {
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          const ext = format === "xlsx" ? "xlsx" : "csv";
+                          a.href = url;
+                          a.download = `${type}-${id}.${ext}`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }
+                        notify(`Exported ${label}`);
+                      } catch (e) {
+                        notify("Export failed", "error");
+                      }
+                    }}
+                    className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg border transition-all ${
+                      format === "xlsx"
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                        : format === "pdf"
+                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
+                          : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border-[var(--brand-orange)]/20 hover:bg-[var(--brand-orange)]/20"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
                   Weekly Intelligence Feed
