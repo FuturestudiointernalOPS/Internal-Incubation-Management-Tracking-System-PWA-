@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   BarChart3,
@@ -90,6 +90,7 @@ export default function AdminOpReports() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterBlocker, setFilterBlocker] = useState("all");
   const [filterCarryOver, setFilterCarryOver] = useState("all");
+  const [filterWorkspace, setFilterWorkspace] = useState("main");
   const [allProjects, setAllProjects] = useState([]);
   const [blockersList, setBlockersList] = useState([]);
   const [blockerFilterWeek, setBlockerFilterWeek] = useState("all");
@@ -109,6 +110,7 @@ export default function AdminOpReports() {
     filterStatus,
     filterBlocker,
     filterCarryOver,
+    filterWorkspace,
   ]);
   // Tasks tab state
   const [allTasks, setAllTasks] = useState([]);
@@ -119,7 +121,7 @@ export default function AdminOpReports() {
     setLoading(true);
     try {
       const [rRes, pRes, bRes] = await Promise.all([
-        fetch("/api/op-reports"),
+        fetch(`/api/op-reports?workspace=${filterWorkspace}`),
         fetch("/api/projects"),
         fetch("/api/blockers"),
       ]);
@@ -455,6 +457,14 @@ export default function AdminOpReports() {
               <option value="first_time">
                 {t("reports.filter.firstTime")}
               </option>
+            </select>
+            <select
+              value={filterWorkspace}
+              onChange={(e) => setFilterWorkspace(e.target.value)}
+              className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
+            >
+              <option value="main">Main Workspace</option>
+              <option value="interns">Interns</option>
             </select>
           </div>
         </div>
