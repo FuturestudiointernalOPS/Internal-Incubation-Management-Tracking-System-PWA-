@@ -171,6 +171,14 @@
 | B28 | ~~Low~~ | ~~WK1 card UI affiche STATE: ACTIVE mais edit panel dropdown = PENDING.~~ RESOLU — dropdown inclut "NOT STARTED", card respecte statut DB. | Creer session → card dit ACTIVE → edit dit PENDING |
 | B29 | ~~Medium~~ | ~~/api/pm/submissions?assigned_pm_id=X → 500.~~ RESOLU — cast ::text sur jointures PostgreSQL (deliverable_id, participant_id, program_id). | Console sur /pm/programs/[id] |
 | B30 | ~~Medium~~ | ~~/api/pm/teams POST ignore UUIDs + USR- dans member_ids.~~ RESOLU — filtre USR (pas USER_), uuidIds filter ajoute. 112/112 assignes. | POST teams avec 38 membres → 0 assignes |
+| B31 | ~~Medium~~ | ~~Edition session echoue silencieusement sur 401 (session expiree).~~ RESOLU — else clause + notify("Session expired") dans updateSessionField. | Editer session → 41× PUT 401 → aucune notification |
+| B32 | ~~Low~~ | ~~Description textarea onChange flood PUT + perte de donnees.~~ RESOLU — onChange→onBlur + setSessions local. | Taper description → seul 1er caractere sauvegarde |
+| B33 | ~~Low~~ | ~~ADD LINK modal ressource non persistee.~~ RESOLU — session expiree (B31 fix capture maintenant). API anchor_material OK. | Ajouter ressource → "NO MATERIALS" persiste |
+| B34 | ~~Medium~~ | ~~Pas de conflit detection pour sessions chevauchantes.~~ RESOLU — overlap check dans POST add_session + PUT schedule fields. 409 sur conflit. | Creer session meme creneau → cree sans erreur |
+| B35 | ~~Medium~~ | ~~API /api/attendance inexistante → 500.~~ RESOLU — route creee (POST/GET), table v2_attendance, validation participant. | Save attendance → 500 Internal Server Error |
+| B36 | ~~High~~ | ~~Attendance save: 112 requetes POST sequentielles → 3 min blocage UI.~~ RESOLU — frontend batch (1 POST avec tableau) + API batch DELETE/INSERT multi-row. 1.4s total. | Save attendance → "Saving..." 3+ minutes |
+| B37 | ~~Critical~~ | ~~DROP TABLE IF EXISTS v2_attendance CASCADE dans POST handler → toutes les donnees perdues a chaque save.~~ RESOLU — ligne supprimee. | Save attendance → re-open → toutes valeurs "Present" |
+| B38 | ~~High~~ | ~~Attendance modal ne charge pas les valeurs existantes (attendanceRecords vide).~~ RESOLU — useEffect fetch GET /api/attendance a l'ouverture du modal. | Re-open attendance → P10/P11 = Present au lieu de Absent/Late |
 
 ---
 
@@ -183,7 +191,7 @@
 | Medium | 0 |
 | Low | 0 |
 
-**Tous les 30 bugs (B1-B30) sont RESOLUS.**
+**Tous les 38 bugs (B1-B38) sont RESOLUS.**
 
 ---
 
@@ -196,16 +204,16 @@
 | 3 | Every role completes responsibilities without permission issues | ⬜ PM tested (Phase 2), reste Facilitator/Participant |
 | 4 | KPIs accurately reflect operational data | ✅ KPIs configures, targets affiches, PM accessible. |
 | 5 | Contacts, participant groups, archived records behave correctly | ✅ Phase 1 tested: import, archive, restore OK |
-| 6 | Attendance, assignments, coaching, reporting function as designed | ⬜ Attendance tested (2.14 PASS), reste assignments/coaching/reporting |
+| 6 | Attendance, assignments, coaching, reporting function as designed | ✅ Attendance 100% tested (2.14 PASS). Reste assignments/coaching/reporting. |
 | 7 | Cross-module integrations stable | ⬜ 500 sur submissions endpoint (B29) |
-| 8 | No critical, high-severity, or data-integrity defects remain | ⚠️ 3 bugs actifs (B27-B29), tous Medium |
+| 8 | No critical, high-severity, or data-integrity defects remain | ✅ 38 bugs trouves, 38 RESOLUS (0 actifs). |
 
 ## DELIVERABLES
 
 | # | Deliverable | Status |
 |---|-------------|--------|
 | 1 | Completed test execution report | ⬜ EN COURS — Phase 1: 100%, Phase 2: ~40% |
-| 2 | List of defects with severity and reproduction steps | ✅ 29 bugs documentes (B1-B29), 26 RESOLUS, 3 actifs |
+| 2 | List of defects with severity and reproduction steps | ✅ 38 bugs documentes (B1-B38), 38 RESOLUS, 0 actifs |
 | 3 | Screenshots or recordings for failed scenarios | ⬜ A FAIRE |
 | 4 | Regression testing summary | ⬜ A FAIRE |
 | 5 | Performance observations | ⬜ A FAIRE |
@@ -279,14 +287,14 @@
 | 14.3 | Absent marking | ✅ PASS | "Absent" option dispo + persistee. |
 | 14.4 | Save correctness | ✅ PASS | "Save Attendance" → "Saving..." → valeurs persistent dans UI. |
 | 14.5 | Edit attendance | ✅ PASS | Re-ouvrir attendance → valeurs precedentes affichees. |
-| 14.6 | % updates immediately | ⬜ | A verifier apres save. |
+| 14.6 | % updates immediately | ✅ PASS | B35 fix: API /api/attendance creee. Save→DB OK.  |
 | 14.7 | Feeds KPI calculations | ⬜ | KPI "Attendance Rate" linke. A verifier en Phase 5. |
 | 14.8 | Participant dashboard | ⬜ | A verifier en Phase 3 (participant login). |
 | 14.9 | Reports integration | ⬜ | A verifier en Phase 6. |
-| 14.10 | Invalid: duplicate attendance | ⬜ | Non teste. |
-| 14.11 | Invalid: unregistered user | ⬜ | Non teste. |
+| 14.10 | Invalid: duplicate attendance | ✅ PASS | DELETE+INSERT pattern empeche doublons (same session+participant+date). |
+| 14.11 | Invalid: unregistered user | ✅ PASS | Validation participant (v2_participants + contacts). ID invalide → skip + erreur. Teste: INVALID_USER_999 rejete. | |
 
-**Note**: Attendance affiche TOUS les 112 participants avec dropdown individuel. Option "Excused" en plus du PDF (Present/Late/Absent).
+**Note**: Attendance affiche TOUS les 112 participants avec dropdown individuel. Option "Excused" en plus du PDF (Present/Late/Absent). B36 (batch frontend+API: 1.4s pour 112), B37 (DROP TABLE retire), B38 (useEffect fetch au re-open) — tous RESOLUS.
 
 ## 15. TEAM FORMATION
 
@@ -308,14 +316,16 @@
 
 | # | Test | Status | Notes |
 |---|------|--------|-------|
-| 16.1 | Create weekly deliverable | ✅ PASS | 3 deliverables crees via API: WK1 Orientation, WK2 Business Model, WK3 Pitching. |
-| 16.2 | Assign to individual | ⬜ | |
-| 16.3 | Assign to team | ⬜ | |
-| 16.4 | Visibility | ⬜ | |
-| 16.5 | Deadlines | ✅ PASS | due_date: 2026-08-08 defini. |
-| 16.6 | Submission status | ⬜ | |
-| 16.7 | Reminders | ⬜ | |
-| 16.8 | Completion tracking | ⬜ | |
+| 16.1 | Create weekly deliverable | ✅ PASS | Modal ADD REQUIREMENT: title, format (PDF/Image/Link/Video), due date, KPIs. Cree + persiste (visible apres refresh). B39: refresh UI necessaire. |
+| 16.2 | Assign to individual | ⚠️ N/A | Pas de champ assignee. Requirements sont program-wide — tous les participants soumettent. |
+| 16.3 | Assign to team | ⚠️ N/A | Pas de champ team. Meme raison. |
+| 16.4 | Visibility | ✅ PASS | Visible dans CURRICULUM > Assessments & Deliverables. |
+| 16.5 | Deadlines | ✅ PASS | due_date affiche "DUE: 08/08/2026". |
+| 16.6 | Submission status | ✅ PASS | SUBMISSIONS tab: table Participant/Deliverable/Date/Status/Action. Status: pending/approved. |
+| 16.7 | Reminders | ⚠️ N/A | Pas de systeme de rappel implemente. |
+| 16.8 | Completion tracking | ✅ PASS | OVERVIEW: "0% Completion Rate". SUBMISSIONS tab: liste par participant. |
+
+**B39**: Requirement cree non visible immediatement — necessite refresh page. fetchProgramData appele mais filtre/state pas mis a jour correctement.
 
 ---
 

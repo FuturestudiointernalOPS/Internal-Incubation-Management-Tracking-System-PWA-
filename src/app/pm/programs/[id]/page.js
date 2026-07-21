@@ -151,6 +151,27 @@ export default function ProgramWorkspace() {
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
 
+  // Load existing attendance when modal opens
+  useEffect(() => {
+    if (!showAttendanceModal || !selectedSessionForAttendance) return;
+    const loadAttendance = async () => {
+      try {
+        const res = await fetch(
+          `/api/attendance?session_id=${selectedSessionForAttendance.id}&program_id=${id}`
+        );
+        const data = await res.json();
+        if (data.success && data.attendance) {
+          const records = {};
+          data.attendance.forEach((a) => {
+            records[a.participant_id] = a.status;
+          });
+          setAttendanceRecords(records);
+        }
+      } catch (_) {}
+    };
+    loadAttendance();
+  }, [showAttendanceModal, selectedSessionForAttendance, id]);
+
   const [expandedSessionId, setExpandedSessionId] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [newSession, setNewSession] = useState({
@@ -4067,21 +4088,21 @@ export default function ProgramWorkspace() {
                     setIsSaving(true);
                     try {
                       const today = new Date().toISOString().split("T")[0];
-                      for (const p of participants) {
-                        const status = attendanceRecords[p.id] || "present";
-                        await fetch("/api/attendance", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            session_id: selectedSessionForAttendance.id,
-                            program_id: id,
-                            participant_id: p.id,
-                            status,
-                            date: today,
-                          }),
-                        });
-                      }
-                      notify("Attendance recorded.");
+                      const records = participants.map((p) => ({
+                        session_id: selectedSessionForAttendance.id,
+                        program_id: id,
+                        participant_id: p.id,
+                        status: attendanceRecords[p.id] || "present",
+                        date: today,
+                      }));
+                      const res = await fetch("/api/attendance", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(records),
+                      });
+                      const data = await res.json();
+                      if (!data.success) throw new Error(data.error || "Unknown error");
+                      notify(`Attendance recorded — ${data.upserted} participants.`);
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});
                     } catch (e) {

@@ -18,8 +18,8 @@ export async function POST(req) {
       await db.execute({
         sql: `CREATE TABLE IF NOT EXISTS v2_attendance (
           id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-          session_id UUID NOT NULL,
-          program_id UUID,
+          session_id TEXT NOT NULL,
+          program_id TEXT,
           participant_id TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'present',
           date DATE DEFAULT CURRENT_DATE,
@@ -32,31 +32,41 @@ export async function POST(req) {
 
     const body = await req.json();
     const records = Array.isArray(body) ? body : [body];
+    const valid = records.filter((r) => r.session_id && r.participant_id);
 
-    let upserted = 0;
-    for (const r of records) {
-      const { session_id, program_id, participant_id, status, date } = r;
-      if (!session_id || !participant_id) continue;
-
-      await db.execute({
-        sql: `DELETE FROM v2_attendance WHERE session_id = ? AND participant_id = ? AND date = ?`,
-        args: [session_id, participant_id, date || new Date().toISOString().split("T")[0]],
-      });
-      await db.execute({
-        sql: `INSERT INTO v2_attendance (session_id, program_id, participant_id, status, date)
-              VALUES (?, ?, ?, ?, ?)`,
-        args: [
-          session_id,
-          program_id || null,
-          participant_id,
-          status || "present",
-          date || new Date().toISOString().split("T")[0],
-        ],
-      });
-      upserted++;
+    if (valid.length === 0) {
+      return NextResponse.json({ success: true, upserted: 0 });
     }
 
-    return NextResponse.json({ success: true, upserted });
+    const sessionId = valid[0].session_id;
+    const date = valid[0].date || new Date().toISOString().split("T")[0];
+
+    // 1. Batch delete all existing records for this session+date
+    const delPlaceholders = valid.map(() => "?").join(",");
+    await db.execute({
+      sql: `DELETE FROM v2_attendance WHERE session_id = ? AND date = ? AND participant_id IN (${delPlaceholders})`,
+      args: [sessionId, date, ...valid.map((r) => r.participant_id)],
+    });
+
+    // 2. Batch insert all records in one multi-row VALUES query
+    const valueTuples = valid.map(() => "(gen_random_uuid(), ?, ?, ?, ?, ?)").join(", ");
+    const insertArgs = [];
+    for (const r of valid) {
+      insertArgs.push(
+        r.session_id,
+        r.program_id || null,
+        r.participant_id,
+        r.status || "present",
+        date
+      );
+    }
+    await db.execute({
+      sql: `INSERT INTO v2_attendance (id, session_id, program_id, participant_id, status, date)
+            VALUES ${valueTuples}`,
+      args: insertArgs,
+    });
+
+    return NextResponse.json({ success: true, upserted: valid.length });
   } catch (e) {
     console.error("Attendance error:", e);
     return NextResponse.json(
