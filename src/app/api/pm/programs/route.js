@@ -200,6 +200,10 @@ export async function POST(req) {
       kpis,
     } = await req.json();
     const id = uuidv4();
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 100) + '-' + id.substring(0, 8);
+
+    // Ensure slug column exists
+    try { await db.execute({ sql: "ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS slug TEXT", args: [] }); } catch(_) {}
 
     // B6: Check duplicate program name
     const existing = await db.execute({
@@ -214,10 +218,11 @@ export async function POST(req) {
     }
 
     await db.execute({
-      sql: `INSERT INTO v2_programs (id, name, description, concept_note, vision, objectives, program_type, visibility, participant_limit, registration_window, language, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO v2_programs (id, name, slug, description, concept_note, vision, objectives, program_type, visibility, participant_limit, registration_window, language, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
         name,
+        slug,
         description || null,
         concept_note || null,
         vision || null,
