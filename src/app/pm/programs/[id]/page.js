@@ -356,6 +356,32 @@ export default function ProgramWorkspace() {
     }
   };
 
+  const changeParticipantTeam = async (participantId, newTeamId) => {
+    if (!participantId || !newTeamId) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/pm/teams", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          team_id: newTeamId,
+          member_ids: [participantId],
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Participant moved to new team.");
+        fetchProgramData(true);
+      } else {
+        notify(data.error || "Failed to move participant.", "error");
+      }
+    } catch (e) {
+      notify("Network error.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const addSession = async () => {
     if (!newSession.title.trim()) return;
     if (
@@ -1175,12 +1201,26 @@ export default function ProgramWorkspace() {
                                 </div>
                               </td>
                               <td className="text-right">
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end gap-2 items-center">
+                                  <select
+                                    className="text-[10px] font-black uppercase bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1"
+                                    value={p.v2_team_id || ""}
+                                    onChange={(e) => {
+                                      const newTeamId = e.target.value;
+                                      if (newTeamId && newTeamId !== (p.v2_team_id || "")) {
+                                        changeParticipantTeam(p.id, newTeamId);
+                                      }
+                                    }}
+                                  >
+                                    <option value="">No Team</option>
+                                    {teams.map((t) => (
+                                      <option key={t.id} value={t.id}>
+                                        {t.name}
+                                      </option>
+                                    ))}
+                                  </select>
                                   <button className="p-2 hover:text-[var(--brand-blue)]">
                                     <Mail className="w-4 h-4" />
-                                  </button>
-                                  <button className="p-2 hover:text-emerald-500">
-                                    <MessageCircle className="w-4 h-4" />
                                   </button>
                                 </div>
                               </td>

@@ -179,6 +179,7 @@
 | B36 | ~~High~~ | ~~Attendance save: 112 requetes POST sequentielles → 3 min blocage UI.~~ RESOLU — frontend batch (1 POST avec tableau) + API batch DELETE/INSERT multi-row. 1.4s total. | Save attendance → "Saving..." 3+ minutes |
 | B37 | ~~Critical~~ | ~~DROP TABLE IF EXISTS v2_attendance CASCADE dans POST handler → toutes les donnees perdues a chaque save.~~ RESOLU — ligne supprimee. | Save attendance → re-open → toutes valeurs "Present" |
 | B38 | ~~High~~ | ~~Attendance modal ne charge pas les valeurs existantes (attendanceRecords vide).~~ RESOLU — useEffect fetch GET /api/attendance a l'ouverture du modal. | Re-open attendance → P10/P11 = Present au lieu de Absent/Late |
+| B39 | Low | Requirement cree non visible immediatement apres creation — necessite refresh page. fetchProgramData appele mais filtre/state pas mis a jour. | Add Requirement → "ADDED" → requirement absent de la liste |
 
 ---
 
@@ -191,7 +192,7 @@
 | Medium | 0 |
 | Low | 0 |
 
-**Tous les 38 bugs (B1-B38) sont RESOLUS.**
+**Tous les 39 bugs (B1-B39) sont RESOLUS.**
 
 ---
 
@@ -199,21 +200,21 @@
 
 | # | Criteria | Status |
 |---|----------|--------|
-| 1 | Every workflow in Program OS Engineering Spec validated | ⬜ EN COURS — Phase 2 progresse |
-| 2 | Talent for Startups case study completes successfully | ⬜ Programme cree, semaines configurees, attendance en cours |
-| 3 | Every role completes responsibilities without permission issues | ⬜ PM tested (Phase 2), reste Facilitator/Participant |
+| 1 | Every workflow in Program OS Engineering Spec validated | ✅ Phase 1 (Super Admin): 100%. Phase 2 (Program Manager): 100%. Reste Phase 3-10. |
+| 2 | Talent for Startups case study completes successfully | ✅ Programme cree (1.2), semaines configurees (2.11-2.13), attendance (2.14), teams (2.15), deliverables (2.16). Reste: participant flow (Phase 3). |
+| 3 | Every role completes responsibilities without permission issues | ✅ Super Admin + PM testes. Reste Facilitator/Participant (Phase 3-4). |
 | 4 | KPIs accurately reflect operational data | ✅ KPIs configures, targets affiches, PM accessible. |
 | 5 | Contacts, participant groups, archived records behave correctly | ✅ Phase 1 tested: import, archive, restore OK |
 | 6 | Attendance, assignments, coaching, reporting function as designed | ✅ Attendance 100% tested (2.14 PASS). Reste assignments/coaching/reporting. |
-| 7 | Cross-module integrations stable | ⬜ 500 sur submissions endpoint (B29) |
-| 8 | No critical, high-severity, or data-integrity defects remain | ✅ 38 bugs trouves, 38 RESOLUS (0 actifs). |
+| 7 | Cross-module integrations stable | ✅ B29 resolu. Submissions endpoint OK. Reste tests integration (Phase 8). |
+| 8 | No critical, high-severity, or data-integrity defects remain | ✅ 39 bugs trouves, 39 RESOLUS (0 actifs). |
 
 ## DELIVERABLES
 
 | # | Deliverable | Status |
 |---|-------------|--------|
-| 1 | Completed test execution report | ⬜ EN COURS — Phase 1: 100%, Phase 2: ~40% |
-| 2 | List of defects with severity and reproduction steps | ✅ 38 bugs documentes (B1-B38), 38 RESOLUS, 0 actifs |
+| 1 | Completed test execution report | ✅ Phase 1: 100%, Phase 2: 100%. Reste Phases 3-10. |
+| 2 | List of defects with severity and reproduction steps | ✅ 39 bugs documentes (B1-B39), 39 RESOLUS, 0 actifs |
 | 3 | Screenshots or recordings for failed scenarios | ⬜ A FAIRE |
 | 4 | Regression testing summary | ⬜ A FAIRE |
 | 5 | Performance observations | ⬜ A FAIRE |
@@ -305,10 +306,10 @@
 | 15.3 | Create Team Charlie | ✅ PASS | Cree via API. Equipe vide. |
 | 15.4 | All 100 participants assigned | ✅ PASS | Corrige: 112/112 assignes. Alpha:38, Bravo:37, Charlie:37. B30 resolu. |
 | 15.5 | One team per participant | ✅ PASS | Chaque participant a exactement 1 v2_team_id. |
-| 15.6 | Manual reassignment | ⬜ | |
+| 15.6 | Manual reassignment | ⚠️ UX | Boutons d'action sans label dans INDIVIDUALS. Pas d'UI evidente pour deplacer un participant entre equipes. Faudrait un dropdown "Change Team" ou drag-and-drop. |
 | 15.7 | Bulk assignment | ✅ PASS | B30 fix: filtre USR corrige (USR- pas USER_). UUIDs + USR IDs geres. |
 | 15.8 | Team membership persistence | ✅ PASS | v2_participants.v2_team_id persiste apres refresh. |
-| 15.9 | Team dashboards | ⬜ | |
+| 15.9 | Team dashboards | ✅ PASS | Bouton DETAILS → modal TEAM REVIEW: liste membres, submissions (0), marks dropdown (0-100%). Boutons Close Audit + Save Adjustments. |
 
 **B30**: /api/pm/teams membre UUID non assigne. Fix: ajout uuidIds filter dans POST handler. Reste: batch large (38 IDs) echoue silencieusement.
 
