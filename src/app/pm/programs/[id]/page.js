@@ -1422,9 +1422,12 @@ export default function ProgramWorkspace() {
                                   if (session.status === "completed") {
                                     displayStatus = "completed";
                                     statusColor = "bg-emerald-500";
-                                  } else if (schedDay <= today) {
+                                  } else if (schedDay <= today && session.status !== "not started") {
                                     displayStatus = "active";
                                     statusColor = "bg-indigo-500";
+                                  } else if (session.status === "not started") {
+                                    displayStatus = "not started";
+                                    statusColor = "bg-slate-500";
                                   } else {
                                     displayStatus = "pending";
                                     statusColor = "bg-amber-500";
@@ -1817,9 +1820,12 @@ export default function ProgramWorkspace() {
                                       ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
                                       : session.status === "in progress"
                                         ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
-                                        : "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                        : session.status === "not started"
+                                          ? "bg-slate-500/10 text-slate-400 border-slate-500/30"
+                                          : "bg-amber-500/10 text-amber-500 border-amber-500/30"
                                   }`}
                                 >
+                                  <option value="not started">NOT STARTED</option>
                                   <option value="pending">PENDING</option>
                                   <option value="in progress">
                                     IN PROGRESS

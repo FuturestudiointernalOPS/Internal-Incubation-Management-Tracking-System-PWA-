@@ -419,20 +419,25 @@ export async function GET(req) {
     ]);
     if (authError) return authError;
 
+    const { searchParams } = new URL(req.url);
+    const archived = searchParams.get("archived");
+
     let result;
     if (session.role === "participant") {
-      // Participants can only see their own contact
       result = await db.execute({
         sql: "SELECT * FROM contacts WHERE cid = ?",
         args: [session.cid],
       });
+    } else if (archived === "1" && session.role === "super_admin") {
+      // 9.4: Archived contacts for recycle bin
+      result = await db.execute(
+        "SELECT * FROM contacts WHERE deleted = 1 ORDER BY name ASC",
+      );
     } else if (session.role === "super_admin") {
-      // Super admins see ALL users including pending/inactive
       result = await db.execute(
         "SELECT * FROM contacts WHERE deleted = 0 ORDER BY name ASC",
       );
     } else {
-      // Other roles only see active users
       result = await db.execute(
         "SELECT * FROM contacts WHERE deleted = 0 AND status = 'active' ORDER BY name ASC",
       );

@@ -1,34 +1,132 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, Undo2, AlertTriangle, Loader2, RefreshCw, UserX, UserCheck, Search } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function RecycleBinPage() {
+  const [contacts, setContacts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const fetchArchived = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/contacts?archived=1');
+      const data = await res.json();
+      setContacts(data.contacts || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchArchived(); }, []);
+
+  const handleRestore = async (cid, name) => {
+    setProcessing(cid);
+    try {
+      const res = await fetch('/api/contacts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cid, deleted: 0 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMsg({ type: 'success', text: `${name} restored successfully.` });
+        fetchArchived();
+      } else {
+        setMsg({ type: 'error', text: data.error || 'Restore failed.' });
+      }
+    } catch (e) {
+      setMsg({ type: 'error', text: 'Network error.' });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handlePermanentDelete = async (cid, name) => {
+    if (!confirm(`Permanently delete ${name}? This cannot be undone.`)) return;
+    setProcessing(cid);
+    try {
+      const res = await fetch(`/api/contacts?cid=${cid}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setMsg({ type: 'success', text: `${name} permanently deleted.` });
+        fetchArchived();
+      } else {
+        setMsg({ type: 'error', text: data.error || 'Delete failed.' });
+      }
+    } catch (e) {
+      setMsg({ type: 'error', text: 'Network error.' });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const filtered = contacts.filter(c =>
+    !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <DashboardLayout role="super_admin" activeTab="recycle-bin">
-      <div className="space-y-8 min-h-[60vh]">
-        <header>
-          <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Recycle Bin</h2>
-          <p className="text-slate-400 font-bold tracking-tight">Recover or permanently destroy archived system records.</p>
+      <div className="space-y-8">
+        <header className="flex items-center justify-between">
+          <div>
+            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Recycle Bin</h2>
+            <p className="text-slate-400 font-bold tracking-tight">Archived contacts — restore or permanently delete.</p>
+          </div>
+          <button onClick={fetchArchived} className="btn-ghost p-3" title="Refresh">
+            <RefreshCw className="w-5 h-5" />
+          </button>
         </header>
 
-        <div className="ios-card bg-rose-500/5 border-rose-500/10">
-           <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-rose-500/20 text-rose-400">
-                 <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div>
-                 <h3 className="text-xl font-black text-rose-400 uppercase tracking-tighter">Auto-Purge Active</h3>
-                 <p className="text-xs font-bold text-slate-400">Items located here are destroyed permanently after 30 days.</p>
-              </div>
-           </div>
+        {msg && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`p-4 rounded-xl flex items-center gap-3 ${msg.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-rose-500/10 border border-rose-500/20'}`}>
+            {msg.type === 'success' ? <UserCheck className="w-5 h-5 text-emerald-400" /> : <AlertTriangle className="w-5 h-5 text-rose-400" />}
+            <p className="text-xs font-bold uppercase text-white">{msg.text}</p>
+          </motion.div>
+        )}
+
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input type="text" placeholder="Search archived contacts..." value={search} onChange={e => setSearch(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
         </div>
 
-        <div className="ios-card border-white/5 border-dashed relative overflow-hidden flex flex-col items-center justify-center p-20 text-center">
-           <Trash2 className="w-16 h-16 text-slate-500 mb-6 opacity-30" />
-           <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Bin is Empty</h3>
-           <p className="text-sm font-bold text-slate-500">There are currently no items awaiting recovery or deletion.</p>
-        </div>
+        {loading ? (
+          <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-[#FF6600] animate-spin" /></div>
+        ) : filtered.length === 0 ? (
+          <div className="ios-card border-white/5 border-dashed flex flex-col items-center justify-center p-20 text-center">
+            <Trash2 className="w-16 h-16 text-slate-500 mb-6 opacity-30" />
+            <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Bin is Empty</h3>
+            <p className="text-sm font-bold text-slate-500">No archived contacts found.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map(c => (
+              <div key={c.cid} className="ios-card bg-white/[0.02] border-white/5 flex items-center justify-between p-4 hover:border-[#FF6600]/20 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400"><UserX className="w-5 h-5" /></div>
+                  <div>
+                    <p className="text-sm font-black text-white uppercase tracking-tight">{c.name}</p>
+                    <p className="text-[10px] text-slate-400">{c.email} · {c.group_name || 'No group'} · {c.role}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleRestore(c.cid, c.name)} disabled={processing === c.cid} className="btn-ghost px-3 py-2 text-emerald-400 hover:bg-emerald-500/10 text-xs font-bold uppercase flex items-center gap-1">
+                    {processing === c.cid ? <Loader2 className="w-3 h-3 animate-spin" /> : <Undo2 className="w-3 h-3" />} Restore
+                  </button>
+                  <button onClick={() => handlePermanentDelete(c.cid, c.name)} disabled={processing === c.cid} className="btn-ghost px-3 py-2 text-rose-400 hover:bg-rose-500/10 text-xs font-bold uppercase flex items-center gap-1">
+                    <Trash2 className="w-3 h-3" /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

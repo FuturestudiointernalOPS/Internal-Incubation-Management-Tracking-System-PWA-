@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronRight,
   RefreshCw,
+  Archive,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -86,6 +87,30 @@ export default function PendingUsersPage() {
       }
     } catch (err) {
       setActionMsg({ type: "error", text: "Network error during approval." });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleArchive = async (userCid, userName) => {
+    if (!confirm(`Archive ${userName}? They will go to the recycle bin.`)) return;
+    setProcessingId(userCid);
+    setActionMsg(null);
+    try {
+      const res = await fetch("/api/contacts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cid: userCid, deleted: 1 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg({ type: "success", text: `${userName} archived.` });
+        fetchPendingUsers();
+      } else {
+        setActionMsg({ type: "error", text: data.error || "Failed to archive." });
+      }
+    } catch (err) {
+      setActionMsg({ type: "error", text: "Network error." });
     } finally {
       setProcessingId(null);
     }
@@ -396,8 +421,18 @@ export default function PendingUsersPage() {
                                   <XCircle className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() =>
-                                    handleApprove(user.cid, user.name)
+                                                                  onClick={() =>
+                                                                    handleArchive(user.cid, user.name)
+                                                                  }
+                                                                  disabled={processingId === user.cid}
+                                                                  className="btn !bg-amber-500/10 hover:!bg-amber-500/20 border border-amber-500/20 text-amber-500 p-2 rounded-lg transition-all"
+                                                                  title="Archive"
+                                                                >
+                                                                  <Archive className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                  onClick={() =>
+                                                                    handleApprove(user.cid, user.name)
                                   }
                                   disabled={processingId === user.cid}
                                   className="btn !bg-emerald-500 hover:!bg-emerald-600 border-none text-white p-2 rounded-lg transition-all flex items-center gap-2"

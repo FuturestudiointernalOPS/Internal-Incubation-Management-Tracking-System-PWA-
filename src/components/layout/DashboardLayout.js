@@ -930,8 +930,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       fetchAnnouncements();
       fetchUnreadMessageCount();
       fetchPendingUsersCount();
-      // Trigger deadline check (idempotent, safe)
-      fetch("/api/tasks/notify-deadlines", { method: "POST" }).catch(() => {});
     }, 15000);
     return () => clearTimeout(id);
   }, [
