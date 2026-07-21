@@ -75,6 +75,7 @@ export default function PublicApplicationRegistration() {
         setStatus({
           state: "success",
           message: "",
+        });
       } else {
         setStatus({
           state: "error",
