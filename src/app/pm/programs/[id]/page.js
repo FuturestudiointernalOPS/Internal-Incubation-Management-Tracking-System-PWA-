@@ -1417,7 +1417,10 @@ export default function ProgramWorkspace() {
                                 );
                                 let displayStatus = session.status;
                                 let statusColor = "bg-amber-500";
-                                if (session.scheduled_date) {
+                                if (session.status === "locked") {
+                                  displayStatus = "locked";
+                                  statusColor = "bg-rose-500";
+                                } else if (session.scheduled_date) {
                                   const schedDate = new Date(
                                     session.scheduled_date,
                                   );
@@ -1545,6 +1548,26 @@ export default function ProgramWorkspace() {
                               <Activity className="w-3.5 h-3.5" />
                               <span className="text-[9px] font-black uppercase italic tracking-wider">
                                 Give Weekly Report
+                              </span>
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newStatus = session.status === "locked" ? "not started" : "locked";
+                                updateSessionStatus(session.id, newStatus);
+                              }}
+                              title={session.status === "locked" ? "Unlock this week" : "Lock this week"}
+                              className={`btn btn-secondary !py-2 !px-4 flex items-center gap-2 transition-all ${
+                                session.status === "locked"
+                                  ? "border-rose-500/20 text-rose-500 hover:bg-rose-500/5"
+                                  : "border-amber-500/20 text-amber-500 hover:bg-amber-500/5"
+                              }`}
+                            >
+                              <span className="text-sm">{session.status === "locked" ? "🔓" : "🔒"}</span>
+                              <span className="text-[9px] font-black uppercase italic tracking-wider">
+                                {session.status === "locked" ? "Unlock" : "Lock"}
                               </span>
                             </button>
                           )}
