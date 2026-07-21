@@ -273,9 +273,9 @@
 | # | Test | Status | Notes |
 |---|------|--------|-------|
 | 13.1 | Create session | ✅ PASS | 3 sessions creees (API + UI). Chaque session = 1 semaine. |
-| 13.2 | Calendar sync | ⬜ | Non teste — necessite integration calendrier externe. |
-| 13.3 | ✅ PASS | B34 implemente: overlap check sur scheduled_date+start_time+end_time. 409 sur conflit. Teste: overlap refuse, non-overlap OK. |
-| 13.4 | Time zone handling | ⬜ | Non teste. |
+| 13.2 | Calendar sync | ⚠️ N/A | Necessite integration calendrier externe (Google Calendar, etc.). Non implemente. |
+| 13.3 | Conflict detection | ✅ PASS | B34 implemente: overlap check sur scheduled_date+start_time+end_time. 409 sur conflit. Teste: overlap refuse, non-overlap OK. |
+| 13.4 | Time zone handling | ✅ PASS | Dropdown: UTC/Africa/Europe/Paris/America/New_York/Asia/Dubai/Europe/London. Change WK2 UTC→Europe/Paris, persisté after refresh. |
 | 13.5 | Reschedule session | ✅ PASS | Edit panel: dates + times editables. |
 | 13.6 | Cancel session | ✅ PASS | Bouton gear → "Archive this session". Archive = soft delete. |
 
