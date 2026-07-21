@@ -4,6 +4,53 @@ import { requireAuth } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 /**
+ * Ensure session versioning schema exists.
+ */
+async function ensureVersioningSchema() {
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_sessions ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1", args: [] });
+  } catch (_) {}
+  try {
+    await db.execute({
+      sql: `CREATE TABLE IF NOT EXISTS v2_session_versions (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        session_id UUID NOT NULL,
+        version INTEGER NOT NULL,
+        snapshot JSONB NOT NULL,
+        changed_by TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      args: [],
+    });
+  } catch (_) {}
+}
+
+/**
+ * Save a version snapshot before updating a session.
+ */
+async function saveSessionVersion(sessionId, userId) {
+  try {
+    const current = await db.execute({
+      sql: "SELECT * FROM v2_sessions WHERE id = ?",
+      args: [sessionId],
+    });
+    if (current.rows.length === 0) return;
+    const row = current.rows[0];
+    const currentVersion = row.version || 1;
+    await db.execute({
+      sql: "INSERT INTO v2_session_versions (session_id, version, snapshot, changed_by) VALUES (?, ?, ?::jsonb, ?)",
+      args: [sessionId, currentVersion, JSON.stringify(row), userId || null],
+    });
+    await db.execute({
+      sql: "UPDATE v2_sessions SET version = ? WHERE id = ?",
+      args: [currentVersion + 1, sessionId],
+    });
+  } catch (e) {
+    console.warn("Versioning save failed (non-critical):", e.message);
+  }
+}
+
+/**
  * Fire-and-forget KPI progress recalculation.
  * Called after session/doc status changes to keep kpi_progress table in sync.
  */
@@ -18,6 +65,7 @@ async function recalculateKpiForProgram(programId) {
 export async function POST(req) {
   try {
     await initDb();
+    await ensureVersioningSchema();
     const authError = await requireAuth([
       "staff",
       "super_admin",
@@ -286,6 +334,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    await ensureVersioningSchema();
     const authError = await requireAuth([
       "staff",
       "super_admin",
@@ -293,6 +342,9 @@ export async function PUT(req) {
       "teacher",
     ]);
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    const userId = session?.cid || session?.id || null;
     const payload = await req.json();
     const { id, sessionId, field, value, handlerName, type, program_id } =
       payload;
@@ -351,6 +403,7 @@ export async function PUT(req) {
       }
 
       if (sql) {
+        await saveSessionVersion(targetId, userId);
         await db.execute({ sql, args });
         // Recalculate KPI progress if KPI linkages changed
         if (field === "kpi_ids" || field === "kpi_ids_doc") {
@@ -377,6 +430,7 @@ export async function PUT(req) {
         handler_name,
         kpi_ids,
       } = payload;
+      await saveSessionVersion(targetId, userId);
       await db.execute({
         sql: "UPDATE v2_sessions SET title = ?, description = ?, status = ?, week_number = ?, weight = 1, scheduled_date = ?, end_date = ?, start_time = ?, end_time = ?, assignment_type = ?, task_type = ?, handler_id = ?, handler_name = ?, kpi_ids = ? WHERE id = ?",
         args: [

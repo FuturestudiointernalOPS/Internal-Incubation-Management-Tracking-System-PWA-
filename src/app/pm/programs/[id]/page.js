@@ -1628,13 +1628,18 @@ export default function ProgramWorkspace() {
                                 </label>
                                 <textarea
                                   value={session.description || ""}
-                                  onChange={(e) =>
+                                  onBlur={(e) =>
                                     updateSessionField(
                                       session.id,
                                       "description",
                                       e.target.value,
                                     )
                                   }
+                                  onChange={(e) => {
+                                    // Update local state only, save on blur
+                                    const updated = sessions.map(s => s.id === session.id ? {...s, description: e.target.value} : s);
+                                    setSessions(updated);
+                                  }}
                                   rows={2}
                                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all resize-none"
                                 />
