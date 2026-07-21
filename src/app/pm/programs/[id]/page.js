@@ -1593,7 +1593,8 @@ export default function ProgramWorkspace() {
                                       e.target.value,
                                     )
                                   }
-                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all"
+                                  disabled={session.status === "locked"}
+                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                               </div>
 
@@ -1822,14 +1823,17 @@ export default function ProgramWorkspace() {
                                       e.target.value,
                                     )
                                   }
+                                  disabled={session.status === "locked"}
                                   className={`w-full mt-1 px-4 py-3 rounded-xl border text-[10px] font-black uppercase outline-none transition-all cursor-pointer ${
-                                    session.status === "completed"
-                                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                                      : session.status === "in progress"
-                                        ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
-                                        : session.status === "not started"
-                                          ? "bg-slate-500/10 text-slate-400 border-slate-500/30"
-                                          : "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                    session.status === "locked"
+                                      ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                                      : session.status === "completed"
+                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                                        : session.status === "in progress"
+                                          ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
+                                          : session.status === "not started"
+                                            ? "bg-slate-500/10 text-slate-400 border-slate-500/30"
+                                            : "bg-amber-500/10 text-amber-500 border-amber-500/30"
                                   }`}
                                 >
                                   <option value="not started">NOT STARTED</option>
@@ -1838,6 +1842,7 @@ export default function ProgramWorkspace() {
                                     IN PROGRESS
                                   </option>
                                   <option value="completed">COMPLETED</option>
+                                  <option value="locked">🔒 LOCKED</option>
                                 </select>
                               </div>
                             </div>
