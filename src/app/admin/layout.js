@@ -41,27 +41,6 @@ export default function AdminLayout({ children }) {
         }
       } catch (_) {}
 
-      // Fallback: check localStorage
-      try {
-        const saved = localStorage.getItem("user");
-        if (saved) {
-          const u = JSON.parse(saved);
-          if (u.role === "super_admin" || u.role === "developer") {
-            setAuthorized(true);
-            return;
-          }
-          const redirectMap = {
-            staff: "/staff",
-            program_manager: "/pm",
-            teacher: "/teacher",
-            participant: "/participant",
-          };
-          const dest = redirectMap[u.role] || "/login";
-          router.replace(dest);
-          return;
-        }
-      } catch (_) {}
-
       router.replace("/login");
     }
     checkAccess();

@@ -6,7 +6,7 @@ import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 export async function POST(req) {
   try {
     await initDb();
-    const { email, password } = await req.json();
+    const { email, password, remember_me } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -249,6 +249,7 @@ export async function POST(req) {
     const { token, maxAge } = await createSession(
       responseUser.cid || responseUser.id,
       isTeamLogin ? "team" : isFamilyLogin ? "participant" : finalRole,
+      remember_me || false,
     );
 
     const response = NextResponse.json({
