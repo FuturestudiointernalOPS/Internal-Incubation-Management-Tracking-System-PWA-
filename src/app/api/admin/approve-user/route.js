@@ -23,7 +23,7 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
-    const { user_cid, admin_name } = await req.json();
+    const { user_cid, admin_name, role } = await req.json();
 
     if (!user_cid) {
       return NextResponse.json(
@@ -58,10 +58,10 @@ export async function POST(req) {
       );
     }
 
-    // 2. Change status to 'approved'
+    // 2. Change status to 'approved' and set role
     await db.execute({
-      sql: "UPDATE contacts SET status = 'approved' WHERE cid = ?",
-      args: [user_cid],
+      sql: "UPDATE contacts SET status = 'approved', role = ? WHERE cid = ?",
+      args: [role || "staff", user_cid],
     });
 
     // 3. Generate password setup token (24h expiry)

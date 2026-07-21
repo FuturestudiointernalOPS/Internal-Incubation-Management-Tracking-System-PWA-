@@ -81,13 +81,15 @@ export async function POST(req) {
         ],
       });
     } else {
+      // Determine workspace based on user role
+      const workspace = user_role === "intern" ? "interns" : "main";
       const result = await db.execute({
         sql: `INSERT INTO v2_op_reports
-          (user_id, user_name, user_role, report_type, week_number, year, status,
+          (user_id, user_name, user_role, workspace, report_type, week_number, year, status,
            top_priorities, expected_deliverables, projects_tasks,
            has_dependencies, dependency_note, has_blockers, blocker_description,
            needs_support, support_note, additional_notes)
-          VALUES (?, ?, ?, 'standup', ?, ?, 'submitted',
+          VALUES (?, ?, ?, ?, 'standup', ?, ?, 'submitted',
            ?, ?, ?,
            ?, ?, ?, ?,
            ?, ?, ?) RETURNING id`,
@@ -95,6 +97,7 @@ export async function POST(req) {
           user_id,
           user_name || "",
           user_role || "staff",
+          workspace,
           week_number,
           year,
           JSON.stringify(top_priorities || []),
