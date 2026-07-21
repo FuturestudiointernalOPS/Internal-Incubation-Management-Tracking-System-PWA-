@@ -272,15 +272,22 @@ export async function POST(req) {
       }
     }
 
-    // Handle KPIs
-    if (Array.isArray(kpis) && kpis.length > 0) {
-      for (const kpi of kpis) {
-        if (!kpi.title) continue;
-        await db.execute({
-          sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?)",
-          args: [id, kpi.title, kpi.target_value || 80],
-        });
-      }
+    // Handle KPIs — auto-populate defaults if none provided
+    const DEFAULT_KPIS = [
+      { title: "Attendance Rate", target_value: 80 },
+      { title: "Assignment Completion", target_value: 80 },
+      { title: "Session Participation", target_value: 80 },
+      { title: "Team Engagement", target_value: 80 },
+      { title: "Coaching Completion", target_value: 80 },
+      { title: "Graduation Rate", target_value: 80 },
+    ];
+    const kpisToCreate = (Array.isArray(kpis) && kpis.length > 0) ? kpis : DEFAULT_KPIS;
+    for (const kpi of kpisToCreate) {
+      if (!kpi.title) continue;
+      await db.execute({
+        sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?)",
+        args: [id, kpi.title, kpi.target_value || 80],
+      });
     }
 
     // B10: Audit log
@@ -293,6 +300,18 @@ export async function POST(req) {
       action: "created",
       details: `Program "${name}" created`,
     });
+
+    // B11: Notification PM assignment
+    if (assigned_pm_id) {
+      await logAuditEvent({
+        entity_type: "program_assignment",
+        entity_id: id,
+        user_id: assigned_pm_id,
+        user_name: name,
+        action: "assigned",
+        details: `You have been assigned as Program Manager for "${name}"`,
+      });
+    }
 
     return NextResponse.json({ success: true, id });
   } catch (error) {
@@ -360,6 +379,14 @@ export async function PUT(req) {
       );
     }
 
+    // Name required for non-archive updates
+    if (!name && is_archived === undefined) {
+      return NextResponse.json(
+        { success: false, error: "Name required" },
+        { status: 400 },
+      );
+    }
+
     // If is_archived is provided without a name, it's a quick archive action
     if (is_archived !== undefined && !name) {
       const newStatus = is_archived ? "archived" : "active";
@@ -412,9 +439,21 @@ export async function PUT(req) {
       entity_id: id,
       user_id: session?.user_cid || "system",
       user_name: session?.name || "System",
-      action: "created",
-      details: `Program "${name}" created`,
+      action: "updated",
+      details: `Program "${name}" updated`,
     });
+
+    // B11: Notification PM assignment change
+    if (assigned_pm_id) {
+      await logAuditEvent({
+        entity_type: "program_assignment",
+        entity_id: id,
+        user_id: assigned_pm_id,
+        user_name: name,
+        action: "assigned",
+        details: `You have been assigned as Program Manager for "${name}"`,
+      });
+    }
 
     // Handle Segment/Team Assignments
     if (Array.isArray(assigned_segments)) {
