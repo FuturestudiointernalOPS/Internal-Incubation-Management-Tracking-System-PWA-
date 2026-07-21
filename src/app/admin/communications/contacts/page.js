@@ -48,6 +48,7 @@ function ContactsPageContent() {
   const [showArchived, setShowArchived] = useState(false);
   const [copiedGroup, setCopiedGroup] = useState(null);
   const [isCsvUploading, setIsCsvUploading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Modals
   const [showManualModal, setShowManualModal] = useState(false);
@@ -99,6 +100,17 @@ function ContactsPageContent() {
       setSelectedGroup(normalized);
     }
   }, [roleParam]);
+
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        setCurrentUser(JSON.parse(userStr));
+      }
+    } catch (e) {
+      // ignore parse error
+    }
+  }, []);
 
   useEffect(() => {
     setSelectedTeamTab("All Teams");
@@ -784,9 +796,7 @@ function ContactsPageContent() {
                         <td className="text-right">
                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
                             <button
-                              onClick={() =>
-                                toggleStatus(c.cid, c.status, c.group_name)
-                              }
+                              onClick={() => toggleStatus(c.cid, c.status, c.group_name)}
                               title={
                                 c.status === "active"
                                   ? "Deactivate"
@@ -909,6 +919,7 @@ function ContactsPageContent() {
                   <option value="developer">Developer</option>
                   <option value="staff">Staff</option>
                   <option value="participant">Participant</option>
+                  <option value="intern">Intern</option>
                 </select>
                 <p className="text-[8px] text-[var(--text-secondary)] ml-1 opacity-60">
                   Leave as Auto-detect for most users. Set to Developer for dev
