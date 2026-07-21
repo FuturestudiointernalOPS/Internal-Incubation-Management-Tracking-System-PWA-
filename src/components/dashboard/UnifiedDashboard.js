@@ -181,6 +181,7 @@ export default function UnifiedDashboard({ role: propRole }) {
   // ── Data ──
   const [data, setData] = useState(null);
   const [fetching, setFetching] = useState(true);
+  const [programKpis, setProgramKpis] = useState({});
 
   // ── Calendar state ──
   const now = useMemo(() => new Date(), []);
@@ -301,6 +302,27 @@ export default function UnifiedDashboard({ role: propRole }) {
   useEffect(() => {
     if (user) fetchDashboardData();
   }, [user, fetchDashboardData]);
+
+  // KPI fetch for assigned programs
+  const fetchKpisForPrograms = useCallback(async (programs) => {
+    if (!programs?.length) return;
+    const kpiMap = {};
+    for (const p of programs.slice(0, 4)) {
+      try {
+        const res = await fetch(`/api/pm/full-state?id=${encodeURIComponent(p.id)}&metrics=true`);
+        const d = await res.json();
+        if (d?.kpis?.length) kpiMap[p.id] = d.kpis;
+      } catch (_) {}
+    }
+    setProgramKpis(kpiMap);
+  }, []);
+
+  // Fetch KPIs when dashboard data loads
+  useEffect(() => {
+    if (data?.quickAccess?.programs?.length) {
+      fetchKpisForPrograms(data.quickAccess.programs);
+    }
+  }, [data, fetchKpisForPrograms]);
 
   // Ticket 1.6: refetch calendar when tab becomes visible again
   useEffect(() => {
@@ -999,6 +1021,50 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-slate-400" />
+              </div>
+            )}
+
+            {/* STRATEGIC KPIs */}
+            {visibility.showQuickPrograms && Object.keys(programKpis).length > 0 && (
+              <div className="card">
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingUp className="w-4 h-4 text-[var(--brand-orange)]" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    Strategic KPIs
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {Object.entries(programKpis).map(([programId, kpis]) => {
+                    const prog = (data?.quickAccess?.programs || []).find(p => p.id === programId);
+                    return (
+                      <div key={programId} className="space-y-2">
+                        {prog && (
+                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider">
+                            {prog.name}
+                          </span>
+                        )}
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {kpis.slice(0, 6).map((kpi) => {
+                            const pct = kpi.current_value != null ? Math.min(100, (kpi.current_value / (kpi.target_value || 80)) * 100) : 0;
+                            return (
+                              <div key={kpi.id} className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[7px] font-bold text-[var(--text-secondary)] uppercase truncate max-w-[80px]">
+                                    {kpi.title || kpi.name}
+                                  </span>
+                                  <span className="text-[8px] font-black text-[var(--brand-orange)]">{Math.round(pct)}%</span>
+                                </div>
+                                <div className="h-1 w-full bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-amber-400 rounded-full transition-all" style={{width: `${pct}%`}} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
