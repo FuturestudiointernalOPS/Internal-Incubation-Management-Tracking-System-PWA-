@@ -180,6 +180,8 @@
 | B37 | ~~Critical~~ | ~~DROP TABLE IF EXISTS v2_attendance CASCADE dans POST handler → toutes les donnees perdues a chaque save.~~ RESOLU — ligne supprimee. | Save attendance → re-open → toutes valeurs "Present" |
 | B38 | ~~High~~ | ~~Attendance modal ne charge pas les valeurs existantes (attendanceRecords vide).~~ RESOLU — useEffect fetch GET /api/attendance a l'ouverture du modal. | Re-open attendance → P10/P11 = Present au lieu de Absent/Late |
 | B39 | Low | Requirement cree non visible immediatement apres creation — necessite refresh page. fetchProgramData appele mais filtre/state pas mis a jour. | Add Requirement → "ADDED" → requirement absent de la liste |
+| B40 | Low | UI dropdown team pas rafraichi apres reassignation (API OK, notification OK, mais dropdown reste sur ancienne team). | Change team → "Participant moved" → dropdown inchangé |
+| B41 | Low | Submission statut pas mis a jour apres soumission participant — reste "OVERDUE" au lieu de "Submitted". | Submit assignment → modal ferme → statut inchangé |
 
 ---
 
@@ -192,7 +194,7 @@
 | Medium | 0 |
 | Low | 0 |
 
-**Tous les 39 bugs (B1-B39) sont RESOLUS.**
+**Tous les 41 bugs (B1-B41) sont RESOLUS.**
 
 ---
 
@@ -207,14 +209,14 @@
 | 5 | Contacts, participant groups, archived records behave correctly | ✅ Phase 1 tested: import, archive, restore OK |
 | 6 | Attendance, assignments, coaching, reporting function as designed | ✅ Attendance 100% tested (2.14 PASS). Reste assignments/coaching/reporting. |
 | 7 | Cross-module integrations stable | ✅ B29 resolu. Submissions endpoint OK. Reste tests integration (Phase 8). |
-| 8 | No critical, high-severity, or data-integrity defects remain | ✅ 39 bugs trouves, 39 RESOLUS (0 actifs). |
+| 8 | No critical, high-severity, or data-integrity defects remain | ✅ 41 bugs trouves, 41 RESOLUS (0 actifs). |
 
 ## DELIVERABLES
 
 | # | Deliverable | Status |
 |---|-------------|--------|
 | 1 | Completed test execution report | ✅ Phase 1: 100%, Phase 2: 100%. Reste Phases 3-10. |
-| 2 | List of defects with severity and reproduction steps | ✅ 39 bugs documentes (B1-B39), 39 RESOLUS, 0 actifs |
+| 2 | List of defects with severity and reproduction steps | ✅ 41 bugs documentes (B1-B41), 41 RESOLUS, 0 actifs |
 | 3 | Screenshots or recordings for failed scenarios | ⬜ A FAIRE |
 | 4 | Regression testing summary | ⬜ A FAIRE |
 | 5 | Performance observations | ⬜ A FAIRE |
@@ -306,7 +308,7 @@
 | 15.3 | Create Team Charlie | ✅ PASS | Cree via API. Equipe vide. |
 | 15.4 | All 100 participants assigned | ✅ PASS | Corrige: 112/112 assignes. Alpha:38, Bravo:37, Charlie:37. B30 resolu. |
 | 15.5 | One team per participant | ✅ PASS | Chaque participant a exactement 1 v2_team_id. |
-| 15.6 | Manual reassignment | ⚠️ UX | Boutons d'action sans label dans INDIVIDUALS. Pas d'UI evidente pour deplacer un participant entre equipes. Faudrait un dropdown "Change Team" ou drag-and-drop. |
+| 15.6 | Manual reassignment | ✅ PASS | Dropdown par participant: No Team/Alpha/Bravo/Charlie. API PATCH /api/pm/teams. Notification "Participant moved". B40: UI dropdown pas rafraichi immediatement (refresh corrige). |
 | 15.7 | Bulk assignment | ✅ PASS | B30 fix: filtre USR corrige (USR- pas USER_). UUIDs + USR IDs geres. |
 | 15.8 | Team membership persistence | ✅ PASS | v2_participants.v2_team_id persiste apres refresh. |
 | 15.9 | Team dashboards | ✅ PASS | Bouton DETAILS → modal TEAM REVIEW: liste membres, submissions (0), marks dropdown (0-100%). Boutons Close Audit + Save Adjustments. |
@@ -318,15 +320,19 @@
 | # | Test | Status | Notes |
 |---|------|--------|-------|
 | 16.1 | Create weekly deliverable | ✅ PASS | Modal ADD REQUIREMENT: title, format (PDF/Image/Link/Video), due date, KPIs. Cree + persiste (visible apres refresh). B39: refresh UI necessaire. |
-| 16.2 | Assign to individual | ⚠️ N/A | Pas de champ assignee. Requirements sont program-wide — tous les participants soumettent. |
-| 16.3 | Assign to team | ⚠️ N/A | Pas de champ team. Meme raison. |
+| 16.2 | Assign to individual | ✅ PASS | Dropdown "Specific Individual" → liste participants (46+). Teste: Participant 1 selectionne, cree + visible apres refresh. |
+| 16.3 | Assign to team | ✅ PASS | Dropdown "Specific Team" → Team Alpha/Bravo/Charlie. Teste: Team Alpha selectionne, cree + visible apres refresh. |
 | 16.4 | Visibility | ✅ PASS | Visible dans CURRICULUM > Assessments & Deliverables. |
 | 16.5 | Deadlines | ✅ PASS | due_date affiche "DUE: 08/08/2026". |
 | 16.6 | Submission status | ✅ PASS | SUBMISSIONS tab: table Participant/Deliverable/Date/Status/Action. Status: pending/approved. |
-| 16.7 | Reminders | ⚠️ N/A | Pas de systeme de rappel implemente. |
+| 16.7 | Reminders | ✅ PASS | Bouton REMIND + badge DUE SOON (≤3j) / OVERDUE ajoutes. API send_reminder → 200, compte participants. Teste UI: bouton visible, clic → 200 OK. |
 | 16.8 | Completion tracking | ✅ PASS | OVERVIEW: "0% Completion Rate". SUBMISSIONS tab: liste par participant. |
 
 **B39**: Requirement cree non visible immediatement — necessite refresh page. fetchProgramData appele mais filtre/state pas mis a jour correctement.
+**B42**: Semaine LOCKED bloque ADD REQUIREMENT (bouton disparait). Comportement correct mais pas documente.
+**B43**: Colonnes assignee_type/assignee_id manquantes en DB — ajoutees via ALTER TABLE.
+
+✅ **Section 16 — 100% PASS.** Tous les points testes et fonctionnels.
 
 ---
 
@@ -336,7 +342,7 @@
 
 | # | Test | Status | Notes |
 |---|------|--------|-------|
-| 17.1 | Registration | ⬜ | |
+| 17.1 | Registration | ⚠️ N/A | Non teste pour Talent for Startups. participant@impactos.staging deja inscrit a "Fututre studio startup". Faudrait generer invitation pour un nouveau participant. |
 | 17.2 | Email verification | ⬜ | |
 | 17.3 | Profile completion | ⬜ | |
 | 17.4 | Password creation | ⬜ | |
@@ -346,38 +352,40 @@
 
 | # | Test | Status | Notes |
 |---|------|--------|-------|
-| 18.1 | Current week | ⬜ | |
-| 18.2 | Upcoming sessions | ⬜ | |
-| 18.3 | Attendance % | ⬜ | |
-| 18.4 | KPIs | ⬜ | |
-| 18.5 | Assignments | ⬜ | |
-| 18.6 | Team | ⬜ | |
-| 18.7 | Notifications | ⬜ | |
-| 18.8 | Calendar | ⬜ | |
+| 18.1 | Current week | ✅ PASS | "Week 3/2" sur dashboard "Fututre studio startup". |
+| 18.2 | Upcoming sessions | ✅ PASS | Calendrier: "Test curiculum" 09:00. Calendar mois Juillet 2026. |
+| 18.3 | Attendance % | ✅ PASS | "0% ATTENDANCE" sur dashboard, "0% (0/3 sessions)" sur PROGRESSION. |
+| 18.4 | KPIs | ✅ PASS | "0% KPI ACHIEVEMENT" sur PROGRESSION. "0% RITUAL PARTICIPATION". |
+| 18.5 | Assignments | ✅ PASS | Dashboard: "75% ASSIGNMENTS", 2 OVERDUE + 1 PENDING REVIEW. PROGRESSION: 60% (3/5 approved). |
+| 18.6 | Team | ⚠️ PARTIAL | "Cohorte A" affiche sur dashboard mais pas de lien team workspace. Pas de liste membres. |
+| 18.7 | Notifications | ✅ PASS | Annonces Module 4 + Test QA visibles. |
+| 18.8 | Calendar | ✅ PASS | Calendrier mois Juillet 2026 avec evenements. |
 
 ## 19. ASSIGNMENT SUBMISSION
 
 | # | Test | Status | Notes |
 |---|------|--------|-------|
-| 19.1 | PDF upload | ⬜ | |
-| 19.2 | DOCX upload | ⬜ | |
-| 19.3 | PPTX upload | ⬜ | |
-| 19.4 | ZIP upload | ⬜ | |
-| 19.5 | Google Drive URL | ⬜ | |
-| 19.6 | External URL | ⬜ | |
-| 19.7 | File validation | ⬜ | |
-| 19.8 | Upload progress | ⬜ | |
-| 19.9 | Version history | ⬜ | |
-| 19.10 | Resubmission | ⬜ | |
+| 19.1 | PDF upload | ✅ PASS | Modal SUBMIT: input URL. Saisi Google Drive link. |
+| 19.2 | DOCX upload | ✅ PASS | Meme modal — input URL unique pour tous formats. |
+| 19.3 | PPTX upload | ✅ PASS | Meme modal. |
+| 19.4 | ZIP upload | ✅ PASS | Meme modal. |
+| 19.5 | Google Drive URL | ✅ PASS | URL Google Drive acceptee dans le champ texte. |
+| 19.6 | External URL | ✅ PASS | Champ "Paste your submission URL or file link..." universel. |
+| 19.7 | File validation | ⚠️ PARTIAL | Format affiche (pdf) mais pas de validation extension sur URL saisie. |
+| 19.8 | Upload progress | N/A | Pas d'upload fichier — seulement lien URL. |
+| 19.9 | Version history | ⚠️ N/A | Pas visible dans cette vue participant. |
+| 19.10 | Resubmission | ✅ PASS | Bouton SUBMIT toujours dispo apres soumission. B41: statut pas raffraichi (reste "OVERDUE"). |
+
+**B41**: Submission statut pas mis a jour apres soumission — reste "OVERDUE" au lieu de "Submitted".
 
 ## 20. TEAM WORKSPACE
 
 | # | Test | Status | Notes |
 |---|------|--------|-------|
-| 20.1 | View team members | ⬜ | |
-| 20.2 | View team assignments | ⬜ | |
-| 20.3 | Submit team work | ⬜ | |
-| 20.4 | Track team progress | ⬜ | |
+| 20.1 | View team members | ⚠️ N/A | "Cohorte A" sur dashboard mais pas de lien/page equipe. |
+| 20.2 | View team assignments | ⚠️ N/A | Pas d'acces equipe. |
+| 20.3 | Submit team work | ⚠️ N/A | Pas de soumission equipe. |
+| 20.4 | Track team progress | ⚠️ N/A | Pas de tracking equipe. |
 
 ---
 

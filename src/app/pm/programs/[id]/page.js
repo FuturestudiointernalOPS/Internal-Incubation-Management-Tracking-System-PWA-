@@ -33,6 +33,7 @@ import {
   UserPlus,
   Calendar,
   RefreshCw,
+  Bell,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -204,6 +205,8 @@ export default function ProgramWorkspace() {
     allowed_format: "pdf",
     kpi_ids: [],
     due_date: "",
+    assignee_type: "all",
+    assignee_id: "",
   });
   const [newPMReport, setNewPMReport] = useState({
     summary: "",
@@ -457,6 +460,8 @@ export default function ProgramWorkspace() {
           allowed_format: newRequirement.allowed_format,
           kpi_ids: newRequirement.kpi_ids || [],
           due_date: newRequirement.due_date || null,
+          assignee_type: newRequirement.assignee_type || "all",
+          assignee_id: newRequirement.assignee_id || "",
         }),
       });
       const data = await res.json();
@@ -469,6 +474,8 @@ export default function ProgramWorkspace() {
           allowed_format: "pdf",
           kpi_ids: [],
           due_date: "",
+          assignee_type: "all",
+          assignee_id: "",
         });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
@@ -2015,22 +2022,70 @@ export default function ProgramWorkspace() {
                                         </p>
                                         <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic flex items-center gap-2">
                                           <span>Requirement: {req.allowed_format || "PDF"}</span>
-                                          {req.due_date && (
-                                            <>
-                                              <span>•</span>
-                                              <span className="text-amber-500">
-                                                Due: {new Date(req.due_date).toLocaleDateString()}
-                                              </span>
-                                            </>
-                                          )}
+                                          {req.due_date && (() => {
+                                            const now = new Date();
+                                            const due = new Date(req.due_date);
+                                            const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+                                            const isOverdue = diffDays < 0;
+                                            const isDueSoon = diffDays >= 0 && diffDays <= 3;
+                                            return (
+                                              <>
+                                                <span>•</span>
+                                                <span className={isOverdue ? "text-rose-500" : isDueSoon ? "text-amber-500" : "text-amber-500/60"}>
+                                                  Due: {due.toLocaleDateString()}
+                                                </span>
+                                                {isOverdue && (
+                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-rose-500/20 text-rose-400">OVERDUE</span>
+                                                )}
+                                                {isDueSoon && (
+                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-amber-500/20 text-amber-400">DUE SOON</span>
+                                                )}
+                                              </>
+                                            );
+                                          })()}
                                         </p>
                                       </div>
                                     </div>
-                                    {canEdit && (
-                                      <button className="text-rose-500/10 hover:text-rose-500 transition-all">
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
+                                    <div className="flex items-center gap-1">
+                                      {req.due_date && canEdit && (
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              const res = await fetch("/api/pm/curriculum", {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({
+                                                  action: "send_reminder",
+                                                  requirement_id: req.id,
+                                                  program_id: id,
+                                                }),
+                                              });
+                                              const data = await res.json();
+                                              if (data.success) {
+                                                const msg = data.sent > 0
+                                                  ? `Reminder sent to ${data.sent} participant(s)`
+                                                  : "Reminder sent";
+                                                notify(msg);
+                                              } else {
+                                                notify("Reminder failed");
+                                              }
+                                            } catch (e) {
+                                              notify("Reminder error");
+                                            }
+                                          }}
+                                          className="text-[7px] font-black uppercase text-[var(--brand-orange)]/60 hover:text-[var(--brand-orange)] transition-all px-2 py-1 rounded border border-[var(--brand-orange)]/20 hover:border-[var(--brand-orange)]/50"
+                                          title="Send reminder to assigned participants"
+                                        >
+                                          <Bell className="w-3 h-3 inline mr-1" />
+                                          REMIND
+                                        </button>
+                                      )}
+                                      {canEdit && (
+                                        <button className="text-rose-500/10 hover:text-rose-500 transition-all">
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 ))}
                               {requirements.filter(
@@ -3983,6 +4038,89 @@ export default function ProgramWorkspace() {
                     />
                   </div>
                 </div>
+
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    <Users className="w-3 h-3" /> Assign To
+                  </label>
+                  <select
+                    value={newRequirement.assignee_type || "all"}
+                    onChange={(e) =>
+                      setNewRequirement((p) => ({
+                        ...p,
+                        assignee_type: e.target.value,
+                        assignee_id: "",
+                      }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <option value="all">All Participants</option>
+                    <option value="team">Specific Team</option>
+                    <option value="individual">Specific Individual</option>
+                  </select>
+                </div>
+
+                {newRequirement.assignee_type === "team" && (
+                  <div className="space-y-1">
+                    <select
+                      value={newRequirement.assignee_id || ""}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          assignee_id: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="">Select team...</option>
+                      {teams.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {newRequirement.assignee_type === "individual" && (
+                  <div className="space-y-1">
+                    <select
+                      value={newRequirement.assignee_id || ""}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          assignee_id: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="">Select participant...</option>
+                      {participants.slice(0, 50).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">

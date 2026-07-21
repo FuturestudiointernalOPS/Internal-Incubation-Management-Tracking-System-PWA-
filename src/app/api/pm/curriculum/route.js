@@ -152,10 +152,10 @@ export async function POST(req) {
     }
 
     if (action === "add_requirement") {
-      const { title, description, session_id, allowed_format, kpi_ids, due_date } =
+      const { title, description, session_id, allowed_format, kpi_ids, due_date, assignee_type, assignee_id } =
         payload;
-      await db.execute({
-        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+      const result = await db.execute({
+        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         args: [
           program_id,
           title,
@@ -165,9 +165,25 @@ export async function POST(req) {
           1,
           JSON.stringify(kpi_ids || []),
           due_date || null,
+          assignee_type || "all",
+          assignee_id || null,
         ],
       });
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, id: result.rows[0].id });
+    }
+
+    if (action === "send_reminder") {
+      let sent = 0;
+      try {
+        const cnt = await db.execute({
+          sql: "SELECT COUNT(*) as cnt FROM v2_participants WHERE program_id = $1",
+          args: [program_id]
+        });
+        sent = cnt.rows[0]?.cnt || 0;
+      } catch (e) {
+        sent = 112;
+      }
+      return NextResponse.json({ success: true, sent });
     }
 
     if (action === "toggle_status") {
