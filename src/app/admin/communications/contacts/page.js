@@ -842,13 +842,6 @@ function ContactsPageContent() {
                             >
                               <TrendingUp className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => handleResetPassword(c)}
-                              title="Reset Password"
-                              className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-blue-500"
-                            >
-                              <Key className="w-4 h-4" />
-                            </button>
                           </div>
                         </td>
                       </tr>
