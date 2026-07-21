@@ -2811,6 +2811,7 @@ export default function ProgramWorkspace() {
                   { label: "Attendance CSV", type: "attendance", format: "csv" },
                   { label: "Submissions CSV", type: "submissions", format: "csv" },
                   { label: "Teams CSV", type: "teams", format: "csv" },
+                  { label: "Calendar iCal", type: "ical", format: "ical" },
                 ].map(({ label, type, format }) => (
                   <button
                     key={`${type}-${format}`}

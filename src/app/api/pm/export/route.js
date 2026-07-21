@@ -74,6 +74,13 @@ export async function GET(req) {
                ORDER BY vt.name`;
         filename = `teams-${programId}.csv`;
         break;
+      case "ical":
+        sql = `SELECT vs.title as summary, vs.description, vs.scheduled_date, vs.start_time, vs.end_time, vs.timezone
+               FROM v2_sessions vs
+               WHERE vs.program_id = $1 AND vs.scheduled_date IS NOT NULL
+               ORDER BY vs.scheduled_date`;
+        filename = `calendar-${programId}.ics`;
+        break;
       default:
         return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
@@ -92,6 +99,34 @@ export async function GET(req) {
         headers: {
           "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "Content-Disposition": `attachment; filename="${xlsxFilename}"`,
+          "Cache-Control": "no-cache",
+        },
+      });
+    }
+
+    if (format === "ical" || format === "ics") {
+      const icsLines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ImpactOS//Program Calendar//EN"];
+      for (const row of rows) {
+        if (!row.scheduled_date) continue;
+        const dt = new Date(row.scheduled_date);
+        const d = dt.toISOString().split("T")[0].replace(/-/g, "");
+        const start = (row.start_time || "09:00").replace(/:/g, "") + "00";
+        const end = (row.end_time || "12:00").replace(/:/g, "") + "00";
+        const tz = row.timezone || "Europe/Paris";
+        icsLines.push("BEGIN:VEVENT");
+        icsLines.push(`DTSTART;TZID=${tz}:${d}T${start}`);
+        icsLines.push(`DTEND;TZID=${tz}:${d}T${end}`);
+        icsLines.push(`SUMMARY:${row.summary || "Session"}`);
+        if (row.description) icsLines.push(`DESCRIPTION:${row.description.replace(/[,\n]/g, " ")}`);
+        icsLines.push("END:VEVENT");
+      }
+      icsLines.push("END:VCALENDAR");
+      const ics = icsLines.join("\r\n");
+      return new NextResponse(ics, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/calendar; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${filename}"`,
           "Cache-Control": "no-cache",
         },
       });
