@@ -1476,6 +1476,11 @@ export default function ProgramWorkspace() {
                                   ).toLocaleDateString()}
                                 </span>
                               )}
+                              {session.timezone && session.timezone !== 'UTC' && (
+                                <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                                  {session.timezone}
+                                </span>
+                              )}
                               {session.notes && (
                                 <span
                                   className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-2"
@@ -1701,6 +1706,24 @@ export default function ProgramWorkspace() {
                                 </div>
                               </div>
 
+                              {/* Timezone */}
+                              <div className="space-y-1 mt-2">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
+                                  Timezone
+                                </label>
+                                <select
+                                  value={session.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')}
+                                  onChange={(e) =>
+                                    updateSessionField(session.id, "timezone", e.target.value)
+                                  }
+                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
+                                >
+                                  {["UTC", "Africa/Porto-Novo", "Europe/Paris", "America/New_York", "Asia/Dubai", "Europe/London"].map(tz => (
+                                    <option key={tz} value={tz}>{tz}</option>
+                                  ))}
+                                </select>
+                              </div>
+
                               <div className="space-y-1">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
                                   Assign Staff Member(s)
@@ -1873,6 +1896,16 @@ export default function ProgramWorkspace() {
                                   <option value="locked">🔒 LOCKED</option>
                                 </select>
                               </div>
+                              {session.version > 1 && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                                    Version: {session.version}
+                                  </span>
+                                  <span className="text-[7px] text-slate-500">
+                                    ({session.version - 1} revision{session.version > 2 ? 's' : ''})
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
 

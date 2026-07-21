@@ -253,10 +253,10 @@
 
 | # | Test | Status | Notes |
 |---|------|--------|-------|
-| 12.1 | Learning objectives per week | ✅ PASS | Champ DESCRIPTION + NOTES dans edit panel. |
+| 12.1 | Learning objectives per week | ✅ PASS | Champ DESCRIPTION (textarea). Fix B32: onChange→onBlur evite flood requetes. API: texte complet persiste. |
 | 12.2 | Assign facilitators | ✅ PASS | ASSIGN STAFF MEMBER(S) dans edit panel. Staff ajoute via Participants tab. |
-| 12.3 | Attach resources | ✅ PASS | WEEKLY RESOURCES: ADD LINK + UPLOAD boutons. |
-| 12.4 | Versioning | ⚠️ N/A | Pas de versioning explicite visible. |
+| 12.3 | Attach resources | ✅ PASS | ADD LINK modal→API anchor_material. Resource persiste (nom+url+timestamp). Verifie DB. |
+| 12.4 | Versioning | ✅ PASS | Implemente: colonne version (INT), table v2_session_versions. Chaque update cree snapshot + incremente version. UI affiche "Version: X (Y revisions)". WK2 actuellement v3. |
 | 12.5 | Update behavior | ✅ PASS | Edit panel: titre, description, dates, times, state editables. |
 
 ## 13. SESSION SCHEDULING
@@ -265,7 +265,7 @@
 |---|------|--------|-------|
 | 13.1 | Create session | ✅ PASS | 3 sessions creees (API + UI). Chaque session = 1 semaine. |
 | 13.2 | Calendar sync | ⬜ | Non teste — necessite integration calendrier externe. |
-| 13.3 | Conflict detection | ⬜ | Non teste. |
+| 13.3 | ✅ PASS | B34 implemente: overlap check sur scheduled_date+start_time+end_time. 409 sur conflit. Teste: overlap refuse, non-overlap OK. |
 | 13.4 | Time zone handling | ⬜ | Non teste. |
 | 13.5 | Reschedule session | ✅ PASS | Edit panel: dates + times editables. |
 | 13.6 | Cancel session | ✅ PASS | Bouton gear → "Archive this session". Archive = soft delete. |

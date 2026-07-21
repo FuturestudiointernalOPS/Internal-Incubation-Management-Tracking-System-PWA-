@@ -2,12 +2,69 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
-/**
- * ATTENDANCE API
- * Tracks participant attendance per session/program.
- * Supports: present, absent, excused, late
- */
-export const dynamic = "force-dynamic";
+export async function POST(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+    ]);
+    if (authError) return authError;
+
+    // Ensure table exists
+    try {
+      await db.execute({
+        sql: `CREATE TABLE IF NOT EXISTS v2_attendance (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          session_id UUID NOT NULL,
+          program_id UUID,
+          participant_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'present',
+          date DATE DEFAULT CURRENT_DATE,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )`,
+        args: [],
+      });
+    } catch (_) {}
+
+    const body = await req.json();
+    const records = Array.isArray(body) ? body : [body];
+
+    let upserted = 0;
+    for (const r of records) {
+      const { session_id, program_id, participant_id, status, date } = r;
+      if (!session_id || !participant_id) continue;
+
+      await db.execute({
+        sql: `DELETE FROM v2_attendance WHERE session_id = ? AND participant_id = ? AND date = ?`,
+        args: [session_id, participant_id, date || new Date().toISOString().split("T")[0]],
+      });
+      await db.execute({
+        sql: `INSERT INTO v2_attendance (session_id, program_id, participant_id, status, date)
+              VALUES (?, ?, ?, ?, ?)`,
+        args: [
+          session_id,
+          program_id || null,
+          participant_id,
+          status || "present",
+          date || new Date().toISOString().split("T")[0],
+        ],
+      });
+      upserted++;
+    }
+
+    return NextResponse.json({ success: true, upserted });
+  } catch (e) {
+    console.error("Attendance error:", e);
+    return NextResponse.json(
+      { success: false, error: e.message },
+      { status: 500 },
+    );
+  }
+}
 
 export async function GET(req) {
   try {
@@ -16,8 +73,11 @@ export async function GET(req) {
       "staff",
       "super_admin",
       "program_manager",
+      "teacher",
+      "participant",
     ]);
     if (authError) return authError;
+
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get("session_id");
     const programId = searchParams.get("program_id");
@@ -38,76 +98,13 @@ export async function GET(req) {
       sql += " AND participant_id = ?";
       args.push(participantId);
     }
-
     sql += " ORDER BY date DESC, created_at DESC";
 
-    const res = await db.execute({ sql, args });
-    return NextResponse.json({ success: true, attendance: res.rows });
-  } catch (error) {
-    console.error("Attendance GET Error:", error);
+    const result = await db.execute({ sql, args });
+    return NextResponse.json({ success: true, attendance: result.rows });
+  } catch (e) {
     return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
-
-export async function POST(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-    ]);
-    if (authError) return authError;
-    const { session_id, program_id, participant_id, status, date } =
-      await req.json();
-
-    if (!session_id || !program_id || !participant_id || !status || !date) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "session_id, program_id, participant_id, status, and date are required",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (!["present", "absent", "excused", "late"].includes(status)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid status. Allowed: present, absent, excused, late",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Upsert: if a record exists for this session+participant+date, update it
-    const existing = await db.execute({
-      sql: "SELECT id FROM v2_attendance WHERE session_id = ? AND participant_id = ? AND date = ?",
-      args: [session_id, participant_id, date],
-    });
-
-    if (existing.rows.length > 0) {
-      await db.execute({
-        sql: "UPDATE v2_attendance SET status = ? WHERE id = ?",
-        args: [status, existing.rows[0].id],
-      });
-    } else {
-      await db.execute({
-        sql: "INSERT INTO v2_attendance (session_id, program_id, participant_id, status, date) VALUES (?, ?, ?, ?, ?)",
-        args: [session_id, program_id, participant_id, status, date],
-      });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Attendance POST Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: e.message },
       { status: 500 },
     );
   }

@@ -11,6 +11,9 @@ async function ensureVersioningSchema() {
     await db.execute({ sql: "ALTER TABLE v2_sessions ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1", args: [] });
   } catch (_) {}
   try {
+    await db.execute({ sql: "ALTER TABLE v2_sessions ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC'", args: [] });
+  } catch (_) {}
+  try {
     await db.execute({
       sql: `CREATE TABLE IF NOT EXISTS v2_session_versions (
         id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -98,9 +101,31 @@ export async function POST(req) {
         kpi_ids,
         notes,
         extra_materials,
+        timezone,
       } = payload;
+
+      // Conflict detection: check for overlapping sessions
+      if (scheduled_date && start_time && end_time) {
+        const conflictCheck = await db.execute({
+          sql: `SELECT id, title FROM v2_sessions
+                WHERE program_id = ?
+                  AND type = 'session'
+                  AND scheduled_date = ?
+                  AND start_time < ?
+                  AND end_time > ?
+                LIMIT 1`,
+          args: [program_id, scheduled_date, end_time, start_time],
+        });
+        if (conflictCheck.rows.length > 0) {
+          return NextResponse.json({
+            success: false,
+            error: `Schedule conflict with existing session: "${conflictCheck.rows[0].title}" on ${scheduled_date}`,
+          }, { status: 409 });
+        }
+      }
+
       const result = await db.execute({
-        sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, type, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids, notes, extra_materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+        sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, type, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids, notes, extra_materials, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         args: [
           program_id,
           title,
@@ -120,6 +145,7 @@ export async function POST(req) {
           JSON.stringify(kpi_ids || []),
           notes || null,
           extra_materials ? JSON.stringify(extra_materials) : null,
+          timezone || 'UTC',
         ],
       });
       return NextResponse.json({ success: true, id: result.rows[0].id });
@@ -400,6 +426,43 @@ export async function PUT(req) {
       } else if (field === "task_type") {
         sql = "UPDATE v2_sessions SET task_type = ? WHERE id = ?";
         args = [value || null, targetId];
+      } else if (field === "timezone") {
+        sql = "UPDATE v2_sessions SET timezone = ? WHERE id = ?";
+        args = [value || 'UTC', targetId];
+      }
+
+      // Conflict detection for schedule changes
+      if (sql && ["scheduled_date", "start_time", "end_time"].includes(field)) {
+        // Fetch current session data for conflict check
+        const current = await db.execute({
+          sql: "SELECT scheduled_date, start_time, end_time FROM v2_sessions WHERE id = ?",
+          args: [targetId],
+        });
+        if (current.rows.length > 0) {
+          const cur = current.rows[0];
+          const checkDate = field === "scheduled_date" ? value : cur.scheduled_date;
+          const checkStart = field === "start_time" ? value : cur.start_time;
+          const checkEnd = field === "end_time" ? value : cur.end_time;
+          if (checkDate && checkStart && checkEnd) {
+            const conflictCheck = await db.execute({
+              sql: `SELECT id, title FROM v2_sessions
+                    WHERE program_id = ?
+                      AND type = 'session'
+                      AND id != ?
+                      AND scheduled_date = ?
+                      AND start_time < ?
+                      AND end_time > ?
+                    LIMIT 1`,
+              args: [program_id, targetId, checkDate, checkEnd, checkStart],
+            });
+            if (conflictCheck.rows.length > 0) {
+              return NextResponse.json({
+                success: false,
+                error: `Schedule conflict with existing session: "${conflictCheck.rows[0].title}" on ${checkDate}`,
+              }, { status: 409 });
+            }
+          }
+        }
       }
 
       if (sql) {
