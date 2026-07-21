@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { sendEmail } from "@/lib/mailer";
 
 // GET: Validate the token and return program/group info for the UI
 export async function GET(req, { params }) {
@@ -11,7 +12,7 @@ export async function GET(req, { params }) {
       sql: `SELECT i.*, p.name as program_name
             FROM v2_invitations i
             LEFT JOIN v2_programs p ON i.program_id = p.id::text
-            WHERE i.token = ? AND i.expires_at > datetime('now')`,
+            WHERE i.token = ? AND i.expires_at > datetime('now') AND (i.used IS NULL OR i.used = 0)`,
       args: [token],
     });
 
@@ -53,9 +54,9 @@ export async function POST(req, { params }) {
       );
     }
 
-    // 1. Validate Invite
+    // 1. Validate Invite (8.2: expiration, 8.3: one-time use)
     const inviteCheck = await db.execute({
-      sql: "SELECT * FROM v2_invitations WHERE token = ? AND expires_at > datetime('now')",
+      sql: "SELECT * FROM v2_invitations WHERE token = ? AND expires_at > datetime('now') AND (used IS NULL OR used = 0)",
       args: [token],
     });
 
@@ -66,6 +67,12 @@ export async function POST(req, { params }) {
       );
     }
     const invite = inviteCheck.rows[0];
+
+    // Mark invite as used (8.3: one-time)
+    await db.execute({
+      sql: "UPDATE v2_invitations SET used = 1 WHERE token = ?",
+      args: [token],
+    });
 
     // 2. Hash Password & Prepare User (Ticket 2 - Auth System)
     const salt = await bcrypt.genSalt(10);
@@ -142,6 +149,18 @@ export async function POST(req, { params }) {
           invite.team_id || null,
         ],
       });
+    }
+
+    // 5. Send welcome email (8.5)
+    try {
+      await sendEmail({
+        to: email,
+        subject: `Welcome to ${invite.program_name || 'ImpactOS'}!`,
+        body: `Hi ${name},\n\nYou've successfully joined ${invite.program_name || 'the program'} as a ${invite.role}.\n\nYou can now log in at ${req.headers.get('origin') || 'http://localhost:3000'}/login\n\n— The ImpactOS Team`,
+        fromName: 'ImpactOS',
+      });
+    } catch (mailErr) {
+      console.error('Welcome email failed:', mailErr.message);
     }
 
     return NextResponse.json({
