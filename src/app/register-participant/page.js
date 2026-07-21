@@ -1,16 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, ArrowRight, Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default function RegisterParticipantPage() {
-  const searchParams = useSearchParams();
-  const groupId = searchParams.get('group_id');
   const router = useRouter();
+  const [groupId, setGroupId] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setGroupId(params.get('group_id'));
+  }, []);
 
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
