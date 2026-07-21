@@ -244,7 +244,7 @@
 | 11.3 | Create Week 3 | ✅ PASS | WK3, STATE: PENDING, 04/08/2026. |
 | 11.4 | Ordering correct | ✅ PASS | WK1→WK2→WK3, ordre chronologique. |
 | 11.5 | Edit week | ✅ PASS | Edit panel: title, dates, times, state dropdown (NOT STARTED/PENDING/IN PROGRESS/COMPLETED). Title et status changes de "NOT STARTED" → "in progress" testes via API + verifies UI. B31 fix: erreur 401 geree avec notification. |
-| 11.6 | Lock week | ⚠️ N/A | Pas lock explicite. State via dropdown fait office de controle d'etat. |
+| 11.6 | Lock week | ✅ PASS | Bouton 🔒/🔓 sur chaque card + status "locked" dans dropdown (rose). Champs desactives quand locked. |
 | 11.7 | Delete week | ✅ PASS | Bouton gear → "Archive this session? It can be restored later." Archive = soft delete. |
 
 **B31**: Edition silencieusement perdue sur 401 (session expiree). Fix: else clause + notify("Session expired").
