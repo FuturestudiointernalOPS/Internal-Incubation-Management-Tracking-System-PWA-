@@ -444,6 +444,7 @@ export default function ProgramManagement() {
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
             >
               <option value="active">{t("admin.tabActive")}</option>
+              <option value="planned">Planned</option>
               <option value="pending">{t("admin.tabPending")}</option>
               <option value="archived">{t("admin.tabArchived")}</option>
               <option value="completed">{t("admin.tabCompleted")}</option>
@@ -520,13 +521,15 @@ export default function ProgramManagement() {
                           ? "In Progress"
                           : p?.status === "in_progress"
                             ? "In Progress"
-                            : p?.status === "pending"
-                              ? "Pending"
-                              : p?.status === "completed"
-                                ? "Completed"
-                                : p?.status === "archived"
-                                  ? "Archived"
-                                  : p?.status || "Unknown"}
+                            : p?.status === "planned"
+                              ? "Planned"
+                              : p?.status === "pending"
+                                ? "Pending"
+                                : p?.status === "completed"
+                                  ? "Completed"
+                                  : p?.status === "archived"
+                                    ? "Archived"
+                                    : p?.status || "Unknown"}
                       </span>
                     </td>
                     <td>
@@ -1019,6 +1022,8 @@ export default function ProgramManagement() {
                   className={`w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer ${
                     editingProgram?.status === "active"
                       ? "text-emerald-500"
+                      : editingProgram?.status === "planned"
+                        ? "text-sky-500"
                       : editingProgram?.status === "pending"
                         ? "text-amber-500"
                         : editingProgram?.status === "completed"
@@ -1028,6 +1033,9 @@ export default function ProgramManagement() {
                             : "text-[var(--text-primary)]"
                   }`}
                 >
+                  <option value="planned" className="text-sky-500">
+                    Planned
+                  </option>
                   <option value="active" className="text-emerald-500">
                     In Progress
                   </option>

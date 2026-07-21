@@ -1,7 +1,8 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
 export const dynamic = "force-dynamic";
 
 /**
@@ -200,6 +201,18 @@ export async function POST(req) {
     } = await req.json();
     const id = uuidv4();
 
+    // B6: Check duplicate program name
+    const existing = await db.execute({
+      sql: "SELECT id FROM v2_programs WHERE LOWER(name) = LOWER(?) AND is_archived = 0",
+      args: [name],
+    });
+    if (existing.rows.length > 0) {
+      return NextResponse.json(
+        { success: false, error: "A program with this name already exists." },
+        { status: 409 },
+      );
+    }
+
     await db.execute({
       sql: `INSERT INTO v2_programs (id, name, description, concept_note, vision, objectives, program_type, visibility, participant_limit, registration_window, language, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
@@ -255,6 +268,17 @@ export async function POST(req) {
         });
       }
     }
+
+    // B10: Audit log
+    const session = await getSession();
+    await logAuditEvent({
+      entity_type: "program",
+      entity_id: id,
+      user_id: session?.user_cid || "system",
+      user_name: session?.name || "System",
+      action: "created",
+      details: `Program "${name}" created`,
+    });
 
     return NextResponse.json({ success: true, id });
   } catch (error) {
@@ -359,6 +383,17 @@ export async function PUT(req) {
         grading_mode || "graded",
         id,
       ],
+    });
+
+    // B10: Audit log
+    const session = await getSession();
+    await logAuditEvent({
+      entity_type: "program",
+      entity_id: id,
+      user_id: session?.user_cid || "system",
+      user_name: session?.name || "System",
+      action: "created",
+      details: `Program "${name}" created`,
     });
 
     // Handle Segment/Team Assignments
