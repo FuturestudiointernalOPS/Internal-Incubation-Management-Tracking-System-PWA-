@@ -518,6 +518,12 @@ export default function ProgramWorkspace() {
             });
           }
         }
+      } else {
+        if (res.status === 401) {
+          notify("Session expired. Please save your work and refresh.", "error");
+        } else {
+          notify(data.error || "Field sync failed.", "error");
+        }
       }
     } catch (e) {
       notify("Field sync failed.", "error");
