@@ -74,8 +74,7 @@ export default function PublicApplicationRegistration() {
       if (data.success) {
         setStatus({
           state: "success",
-          message: "Registration submitted! Awaiting approval.",
-        });
+          message: "",
       } else {
         setStatus({
           state: "error",
@@ -107,22 +106,23 @@ export default function PublicApplicationRegistration() {
             <CheckCircle className="w-10 h-10 text-emerald-400" />
           </div>
           <h1
-            className="text-3xl font-black tracking-tight uppercase"
+            className="text-3xl font-black tracking-tight"
             style={{ color: "var(--text-primary)" }}
           >
-            MISSION SECURED
+            Application Submitted
           </h1>
           <p
-            className="text-sm font-medium leading-relaxed uppercase tracking-widest"
+            className="text-sm font-medium leading-relaxed"
             style={{ color: "var(--text-secondary)" }}
           >
-            {status.message}
+            Your registration has been successfully submitted.
           </p>
-          <div className="pt-6">
-            <div className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.3em]">
-              Operational Readiness 100%
-            </div>
-          </div>
+          <p
+            className="text-sm font-medium leading-relaxed"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Our team will review your application. If approved, you&apos;ll receive an email with your login instructions within <strong>24 hours</strong>.
+          </p>
         </motion.div>
       </div>
     );
