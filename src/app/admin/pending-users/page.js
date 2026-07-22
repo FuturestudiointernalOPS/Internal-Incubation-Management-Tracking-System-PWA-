@@ -116,6 +116,26 @@ export default function PendingUsersPage() {
     }
   };
 
+  const handleResendInvite = async (userCid, userName) => {
+    setProcessingId(userCid);
+    setActionMsg(null);
+    try {
+      const res = await fetch("/api/auth/resend-invite/" + userCid, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg({ type: "success", text: `Invite resent to ${userName}.` });
+      } else {
+        setActionMsg({ type: "error", text: data.error || "Failed to resend." });
+      }
+    } catch (err) {
+      setActionMsg({ type: "error", text: "Network error." });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const handleReject = async (userCid, userName) => {
     setProcessingId(userCid);
     setActionMsg(null);
@@ -432,8 +452,18 @@ export default function PendingUsersPage() {
                                                                 </button>
                                                                 <button
                                                                   onClick={() =>
+                                                                    handleResendInvite(user.cid, user.name)
+                                                                  }
+                                                                  disabled={processingId === user.cid}
+                                                                  className="btn !bg-blue-500/10 hover:!bg-blue-500/20 border border-blue-500/20 text-blue-500 p-2 rounded-lg transition-all"
+                                                                  title="Resend Invite"
+                                                                >
+                                                                  <Mail className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                  onClick={() =>
                                                                     handleApprove(user.cid, user.name)
-                                  }
+                                                                  }
                                   disabled={processingId === user.cid}
                                   className="btn !bg-emerald-500 hover:!bg-emerald-600 border-none text-white p-2 rounded-lg transition-all flex items-center gap-2"
                                   title="Approve"
