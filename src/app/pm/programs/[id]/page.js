@@ -2812,6 +2812,7 @@ export default function ProgramWorkspace() {
                   { label: "Submissions CSV", type: "submissions", format: "csv" },
                   { label: "Teams CSV", type: "teams", format: "csv" },
                   { label: "Calendar iCal", type: "ical", format: "ical" },
+                  { label: "Participants PDF", type: "participants", format: "pdf" },
                 ].map(({ label, type, format }) => (
                   <button
                     key={`${type}-${format}`}
