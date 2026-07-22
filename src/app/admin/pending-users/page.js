@@ -91,6 +91,50 @@ export default function PendingUsersPage() {
     }
   };
 
+  const handleArchive = async (userCid, userName) => {
+    if (!confirm(`Archive ${userName}? They will go to the recycle bin.`)) return;
+    setProcessingId(userCid);
+    setActionMsg(null);
+    try {
+      const res = await fetch("/api/contacts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cid: userCid, deleted: 1 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg({ type: "success", text: `${userName} archived.` });
+        fetchPendingUsers();
+      } else {
+        setActionMsg({ type: "error", text: data.error || "Failed to archive." });
+      }
+    } catch (err) {
+      setActionMsg({ type: "error", text: "Network error." });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleResendInvite = async (userCid, userName) => {
+    setProcessingId(userCid);
+    setActionMsg(null);
+    try {
+      const res = await fetch("/api/auth/resend-invite/" + userCid, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg({ type: "success", text: `Invite resent to ${userName}.` });
+      } else {
+        setActionMsg({ type: "error", text: data.error || "Failed to resend." });
+      }
+    } catch (err) {
+      setActionMsg({ type: "error", text: "Network error." });
+      } finally {
+        setProcessingId(null);
+      }
+    };
+
   const handleReject = async (userCid, userName) => {
     setProcessingId(userCid);
     setActionMsg(null);
@@ -396,9 +440,30 @@ export default function PendingUsersPage() {
                                   <XCircle className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() =>
-                                    handleApprove(user.cid, user.name)
-                                  }
+                                <button
+                                                                  onClick={() =>
+                                                                    handleArchive(user.cid, user.name)
+                                                                  }
+                                                                  disabled={processingId === user.cid}
+                                                                  className="btn !bg-amber-500/10 hover:!bg-amber-500/20 border border-amber-500/20 text-amber-500 p-2 rounded-lg transition-all"
+                                                                  title="Archive"
+                                                                >
+                                                                  <Archive className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                  onClick={() =>
+                                                                    handleResendInvite(user.cid, user.name)
+                                                                  }
+                                                                  disabled={processingId === user.cid}
+                                                                  className="btn !bg-blue-500/10 hover:!bg-blue-500/20 border border-blue-500/20 text-blue-500 p-2 rounded-lg transition-all"
+                                                                  title="Resend Invite"
+                                                                >
+                                                                  <Mail className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                  onClick={() =>
+                                                                    handleApprove(user.cid, user.name)
+                                                                  }
                                   disabled={processingId === user.cid}
                                   className="btn !bg-emerald-500 hover:!bg-emerald-600 border-none text-white p-2 rounded-lg transition-all flex items-center gap-2"
                                   title="Approve"
