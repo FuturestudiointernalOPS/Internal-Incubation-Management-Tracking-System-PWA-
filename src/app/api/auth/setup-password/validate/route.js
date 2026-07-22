@@ -21,7 +21,7 @@ export async function GET(req) {
     }
 
     const result = await db.execute({
-      sql: `SELECT pst.*, c.name as user_name
+      sql: `SELECT pst.*, c.name as user_name, c.email as user_email
             FROM password_setup_tokens pst
             LEFT JOIN contacts c ON pst.contact_cid = c.cid
             WHERE pst.token = ? AND pst.used = 0 AND pst.expires_at > NOW()`,
