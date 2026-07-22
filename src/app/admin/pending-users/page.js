@@ -455,10 +455,11 @@ export default function PendingUsersPage() {
                                                                     handleResendInvite(user.cid, user.name)
                                                                   }
                                                                   disabled={processingId === user.cid}
-                                                                  className="btn !bg-blue-500/10 hover:!bg-blue-500/20 border border-blue-500/20 text-blue-500 p-2 rounded-lg transition-all"
+                                                                  className="btn !bg-blue-500/10 hover:!bg-blue-500/20 border border-blue-500/20 text-blue-500 p-2 rounded-lg transition-all flex items-center gap-1"
                                                                   title="Resend Invite"
                                                                 >
                                                                   <Mail className="w-4 h-4" />
+                                                                  <span className="text-[8px] font-black uppercase hidden lg:inline">Resend</span>
                                                                 </button>
                                                                 <button
                                                                   onClick={() =>
