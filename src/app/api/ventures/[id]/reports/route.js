@@ -12,7 +12,7 @@ import {
  * GET /api/ventures/[id]/reports?type=analytics|milestones|tasks|productivity|export&format=csv
  */
 export const GET = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const s = new URL(req.url).searchParams;
   const type = s.get("type") || "analytics";
 

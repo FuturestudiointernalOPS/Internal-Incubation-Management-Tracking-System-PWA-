@@ -13,7 +13,7 @@ import {
  */
 export const POST = createHandler(
   async (req, { params }) => {
-    const { id, founderId } = params;
+    const { id, founderId } = await params;
     const session = await getSession();
 
     if (!session) {

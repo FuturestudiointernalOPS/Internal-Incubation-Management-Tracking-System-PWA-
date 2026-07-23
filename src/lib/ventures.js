@@ -48,6 +48,10 @@ export async function ensureVentureSchema() {
     // Fix missing venture_history columns
     "ALTER TABLE venture_history ADD COLUMN IF NOT EXISTS metadata JSONB",
     "ALTER TABLE venture_history ADD COLUMN IF NOT EXISTS created_by TEXT",
+    // Fix missing venture_activity_log columns
+    "ALTER TABLE venture_activity_log ADD COLUMN IF NOT EXISTS actor_cid TEXT",
+    "ALTER TABLE venture_activity_log ADD COLUMN IF NOT EXISTS actor_name TEXT",
+    "ALTER TABLE venture_activity_log ADD COLUMN IF NOT EXISTS details JSONB",
     // Founder management columns
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'founder'",
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS is_owner BOOLEAN DEFAULT FALSE",
@@ -1379,10 +1383,27 @@ export async function listFounders(ventureId) {
  * Get a single founder by ID.
  */
 export async function getFounderById(founderId) {
-  const res = await db.execute({
-    sql: `SELECT * FROM venture_founders WHERE id = ?`,
-    args: [founderId],
-  });
+  // Support lookup by numeric ID, CID (USR-...), or email
+  let res;
+  if (!isNaN(founderId)) {
+    // Numeric ID (venture_founders.id)
+    res = await db.execute({
+      sql: `SELECT * FROM venture_founders WHERE id = ?`,
+      args: [parseInt(founderId)],
+    });
+  } else if (typeof founderId === "string" && founderId.includes("@")) {
+    // Email
+    res = await db.execute({
+      sql: `SELECT * FROM venture_founders WHERE LOWER(email) = LOWER(?)`,
+      args: [founderId],
+    });
+  } else {
+    // CID (USR-...) — look up by contact_id
+    res = await db.execute({
+      sql: `SELECT * FROM venture_founders WHERE contact_id = ?`,
+      args: [founderId],
+    });
+  }
   return res.rows[0] || null;
 }
 

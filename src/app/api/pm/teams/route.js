@@ -197,7 +197,22 @@ export async function PATCH(req) {
       "teacher",
     ]);
     if (authError) return authError;
-    const { team_id, member_ids } = await req.json();
+    const { team_id, member_ids, action, is_venture_ready } = await req.json();
+
+    // Handle venture-ready approval
+    if (action === "set_venture_ready") {
+      if (!team_id) {
+        return NextResponse.json(
+          { success: false, error: "team_id is required." },
+          { status: 400 },
+        );
+      }
+      await db.execute({
+        sql: "UPDATE v2_teams SET is_venture_ready = ? WHERE id = ?",
+        args: [is_venture_ready ? 1 : 0, team_id],
+      });
+      return NextResponse.json({ success: true });
+    }
 
     if (!team_id || !member_ids || !Array.isArray(member_ids)) {
       return NextResponse.json(
