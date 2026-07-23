@@ -36,8 +36,6 @@ export default function PortfolioPage() {
 
   // KPIs
   const [kpis, setKpis] = useState([]);
-  const [showKpiForm, setShowKpiForm] = useState(false);
-  const [kpiForm, setKpiForm] = useState({ kpi_key: "", kpi_label: "", kpi_value: "", trend: "stable" });
 
   const [toast, setToast] = useState(null);
 
@@ -91,7 +89,7 @@ export default function PortfolioPage() {
 
   const fetchKpis = async (ventureId) => {
     try {
-      const res = await fetch(`/api/investor/kpis?venture_id=${ventureId}`);
+      const res = await fetch(`/api/investor/venture-kpis?venture_id=${ventureId}`);
       const data = await res.json();
       if (data.success) setKpis(data.kpis || []);
     } catch (_) {}
@@ -141,24 +139,6 @@ export default function PortfolioPage() {
         setShowUpdateForm(false);
         setUpdateForm({ title: "", content: "", update_type: "general" });
         fetchUpdates(selected.venture_id);
-      }
-    } catch (_) {}
-    setSaving(false);
-  };
-
-  const addKpi = async () => {
-    if (!kpiForm.kpi_key || !kpiForm.kpi_label || !kpiForm.kpi_value) return;
-    setSaving(true);
-    try {
-      const res = await fetch("/api/investor/kpis", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...kpiForm, venture_id: selected.venture_id }),
-      });
-      if (res.ok) {
-        setToast({ type: "success", message: "KPI saved" });
-        setShowKpiForm(false);
-        setKpiForm({ kpi_key: "", kpi_label: "", kpi_value: "", trend: "stable" });
-        fetchKpis(selected.venture_id);
       }
     } catch (_) {}
     setSaving(false);
@@ -227,7 +207,7 @@ export default function PortfolioPage() {
 
           {/* KPIs */}
           {activeTab==="kpis"&&(<div className="space-y-4">
-            <div className="flex justify-between items-center"><h3 className="text-sm font-black text-[var(--text-primary)] uppercase">KPIs</h3><AppButton variant="primary" size="sm" icon={Plus} onClick={()=>setShowKpiForm(true)}>Add KPI</AppButton></div>
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">KPIs (from Venture OS)</h3>
             {showKpiForm&&(<AppCard padding="md"><div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <input value={kpiForm.kpi_key} onChange={e=>setKpiForm({...kpiForm,kpi_key:e.target.value})} placeholder="Key (e.g. revenue_growth) *" className="px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
@@ -239,6 +219,7 @@ export default function PortfolioPage() {
               </div>
               <div className="flex justify-end gap-2"><AppButton variant="secondary" size="sm" onClick={()=>setShowKpiForm(false)}>Cancel</AppButton><AppButton variant="primary" size="sm" icon={Send} onClick={addKpi} disabled={saving}>Save KPI</AppButton></div>
             </div></AppCard>)}
+            {kpis.length===0?<div className="text-center py-12"><BarChart3 className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No KPI data available from Venture OS</p></div>:<div className="grid grid-cols-2 md:grid-cols-3 gap-4">{kpis.map(k=>(<AppCard key={k.id} padding="md"><div className="text-center"><p className="text-2xl font-black text-[var(--text-primary)]">{k.kpi_value}</p><p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">{k.kpi_label}</p><span className={`inline-block mt-2 text-[9px] font-black uppercase ${k.trend==="up"?"text-emerald-400":k.trend==="down"?"text-rose-400":"text-slate-400"}`}>{k.trend==="up"?"↑ Growing":k.trend==="down"?"↓ Declining":"→ Stable"}</span></div></AppCard>))}</div>}
             {kpis.length===0?<div className="text-center py-12"><BarChart3 className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No KPIs yet</p></div>:<div className="grid grid-cols-2 md:grid-cols-3 gap-4">{kpis.map(k=>(<AppCard key={k.id} padding="md"><div className="text-center"><p className="text-2xl font-black text-[var(--text-primary)]">{k.kpi_value}</p><p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">{k.kpi_label}</p><span className={`inline-block mt-2 text-[9px] font-black uppercase ${k.trend==="up"?"text-emerald-400":k.trend==="down"?"text-rose-400":"text-slate-400"}`}>{k.trend==="up"?"↑ Growing":k.trend==="down"?"↓ Declining":"→ Stable"}</span></div></AppCard>))}</div>}
           </div>)}
 
