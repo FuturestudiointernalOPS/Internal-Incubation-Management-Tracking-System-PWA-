@@ -151,23 +151,39 @@ export async function POST(req) {
     }
 
     // ─── 7. Create the Venture ───
-    await db.execute({
-      sql: `INSERT INTO ventures (venture_id, company_name, registration_number, industry, business_stage, description, website, logo_url, status, created_by, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
-      args: [
-        ventureId,
-        finalCompanyName,
-        registration_number?.trim() || null,
-        finalIndustry,
-        finalStage,
-        description?.trim() || `Promoted from program: ${program.name}`,
-        website?.trim() || null,
-        logo_url?.trim() || null,
-        session.cid || "system",
-        now,
-        now,
-      ],
-    });
+    try {
+      // Try with both name and company_name
+      await db.execute({
+        sql: `INSERT INTO ventures (venture_id, name, company_name, registration_number, industry, business_stage, description, website, logo_url, status, created_by, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
+        args: [
+          ventureId, finalCompanyName, finalCompanyName,
+          registration_number?.trim() || null,
+          finalIndustry, finalStage,
+          description?.trim() || `Promoted from program: ${program.name}`,
+          website?.trim() || null, logo_url?.trim() || null,
+          session.cid || "system", now, now,
+        ],
+      });
+    } catch (err) {
+      // company_name column may not exist — fall back to just "name"
+      if (err.message?.includes("company_name")) {
+        await db.execute({
+          sql: `INSERT INTO ventures (venture_id, name, registration_number, industry, business_stage, description, website, logo_url, status, created_by, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
+          args: [
+            ventureId, finalCompanyName,
+            registration_number?.trim() || null,
+            finalIndustry, finalStage,
+            description?.trim() || `Promoted from program: ${program.name}`,
+            website?.trim() || null, logo_url?.trim() || null,
+            session.cid || "system", now, now,
+          ],
+        });
+      } else {
+        throw err;
+      }
+    }
 
     // ─── 8. Update team with venture_id ───
     await db.execute({

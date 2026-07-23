@@ -38,6 +38,8 @@ export async function ensureVentureSchema() {
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS name TEXT",
     // Venture members columns
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP DEFAULT NOW()",
+    // Ensure name column is nullable (legacy constraint issue)
+    "ALTER TABLE ventures ALTER COLUMN name DROP NOT NULL",
     // Founder management columns
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'founder'",
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS is_owner BOOLEAN DEFAULT FALSE",
@@ -183,14 +185,17 @@ export async function createVenture({
   logo_url,
   created_by,
 }) {
-  // Try with company_name first (new schema), fall back to "name" (legacy schema)
+  // Always use "name" (legacy column exists in the table).
+  // Also try setting "company_name" for new schema compatibility.
+  const name = company_name.trim();
+
   try {
+    // Try with both name and company_name
     await db.execute({
-      sql: `INSERT INTO ventures (venture_id, company_name, registration_number, industry, business_stage, description, website, logo_url, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO ventures (venture_id, name, company_name, registration_number, industry, business_stage, description, website, logo_url, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
-        venture_id,
-        company_name.trim(),
+        venture_id, name, name,
         registration_number?.trim() || null,
         industry.trim(),
         business_stage.trim(),
@@ -201,14 +206,13 @@ export async function createVenture({
       ],
     });
   } catch (err) {
-    // If company_name column doesn't exist, try with "name" instead
+    // company_name column may not exist yet — fall back to just "name"
     if (err.message?.includes("company_name")) {
       await db.execute({
         sql: `INSERT INTO ventures (venture_id, name, registration_number, industry, business_stage, description, website, logo_url, created_by)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
-          venture_id,
-          company_name.trim(),
+          venture_id, name,
           registration_number?.trim() || null,
           industry.trim(),
           business_stage.trim(),
