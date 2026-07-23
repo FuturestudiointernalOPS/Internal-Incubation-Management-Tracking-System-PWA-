@@ -211,6 +211,13 @@ export default function TaskManager({
     link: "",
   });
 
+  // Auto-populate project_id from prop when in project mode
+  useEffect(() => {
+    if (mode === "project" && projectId && showTaskForm) {
+      setForm((p) => ({ ...p, project_id: String(projectId) }));
+    }
+  }, [mode, projectId, showTaskForm]);
+
   // Sync taskList into local state when it changes
   useEffect(() => {
     setTasks(taskList || []);
@@ -601,6 +608,8 @@ export default function TaskManager({
         window.__refreshDashboard?.();
         window.__refreshAdminDashboard?.();
       }
+    } else {
+      alert(data.error || "Failed to create task.");
     }
     setCreating(false);
   }, [form, pendingParentTaskId, createTask, onTasksChange, creating]);
@@ -1447,7 +1456,8 @@ export default function TaskManager({
                     setForm((p) => ({
                       ...p,
                       category: e.target.value,
-                      project_id: e.target.value ? "" : p.project_id,
+                      // Only clear project_id when no project is already assigned
+                      project_id: (!p.project_id && e.target.value) ? "" : p.project_id,
                     }))
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-purple-400 outline-none appearance-none cursor-pointer"
