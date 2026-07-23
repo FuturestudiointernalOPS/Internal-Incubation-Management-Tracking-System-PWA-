@@ -7,7 +7,7 @@ import {
 } from "@/lib/ventures";
 
 export const GET = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const s = new URL(req.url).searchParams;
   const sessions = await listSessions(id, {
     startDate: s.get("start_date"), endDate: s.get("end_date"),
@@ -17,7 +17,7 @@ export const GET = createHandler(async (req, { params }) => {
 });
 
 export const POST = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
   const { action } = body;
 

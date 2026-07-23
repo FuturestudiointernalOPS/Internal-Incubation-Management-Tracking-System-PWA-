@@ -13,7 +13,7 @@ import {
  */
 export const POST = createHandler(
   async (req, { params }) => {
-    const { id } = params;
+    const { id } = await params;
     const session = await getSession();
 
     if (!session) {
@@ -36,7 +36,7 @@ export const POST = createHandler(
       const result = await transferOwnership({
         ventureId: id,
         currentOwnerId: permission.founderId,
-        newOwnerId: parseInt(new_owner_id),
+        newOwnerId: new_owner_id,
         transferredByFounderId: permission.founderId,
       });
 

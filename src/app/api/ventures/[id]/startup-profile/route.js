@@ -19,7 +19,7 @@ import {
  */
 export const GET = createHandler(
   async (req, { params }) => {
-    const { id } = params;
+    const { id } = await params;
     const session = await getSession();
 
     if (!session) {
@@ -65,7 +65,7 @@ export const GET = createHandler(
  */
 export const PATCH = createHandler(
   async (req, { params }) => {
-    const { id } = params;
+    const { id } = await params;
     const session = await getSession();
 
     if (!session) {

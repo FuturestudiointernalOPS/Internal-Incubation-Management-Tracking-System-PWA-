@@ -172,6 +172,46 @@ const execute = async (queryObj) => {
 const db = { execute };
 
 /**
+ * Execute a callback within a database transaction.
+ * The callback receives a `query(sql, args)` function.
+ * Auto-rollback on error, auto-commit on success.
+ *
+ * Usage:
+ *   await db.transaction(async (query) => {
+ *     await query("INSERT INTO ...", [...]);
+ *     await query("UPDATE ...", [...]);
+ *   });
+ */
+db.transaction = async (callback) => {
+  const pool = getPool();
+  if (!pool) throw new Error("Database connection pool is offline.");
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await callback(async (sql, args = []) => {
+      let count = 0;
+      const pgSql = sql.replace(/\?/g, () => {
+        count++;
+        return `$${count}`;
+      });
+      const r = await client.query(pgSql, args);
+      return {
+        rows: r.rows,
+        rowsAffected: r.rowCount,
+        lastInsertRowid: r.rows[0]?.id || null,
+      };
+    });
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+/**
  * Initializes the database and returns the db instance.
  * Returns the db object to prevent breakage in routes using: const db = await initDb();
  */

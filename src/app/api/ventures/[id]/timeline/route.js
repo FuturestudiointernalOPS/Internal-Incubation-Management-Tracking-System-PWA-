@@ -15,7 +15,7 @@ import {
  * Returns timeline, Gantt, progress, or delay data.
  */
 export const GET = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const view = new URL(req.url).searchParams.get("view") || "timeline";
 
   if (view === "gantt") {
@@ -44,7 +44,7 @@ export const GET = createHandler(async (req, { params }) => {
  * Add or remove dependencies.
  */
 export const POST = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
 
   if (body.action === "add_dependency") {
