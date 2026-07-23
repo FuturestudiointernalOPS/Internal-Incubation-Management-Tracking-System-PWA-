@@ -244,6 +244,18 @@ const SidebarContent = ({
           {!collapsed && <span>{t(tnav("profile"))}</span>}
         </Link>
         <button
+          onClick={() => {
+            const current = typeof window !== "undefined" ? localStorage.getItem("impactos_lang") || "en" : "en";
+            const next = current === "en" ? "fr" : "en";
+            localStorage.setItem("impactos_lang", next);
+            window.location.reload();
+          }}
+          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-black uppercase tracking-widest text-[10px]"
+        >
+          <Globe className="w-4 h-4 flex-shrink-0" />
+          {!collapsed && <span>{typeof window !== "undefined" && localStorage.getItem("impactos_lang") === "fr" ? "EN" : "FR"}</span>}
+        </button>
+        <button
           onClick={handleLogout}
           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all font-black uppercase tracking-widest text-[10px]"
         >
@@ -288,7 +300,10 @@ const NAVIGATION_MATRIX = {
       id: "investors",
       name: "INVESTORS",
       icon: Briefcase,
-      href: "/admin/investors",
+      subItems: [
+        { id: "inv_manage", name: "MANAGE", href: "/admin/investors" },
+        { id: "inv_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
+      ],
     },
 
     {
