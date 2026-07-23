@@ -181,6 +181,7 @@ export default function VentureDetailPage({ params }) {
 
   const TABS = [
     { id: "dashboard", label: "Dashboard", icon: Rocket },
+    { id: "investment", label: "Investment", icon: TrendingUp },
     { id: "timeline", label: "Timeline", icon: BarChart3 },
     { id: "reports", label: "Reports", icon: TrendingUp },
     { id: "feedback", label: "Feedback", icon: Star },
@@ -308,6 +309,30 @@ export default function VentureDetailPage({ params }) {
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Activity</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.activity || []).length}</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "investment" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Investment Readiness</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Score, recommendations, and category breakdown
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/investment`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <TrendingUp className="w-3.5 h-3.5" /> Open Assessment
+              </button>
             </div>
           </div>
         )}

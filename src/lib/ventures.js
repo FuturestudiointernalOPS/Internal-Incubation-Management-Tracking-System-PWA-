@@ -3237,3 +3237,312 @@ export async function getFeedbackAnalytics(ventureId) {
   ]);
   return { trend: trend.rows||[], distribution: dist.rows||[] };
 }
+
+// =============================================================================
+// ENHANCEMENT 4.1: INVESTMENT READINESS ASSESSMENT
+// =============================================================================
+
+export const INVESTMENT_CATEGORIES = [
+  "startup_profile", "legal", "financial", "product", "traction",
+  "market_validation", "business_model", "team", "technology", "pitch_readiness",
+];
+
+export const INVESTMENT_LEVELS = [
+  { min: 0, max: 25, level: "not_ready", label: "Not Ready", color: "text-rose-400 bg-rose-500/10" },
+  { min: 26, max: 50, level: "early_ready", label: "Early Ready", color: "text-amber-400 bg-amber-500/10" },
+  { min: 51, max: 75, level: "investment_ready", label: "Investment Ready", color: "text-emerald-400 bg-emerald-500/10" },
+  { min: 76, max: 100, level: "fundraising_ready", label: "Fundraising Ready", color: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10" },
+];
+
+function getInvestmentLevel(score) {
+  for (const l of INVESTMENT_LEVELS) {
+    if (score >= l.min && score <= l.max) return { level: l.level, label: l.label, color: l.color };
+  }
+  return { level: "not_ready", label: "Not Ready", color: "text-rose-400 bg-rose-500/10" };
+}
+
+/**
+ * Calculate investment readiness score for a venture.
+ * Evaluates 10 categories using existing data.
+ */
+export async function calculateInvestmentReadiness(ventureId) {
+  const scores = {};
+  const now = new Date();
+
+  // 1. Startup Profile (exists + submitted + completion %)
+  let profileScore = 0;
+  try {
+    const pRes = await db.execute({ sql: "SELECT * FROM startup_profiles WHERE venture_id = ?", args: [ventureId] });
+    if (pRes.rows.length > 0) {
+      const p = pRes.rows[0];
+      let filled = 0; const total = 5;
+      for (let i = 1; i <= total; i++) {
+        const key = `step_${i}_data`;
+        const data = typeof p[key] === "string" ? JSON.parse(p[key]) : (p[key] || {});
+        if (Object.keys(data).length > 0) filled++;
+      }
+      profileScore = Math.round((filled / total) * 100);
+      if (p.is_submitted) profileScore = Math.min(100, profileScore + 20);
+    }
+  } catch { profileScore = 0; }
+  scores.startup_profile = Math.min(100, profileScore);
+
+  // 2. Legal (verification + registration_number)
+  let legalScore = 0;
+  try {
+    const vRes = await db.execute({ sql: "SELECT status FROM venture_verifications WHERE venture_id = ?", args: [ventureId] });
+    const vStatus = vRes.rows[0]?.status;
+    if (vStatus === "verified") legalScore = 100;
+    else if (vStatus === "pending_review") legalScore = 50;
+    else legalScore = 10;
+    const vent = await db.execute({ sql: "SELECT registration_number FROM ventures WHERE venture_id = ?", args: [ventureId] });
+    if (vent.rows[0]?.registration_number) legalScore = Math.min(100, legalScore + 20);
+  } catch { legalScore = 0; }
+  scores.legal = legalScore;
+
+  // 3. Financial (financial_docs verification + deliverables)
+  let financialScore = 0;
+  try {
+    const verif = await db.execute({
+      sql: `SELECT COUNT(*) as c FROM venture_verification_items vi JOIN venture_verifications v ON vi.verification_id=v.id WHERE v.venture_id=? AND vi.category='financial_documents' AND vi.status='verified'`,
+      args: [ventureId],
+    });
+    if (parseInt(verif.rows[0]?.c||0) > 0) financialScore = 60;
+    const dels = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_deliverables WHERE venture_id=? AND status IN ('approved','completed') AND deliverable_type IN ('report','document')", args: [ventureId] });
+    if (parseInt(dels.rows[0]?.c||0) > 0) financialScore = Math.min(100, financialScore + 20);
+  } catch { financialScore = 0; }
+  scores.financial = financialScore;
+
+  // 4. Product (milestones completed + deliverables approved)
+  let productScore = 0;
+  try {
+    const ms = await db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as d FROM venture_milestones WHERE venture_id=?", args: [ventureId] });
+    const m = ms.rows[0] || { t: 0, d: 0 };
+    productScore = parseInt(m.t) > 0 ? Math.round((parseInt(m.d)/parseInt(m.t))*100) : 0;
+    const dels = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_deliverables WHERE venture_id=? AND status IN ('approved','completed')", args: [ventureId] });
+    if (parseInt(dels.rows[0]?.c||0) > 3) productScore = Math.min(100, productScore + 20);
+  } catch { productScore = 0; }
+  scores.product = productScore;
+
+  // 5. Traction (tasks done + KPI progress)
+  let tractionScore = 0;
+  try {
+    const ts = await db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as d FROM venture_tasks WHERE venture_id=?", args: [ventureId] });
+    const t = ts.rows[0] || { t: 0, d: 0 };
+    tractionScore = parseInt(t.t) > 0 ? Math.round((parseInt(t.d)/parseInt(t.t))*100) : 0;
+  } catch { tractionScore = 0; }
+  scores.traction = tractionScore;
+
+  // 6. Market Validation (industry + business_stage + sessions)
+  let marketScore = 0;
+  try {
+    const vent = await db.execute({ sql: "SELECT industry, business_stage FROM ventures WHERE venture_id=?", args: [ventureId] });
+    if (vent.rows[0]?.industry) marketScore = 30;
+    if (vent.rows[0]?.business_stage) marketScore += 20;
+    const s = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='completed'", args: [ventureId] });
+    if (parseInt(s.rows[0]?.c||0) > 0) marketScore = Math.min(100, marketScore + 20);
+  } catch { marketScore = 0; }
+  scores.market_validation = marketScore;
+
+  // 7. Business Model (profile completion + stage progression)
+  let businessModelScore = 0;
+  try {
+    const vent = await db.execute({ sql: "SELECT business_stage FROM ventures WHERE venture_id=?", args: [ventureId] });
+    const stage = vent.rows[0]?.business_stage || "idea";
+    const stageMap = { idea: 10, validation: 30, early_traction: 50, growth: 70, scaling: 90 };
+    businessModelScore = stageMap[stage] || 10;
+  } catch { businessModelScore = 0; }
+  scores.business_model = businessModelScore;
+
+  // 8. Team (founders + coaches assigned)
+  let teamScore = 0;
+  try {
+    const f = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_founders WHERE venture_id=? AND status='accepted'", args: [ventureId] });
+    const founders = parseInt(f.rows[0]?.c||0);
+    teamScore = Math.min(50, founders * 25);
+    const c = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_coach_assignments WHERE venture_id=? AND status='active'", args: [ventureId] });
+    if (parseInt(c.rows[0]?.c||0) > 0) teamScore = Math.min(100, teamScore + 30);
+  } catch { teamScore = 0; }
+  scores.team = teamScore;
+
+  // 9. Technology (tasks + deliverables related to tech)
+  let techScore = 0;
+  try {
+    const dels = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_deliverables WHERE venture_id=? AND deliverable_type='prototype' AND status IN ('approved','completed')", args: [ventureId] });
+    if (parseInt(dels.rows[0]?.c||0) > 0) techScore = 60;
+    const ts = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_tasks WHERE venture_id=? AND status='done'", args: [ventureId] });
+    if (parseInt(ts.rows[0]?.c||0) > 5) techScore = Math.min(100, techScore + 20);
+  } catch { techScore = 0; }
+  scores.technology = techScore;
+
+  // 10. Pitch Readiness (pitch review sessions + documents)
+  let pitchScore = 0;
+  try {
+    const s = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND session_type='pitch_review' AND status='completed'", args: [ventureId] });
+    if (parseInt(s.rows[0]?.c||0) > 0) pitchScore = 50;
+    const docs = await db.execute({ sql: `SELECT COUNT(*) as c FROM venture_verification_documents vvd JOIN venture_verifications vv ON vvd.verification_id=vv.id WHERE vv.venture_id=?` });
+    if (parseInt(docs.rows[0]?.c||0) > 2) pitchScore = Math.min(100, pitchScore + 30);
+  } catch { pitchScore = 0; }
+  scores.pitch_readiness = pitchScore;
+
+  // Weights for each category
+  const weights = {
+    startup_profile: 15, legal: 10, financial: 15, product: 10, traction: 10,
+    market_validation: 10, business_model: 10, team: 10, technology: 5, pitch_readiness: 5,
+  };
+
+  let totalWeighted = 0;
+  let totalWeight = 0;
+  const categoryResults = [];
+
+  for (const cat of INVESTMENT_CATEGORIES) {
+    const w = weights[cat] || 10;
+    const s = scores[cat] || 0;
+    totalWeighted += s * w;
+    totalWeight += w;
+    categoryResults.push({ category: cat, score: s, weight: w });
+  }
+
+  const overallScore = totalWeight > 0 ? Math.round(totalWeighted / totalWeight) : 0;
+  const level = getInvestmentLevel(overallScore);
+
+  return { overall_score: overallScore, investment_level: level.level, level_label: level.label, level_color: level.color, categories: categoryResults };
+}
+
+/**
+ * Run a full assessment and store results.
+ */
+export async function evaluateInvestmentReadiness(ventureId) {
+  const result = await calculateInvestmentReadiness(ventureId);
+
+  // Check for existing assessment to compare
+  const prev = await db.execute({
+    sql: "SELECT overall_score, investment_level FROM investment_assessments WHERE venture_id=? ORDER BY calculated_at DESC LIMIT 1",
+    args: [ventureId],
+  });
+  const prevScore = prev.rows[0]?.overall_score || 0;
+  const prevLevel = prev.rows[0]?.investment_level || "not_ready";
+
+  // Create assessment
+  const aRes = await db.execute({
+    sql: `INSERT INTO investment_assessments (venture_id, overall_score, investment_level, calculated_at) VALUES (?, ?, ?, NOW()) RETURNING id`,
+    args: [ventureId, result.overall_score, result.investment_level.level],
+  });
+  const assessmentId = aRes.rows[0]?.id;
+
+  // Insert category scores
+  for (const cat of result.categories) {
+    await db.execute({
+      sql: `INSERT INTO investment_scores (assessment_id, category, score, weight) VALUES (?, ?, ?, ?)`,
+      args: [assessmentId, cat.category, cat.score, cat.weight],
+    });
+  }
+
+  // Log history
+  await db.execute({
+    sql: `INSERT INTO investment_history (venture_id, previous_score, new_score, previous_level, new_level, trigger_event)
+          VALUES (?, ?, ?, ?, ?, 'auto_evaluation')`,
+    args: [ventureId, prevScore, result.overall_score, prevLevel, result.investment_level.level],
+  });
+
+  // Generate recommendations
+  await generateRecommendations(ventureId, assessmentId, result);
+
+  return { assessment_id: assessmentId, ...result };
+}
+
+/**
+ * Generate recommendations for weak categories.
+ */
+export async function generateRecommendations(ventureId, assessmentId, result) {
+  const weakCategories = result.categories.filter((c) => c.score < 50);
+
+  const recommendationTemplates = {
+    startup_profile: { title: "Complete Your Startup Profile", description: "Fill in all sections of the Startup Profile Wizard to improve investor confidence.", effort: "2-4 hours", impact: "high" },
+    legal: { title: "Complete Legal Verification", description: "Submit business registration and legal documents for verification.", effort: "1-2 weeks", impact: "high" },
+    financial: { title: "Prepare Financial Documents", description: "Upload financial statements, bank records, and tax documents.", effort: "1-2 weeks", impact: "high" },
+    product: { title: "Accelerate Product Development", description: "Complete milestones and deliverable approvals to demonstrate progress.", effort: "2-4 weeks", impact: "medium" },
+    traction: { title: "Build Traction Evidence", description: "Complete tasks and track KPIs to show market traction.", effort: "4-8 weeks", impact: "high" },
+    market_validation: { title: "Validate Your Market", description: "Conduct market research, complete coaching sessions, and refine your industry positioning.", effort: "2-4 weeks", impact: "medium" },
+    business_model: { title: "Strengthen Business Model", description: "Progress through business stages and refine your revenue model.", effort: "2-4 weeks", impact: "high" },
+    team: { title: "Build Your Team", description: "Add co-founders, team members, and assign coaches/advisors.", effort: "1-4 weeks", impact: "high" },
+    technology: { title: "Showcase Technology", description: "Upload prototypes and complete technical deliverables.", effort: "4-8 weeks", impact: "medium" },
+    pitch_readiness: { title: "Prepare Your Pitch", description: "Schedule pitch review sessions and upload supporting documents.", effort: "1-2 weeks", impact: "medium" },
+  };
+
+  // Remove old recommendations
+  await db.execute({ sql: "DELETE FROM investment_recommendations WHERE venture_id=? AND is_completed=FALSE", args: [ventureId] });
+
+  for (const cat of weakCategories) {
+    const tmpl = recommendationTemplates[cat.category] || { title: `Improve ${cat.category.replace(/_/g, " ")}`, description: "Focus on improving this area.", effort: "2-4 weeks", impact: "medium" };
+    const priority = cat.score < 20 ? "high" : cat.score < 40 ? "medium" : "low";
+
+    // Try to find a relevant knowledge resource
+    let resourceId = null;
+    try {
+      const rRes = await db.execute({
+        sql: "SELECT id FROM knowledge_resources WHERE tags::text ILIKE ? AND status='published' LIMIT 1",
+        args: [`%${cat.category.replace(/_/g, " ")}%`],
+      });
+      resourceId = rRes.rows[0]?.id || null;
+    } catch {}
+
+    await db.execute({
+      sql: `INSERT INTO investment_recommendations (venture_id, assessment_id, category, priority, title, description, estimated_effort, expected_impact, resource_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [ventureId, assessmentId, cat.category, priority, tmpl.title, tmpl.description, tmpl.effort, tmpl.impact, resourceId],
+    });
+  }
+}
+
+/**
+ * Get latest investment readiness for a venture.
+ */
+export async function getInvestmentReadiness(ventureId) {
+  const [assessRes, recsRes, historyRes] = await Promise.all([
+    db.execute({
+      sql: `SELECT * FROM investment_assessments WHERE venture_id=? ORDER BY calculated_at DESC LIMIT 1`,
+      args: [ventureId],
+    }),
+    db.execute({
+      sql: `SELECT * FROM investment_recommendations WHERE venture_id=? AND is_completed=FALSE ORDER BY
+        CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, created_at DESC`,
+      args: [ventureId],
+    }),
+    db.execute({
+      sql: `SELECT * FROM investment_history WHERE venture_id=? ORDER BY created_at DESC LIMIT 20`,
+      args: [ventureId],
+    }),
+  ]);
+
+  const assessment = assessRes.rows[0] || null;
+  let categories = [];
+  if (assessment) {
+    const catRes = await db.execute({ sql: "SELECT * FROM investment_scores WHERE assessment_id=? ORDER BY category", args: [assessment.id] });
+    categories = catRes.rows || [];
+  }
+
+  const level = assessment ? getInvestmentLevel(assessment.overall_score) : getInvestmentLevel(0);
+
+  return {
+    assessment,
+    categories,
+    recommendations: recsRes.rows || [],
+    history: historyRes.rows || [],
+    level,
+  };
+}
+
+/**
+ * Get recommendations for a venture.
+ */
+export async function getInvestmentRecommendations(ventureId) {
+  const res = await db.execute({
+    sql: `SELECT ir.*, kr.title as resource_title FROM investment_recommendations ir
+          LEFT JOIN knowledge_resources kr ON ir.resource_id = kr.id
+          WHERE ir.venture_id=? AND ir.is_completed=FALSE
+          ORDER BY CASE ir.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, ir.created_at DESC`,
+    args: [ventureId],
+  });
+  return res.rows || [];
+}
