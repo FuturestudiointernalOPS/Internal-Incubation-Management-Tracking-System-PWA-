@@ -45,6 +45,9 @@ export async function ensureVentureSchema() {
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP DEFAULT NOW()",
     // Ensure name column is nullable (legacy constraint issue)
     "ALTER TABLE ventures ALTER COLUMN name DROP NOT NULL",
+    // Fix missing venture_history columns
+    "ALTER TABLE venture_history ADD COLUMN IF NOT EXISTS metadata JSONB",
+    "ALTER TABLE venture_history ADD COLUMN IF NOT EXISTS created_by TEXT",
     // Founder management columns
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'founder'",
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS is_owner BOOLEAN DEFAULT FALSE",

@@ -39,11 +39,20 @@ export async function createSession(userCid, userRole, rememberMe = false) {
     expiresAtStr,
   );
 
-  // Clean up old sessions for this user
-  await db.execute({
-    sql: "DELETE FROM user_sessions WHERE user_cid = ?",
+  // Enforce max 2 concurrent sessions — if already 2, remove the oldest
+  const existing = await db.execute({
+    sql: "SELECT id, created_at FROM user_sessions WHERE user_cid = ? ORDER BY created_at ASC",
     args: [userCid],
   });
+  if (existing.rows.length >= 2) {
+    const toRemove = existing.rows.length - 1; // keep 1, we'll add 1 more = 2 total
+    for (let i = 0; i < toRemove; i++) {
+      await db.execute({
+        sql: "DELETE FROM user_sessions WHERE id = ?",
+        args: [existing.rows[i].id],
+      });
+    }
+  }
 
   // Create new session
   await db.execute({
