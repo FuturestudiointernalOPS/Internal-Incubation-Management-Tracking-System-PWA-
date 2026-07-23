@@ -27,6 +27,9 @@
     "projects": "Projets",
     "sessions": "Sessions",
     "reviews": "Révisions",
-    "announcements": "Annonces"
+    "announcements": "Annonces",
+    "investors": "Investisseurs",
+    "invManage": "Gérer",
+    "invOverview": "Activité"
   }
 }

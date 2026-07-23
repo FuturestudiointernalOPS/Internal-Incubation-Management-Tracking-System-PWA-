@@ -29,6 +29,9 @@
     "reviews": "Reviews",
     "assignments": "Assignments",
     "rituals": "Rituals",
-    "announcements": "Announcements"
+    "announcements": "Announcements",
+    "investors": "Investors",
+    "invManage": "Manage",
+    "invOverview": "Activity"
   }
 }
