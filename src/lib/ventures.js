@@ -36,6 +36,9 @@ export async function ensureVentureSchema() {
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS email TEXT",
     "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS name TEXT",
+    // Missing venture_founders columns
+    "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'",
+    "ALTER TABLE venture_founders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
     // Venture members columns
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP DEFAULT NOW()",
     // Ensure name column is nullable (legacy constraint issue)
