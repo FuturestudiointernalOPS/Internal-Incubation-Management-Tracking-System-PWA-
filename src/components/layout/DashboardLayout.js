@@ -658,10 +658,22 @@ const NAVIGATION_MATRIX = {
       href: "/investor/dashboard",
     },
     {
+      id: "portfolio",
+      name: "PORTFOLIO",
+      icon: TrendingUp,
+      href: "/investor/portfolio",
+    },
+    {
       id: "organizations",
       name: "ORGANIZATIONS",
       icon: Briefcase,
       href: "/investor/organizations",
+    },
+    {
+      id: "history",
+      name: "HISTORY",
+      icon: Activity,
+      href: "/investor/history",
     },
     {
       id: "profile",
