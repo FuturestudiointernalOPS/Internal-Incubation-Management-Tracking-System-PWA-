@@ -237,7 +237,7 @@ const SidebarContent = ({
           </p>
         )}
         <Link
-          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" || role === "intern" ? "developer" : "participant"}/profile`}
+          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`}
           className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
         >
           <User className="w-4 h-4 flex-shrink-0" />
@@ -282,6 +282,13 @@ const NAVIGATION_MATRIX = {
           href: "/admin/reports/responses",
         },
       ],
+    },
+
+    {
+      id: "investors",
+      name: "INVESTORS",
+      icon: Briefcase,
+      href: "/admin/investors",
     },
 
     {
@@ -634,6 +641,33 @@ const NAVIGATION_MATRIX = {
       name: "DELIVERABLES",
       icon: FileText,
       href: "/team",
+    },
+  ],
+
+  investor: [
+    {
+      id: "dashboard",
+      name: "DISCOVER",
+      icon: LayoutDashboard,
+      href: "/investor/dashboard",
+    },
+    {
+      id: "pipeline",
+      name: "PIPELINE",
+      icon: BarChart3,
+      href: "/investor/dashboard",
+    },
+    {
+      id: "organizations",
+      name: "ORGANIZATIONS",
+      icon: Briefcase,
+      href: "/investor/organizations",
+    },
+    {
+      id: "profile",
+      name: "PROFILE",
+      icon: User,
+      href: "/investor/profile",
     },
   ],
 };

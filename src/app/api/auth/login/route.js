@@ -147,10 +147,14 @@ export async function POST(req) {
       finalRole = "super_admin";
     } else if (user.role === "developer") {
       finalRole = "developer";
+    } else if (user.role === "investor") {
+      finalRole = "investor";
     } else if (pmLeadAssignment.rows.length > 0) {
       finalRole = "program_manager"; // Project Manager (Head)
     } else if (activeTeammateAssignment.rows.length > 0) {
       finalRole = "teacher"; // Active Teammate
+    } else if (user.role === "investor") {
+      finalRole = "investor";
     } else if (
       user.role === "project_manager" ||
       user.group_name?.toUpperCase() === "STAFF" ||
