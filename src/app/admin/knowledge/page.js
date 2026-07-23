@@ -183,7 +183,6 @@ export default function KnowledgeBank() {
   };
 
   const handleDeleteNote = async (id) => {
-    if (!confirm("CRITICAL: This will permanently delete the operational node. Proceed?")) return;
     try {
       const res = await fetch('/api/knowledge', {
         method: 'DELETE',

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import GlobalToast from '@/components/ui/GlobalToast';
 export default function PublicFormView() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -47,7 +48,8 @@ export default function PublicFormView() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!cid && (!publicData.name || !publicData.email)) {
-      return alert("Public forms require Name and Email to process correctly.");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'warning', message: 'Public forms require Name and Email to process correctly.' } }));
+      return;
     }
     setSubmitting(true);
     try {
@@ -61,10 +63,10 @@ export default function PublicFormView() {
       if (data.success) {
         setSubmitted(true);
       } else {
-        alert(data.error);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error } }));
       }
     } catch (err) {
-      alert('Error submitting form');
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Error submitting form' } }));
     } finally {
       setSubmitting(false);
     }
@@ -169,6 +171,7 @@ export default function PublicFormView() {
             </motion.div>
           </form>
        </div>
+       <GlobalToast />
     </div>
   );
 }

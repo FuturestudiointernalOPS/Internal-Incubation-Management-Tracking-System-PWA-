@@ -49,7 +49,6 @@ export default function RecycleBinPage() {
   };
 
   const handlePermanentDelete = async (cid, name) => {
-    if (!confirm(`Permanently delete ${name}? This cannot be undone.`)) return;
     setProcessing(cid);
     try {
       const res = await fetch(`/api/contacts?cid=${cid}`, { method: 'DELETE' });

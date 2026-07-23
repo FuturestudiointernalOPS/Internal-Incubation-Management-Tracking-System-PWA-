@@ -165,8 +165,6 @@ export default function FormsPage() {
   };
 
   const deleteForm = async (formId) => {
-    if (!window.confirm("Are you sure you want to archive this form?")) return;
-
     try {
       const res = await fetch("/api/forms", {
         method: "DELETE",

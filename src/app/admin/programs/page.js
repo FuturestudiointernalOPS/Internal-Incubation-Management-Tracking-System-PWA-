@@ -103,7 +103,6 @@ export default function ProgramManagement() {
   };
 
   const handleDeleteEditKpi = async (kpiId) => {
-    if (!confirm("Decommission this KPI target?")) return;
     try {
       const res = await fetch("/api/v2/kpis", {
         method: "DELETE",
@@ -281,8 +280,6 @@ export default function ProgramManagement() {
   const handlePermanentDelete = async (id, e) => {
     if (!id) return;
     e.stopPropagation();
-    if (!confirm("Permanent deletion protocol initialized. Are you sure?"))
-      return;
     try {
       const res = await fetch("/api/pm/programs", {
         method: "DELETE",

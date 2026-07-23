@@ -69,6 +69,7 @@ export default function InvestorDashboard() {
   // Comparison
   const [compareList, setCompareList] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => { fetchDashboard(); }, []);
 
@@ -89,6 +90,7 @@ export default function InvestorDashboard() {
   };
 
   const addToPipeline = async (ventureId, stage) => {
+    setProcessingId(ventureId);
     try {
       const res = await fetch("/api/investor/pipeline", {
         method: "POST",
@@ -100,10 +102,13 @@ export default function InvestorDashboard() {
         setToast({ type: "success", message: `Venture ${STAGE_LABELS[stage]}` });
         fetchDashboard();
       }
-    } catch (_) {}
+    } catch (_) {} finally {
+      setProcessingId(null);
+    }
   };
 
   const toggleWatchlist = async (ventureId) => {
+    setProcessingId(ventureId);
     try {
       const res = await fetch("/api/investor/watchlist", {
         method: "POST",
@@ -115,7 +120,9 @@ export default function InvestorDashboard() {
         setToast({ type: "success", message: data.action === "added" ? "Added to watchlist" : "Removed from watchlist" });
         fetchDashboard();
       }
-    } catch (_) {}
+    } catch (_) {} finally {
+      setProcessingId(null);
+    }
   };
 
   // Advanced venture search with filters
@@ -361,8 +368,11 @@ export default function InvestorDashboard() {
                                 <GitCompare className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={() => toggleWatchlist(v.id)}
-                                className={`p-1 rounded transition-colors ${isWatching ? "text-[var(--brand-orange)]" : "text-[var(--text-tertiary)] hover:text-[var(--brand-orange)]"}`}>
-                                {isWatching ? <BookmarkCheck className="w-4 h-4 fill-current" /> : <Bookmark className="w-4 h-4" />}
+                                disabled={processingId !== null}
+                                className={`p-1 rounded transition-colors ${isWatching ? "text-[var(--brand-orange)]" : "text-[var(--text-tertiary)] hover:text-[var(--brand-orange)]"} disabled:opacity-40 disabled:cursor-wait`}>
+                                {processingId === v.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : isWatching ? <BookmarkCheck className="w-4 h-4 fill-current" /> : <Bookmark className="w-4 h-4" />}
                               </button>
                             </div>
                           </div>
@@ -373,9 +383,10 @@ export default function InvestorDashboard() {
                             <span className="text-[10px] text-[var(--text-tertiary)]">{v.country || ""}{v.completion_index ? ` · ${Number(v.completion_index).toFixed(0)}%` : ""}</span>
                             <button
                               onClick={() => addToPipeline(v.id, "interested")}
-                              className="flex items-center gap-1 text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline"
+                              disabled={processingId !== null}
+                              className="flex items-center gap-1 text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline disabled:opacity-40 disabled:cursor-wait disabled:no-underline"
                             >
-                              Express Interest <ArrowRight className="w-3 h-3" />
+                              {processingId === v.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <>Express Interest <ArrowRight className="w-3 h-3" /></>}
                             </button>
                           </div>
                         </div>
@@ -450,7 +461,8 @@ export default function InvestorDashboard() {
                         <select
                           value={p.stage}
                           onChange={e => addToPipeline(p.venture_id, e.target.value)}
-                          className="bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+                          disabled={processingId !== null}
+                          className="bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none disabled:opacity-40 disabled:cursor-wait"
                         >
                           {PIPELINE_STAGES.map(s => (
                             <option key={s} value={s}>{STAGE_LABELS[s]}</option>
@@ -485,7 +497,7 @@ export default function InvestorDashboard() {
                           <p className="text-xs text-[var(--text-secondary)] mt-1">{w.personal_notes}</p>
                         )}
                       </div>
-                      <AppButton variant="secondary" size="sm" onClick={() => addToPipeline(w.venture_id, "interested")}>
+                      <AppButton variant="secondary" size="sm" loading={processingId === w.venture_id} disabled={processingId !== null} onClick={() => addToPipeline(w.venture_id, "interested")}>
                         Add to Pipeline
                       </AppButton>
                     </div>
@@ -540,19 +552,21 @@ export default function InvestorDashboard() {
                       </span>
                       <select value={detailPipeline.stage}
                         onChange={e => { addToPipeline(detailVenture.id, e.target.value); setDetailPipeline({...detailPipeline, stage: e.target.value}); }}
-                        className="bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none">
+                        disabled={processingId !== null}
+                        className="bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none disabled:opacity-40 disabled:cursor-wait">
                         {PIPELINE_STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
                       </select>
                     </div>
                   </div>
                 ) : (
                   <AppButton variant="primary" size="sm" icon={ArrowRight}
+                    loading={processingId !== null}
                     onClick={() => { addToPipeline(detailVenture.id, "interested"); setDetailPipeline({ stage: "interested" }); }}>
                     Add to Pipeline
                   </AppButton>
                 )}
                 <div className="flex gap-3 pt-2 border-t border-[var(--border-primary)]">
-                  <AppButton variant="secondary" size="sm" onClick={() => toggleWatchlist(detailVenture.id)}>
+                  <AppButton variant="secondary" size="sm" loading={processingId !== null} onClick={() => toggleWatchlist(detailVenture.id)}>
                     {watchlist.some(w => w.venture_id === detailVenture.id) ? "Remove from Watchlist" : "Add to Watchlist"}
                   </AppButton>
                 </div>

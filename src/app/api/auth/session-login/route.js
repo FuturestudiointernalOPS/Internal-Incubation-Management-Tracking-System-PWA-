@@ -25,7 +25,7 @@ export async function POST(req) {
     let permission = "edit";
 
     const contactResult = await db.execute({
-      sql: "SELECT * FROM contacts WHERE (email = ? OR cid = ?) AND deleted = 0 LIMIT 1",
+      sql: "SELECT * FROM contacts WHERE (email = ? OR cid = ?) AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
       args: [cleanEmail, cleanEmail],
     });
 

@@ -76,7 +76,7 @@ export async function POST(req) {
     const phoneSet = new Set();
     try {
       const phoneRes = await db.execute({
-        sql: "SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != '' AND deleted = 0",
+        sql: "SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != '' AND deleted = 0 AND deleted_at IS NULL",
         args: [],
       });
       for (const r of phoneRes.rows) {
@@ -164,7 +164,7 @@ export async function POST(req) {
 
         // Upsert: check existing by email (7.3: duplicate emails → update)
         const existing = await db.execute({
-          sql: "SELECT cid FROM contacts WHERE email = ? AND deleted = 0 LIMIT 1",
+          sql: "SELECT cid FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
           args: [row.email],
         });
 

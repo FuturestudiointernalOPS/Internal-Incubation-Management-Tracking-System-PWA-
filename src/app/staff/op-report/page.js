@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Calendar,
   Send,
@@ -12,7 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Save,
   FileText,
   Users,
   BarChart3,
@@ -125,6 +124,7 @@ export default function StaffOpReport() {
   const [history, setHistory] = useState([]);
   const [showStandupModal, setShowStandupModal] = useState(false);
   const [readOnly, setReadOnly] = useState(false);
+  const [isHistorical, setIsHistorical] = useState(false);
   const [expandedWeek, setExpandedWeek] = useState(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [newTaskForm, setNewTaskForm] = useState({
@@ -197,6 +197,7 @@ export default function StaffOpReport() {
   const [allStaff, setAllStaff] = useState([]);
   const [taskRows, setTaskRows] = useState([]);
   const [blockerModal, setBlockerModal] = useState(null); // { taskRowIndex } or null
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
   const [newBlockerTitle, setNewBlockerTitle] = useState("");
   const [newBlockerDescription, setNewBlockerDescription] = useState("");
   const [newBlockerPriority, setNewBlockerPriority] = useState("medium");
@@ -216,6 +217,102 @@ export default function StaffOpReport() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryCollapsed, setSummaryCollapsed] = useState({});
   const [summaryProjectExpanded, setSummaryProjectExpanded] = useState({});
+
+  // Draft auto-save timer ref
+  const draftTimerRef = useRef(null);
+  // Draft recovery banner state
+  const [draftAvailable, setDraftAvailable] = useState(false);
+
+  // Build a localStorage key for the current user + current week
+  const getDraftKey = useCallback(() => {
+    const uid = user?.cid || user?.id;
+    if (!uid) return null;
+    return `standup_draft_${uid}_${weekInfo.week}_${weekInfo.year}`;
+  }, [user, weekInfo.week, weekInfo.year]);
+
+  // Save draft to localStorage after 2s of no changes
+  useEffect(() => {
+    if (!user || saving || !showStandupModal) return;
+    const key = getDraftKey();
+    if (!key) return;
+
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      const draft = {
+        form,
+        taskRows,
+        reportType,
+        showTaskForm,
+        savedAt: Date.now(),
+      };
+      try {
+        localStorage.setItem(key, JSON.stringify(draft));
+      } catch (e) {
+        // localStorage full or unavailable — silently ignore
+      }
+    }, 2000);
+
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, [form, taskRows, user, saving, showStandupModal, reportType, showTaskForm, getDraftKey]);
+
+  // Check for existing draft when modal opens
+  const checkDraft = useCallback(() => {
+    const key = getDraftKey();
+    if (!key) return;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // Only show banner if draft is from today or earlier (prevents showing banner right after save)
+        if (parsed.form || (parsed.taskRows && parsed.taskRows.length > 0)) {
+          setDraftAvailable(true);
+          return;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    setDraftAvailable(false);
+  }, [getDraftKey]);
+
+  // Restore draft content
+  const restoreDraft = useCallback(() => {
+    const key = getDraftKey();
+    if (!key) return;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.form) setForm(draft.form);
+        if (draft.taskRows) setTaskRows(draft.taskRows);
+        if (draft.reportType) setReportType(draft.reportType);
+        if (draft.showTaskForm !== undefined) setShowTaskForm(draft.showTaskForm);
+      }
+    } catch (e) {
+      // ignore
+    }
+    setDraftAvailable(false);
+  }, [getDraftKey]);
+
+  // Discard draft
+  const discardDraft = useCallback(() => {
+    const key = getDraftKey();
+    if (key) {
+      try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+    }
+    setDraftAvailable(false);
+  }, [getDraftKey]);
+
+  // Clear draft from localStorage (called on successful submit)
+  const clearDraft = useCallback(() => {
+    const key = getDraftKey();
+    if (key) {
+      try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+    }
+    setDraftAvailable(false);
+  }, [getDraftKey]);
 
   const toggleSummaryCollapsed = (key) => {
     setSummaryCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -526,6 +623,17 @@ export default function StaffOpReport() {
     fetchAllStaff,
   ]);
 
+  // Check for saved draft when the standup modal opens
+  useEffect(() => {
+    if (showStandupModal && !readOnly && !isHistorical) {
+      // Small delay to let weekInfo state settle before checking
+      const t = setTimeout(() => checkDraft(), 50);
+      return () => clearTimeout(t);
+    } else {
+      setDraftAvailable(false);
+    }
+  }, [showStandupModal, readOnly, isHistorical, checkDraft]);
+
   const handleSubmit = async (status = "submitted") => {
     if (!user) return;
 
@@ -651,6 +759,7 @@ export default function StaffOpReport() {
             : t("reports.reportSaved"),
           "success",
         );
+        clearDraft();
         setTaskRows([]);
         setShowTaskForm(false);
         fetchReport();
@@ -757,27 +866,35 @@ export default function StaffOpReport() {
     });
   };
 
-  const removeTaskRow = async (index) => {
+  const removeTaskRow = (index) => {
     const row = taskRows[index];
-    if (row?.status) {
-      if (!window.confirm("Are you sure you want to archive this task?")) {
-        return;
-      }
-      try {
-        const res = await fetch("/api/tasks", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: row.id,
-            status: "archived",
-            user_id: user?.cid || user?.id,
-          }),
-        });
-        if (!res.ok) throw new Error("Failed to archive task");
-      } catch (err) {
-        console.error(err);
-        return;
-      }
+    if (!row?.status) {
+      setTaskRows((prev) => prev.filter((_, i) => i !== index));
+      return;
+    }
+    setConfirmTarget({
+      id: row.id,
+      message: 'Are you sure you want to archive this task?',
+      onConfirm: () => performArchiveTask(index),
+    });
+  };
+
+  const performArchiveTask = async (index) => {
+    const row = taskRows[index];
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: row.id,
+          status: "archived",
+          user_id: user?.cid || user?.id,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to archive task");
+    } catch (err) {
+      console.error(err);
+      return;
     }
     setTaskRows((prev) => prev.filter((_, i) => i !== index));
   };
@@ -994,6 +1111,7 @@ export default function StaffOpReport() {
                         onClick={async () => {
                           if (hasCurrentWeekStandup) return;
                           setReadOnly(false);
+                          setIsHistorical(false);
                           setShowStandupModal(true);
                           setWeekInfo(getCurrentWeek());
 
@@ -1210,6 +1328,7 @@ export default function StaffOpReport() {
                                                 report.year !==
                                                   currentWeek.year;
                                               setReadOnly(isPastWeek);
+                                              setIsHistorical(isPastWeek);
                                               setWeekInfo({
                                                 week: report.week_number,
                                                 year: report.year,
@@ -1514,33 +1633,37 @@ export default function StaffOpReport() {
                                             </table>
                                           </div>
                                         )}
-                                        <div className="mt-3">
-                                          <button
-                                            onClick={() => {
-                                              const currentWeek =
-                                                getCurrentWeek();
-                                              const isPastWeek =
-                                                report.week_number !==
-                                                  currentWeek.week ||
-                                                report.year !==
-                                                  currentWeek.year;
-                                              setReadOnly(isPastWeek);
-                                              setWeekInfo({
-                                                week: report.week_number,
-                                                year: report.year,
-                                              });
-                                              setShowStandupModal(true);
-                                              setTimeout(
-                                                () => setShowTaskForm(true),
-                                                100,
-                                              );
-                                            }}
-                                            className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
-                                          >
-                                            <Plus className="w-3.5 h-3.5" />{" "}
-                                            {t("reports.addTask")}
-                                          </button>
-                                        </div>
+                                        {(() => {
+                                          const currentWeek = getCurrentWeek();
+                                          const isPastWeek =
+                                            report.week_number !==
+                                              currentWeek.week ||
+                                            report.year !== currentWeek.year;
+                                          if (isPastWeek) return null;
+                                          return (
+                                            <div className="mt-3">
+                                              <button
+                                                onClick={() => {
+                                                  setReadOnly(false);
+                                                  setIsHistorical(false);
+                                                  setWeekInfo({
+                                                    week: report.week_number,
+                                                    year: report.year,
+                                                  });
+                                                  setShowStandupModal(true);
+                                                  setTimeout(
+                                                    () => setShowTaskForm(true),
+                                                    100,
+                                                  );
+                                                }}
+                                                className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
+                                              >
+                                                <Plus className="w-3.5 h-3.5" />{" "}
+                                                {t("reports.addTask")}
+                                              </button>
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     </div>
                                   </td>
@@ -1567,6 +1690,7 @@ export default function StaffOpReport() {
                             <button
                               onClick={() => {
                                 setReadOnly(false);
+                                setIsHistorical(false);
                                 setShowStandupModal(true);
                                 setWeekInfo(getCurrentWeek());
                               }}
@@ -3246,6 +3370,7 @@ export default function StaffOpReport() {
           onClick={() => {
             setShowStandupModal(false);
             setReadOnly(false);
+            setIsHistorical(false);
           }}
         >
           <div
@@ -3267,6 +3392,7 @@ export default function StaffOpReport() {
                   onClick={() => {
                     setShowStandupModal(false);
                     setReadOnly(false);
+                    setIsHistorical(false);
                   }}
                   className="p-1.5 hover:bg-tertiary rounded-md transition-all"
                 >
@@ -3276,10 +3402,37 @@ export default function StaffOpReport() {
             </div>
 
             <div className="px-6 py-4 space-y-6">
-              {readOnly && (
-                <div className="px-3 py-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.08] text-[11px] text-amber-400 font-medium flex items-center gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  {t("staff.opReport.readOnly")}
+              {isHistorical && (
+                <div className="px-4 py-3 rounded-lg border border-amber-500/30 bg-[var(--bg-tertiary)] text-[12px] text-[var(--text-primary)] leading-relaxed flex items-start gap-3">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <span>
+                    This standup belongs to a previous reporting week and can no longer be edited.
+                  </span>
+                </div>
+              )}
+              {/* Draft Recovery Banner */}
+              {draftAvailable && !isHistorical && (
+                <div className="px-4 py-3 rounded-lg border border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-4 h-4 shrink-0 mt-0.5 text-[var(--brand-orange)]" />
+                    <span className="text-[12px] text-[var(--text-primary)] leading-relaxed font-medium">
+                      Continue where you left off?
+                    </span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={discardDraft}
+                      className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white border border-slate-600 rounded-lg hover:border-slate-400 transition-all"
+                    >
+                      Discard
+                    </button>
+                    <button
+                      onClick={restoreDraft}
+                      className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-[var(--brand-orange)] text-black rounded-lg hover:brightness-110 transition-all"
+                    >
+                      Continue
+                    </button>
+                  </div>
                 </div>
               )}
               {/* Section 1 — Carry Over Tasks */}
@@ -3323,7 +3476,7 @@ export default function StaffOpReport() {
                             )}
                           </div>
                         </div>
-                        {!readOnly && (
+                        {!readOnly && !isHistorical && (
                           <div className="flex gap-1 shrink-0">
                             <button
                               onClick={async () => {
@@ -3391,7 +3544,7 @@ export default function StaffOpReport() {
                               </span>
                             </div>
                           </div>
-                          {!readOnly && (
+                          {!readOnly && !isHistorical && (
                             <div className="flex gap-1 shrink-0">
                               <button
                                 onClick={async () => {
@@ -3436,7 +3589,7 @@ export default function StaffOpReport() {
                   onTasksChange={fetchTasks}
                   weekInfo={weekInfo}
                   showCarryOver={true}
-                  readOnly={readOnly}
+                  readOnly={readOnly || isHistorical}
                 />
               </div>
 
@@ -3455,26 +3608,15 @@ export default function StaffOpReport() {
                   }
                   rows={2}
                   placeholder={t("staff.opReport.anythingElseNote")}
-                  disabled={readOnly}
+                  disabled={readOnly || isHistorical}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
 
             {/* Action Buttons */}
-            {!readOnly && (
+            {!readOnly && !isHistorical && (
               <div className="flex gap-3 pt-4 border-t border-[var(--border-primary)] sticky bottom-0 bg-primary px-6 py-4">
-                <button
-                  onClick={() => {
-                    handleSubmit("draft");
-                    setShowStandupModal(false);
-                  }}
-                  disabled={saving}
-                  className="flex-1 btn btn-secondary gap-2 py-4"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? t("common.saving") : t("reports.saveDraft")}
-                </button>
                 <button
                   onClick={() => {
                     handleSubmit("submitted");
@@ -3484,7 +3626,7 @@ export default function StaffOpReport() {
                   className="flex-1 btn btn-primary gap-2 py-4"
                 >
                   <Send className="w-4 h-4" />
-                  {saving ? "Saving..." : "Save"}
+                  {saving ? t("common.saving") : t("common.save")}
                 </button>
               </div>
             )}
@@ -3735,6 +3877,25 @@ export default function StaffOpReport() {
       )}
 
       <TaskDetailModal task={taskDetail} onClose={() => setTaskDetail(null)} />
+
+      {/* Confirm Dialog */}
+      {confirmTarget && (
+        <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTarget(null)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-tight">Confirm Action</h3>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{confirmTarget.message}</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">Cancel</button>
+              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

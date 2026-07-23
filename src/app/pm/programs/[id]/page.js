@@ -239,7 +239,7 @@ export default function ProgramWorkspace() {
   });
   const [newStaff, setNewStaff] = useState({ staff_id: "", role: "staff" });
 
-  const [toast, setToast] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -254,8 +254,7 @@ export default function ProgramWorkspace() {
   const configGradingRef = useRef(null);
 
   const notify = (msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message: msg } }));
   };
 
   const saveConfig = async () => {
@@ -708,12 +707,19 @@ export default function ProgramWorkspace() {
     }
   };
 
-  const removeKPI = async (kpiId) => {
+  const removeKPI = (kpiId) => {
     if (user.role !== "super_admin") {
       notify("Only SuperAdmin can decommission KPIs.", "error");
       return;
     }
-    if (!confirm("Decommission this KPI?")) return;
+    setConfirmTarget({
+      id: kpiId,
+      message: "Decommission this KPI?",
+      onConfirm: () => performRemoveKPI(kpiId),
+    });
+  };
+
+  const performRemoveKPI = async (kpiId) => {
     try {
       await fetch("/api/v2/kpis", {
         method: "DELETE",
@@ -747,8 +753,15 @@ export default function ProgramWorkspace() {
     }
   };
 
-  const removeStaff = async (staffId) => {
-    if (!confirm("Remove this staff member?")) return;
+  const removeStaff = (staffId) => {
+    setConfirmTarget({
+      id: staffId,
+      message: "Remove this staff member?",
+      onConfirm: () => performRemoveStaff(staffId),
+    });
+  };
+
+  const performRemoveStaff = async (staffId) => {
     try {
       const record = assignedStaff.find((s) => s.cid === staffId);
       if (record && record.id) {
@@ -762,8 +775,15 @@ export default function ProgramWorkspace() {
     } catch (e) {}
   };
 
-  const deleteTeam = async (teamId) => {
-    if (!confirm("Decommission this student group?")) return;
+  const deleteTeam = (teamId) => {
+    setConfirmTarget({
+      id: teamId,
+      message: "Decommission this student group?",
+      onConfirm: () => performDeleteTeam(teamId),
+    });
+  };
+
+  const performDeleteTeam = async (teamId) => {
     try {
       const res = await fetch("/api/pm/teams", {
         method: "DELETE",
@@ -781,8 +801,15 @@ export default function ProgramWorkspace() {
 
   const [showArchivedSessions, setShowArchivedSessions] = useState(false);
 
-  const deleteSession = async (sessionId) => {
-    if (!confirm("Archive this session? It can be restored later.")) return;
+  const deleteSession = (sessionId) => {
+    setConfirmTarget({
+      id: sessionId,
+      message: "Archive this session? It can be restored later.",
+      onConfirm: () => performDeleteSession(sessionId),
+    });
+  };
+
+  const performDeleteSession = async (sessionId) => {
     try {
       await fetch("/api/pm/curriculum", {
         method: "POST",
@@ -3101,16 +3128,22 @@ export default function ProgramWorkspace() {
           </div>
         )}
 
-        {/* TOAST */}
-        {toast && (
-          <div
-            className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${
-              toast.type === "error"
-                ? "bg-rose-50 text-rose-700 border-rose-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}
-          >
-            {toast.msg}
+        {/* Confirm Dialog */}
+        {confirmTarget && (
+          <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTarget(null)}>
+            <div className="card w-full max-w-sm space-y-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-6 h-6 text-amber-400 shrink-0" />
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight">Confirm Action</h3>
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{confirmTarget.message}</p>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">Cancel</button>
+                <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">Confirm</button>
+              </div>
+            </div>
           </div>
         )}
 

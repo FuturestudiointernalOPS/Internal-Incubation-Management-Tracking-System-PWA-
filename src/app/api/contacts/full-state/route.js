@@ -19,10 +19,12 @@ export async function GET(req) {
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const pmId = searchParams.get("pm_id");
+    const statusFilter = searchParams.get("status");
 
     console.log(
       "--- FETCHING PERSONNEL STATE ---",
       pmId ? `(Scoped for PM: ${pmId})` : "(Global)",
+      statusFilter ? `(Status: ${statusFilter})` : "",
     );
 
     let contactsRes;
@@ -44,41 +46,49 @@ export async function GET(req) {
         const idPlaceholders = myProgIds.map(() => "?").join(",") || "NULL";
         const namePlaceholders = myProgNames.map(() => "?").join(",") || "NULL";
 
+        const archiveClause = statusFilter === "archived"
+          ? "AND archived_at IS NOT NULL"
+          : "AND archived_at IS NULL";
+
         contactsRes = await db.execute({
           sql: `SELECT * FROM contacts
-                WHERE program_id IN (${idPlaceholders})
-                OR UPPER(TRIM(group_name)) IN (${namePlaceholders})
+                WHERE (program_id IN (${idPlaceholders})
+                OR UPPER(TRIM(group_name)) IN (${namePlaceholders}))
+                AND deleted_at IS NULL
+                ${archiveClause}
                 ORDER BY created_at DESC`,
           args: [...myProgIds, ...myProgNames],
         });
 
-        // Also fetch v2_participants (they register via register-participant flow)
-        const v2ParRes = await db.execute({
-          sql: `SELECT *, CAST(id AS TEXT) as v2_participant_id FROM v2_participants
-                WHERE program_id IN (${idPlaceholders})`,
-          args: [...myProgIds],
-        });
-        const v2Rows = v2ParRes.rows || [];
-        if (v2Rows.length > 0) {
-          // Merge into contacts, avoiding duplicates by email
-          const existingEmails = new Set(
-            (contactsRes.rows || [])
-              .map((c) => c.email?.toLowerCase())
-              .filter(Boolean),
-          );
-          for (const p of v2Rows) {
-            if (!existingEmails.has(p.email?.toLowerCase())) {
-              contactsRes.rows.push({
-                ...p,
-                cid: p.id,
-                source: "v2_participants",
-                name: p.name,
-                email: p.email,
-                phone: p.phone,
-                role: "participant",
-                status: p.screening_status || "approved",
-                group_name: (p.group_name || p.program_id || "").toUpperCase(),
-              });
+        // Also fetch v2_participants — skip when viewing archived (archiving not supported for this table)
+        if (statusFilter !== "archived") {
+          const v2ParRes = await db.execute({
+            sql: `SELECT *, CAST(id AS TEXT) as v2_participant_id FROM v2_participants
+                  WHERE program_id IN (${idPlaceholders})`,
+            args: [...myProgIds],
+          });
+          const v2Rows = v2ParRes.rows || [];
+          if (v2Rows.length > 0) {
+            // Merge into contacts, avoiding duplicates by email
+            const existingEmails = new Set(
+              (contactsRes.rows || [])
+                .map((c) => c.email?.toLowerCase())
+                .filter(Boolean),
+            );
+            for (const p of v2Rows) {
+              if (!existingEmails.has(p.email?.toLowerCase())) {
+                contactsRes.rows.push({
+                  ...p,
+                  cid: p.id,
+                  source: "v2_participants",
+                  name: p.name,
+                  email: p.email,
+                  phone: p.phone,
+                  role: "participant",
+                  status: p.screening_status || "approved",
+                  group_name: (p.group_name || p.program_id || "").toUpperCase(),
+                });
+              }
             }
           }
         }
@@ -106,8 +116,11 @@ export async function GET(req) {
       }
     } else {
       // Global View (Super Admin)
+      const archiveClause = statusFilter === "archived"
+        ? "AND archived_at IS NOT NULL"
+        : "AND archived_at IS NULL";
       contactsRes = await db.execute(
-        "SELECT * FROM contacts ORDER BY created_at DESC",
+        `SELECT * FROM contacts WHERE deleted_at IS NULL ${archiveClause} ORDER BY created_at DESC`,
       );
       const famRes = await db.execute(
         "SELECT * FROM families ORDER BY name ASC",

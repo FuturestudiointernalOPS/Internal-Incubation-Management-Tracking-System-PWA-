@@ -1006,8 +1006,8 @@ export default function ProjectDetail() {
                       const data = await res.json();
                       if (data.success) {
                         fetchUpdates();
-                        alert("Report generated for Week " + data.week);
-                      } else alert(data.error || "Failed");
+                        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Report generated for Week ' + data.week } }));
+                      } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || 'Failed' } }));
                     } catch (_) {}
                   }}
                   className="ml-auto px-3 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"

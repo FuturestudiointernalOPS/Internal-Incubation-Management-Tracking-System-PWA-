@@ -82,10 +82,10 @@ export default function AssignedTasks() {
       if (data.success) {
         fetchData();
       } else {
-        alert(data.error || "Failed to respond");
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || "Failed to respond" } }));
       }
     } catch (e) {
-      alert("Network error");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: "Network error" } }));
     } finally {
       setResponding(null);
     }

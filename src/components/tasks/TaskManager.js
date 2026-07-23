@@ -28,6 +28,7 @@ import {
   Link as LinkIcon,
   Copy,
   Paperclip,
+  AlertTriangle,
 } from "lucide-react";
 
 import { uploadFile } from "@/lib/storage";
@@ -97,6 +98,14 @@ export default function TaskManager({
 }) {
   const { t } = useI18n();
   const uid = userId;
+
+  // ── Toast notification helper ──
+  const notify = (type, message) => {
+    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message } }));
+  };
+
+  // ── Confirmation dialog state ──
+  const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm } or null
   // Get current logged-in user for permission checks
   const [currentUserId, setCurrentUserId] = useState(null);
   useEffect(() => {
@@ -258,7 +267,7 @@ export default function TaskManager({
       const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
       const upload = await uploadFile("task-attachments", path, resourceFile);
       if (!upload.success) {
-        alert(upload.error || "Upload failed");
+        notify('error', upload.error || "Upload failed");
         return;
       }
       const res = await fetch("/api/tasks/resources", {
@@ -286,7 +295,12 @@ export default function TaskManager({
   };
 
   const handleDeleteResource = async (resourceId) => {
-    if (!window.confirm("Delete this resource link?")) return;
+    setConfirmAction({
+      message: "Delete this resource link?",
+      onConfirm: () => performDeleteResource(resourceId),
+    });
+  };
+  const performDeleteResource = async (resourceId) => {
     try {
       const res = await fetch(`/api/tasks/resources?id=${resourceId}`, {
         method: "DELETE",
@@ -979,28 +993,27 @@ export default function TaskManager({
           {/* Archive button — always visible */}
           {!readOnly && (
             <button
-              onClick={async () => {
-                if (
-                  !window.confirm(
-                    `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
-                  )
-                )
-                  return;
-                try {
-                  const res = await fetch(`/api/tasks?id=${task.id}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ status: "archived" }),
-                  });
-                  const data = await res.json();
-                  if (data.success) {
-                    if (onTasksChange) onTasksChange();
-                  } else {
-                    alert(data.error || "Failed to archive task.");
-                  }
-                } catch (e) {
-                  alert("Network error while archiving task.");
-                }
+              onClick={() => {
+                setConfirmAction({
+                  message: `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
+                  onConfirm: async () => {
+                    try {
+                      const res = await fetch("/api/tasks", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: task.id, status: "archived" }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        if (onTasksChange) onTasksChange();
+                      } else {
+                        notify('error', data.error || "Failed to archive task.");
+                      }
+                    } catch (e) {
+                      notify('error', "Network error while archiving task.");
+                    }
+                  },
+                });
               }}
               className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
               title="Archive task"
@@ -1023,10 +1036,10 @@ export default function TaskManager({
                   if (data.success) {
                     if (onTasksChange) onTasksChange();
                   } else {
-                    alert(data.error || "Failed to duplicate task.");
+                    notify('error', data.error || "Failed to duplicate task.");
                   }
                 } catch (e) {
-                  alert("Network error while duplicating task.");
+                  notify('error', "Network error while duplicating task.");
                 }
               }}
               className="text-slate-500 hover:text-[var(--brand-orange)] transition-all shrink-0"
@@ -1047,28 +1060,27 @@ export default function TaskManager({
                 // Past-week tasks can only be archived, not deleted
                 return (
                   <button
-                    onClick={async () => {
-                      if (
-                        !window.confirm(
-                          `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
-                        )
-                      )
-                        return;
-                      try {
-                        const res = await fetch(`/api/tasks?id=${task.id}`, {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ status: "archived" }),
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                          if (onTasksChange) onTasksChange();
-                        } else {
-                          alert(data.error || "Failed to archive task.");
-                        }
-                      } catch (e) {
-                        alert("Network error while archiving task.");
-                      }
+                    onClick={() => {
+                      setConfirmAction({
+                        message: `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
+                        onConfirm: async () => {
+                          try {
+                            const res = await fetch("/api/tasks", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: task.id, status: "archived" }),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              if (onTasksChange) onTasksChange();
+                            } else {
+                              notify('error', data.error || "Failed to archive task.");
+                            }
+                          } catch (e) {
+                            notify('error', "Network error while archiving task.");
+                          }
+                        },
+                      });
                     }}
                     className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
                     title="Archive task (past week — cannot delete)"
@@ -1079,24 +1091,28 @@ export default function TaskManager({
               }
               return (
                 <button
-                  onClick={async () => {
-                    if (!window.confirm(`Delete task "${task.title}"?`)) return;
-                    try {
-                      const res = await fetch(`/api/tasks?id=${task.id}`, {
-                        method: "DELETE",
-                      });
-                      const data = await res.json();
-                      if (data.success) {
-                        if (onTasksChange) onTasksChange();
-                      } else {
-                        alert(
-                          data.error ||
-                            "Cannot delete this task. It may be locked (older than 12 hours).",
-                        );
-                      }
-                    } catch (e) {
-                      alert("Network error while deleting task.");
-                    }
+                  onClick={() => {
+                    setConfirmAction({
+                      message: `Delete task "${task.title}"?`,
+                      onConfirm: async () => {
+                        try {
+                          const res = await fetch(`/api/tasks?id=${task.id}`, {
+                            method: "DELETE",
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            if (onTasksChange) onTasksChange();
+                          } else {
+                            notify('error',
+                              data.error ||
+                                "Cannot delete this task. It may be locked (older than 12 hours).",
+                            );
+                          }
+                        } catch (e) {
+                          notify('error', "Network error while deleting task.");
+                        }
+                      },
+                    });
                   }}
                   className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
                   title="Delete task"
@@ -1150,7 +1166,7 @@ export default function TaskManager({
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(r.url);
-                    alert("URL copied!");
+                    notify('info', "URL copied!");
                   }}
                   className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-emerald-400 transition-opacity"
                   title="Copy URL"
@@ -1665,30 +1681,31 @@ export default function TaskManager({
                             : st.status?.replace(/_/g, " ") || "Pending"}
                         </span>
                         <button
-                          onClick={async () => {
-                            if (
-                              !window.confirm(`Delete subtask "${st.title}"?`)
-                            )
-                              return;
-                            try {
-                              const res = await fetch(
-                                `/api/tasks?id=${st.id}`,
-                                {
-                                  method: "DELETE",
-                                },
-                              );
-                              const data = await res.json();
-                              if (data.success) {
-                                if (onTasksChange) onTasksChange();
-                              } else {
-                                alert(
-                                  data.error ||
-                                    "Cannot delete this subtask. It may be older than 12 hours.",
-                                );
-                              }
-                            } catch (e) {
-                              alert("Network error while deleting subtask.");
-                            }
+                          onClick={() => {
+                            setConfirmAction({
+                              message: `Delete subtask "${st.title}"?`,
+                              onConfirm: async () => {
+                                try {
+                                  const res = await fetch(
+                                    `/api/tasks?id=${st.id}`,
+                                    {
+                                      method: "DELETE",
+                                    },
+                                  );
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    if (onTasksChange) onTasksChange();
+                                  } else {
+                                    notify('error',
+                                      data.error ||
+                                        "Cannot delete this subtask. It may be older than 12 hours.",
+                                    );
+                                  }
+                                } catch (e) {
+                                  notify('error', "Network error while deleting subtask.");
+                                }
+                              },
+                            });
                           }}
                           className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
                           title="Delete subtask"
@@ -1986,10 +2003,10 @@ export default function TaskManager({
                       setEditTaskModal(null);
                       if (onTasksChange) onTasksChange();
                     } else {
-                      alert(data.error || "Failed to save task.");
+                      notify('error', data.error || "Failed to save task.");
                     }
                   } catch (e) {
-                    alert("Network error saving task.");
+                    notify('error', "Network error saving task.");
                     console.error(e);
                   }
                 }}
@@ -2248,6 +2265,49 @@ export default function TaskManager({
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── CONFIRM DIALOG MODAL ─── */}
+      {confirmAction && (
+        <div
+          className="fixed inset-0 z-[700] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setConfirmAction(null)}
+        >
+          <div
+            className="card w-full max-w-sm space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-tight">
+                  Confirm Action
+                </h3>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                  {confirmAction.message}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => {
+                  const cb = confirmAction.onConfirm;
+                  setConfirmAction(null);
+                  cb();
+                }}
+                className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-rose-600 transition-all"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-[var(--text-primary)] transition-all"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

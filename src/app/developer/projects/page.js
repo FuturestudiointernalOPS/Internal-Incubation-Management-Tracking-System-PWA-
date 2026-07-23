@@ -44,10 +44,10 @@ export default function DeveloperProjects() {
       if (data.success) {
         setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
       } else {
-        alert(data.error || "Failed to respond");
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || "Failed to respond" } }));
       }
     } catch (e) {
-      alert("Network error");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: "Network error" } }));
     } finally {
       setResponding(null);
     }

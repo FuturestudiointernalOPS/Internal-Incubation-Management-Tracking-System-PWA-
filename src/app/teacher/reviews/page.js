@@ -128,7 +128,7 @@ export default function SubmissionsHub() {
         setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
       }
     } catch (e) {
-      alert("Synchronization failure.");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Synchronization failure.' } }));
     }
   };
 

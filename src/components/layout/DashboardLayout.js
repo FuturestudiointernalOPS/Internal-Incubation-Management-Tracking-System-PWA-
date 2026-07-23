@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Sun,
   Moon,
+  Monitor,
   Users,
   LayoutDashboard,
   Briefcase,
@@ -842,6 +843,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   const [pendingInvites, setPendingInvites] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [openMenus, setOpenMenus] = useState({});
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
@@ -1018,7 +1020,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     fetchPendingUsersCount,
   ]);
 
-  const { toggleTheme, theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState({});
   const [authChecked, setAuthChecked] = useState(false);
   const [pmPrograms, setPmPrograms] = useState([]);
@@ -1378,17 +1380,55 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
             </div>
 
             <div className="flex items-center gap-4 ml-auto relative z-10">
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-md"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {theme === "dark" ? (
-                  <Sun className="w-4 h-4" />
-                ) : (
-                  <Moon className="w-4 h-4" />
+              {/* Theme Selector */}
+              <div className="relative">
+                <button
+                  onClick={() => setThemeMenuOpen(!themeMenuOpen)}
+                  className="p-2 rounded-md flex items-center gap-1"
+                  style={{ color: "var(--text-secondary)" }}
+                  title={theme === "system" ? "System" : theme === "dark" ? "Dark" : "Light"}
+                >
+                  {theme === "system" ? (
+                    <Monitor className="w-4 h-4" />
+                  ) : theme === "dark" ? (
+                    <Moon className="w-4 h-4" />
+                  ) : (
+                    <Sun className="w-4 h-4" />
+                  )}
+                  <ChevronDown className="w-3 h-3 opacity-50" />
+                </button>
+                {themeMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-[210]"
+                      onClick={() => setThemeMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-10 w-36 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-2xl z-[220] overflow-hidden">
+                      {[
+                        { value: "dark", label: "Dark", icon: Moon },
+                        { value: "light", label: "Light", icon: Sun },
+                        { value: "system", label: "System", icon: Monitor },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            setTheme(opt.value);
+                            setThemeMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-bold transition-colors ${
+                            theme === opt.value
+                              ? "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10"
+                              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-primary)]"
+                          }`}
+                        >
+                          <opt.icon className="w-3.5 h-3.5" />
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
-              </button>
+              </div>
               <button
                 onClick={() => switchLang(lang === "en" ? "fr" : "en")}
                 className="px-2 py-1 text-[10px] font-bold border border-[var(--border-primary)] rounded uppercase"

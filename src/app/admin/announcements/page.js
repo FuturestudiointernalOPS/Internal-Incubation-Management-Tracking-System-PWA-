@@ -123,7 +123,6 @@ export default function AnnouncementsPage() {
   };
 
   const handleArchive = async (ann) => {
-    if (!window.confirm(t("announcements.archiveConfirm"))) return;
     try {
       const res = await fetch(`/api/announcements?id=${ann.id}`, {
         method: "DELETE",

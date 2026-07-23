@@ -251,6 +251,8 @@ export async function PUT(req) {
       "image",
       "status",
       "deleted",
+      "archived_at",
+      "archived_by",
       "gender",
       "mother_name",
     ];
@@ -269,6 +271,10 @@ export async function PUT(req) {
         } else if (col === "email") {
           fieldsToUpdate.push(`${col} = ?`);
           args.push(val.toLowerCase());
+        } else if (col === "archived_at" || col === "archived_by") {
+          // Allow NULL for restore, or timestamp/text for archive
+          fieldsToUpdate.push(`${col} = ?`);
+          args.push(val || null);
         } else {
           fieldsToUpdate.push(`${col} = ?`);
           args.push(col === "deleted" ? (val ? 1 : 0) : val);
@@ -424,7 +430,7 @@ export async function GET(req) {
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
-    const archived = searchParams.get("archived");
+    const statusFilter = searchParams.get("status");
 
     let result;
     if (session.role === "participant") {
@@ -432,21 +438,70 @@ export async function GET(req) {
         sql: "SELECT * FROM contacts WHERE cid = ?",
         args: [session.cid],
       });
-    } else if (archived === "1" && session.role === "super_admin") {
-      // 9.4: Archived contacts for recycle bin
+    } else if (statusFilter === "archived" && session.role === "super_admin") {
+      // Archived contacts (archived but not soft-deleted)
       result = await db.execute(
-        "SELECT * FROM contacts WHERE deleted = 1 ORDER BY name ASC",
+        "SELECT * FROM contacts WHERE archived_at IS NOT NULL AND deleted_at IS NULL ORDER BY name ASC",
       );
     } else if (session.role === "super_admin") {
+      // Active contacts only (not archived, not soft-deleted)
       result = await db.execute(
-        "SELECT * FROM contacts WHERE deleted = 0 ORDER BY name ASC",
+        "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL ORDER BY name ASC",
       );
     } else {
+      // Staff/PM/Teacher: active only
       result = await db.execute(
-        "SELECT * FROM contacts WHERE deleted = 0 AND status = 'active' ORDER BY name ASC",
+        "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL AND status = 'active' ORDER BY name ASC",
       );
     }
     return NextResponse.json({ success: true, contacts: result.rows });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * DELETE — Soft-delete a contact (never physically deletes).
+ * Sets deleted_at and deleted_by. Contact disappears from all views.
+ */
+export async function DELETE(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
+
+    const { searchParams } = new URL(req.url);
+    const cid = searchParams.get("cid");
+    if (!cid) {
+      return NextResponse.json(
+        { success: false, error: "Contact ID (cid) is required." },
+        { status: 400 },
+      );
+    }
+
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    const deletedBy = session?.name || session?.email || session?.cid || "unknown";
+
+    const result = await db.execute({
+      sql: `UPDATE contacts SET deleted_at = NOW(), deleted_by = ? WHERE cid = ?`,
+      args: [deletedBy, cid],
+    });
+
+    if (result.rowsAffected === 0) {
+      return NextResponse.json(
+        { success: false, error: "Contact not found." },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Contact permanently deleted.",
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

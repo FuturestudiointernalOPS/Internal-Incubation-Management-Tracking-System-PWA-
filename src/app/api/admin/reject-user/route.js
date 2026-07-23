@@ -21,7 +21,7 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
   }
 
   const userResult = await db.execute({
-    sql: "SELECT * FROM contacts WHERE cid = ? AND deleted = 0 LIMIT 1",
+    sql: "SELECT * FROM contacts WHERE cid = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
     args: [user_cid],
   });
 

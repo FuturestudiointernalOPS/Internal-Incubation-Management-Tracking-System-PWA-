@@ -21,8 +21,10 @@ import {
   Trash2,
   Paperclip,
   ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import GlobalToast from "@/components/ui/GlobalToast";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -254,6 +256,7 @@ export default function MessagingChat({ role = "super_admin" }) {
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
   const [deletingMessageId, setDeletingMessageId] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
 
   // Compose modal state
   const [showCompose, setShowCompose] = useState(false);
@@ -669,8 +672,15 @@ export default function MessagingChat({ role = "super_admin" }) {
   };
 
   // ── Handle deleting a message (sender only, enforced server-side too) ──
-  const handleDeleteMessage = async (messageId) => {
-    if (!window.confirm(t("messaging.deleteConfirm"))) return;
+  const handleDeleteMessage = (messageId) => {
+    setConfirmTarget({
+      id: messageId,
+      message: t("messaging.deleteConfirm"),
+      onConfirm: () => performDeleteMessage(messageId),
+    });
+  };
+
+  const performDeleteMessage = async (messageId) => {
     setDeletingMessageId(messageId);
     try {
       const res = await fetch(`/api/internal-comms?id=${messageId}`, {
@@ -1508,6 +1518,26 @@ export default function MessagingChat({ role = "super_admin" }) {
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      {confirmTarget && (
+        <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTarget(null)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-tight">Confirm Action</h3>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{confirmTarget.message}</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">Cancel</button>
+              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <GlobalToast />
     </div>
   );
 }
