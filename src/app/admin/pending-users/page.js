@@ -440,7 +440,6 @@ export default function PendingUsersPage() {
                                   <XCircle className="w-4 h-4" />
                                 </button>
                                 <button
-                                <button
                                                                   onClick={() =>
                                                                     handleArchive(user.cid, user.name)
                                                                   }
