@@ -168,35 +168,31 @@ export async function GET(req, { params }) {
       if (pmRes.rows.length > 0) pmName = pmRes.rows[0].name;
     }
 
-    // ─── Determine unlocked sessions based on scheduled_date ───
+    // ─── Determine locked/unlocked status for all weeks ───
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const unlockedSessions = sessions.filter((s) => {
-      if (!s.scheduled_date) return true; // no date = always available
+    const checkUnlocked = (s) => {
+      if (s.status === "active" || s.status === "in progress" || s.status === "completed") return true;
+      if (!s.scheduled_date) return true;
       const sched = new Date(s.scheduled_date);
       sched.setHours(0, 0, 0, 0);
       return sched <= today;
-    });
+    };
 
+    const unlockedSessions = sessions.filter(checkUnlocked);
     const unlockedSessionWeekNumbers = new Set(
       unlockedSessions.map((s) => s.week_number || 1),
     );
-    const unlockedDeliverables = deliverables.filter((d) => {
-      const wn = d.session_id
-        ? sessions.find((s) => s.id === d.session_id)?.week_number || 1
-        : d.week_number || 1;
-      return unlockedSessionWeekNumbers.has(wn);
-    });
 
     const currentWeek =
       unlockedSessions.length > 0
         ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
         : 1;
 
-    // Only show KPIs linked to unlocked sessions
+    // Only show KPIs linked to all sessions
     const unlockedKpiIds = new Set();
-    for (const s of unlockedSessions) {
+    for (const s of sessions) {
       try {
         const ids =
           typeof s.kpi_ids === "string"
@@ -208,14 +204,14 @@ export async function GET(req, { params }) {
     const visibleKpis =
       unlockedKpiIds.size > 0
         ? kpis.filter((k) => unlockedKpiIds.has(Number(k.id)))
-        : unlockedSessions.length > 0
+        : sessions.length > 0
           ? kpis
           : [];
 
-    // Build weekly curriculum from unlocked content only
+    // Build weekly curriculum from all content
     const weeks = [];
     const weekMap = new Map();
-    for (const s of unlockedSessions) {
+    for (const s of sessions) {
       const wn = s.week_number || 1;
       if (!weekMap.has(wn))
         weekMap.set(wn, {
@@ -225,9 +221,9 @@ export async function GET(req, { params }) {
         });
       weekMap.get(wn).sessions.push(s);
     }
-    for (const d of unlockedDeliverables) {
+    for (const d of deliverables) {
       const wn = d.session_id
-        ? unlockedSessions.find((s) => s.id === d.session_id)?.week_number || 1
+        ? sessions.find((s) => s.id === d.session_id)?.week_number || 1
         : d.week_number || 1;
       if (!weekMap.has(wn))
         weekMap.set(wn, {
@@ -244,16 +240,20 @@ export async function GET(req, { params }) {
           (s) => s.document_id === d.id && s.status === "approved",
         ),
       ).length;
+      
+      const isWeekUnlocked = data.sessions.some(checkUnlocked) || unlockedSessionWeekNumbers.has(wn) || (wn <= currentWeek);
+
       weeks.push({
         number: data.number,
         sessions: data.sessions,
+        locked: !isWeekUnlocked,
         deliverables: data.deliverables.map((d) => {
           const sub = submissions.find((s) => s.document_id === d.id);
           return {
             id: d.id,
             title: d.title,
             description: d.description,
-            dueDate: d.created_at,
+            dueDate: d.due_date || d.created_at,
             allowedFormat: d.allowed_format,
             weight: d.weight,
             submission: sub

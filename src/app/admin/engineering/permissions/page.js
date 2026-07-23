@@ -1655,6 +1655,7 @@ function AccessProfilesView() {
                 "staff",
                 "participant",
                 "developer",
+                "intern",
                 "program_manager",
                 "teacher",
                 "admin",

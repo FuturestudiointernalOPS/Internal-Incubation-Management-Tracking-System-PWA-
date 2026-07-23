@@ -6,20 +6,25 @@ import { NextResponse } from "next/server";
 
 export const SESSION_COOKIE_NAME = "impactos_session";
 const SESSION_DURATION_HOURS = 24;
+const REMEMBER_ME_DURATION_HOURS = 720; // 30 days
 const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
+const REMEMBER_ME_DURATION_MS = REMEMBER_ME_DURATION_HOURS * 60 * 60 * 1000;
 const SESSION_CACHE_TTL = 5000; // 5s cache for session lookups
 const _sessionCache = new Map();
+const _failureCache = new Map(); // Cache DB failures to avoid cascading timeouts
+const FAILURE_CACHE_TTL = 30000; // If DB fails, don't retry for 30s
 
 /**
  * Creates a new session for a user.
  * Stores session in database and returns the token and maxAge.
  * The caller is responsible for setting the cookie on the response.
  */
-export async function createSession(userCid, userRole) {
+export async function createSession(userCid, userRole, rememberMe = false) {
   await initDb();
 
+  const durationMs = rememberMe ? REMEMBER_ME_DURATION_MS : SESSION_DURATION_MS;
   const token = uuidv4();
-  const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+  const expiresAt = new Date(Date.now() + durationMs);
   const expiresAtStr = expiresAt
     .toISOString()
     .replace("T", " ")
@@ -52,7 +57,7 @@ export async function createSession(userCid, userRole) {
     token.substring(0, 8) + "...",
   );
 
-  return { token, maxAge: SESSION_DURATION_HOURS * 60 * 60 };
+  return { token, maxAge: rememberMe ? REMEMBER_ME_DURATION_HOURS * 60 * 60 : SESSION_DURATION_HOURS * 60 * 60 };
 }
 
 /**
@@ -61,6 +66,12 @@ export async function createSession(userCid, userRole) {
  */
 export async function getSession() {
   try {
+    // Global failure cache: if DB was down in the last 30s, short-circuit immediately
+    if (_failureCache.has("db_down")) {
+      console.log("[session] DB failure cache active, skipping query");
+      return null;
+    }
+
     await initDb();
 
     const cookieStore = await cookies();
@@ -138,7 +149,10 @@ export async function getSession() {
 
     return result_session;
   } catch (error) {
-    console.error("Session validation error:", error);
+    console.error("Session validation error:", error.message);
+    // Cache failure to prevent cascading timeouts (e.g., Supabase paused)
+    _failureCache.set("db_down", Date.now() + FAILURE_CACHE_TTL);
+    setTimeout(() => _failureCache.delete("db_down"), FAILURE_CACHE_TTL);
     return null;
   }
 }

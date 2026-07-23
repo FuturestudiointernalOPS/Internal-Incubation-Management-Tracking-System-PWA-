@@ -210,17 +210,24 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
                   className="flex items-center justify-between py-2 px-3 rounded-lg bg-[var(--surface-2)]"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-[var(--text-primary)]">
-                        {del.title}
-                      </p>
-                      {del.submission && (
-                        <StatusBadge status={del.submission.status} />
-                      )}
-                      {!del.submission && !week.locked && del.allowedFormat && (
-                        <span className="text-xs text-[var(--text-tertiary)]">
-                          ({del.allowedFormat})
-                        </span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-[var(--text-primary)]">
+                          {del.title}
+                        </p>
+                        {del.submission && (
+                          <StatusBadge status={del.submission.status} />
+                        )}
+                        {!del.submission && !week.locked && del.allowedFormat && (
+                          <span className="text-xs text-[var(--text-tertiary)]">
+                            ({del.allowedFormat})
+                          </span>
+                        )}
+                      </div>
+                      {!del.submission && del.dueDate && (
+                        <p className="text-[10px] text-amber-500/80 font-medium mt-0.5 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Due {new Date(del.dueDate).toLocaleDateString()}
+                        </p>
                       )}
                     </div>
                     {del.submission && (

@@ -1,259 +1,121 @@
-"use client";
+'use client';
 
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  User,
-  Mail,
-  Lock,
-  Phone,
-  ArrowRight,
-  ShieldCheck,
-  AlertCircle,
-} from "lucide-react";
+import { useState, useEffect, use } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { Loader2, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
 
-export default function InvitePage({ params }) {
-  // Using React.use to unwrap params in Next.js 15+
-  const resolvedParams = use(params);
-  const token = resolvedParams.token;
-
+export default function InviteAcceptPage({ params }) {
+  const unwrappedParams = use(params);
+  const { token } = unwrappedParams;
   const router = useRouter();
-  const [inviteData, setInviteData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [formLoading, setFormLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-  });
+  const [invite, setInvite] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
 
   useEffect(() => {
-    const fetchInvite = async () => {
-      try {
-        const res = await fetch(`/api/v2/invites/${token}`);
-        const data = await res.json();
-
-        if (!res.ok) {
-          setError(data.error || "Invalid Future Studio Invite Link.");
-        } else {
-          setInviteData(data.invite);
-        }
-      } catch (err) {
-        setError("Failed to verify invitation. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchInvite();
   }, [token]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormLoading(true);
-    setError("");
-
+  const fetchInvite = async () => {
     try {
-      const res = await fetch(`/api/v2/invites/${token}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
+      const res = await fetch(`/api/invites/${token}`);
       const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Registration failed");
+      if (data.invite) {
+        setInvite(data.invite);
       } else {
-        setSuccess(true);
-        setTimeout(() => {
-          const isStaff =
-            inviteData?.group_name?.toUpperCase() === "FUTURE STUDIO" ||
-            inviteData?.group_name?.toUpperCase() === "STAFF";
-          router.push("/login");
-        }, 2000);
+        setError(data.error || 'Invalid or expired invite link.');
       }
-    } catch (err) {
-      setError("Network error. Please try again.");
+    } catch (e) {
+      setError('Failed to validate invite.');
     } finally {
-      setFormLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.email || !form.password) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/invites/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (data.user) {
+        setSuccess(true);
+      } else {
+        setError(data.error || 'Registration failed.');
+      }
+    } catch (e) {
+      setError('Network error.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "var(--bg-primary)" }}
-      >
-        <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#FF6600] animate-spin" />
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md w-full text-center space-y-6">
+          <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto" />
+          <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Registration Complete</h1>
+          <p className="text-slate-400 text-sm">You have successfully joined <strong className="text-white">{invite?.program_name || 'the program'}</strong>.</p>
+          <button onClick={() => router.push('/login')} className="px-8 py-3 bg-[#FF6600] text-black font-black uppercase tracking-widest rounded-xl text-sm hover:bg-white transition-all">
+            Go to Login
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (error && !invite) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-md w-full text-center space-y-6">
+          <AlertCircle className="w-16 h-16 text-rose-500 mx-auto" />
+          <h1 className="text-xl font-black text-white uppercase tracking-tighter">Invalid Invite</h1>
+          <p className="text-slate-400 text-sm">{error}</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden font-sans"
-      style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}
-    >
-      {/* Dynamic Background */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-orange-600/30 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[50%] bg-blue-600/20 blur-[100px] rounded-full pointer-events-none" />
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md relative z-10"
-      >
-        <div
-          className="backdrop-blur-xl border p-8 rounded-3xl shadow-2xl"
-          style={{
-            background: "var(--surface-1)",
-            borderColor: "var(--border-primary)",
-          }}
-        >
-          <div className="text-center mb-8">
-            <div className="bg-orange-500/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-orange-500/20">
-              <ShieldCheck className="text-orange-500 w-8 h-8" />
-            </div>
-            <h1 className="text-2xl font-bold mb-2">Join the Platform</h1>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              {inviteData?.program_name ? (
-                <>
-                  You have been invited to{" "}
-                  <strong style={{ color: "var(--text-primary)" }}>
-                    {inviteData.program_name}
-                  </strong>
-                </>
-              ) : (
-                "Complete your profile to gain access"
-              )}
-            </p>
-          </div>
-
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-400 text-sm"
-              >
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <p>{error}</p>
-              </motion.div>
-            )}
-
-            {success && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-center text-green-400"
-              >
-                <p className="font-medium">Welcome aboard!</p>
-                <p className="text-sm opacity-80 mt-1">
-                  Redirecting you to login...
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {!error && !success && inviteData && (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-                </div>
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Full Name"
-                  required
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-[var(--text-tertiary)]"
-                />
-              </div>
-
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-                </div>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Email Address"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-[var(--text-tertiary)]"
-                />
-              </div>
-
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Phone className="w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-                </div>
-                <input
-                  type="tel"
-                  name="phone"
-                  placeholder="Phone Number (Optional)"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-[var(--text-tertiary)]"
-                />
-              </div>
-
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-                </div>
-                <input
-                  type="password"
-                  name="password"
-                  placeholder="Create a Password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all placeholder:text-[var(--text-tertiary)]"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={formLoading}
-                className="w-full mt-6 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white font-medium py-3 px-4 rounded-xl shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {formLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Join Workspace</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          {!inviteData && !error && !loading && (
-            <div className="text-center text-slate-500 mt-4">
-              <p>Invalid link state. Please contact your admin.</p>
-            </div>
-          )}
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Join Program</h1>
+          <p className="text-slate-400 text-sm">{invite?.program_name || 'Program'} — {invite?.group_name || 'Open Registration'}</p>
+          <p className="text-[10px] text-[#FF6600] font-bold uppercase tracking-widest">Invited as {invite?.role || 'participant'}</p>
         </div>
 
-        <p className="text-center text-slate-500 text-xs mt-6">
-          Powered by ImpactOS • Secure Authentication
-        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input required type="text" placeholder="Full Name" name="name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="email" placeholder="Email Address" name="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input type="text" placeholder="Phone (optional)" name="phone" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="password" placeholder="Create Password" name="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+
+          {error && <p className="text-rose-500 text-xs font-bold">{error}</p>}
+
+          <button type="submit" disabled={submitting} className="w-full py-3 bg-[#FF6600] text-black font-black uppercase tracking-widest rounded-xl text-sm hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Complete Registration</>}
+          </button>
+        </form>
       </motion.div>
     </div>
   );

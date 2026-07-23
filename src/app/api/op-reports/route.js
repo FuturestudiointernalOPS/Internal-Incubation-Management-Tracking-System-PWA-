@@ -24,9 +24,18 @@ export async function GET(req) {
     const week_number = searchParams.get("week");
     const year = searchParams.get("year");
     const role = searchParams.get("role");
+    const workspace = searchParams.get("workspace");
 
     let sql = "SELECT * FROM v2_op_reports WHERE 1=1";
     const args = [];
+
+    // Super admin overview defaults to main workspace unless specified
+    if (!user_id && !workspace) {
+      sql += " AND workspace = 'main'";
+    } else if (workspace) {
+      sql += " AND workspace = ?";
+      args.push(workspace);
+    }
 
     // Staff can only see their own; SA can see all (when no user_id filter)
     if (user_id) {
@@ -202,15 +211,17 @@ export async function POST(req) {
     }
 
     // Insert new report
+    // Determine workspace based on user role
+    const workspace = user_role === "intern" ? "interns" : "main";
     const result = await db.execute({
       sql: `INSERT INTO v2_op_reports
-        (user_id, user_name, user_role, report_type, week_number, year, status,
+        (user_id, user_name, user_role, workspace, report_type, week_number, year, status,
          weekly_priorities, key_deliverables, risks_blockers, additional_notes,
          top_priorities, expected_deliverables, projects_tasks,
          has_dependencies, dependency_note, has_blockers, blocker_description,
          needs_support, support_note,
          completed_work, unfinished_tasks, challenges, wins, carryover_items, retro_notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?,
          ?, ?, ?, ?,
          ?, ?, ?,
          ?, ?, ?, ?,
@@ -220,6 +231,7 @@ export async function POST(req) {
         user_id,
         user_name || "",
         user_role || "staff",
+        workspace,
         report_type,
         week_number,
         year,

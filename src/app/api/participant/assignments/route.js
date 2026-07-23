@@ -167,10 +167,30 @@ export async function POST(req) {
       );
     }
 
-    await db.execute({
-      sql: "INSERT INTO v2_submissions (participant_id, program_id, deliverable_id, file_url, status) VALUES (?, ?, ?, ?, 'pending')",
-      args: [cid, program_id, deliverable_id, file_url || null],
+    // Check for existing submission (for version history)
+    const existing = await db.execute({
+      sql: "SELECT id, file_url, version FROM v2_submissions WHERE participant_id = ? AND deliverable_id = ?",
+      args: [cid, deliverable_id],
     });
+
+    if (existing.rows.length > 0) {
+      const prev = existing.rows[0];
+      // Archive previous version
+      await db.execute({
+        sql: "INSERT INTO v2_submission_versions (submission_id, participant_id, deliverable_id, file_url, version) VALUES (?, ?, ?, ?, ?)",
+        args: [prev.id, cid, deliverable_id, prev.file_url, prev.version || 1],
+      });
+      // Update with new version
+      await db.execute({
+        sql: "UPDATE v2_submissions SET file_url = ?, status = 'pending', version = COALESCE(version, 1) + 1, updated_at = NOW() WHERE id = ?",
+        args: [file_url || null, prev.id],
+      });
+    } else {
+      await db.execute({
+        sql: "INSERT INTO v2_submissions (participant_id, program_id, deliverable_id, file_url, status, version) VALUES (?, ?, ?, ?, 'pending', 1)",
+        args: [cid, program_id, deliverable_id, file_url || null],
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

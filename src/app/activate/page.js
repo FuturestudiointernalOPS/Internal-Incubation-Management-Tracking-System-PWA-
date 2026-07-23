@@ -180,10 +180,20 @@ export default function ActivatePage() {
               {mode === "reset" ? "Reset Your Password" : "Set Your Password"}
             </h2>
             {userInfo && (
-              <p className="text-[12px] text-[var(--text-secondary)] mt-2">
-                Hi <strong className="text-[var(--text-primary)]">{userInfo.name}</strong>
-                {userInfo.role ? ` · ${userInfo.role}` : ""}
-              </p>
+              <div className="space-y-1">
+                <p className="text-[12px] text-[var(--text-secondary)] mt-2">
+                  Hi <strong className="text-[var(--text-primary)]">{userInfo.name}</strong>
+                  {userInfo.role ? ` · ${userInfo.role}` : ""}
+                </p>
+                <div className="mt-3 p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
+                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-wider block mb-1">
+                    Email
+                  </label>
+                  <p className="text-[13px] font-bold text-[var(--text-primary)]">
+                    {userInfo.email}
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 

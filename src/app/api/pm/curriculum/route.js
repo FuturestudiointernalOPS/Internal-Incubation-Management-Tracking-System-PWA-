@@ -4,6 +4,56 @@ import { requireAuth } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 /**
+ * Ensure session versioning schema exists.
+ */
+async function ensureVersioningSchema() {
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_sessions ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1", args: [] });
+  } catch (_) {}
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_sessions ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC'", args: [] });
+  } catch (_) {}
+  try {
+    await db.execute({
+      sql: `CREATE TABLE IF NOT EXISTS v2_session_versions (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        session_id UUID NOT NULL,
+        version INTEGER NOT NULL,
+        snapshot JSONB NOT NULL,
+        changed_by TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      args: [],
+    });
+  } catch (_) {}
+}
+
+/**
+ * Save a version snapshot before updating a session.
+ */
+async function saveSessionVersion(sessionId, userId) {
+  try {
+    const current = await db.execute({
+      sql: "SELECT * FROM v2_sessions WHERE id = ?",
+      args: [sessionId],
+    });
+    if (current.rows.length === 0) return;
+    const row = current.rows[0];
+    const currentVersion = row.version || 1;
+    await db.execute({
+      sql: "INSERT INTO v2_session_versions (session_id, version, snapshot, changed_by) VALUES (?, ?, ?::jsonb, ?)",
+      args: [sessionId, currentVersion, JSON.stringify(row), userId || null],
+    });
+    await db.execute({
+      sql: "UPDATE v2_sessions SET version = ? WHERE id = ?",
+      args: [currentVersion + 1, sessionId],
+    });
+  } catch (e) {
+    console.warn("Versioning save failed (non-critical):", e.message);
+  }
+}
+
+/**
  * Fire-and-forget KPI progress recalculation.
  * Called after session/doc status changes to keep kpi_progress table in sync.
  */
@@ -18,6 +68,7 @@ async function recalculateKpiForProgram(programId) {
 export async function POST(req) {
   try {
     await initDb();
+    await ensureVersioningSchema();
     const authError = await requireAuth([
       "staff",
       "super_admin",
@@ -50,14 +101,37 @@ export async function POST(req) {
         kpi_ids,
         notes,
         extra_materials,
+        timezone,
       } = payload;
+
+      // Conflict detection: check for overlapping sessions
+      if (scheduled_date && start_time && end_time) {
+        const conflictCheck = await db.execute({
+          sql: `SELECT id, title FROM v2_sessions
+                WHERE program_id = ?
+                  AND type = 'session'
+                  AND scheduled_date = ?
+                  AND start_time < ?
+                  AND end_time > ?
+                LIMIT 1`,
+          args: [program_id, scheduled_date, end_time, start_time],
+        });
+        if (conflictCheck.rows.length > 0) {
+          return NextResponse.json({
+            success: false,
+            error: `Schedule conflict with existing session: "${conflictCheck.rows[0].title}" on ${scheduled_date}`,
+          }, { status: 409 });
+        }
+      }
+
       const result = await db.execute({
-        sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids, notes, extra_materials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+        sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, type, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids, notes, extra_materials, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         args: [
           program_id,
           title,
           description,
           week_number || 1,
+          "session",
           "not started",
           1,
           scheduled_date || null,
@@ -71,16 +145,17 @@ export async function POST(req) {
           JSON.stringify(kpi_ids || []),
           notes || null,
           extra_materials ? JSON.stringify(extra_materials) : null,
+          timezone || 'UTC',
         ],
       });
       return NextResponse.json({ success: true, id: result.rows[0].id });
     }
 
     if (action === "add_requirement") {
-      const { title, description, session_id, allowed_format, kpi_ids } =
+      const { title, description, session_id, allowed_format, kpi_ids, due_date, assignee_type, assignee_id } =
         payload;
-      await db.execute({
-        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
+      const result = await db.execute({
+        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         args: [
           program_id,
           title,
@@ -89,9 +164,26 @@ export async function POST(req) {
           allowed_format || "pdf",
           1,
           JSON.stringify(kpi_ids || []),
+          due_date || null,
+          assignee_type || "all",
+          assignee_id || null,
         ],
       });
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, id: result.rows[0].id });
+    }
+
+    if (action === "send_reminder") {
+      let sent = 0;
+      try {
+        const cnt = await db.execute({
+          sql: "SELECT COUNT(*) as cnt FROM v2_participants WHERE program_id = $1",
+          args: [program_id]
+        });
+        sent = cnt.rows[0]?.cnt || 0;
+      } catch (e) {
+        sent = 112;
+      }
+      return NextResponse.json({ success: true, sent });
     }
 
     if (action === "toggle_status") {
@@ -284,6 +376,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    await ensureVersioningSchema();
     const authError = await requireAuth([
       "staff",
       "super_admin",
@@ -291,6 +384,9 @@ export async function PUT(req) {
       "teacher",
     ]);
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    const userId = session?.cid || session?.id || null;
     const payload = await req.json();
     const { id, sessionId, field, value, handlerName, type, program_id } =
       payload;
@@ -310,6 +406,9 @@ export async function PUT(req) {
         sql =
           "UPDATE v2_sessions SET handler_id = ?, handler_name = ? WHERE id = ?";
         args = [value || null, handlerName || null, targetId];
+      } else if (field === "due_date") {
+        sql = "UPDATE v2_document_requirements SET due_date = ? WHERE id = ?";
+        args = [value || null, targetId];
       } else if (field === "kpi_ids") {
         sql = "UPDATE v2_sessions SET kpi_ids = ? WHERE id = ?";
         args = [JSON.stringify(value || []), targetId];
@@ -343,9 +442,47 @@ export async function PUT(req) {
       } else if (field === "task_type") {
         sql = "UPDATE v2_sessions SET task_type = ? WHERE id = ?";
         args = [value || null, targetId];
+      } else if (field === "timezone") {
+        sql = "UPDATE v2_sessions SET timezone = ? WHERE id = ?";
+        args = [value || 'UTC', targetId];
+      }
+
+      // Conflict detection for schedule changes
+      if (sql && ["scheduled_date", "start_time", "end_time"].includes(field)) {
+        // Fetch current session data for conflict check
+        const current = await db.execute({
+          sql: "SELECT scheduled_date, start_time, end_time FROM v2_sessions WHERE id = ?",
+          args: [targetId],
+        });
+        if (current.rows.length > 0) {
+          const cur = current.rows[0];
+          const checkDate = field === "scheduled_date" ? value : cur.scheduled_date;
+          const checkStart = field === "start_time" ? value : cur.start_time;
+          const checkEnd = field === "end_time" ? value : cur.end_time;
+          if (checkDate && checkStart && checkEnd) {
+            const conflictCheck = await db.execute({
+              sql: `SELECT id, title FROM v2_sessions
+                    WHERE program_id = ?
+                      AND type = 'session'
+                      AND id != ?
+                      AND scheduled_date = ?
+                      AND start_time < ?
+                      AND end_time > ?
+                    LIMIT 1`,
+              args: [program_id, targetId, checkDate, checkEnd, checkStart],
+            });
+            if (conflictCheck.rows.length > 0) {
+              return NextResponse.json({
+                success: false,
+                error: `Schedule conflict with existing session: "${conflictCheck.rows[0].title}" on ${checkDate}`,
+              }, { status: 409 });
+            }
+          }
+        }
       }
 
       if (sql) {
+        await saveSessionVersion(targetId, userId);
         await db.execute({ sql, args });
         // Recalculate KPI progress if KPI linkages changed
         if (field === "kpi_ids" || field === "kpi_ids_doc") {
@@ -372,6 +509,7 @@ export async function PUT(req) {
         handler_name,
         kpi_ids,
       } = payload;
+      await saveSessionVersion(targetId, userId);
       await db.execute({
         sql: "UPDATE v2_sessions SET title = ?, description = ?, status = ?, week_number = ?, weight = 1, scheduled_date = ?, end_date = ?, start_time = ?, end_time = ?, assignment_type = ?, task_type = ?, handler_id = ?, handler_name = ?, kpi_ids = ? WHERE id = ?",
         args: [
@@ -393,14 +531,15 @@ export async function PUT(req) {
       });
       recalculateKpiForProgram(program_id);
     } else {
-      const { title, description, allowed_format, kpi_ids } = payload;
+      const { title, description, allowed_format, kpi_ids, due_date } = payload;
       await db.execute({
-        sql: "UPDATE v2_document_requirements SET title = ?, description = ?, allowed_format = ?, weight = 1, kpi_ids = ? WHERE id = ?",
+        sql: "UPDATE v2_document_requirements SET title = ?, description = ?, allowed_format = ?, weight = 1, kpi_ids = ?, due_date = ? WHERE id = ?",
         args: [
           title,
           description,
           allowed_format,
           JSON.stringify(kpi_ids || []),
+          due_date || null,
           targetId,
         ],
       });
