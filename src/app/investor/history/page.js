@@ -65,6 +65,23 @@ export default function InvestmentHistoryPage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportJSON = () => {
+    const blob = new Blob([JSON.stringify({ decisions, history, stats }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "investment_report.json"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPrintable = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    const html = `<!DOCTYPE html><html><head><title>Investment Report</title><style>body{font-family:Arial;padding:40px;color:#333}h1{font-size:20px;text-transform:uppercase}h2{font-size:14px;color:#f60;margin-top:24px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:8px;font-size:12px;text-align:left}th{background:#f5f5f5}.amount{text-align:right}.stat{display:inline-block;margin:0 24px 12px 0}.stat span{font-size:24px;font-weight:bold;color:#f60}</style></head><body><h1>Investment Report</h1><p>Generated: ${new Date().toLocaleDateString()}</p><h2>Summary</h2><div><div class="stat"><span>${stats.total_decisions||0}</span> Decisions</div><div class="stat"><span>${stats.total_invested||0}</span> Invested</div><div class="stat"><span>$${(stats.total_capital||0).toLocaleString()}</span> Capital</div></div><h2>Decisions</h2><table><tr><th>Venture</th><th>Decision</th><th>Amount</th><th>Date</th></tr>${decisions.map(d=>`<tr><td>${d.venture_name||""}</td><td>${DECISION_LABELS[d.decision_type]||d.decision_type}</td><td class="amount">${d.investment_amount?"$"+Number(d.investment_amount).toLocaleString():"—"}</td><td>${new Date(d.decision_date).toLocaleDateString()}</td></tr>`).join("")}</table><h2>Activity Timeline</h2><table><tr><th>Venture</th><th>Stage</th><th>Date</th><th>Notes</th></tr>${history.map(h=>`<tr><td>${h.venture_name||""}</td><td>${h.stage?.replace(/_/g," ")||""}</td><td>${new Date(h.stage_changed_at||h.created_at).toLocaleDateString()}</td><td>${h.notes||(h.decision_type?DECISION_LABELS[h.decision_type]:"")}</td></tr>`).join("")}</table></body></html>`;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 500);
+  };
+
   if (loading) {
     return <DashboardLayout role="investor"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>;
   }
@@ -80,7 +97,11 @@ export default function InvestmentHistoryPage() {
               <p className="text-xs text-[var(--text-secondary)]">Decisions, timeline & reports</p>
             </div>
           </div>
-          <AppButton variant="secondary" icon={Download} onClick={exportCSV}>Export CSV</AppButton>
+          <div className="flex gap-2">
+            <AppButton variant="secondary" size="sm" icon={Download} onClick={exportCSV}>CSV</AppButton>
+            <AppButton variant="secondary" size="sm" icon={Download} onClick={exportJSON}>JSON</AppButton>
+            <AppButton variant="secondary" size="sm" icon={FileText} onClick={exportPrintable}>Printable</AppButton>
+          </div>
         </div>
 
         {/* Stats */}

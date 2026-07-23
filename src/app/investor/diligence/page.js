@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   ArrowLeft, Loader2, Building2, FileText, Send, Plus,
   MessageSquare, CheckCircle2, Clock, AlertCircle, ClipboardList,
-  Target, Shield, TrendingUp, BarChart3, X,
+  Target, Shield, TrendingUp, BarChart3, X, Users, AlertTriangle,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -42,6 +42,14 @@ export default function DueDiligencePage() {
   const [newNote, setNewNote] = useState("");
   const [noteType, setNoteType] = useState("private");
 
+  // Founder & Risk
+  const [founders, setFounders] = useState([]);
+  const [risks, setRisks] = useState([]);
+  const [showFounderForm, setShowFounderForm] = useState(false);
+  const [founderForm, setFounderForm] = useState({ founder_name:"", role:"", experience_score:0, leadership_score:0, domain_expertise_score:0, overall_rating:0, notes:"" });
+  const [showRiskForm, setShowRiskForm] = useState(false);
+  const [riskForm, setRiskForm] = useState({ risk_category:"market", risk_description:"", severity:"medium", mitigation:"", status:"open" });
+
   useEffect(() => {
     if (pipelineId) fetchData();
   }, [pipelineId]);
@@ -57,6 +65,15 @@ export default function DueDiligencePage() {
         setNotes(data.notes || []);
         setPipeline(data.pipeline);
       }
+      // Also fetch evaluations
+      try {
+        const evalRes = await fetch(`/api/investor/evaluation?pipeline_id=${pipelineId}`);
+        const evalData = await evalRes.json();
+        if (evalData.success) {
+          setFounders(evalData.founder_evaluations || []);
+          setRisks(evalData.risk_assessments || []);
+        }
+      } catch (_) {}
     } catch (_) {}
     setLoading(false);
   };
@@ -129,6 +146,34 @@ export default function DueDiligencePage() {
     } catch (_) {}
   };
 
+  const saveFounder = async () => {
+    if (!founderForm.founder_name) return;
+    try {
+      await fetch("/api/investor/evaluation", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pipeline_id: pipelineId, type: "founder", ...founderForm }),
+      });
+      setToast({ type: "success", message: "Founder evaluation saved" });
+      setShowFounderForm(false);
+      setFounderForm({ founder_name:"", role:"", experience_score:0, leadership_score:0, domain_expertise_score:0, overall_rating:0, notes:"" });
+      fetchData();
+    } catch (_) {}
+  };
+
+  const saveRisk = async () => {
+    if (!riskForm.risk_description) return;
+    try {
+      await fetch("/api/investor/evaluation", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pipeline_id: pipelineId, type: "risk", ...riskForm }),
+      });
+      setToast({ type: "success", message: "Risk assessment saved" });
+      setShowRiskForm(false);
+      setRiskForm({ risk_category:"market", risk_description:"", severity:"medium", mitigation:"", status:"open" });
+      fetchData();
+    } catch (_) {}
+  };
+
   const completedReqs = requests.filter(r => r.status === "responded" || r.status === "closed").length;
   const progress = requests.length > 0 ? Math.round((completedReqs / requests.length) * 100) : 0;
 
@@ -186,6 +231,8 @@ export default function DueDiligencePage() {
               {[
                 { id: "overview", label: "Overview", icon: Building2 },
                 { id: "requests", label: `Requests (${requests.length})`, icon: ClipboardList },
+                { id: "founders", label: "Founders", icon: Users },
+                { id: "risks", label: "Risks", icon: AlertTriangle },
                 { id: "notes", label: `Notes (${notes.length})`, icon: MessageSquare },
               ].map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -298,6 +345,42 @@ export default function DueDiligencePage() {
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Founder Evaluation */}
+            {activeTab === "founders" && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center"><h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Founder Evaluations</h3><AppButton variant="primary" size="sm" icon={Plus} onClick={()=>setShowFounderForm(true)}>Evaluate Founder</AppButton></div>
+                {showFounderForm && (<AppCard padding="md"><div className="space-y-3">
+                  <input value={founderForm.founder_name} onChange={e=>setFounderForm({...founderForm,founder_name:e.target.value})} placeholder="Founder name *" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
+                  <input value={founderForm.role} onChange={e=>setFounderForm({...founderForm,role:e.target.value})} placeholder="Role (e.g. CEO, CTO)" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[{key:"experience_score",label:"Experience"},{key:"leadership_score",label:"Leadership"},{key:"domain_expertise_score",label:"Domain"},{key:"overall_rating",label:"Overall"}].map(s=>(<div key={s.key}><label className="text-[7px] font-black text-[var(--text-secondary)] uppercase">{s.label} (0-10)</label><input type="number" min={0} max={10} value={founderForm[s.key]} onChange={e=>setFounderForm({...founderForm,[s.key]:parseInt(e.target.value)||0})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] outline-none"/></div>))}
+                  </div>
+                  <textarea value={founderForm.notes} onChange={e=>setFounderForm({...founderForm,notes:e.target.value})} rows={2} placeholder="Evaluation notes..." className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
+                  <div className="flex justify-end gap-2"><AppButton variant="secondary" size="sm" onClick={()=>setShowFounderForm(false)}>Cancel</AppButton><AppButton variant="primary" size="sm" icon={Save} onClick={saveFounder}>Save</AppButton></div>
+                </div></AppCard>)}
+                {founders.length===0&&!showFounderForm?<div className="text-center py-12"><Users className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No founder evaluations yet</p></div>:<div className="space-y-3">{founders.map(f=>(<AppCard key={f.id} padding="md"><div className="flex items-start justify-between"><div><p className="text-sm font-bold text-[var(--text-primary)]">{f.founder_name}{f.role?` — ${f.role}`:""}</p><div className="flex gap-4 mt-2 text-[10px]"><span className="text-[var(--text-secondary)]">Exp: <b className="text-[var(--text-primary)]">{f.experience_score}/10</b></span><span className="text-[var(--text-secondary)]">Leadership: <b className="text-[var(--text-primary)]">{f.leadership_score}/10</b></span><span className="text-[var(--text-secondary)]">Domain: <b className="text-[var(--text-primary)]">{f.domain_expertise_score}/10</b></span></div><div className="mt-1"><span className="text-[10px] font-black text-[var(--brand-orange)]">Overall: {f.overall_rating}/10</span></div>{f.notes&&<p className="text-[10px] text-[var(--text-tertiary)] mt-2">{f.notes}</p>}</div></div></AppCard>))}</div>}
+              </div>
+            )}
+
+            {/* Risk Assessment */}
+            {activeTab === "risks" && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center"><h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Risk Assessments</h3><AppButton variant="primary" size="sm" icon={Plus} onClick={()=>setShowRiskForm(true)}>Add Risk</AppButton></div>
+                {showRiskForm && (<AppCard padding="md"><div className="space-y-3">
+                  <div className="flex gap-2">{["market","product","financial","operational","legal"].map(c=>(<button key={c} onClick={()=>setRiskForm({...riskForm,risk_category:c})} className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase ${riskForm.risk_category===c?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{c}</button>))}</div>
+                  <textarea value={riskForm.risk_description} onChange={e=>setRiskForm({...riskForm,risk_description:e.target.value})} rows={2} placeholder="Describe the risk *" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><label className="text-[7px] font-black text-[var(--text-secondary)] uppercase">Severity</label><select value={riskForm.severity} onChange={e=>setRiskForm({...riskForm,severity:e.target.value})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+                    <div><label className="text-[7px] font-black text-[var(--text-secondary)] uppercase">Status</label><select value={riskForm.status} onChange={e=>setRiskForm({...riskForm,status:e.target.value})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"><option value="open">Open</option><option value="mitigated">Mitigated</option><option value="accepted">Accepted</option></select></div>
+                    <div/>
+                  </div>
+                  <input value={riskForm.mitigation} onChange={e=>setRiskForm({...riskForm,mitigation:e.target.value})} placeholder="Mitigation strategy (optional)" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
+                  <div className="flex justify-end gap-2"><AppButton variant="secondary" size="sm" onClick={()=>setShowRiskForm(false)}>Cancel</AppButton><AppButton variant="primary" size="sm" onClick={saveRisk}>Save</AppButton></div>
+                </div></AppCard>)}
+                {risks.length===0&&!showRiskForm?<div className="text-center py-12"><AlertTriangle className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No risks assessed yet</p></div>:<div className="space-y-3">{risks.map(r=>{const sevColors={low:"bg-blue-500/10 text-blue-400",medium:"bg-amber-500/10 text-amber-400",high:"bg-orange-500/10 text-orange-400",critical:"bg-rose-500/10 text-rose-400"};return(<AppCard key={r.id} padding="md"><div className="flex items-start justify-between"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-purple-500/10 text-purple-400">{r.risk_category}</span><span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${sevColors[r.severity]||sevColors.medium}`}>{r.severity}</span><span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${r.status==="open"?"bg-amber-500/10 text-amber-400":r.status==="mitigated"?"bg-emerald-500/10 text-emerald-400":"bg-slate-500/10 text-slate-400"}`}>{r.status}</span></div><p className="text-xs text-[var(--text-primary)]">{r.risk_description}</p>{r.mitigation&&<p className="text-[10px] text-emerald-400 mt-1">Mitigation: {r.mitigation}</p>}</div></div></AppCard>)})}</div>}
               </div>
             )}
 
