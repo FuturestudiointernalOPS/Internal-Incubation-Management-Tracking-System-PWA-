@@ -104,14 +104,17 @@ export default function InvestorDashboard() {
   };
 
   const toggleWatchlist = async (ventureId) => {
-    const exists = watchlist.find(w => w.venture_id === ventureId);
     try {
-      await fetch("/api/investor/pipeline", {
+      const res = await fetch("/api/investor/watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venture_id: ventureId, stage: exists ? "declined" : "watching" }),
+        body: JSON.stringify({ venture_id: ventureId }),
       });
-      fetchDashboard();
+      const data = await res.json();
+      if (data.success) {
+        setToast({ type: "success", message: data.action === "added" ? "Added to watchlist" : "Removed from watchlist" });
+        fetchDashboard();
+      }
     } catch (_) {}
   };
 
