@@ -867,14 +867,24 @@ export async function PUT(req) {
           });
         }
 
-        // Notify assignee via v2_notifications (mirror POST pattern)
+        // Notify assignee via v2_notifications with richer messaging
+        let notifyName = user_name || session.name;
+        if (!notifyName) {
+          try {
+            const nameRes = await db.execute({
+              sql: "SELECT name FROM contacts WHERE cid = ?",
+              args: [effectiveUserId],
+            });
+            if (nameRes.rows.length > 0) notifyName = nameRes.rows[0].name;
+          } catch (_) {}
+        }
         try {
           await db.execute({
             sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
             args: [
               assigned_to,
               "New Task Assignment",
-              `${user_name || session.name || effectiveUserId} assigned you task "${task.title}"`,
+              `${notifyName || effectiveUserId} assigned you task "${task.title}" — please accept or decline this assignment.`,
               "task_assignment",
             ],
           });
@@ -1316,6 +1326,167 @@ export async function DELETE(req) {
     });
   } catch (error) {
     console.error("DELETE tasks error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PATCH /api/tasks
+ *
+ * Accept or decline a pending task assignment.
+ * Body: { action: "accept" | "decline", task_assignment_id?: number, task_id?: number }
+ *
+ * If task_assignment_id is provided, it looks up that specific record.
+ * Otherwise, it uses task_id + the authenticated user's session cid.
+ */
+export async function PATCH(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+    const body = await req.json();
+    const { action, task_assignment_id, task_id } = body;
+
+    if (!action || !["accept", "decline"].includes(action)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Valid action ('accept' or 'decline') is required.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!task_assignment_id && !task_id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "task_assignment_id or task_id is required.",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Look up pending assignment
+    let assignment;
+    if (task_assignment_id) {
+      const res = await db.execute({
+        sql: "SELECT * FROM task_assignments WHERE id = ? AND status = 'pending'",
+        args: [parseInt(task_assignment_id)],
+      });
+      assignment = res.rows[0];
+    } else {
+      const res = await db.execute({
+        sql: "SELECT * FROM task_assignments WHERE task_id = ? AND assignee_id = ? AND status = 'pending'",
+        args: [parseInt(task_id), session.cid],
+      });
+      assignment = res.rows[0];
+    }
+
+    if (!assignment) {
+      return NextResponse.json(
+        { success: false, error: "No pending assignment found." },
+        { status: 404 },
+      );
+    }
+
+    // Only the assignee can accept or decline
+    if (String(assignment.assignee_id) !== String(session.cid)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "You can only respond to your own assignments.",
+        },
+        { status: 403 },
+      );
+    }
+
+    const newStatus = action === "accept" ? "accepted" : "declined";
+
+    // Update the assignment status
+    await db.execute({
+      sql: "UPDATE task_assignments SET status = ? WHERE id = ?",
+      args: [newStatus, assignment.id],
+    });
+
+    // If accepted, assign the task to the user
+    if (action === "accept") {
+      await db.execute({
+        sql: "UPDATE tasks SET assigned_to = ? WHERE id = ?",
+        args: [assignment.assignee_id, assignment.task_id],
+      });
+    }
+
+    // Fetch task title for notifications and audit
+    let taskTitle = `Task #${assignment.task_id}`;
+    try {
+      const taskRes = await db.execute({
+        sql: "SELECT title FROM tasks WHERE id = ?",
+        args: [assignment.task_id],
+      });
+      if (taskRes.rows.length > 0) {
+        taskTitle = taskRes.rows[0].title;
+      }
+    } catch (_) {}
+
+    // Notify the original assigner
+    const notificationTitle =
+      action === "accept"
+        ? "Task Assignment Accepted"
+        : "Task Assignment Declined";
+    const notificationMessage =
+      action === "accept"
+        ? `${session.name || session.cid} accepted your assignment for task "${taskTitle}"`
+        : `${session.name || session.cid} declined your assignment for task "${taskTitle}"`;
+
+    try {
+      await db.execute({
+        sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+        args: [
+          assignment.assigner_id,
+          notificationTitle,
+          notificationMessage,
+          "task_assignment",
+        ],
+      });
+    } catch (notifErr) {
+      console.error(
+        "Assignment response notification failed:",
+        notifErr.message,
+      );
+    }
+
+    // Audit log
+    await logAuditEvent({
+      entity_type: "task",
+      entity_id: assignment.task_id,
+      user_id: session.cid,
+      user_name: session.name || "",
+      action:
+        action === "accept"
+          ? "assignment_accepted"
+          : "assignment_declined",
+      details: `Task "${taskTitle}" assignment ${action === "accept" ? "accepted" : "declined"} by ${session.name || session.cid}`,
+      metadata: {
+        task_id: assignment.task_id,
+        assigner_id: assignment.assigner_id,
+      },
+    });
+
+    return NextResponse.json({ success: true, action: newStatus });
+  } catch (error) {
+    console.error("PATCH tasks error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },

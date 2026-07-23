@@ -87,6 +87,23 @@ export async function POST(req) {
       });
     }
 
+    // Notify assigned PM leads
+    for (const leadId of leadsToAssign) {
+      try {
+        await db.execute({
+          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+          args: [
+            leadId,
+            "New Project Assignment",
+            `You have been assigned as lead for project "${name}".`,
+            "project_assignment",
+          ],
+        });
+      } catch (notifErr) {
+        console.error("Project assignment notification failed:", notifErr.message);
+      }
+    }
+
     return NextResponse.json({ success: true, project_id: projectId });
   } catch (error) {
     console.error("POST /api/projects error:", error);
