@@ -17,7 +17,7 @@ export const GET = createHandler(async (req, { params }) => {
 });
 
 export const POST = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
   const { action } = body;
 

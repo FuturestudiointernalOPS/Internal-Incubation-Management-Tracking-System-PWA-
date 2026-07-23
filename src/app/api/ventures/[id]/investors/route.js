@@ -6,7 +6,7 @@ import {
 } from "@/lib/ventures";
 
 export const GET = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const s = new URL(req.url).searchParams;
   const type = s.get("type") || "directory";
 
@@ -30,7 +30,7 @@ export const GET = createHandler(async (req, { params }) => {
 });
 
 export const POST = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
 
   if (body.action === "create_investor") {

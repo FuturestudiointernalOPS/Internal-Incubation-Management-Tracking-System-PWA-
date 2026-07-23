@@ -35,6 +35,8 @@ import {
   Columns,
   BookOpen,
   Star,
+  X,
+  BarChart3,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -198,7 +200,7 @@ export default function VentureDetailPage({ params }) {
 
   return (
     <DashboardLayout role="super_admin">
-      <div className="space-y-8 pb-20">
+      <div className="min-h-screen text-white p-6 space-y-6">
         {/* Back button */}
         <button
           onClick={() => router.push("/admin/ventures")}
@@ -244,7 +246,7 @@ export default function VentureDetailPage({ params }) {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-8 border-b border-[var(--border-primary)]">
+          <div className="flex gap-1 mt-8 border-b border-[var(--border-primary)] overflow-x-auto">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;

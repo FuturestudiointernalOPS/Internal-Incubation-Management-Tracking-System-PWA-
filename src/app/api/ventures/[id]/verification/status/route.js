@@ -15,7 +15,7 @@ import {
  */
 export const PATCH = createHandler(
   async (req, { params }) => {
-    const { id } = params;
+    const { id } = await params;
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 

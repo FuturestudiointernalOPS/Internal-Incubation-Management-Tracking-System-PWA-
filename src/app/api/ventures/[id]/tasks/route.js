@@ -14,7 +14,7 @@ import {
  * DELETE /api/ventures/[id]/tasks?id=X — delete task
  */
 export const GET = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const s = new URL(req.url).searchParams;
   const tasks = await listTasks(id, s.get("milestone_id"), s.get("status"), s.get("assigned_cid"));
 
@@ -28,7 +28,7 @@ export const GET = createHandler(async (req, { params }) => {
 });
 
 export const POST = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
   if (!body.title?.trim()) return NextResponse.json({ success: false, error: "Task title is required." }, { status: 400 });
 

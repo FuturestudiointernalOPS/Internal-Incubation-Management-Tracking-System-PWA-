@@ -25,6 +25,7 @@ for (const line of envContent.split('\n')) {
 }
 
 const VENTURE_TABLES = [
+  // Child tables first (respect FK constraints)
   'session_action_items',
   'session_attendance',
   'session_notes',
@@ -43,12 +44,6 @@ const VENTURE_TABLES = [
   'knowledge_activity_logs',
   'knowledge_progress',
   'knowledge_bookmarks',
-  'knowledge_categories',
-  'knowledge_resources',
-  'learning_history',
-  'learning_progress',
-  'learning_paths',
-  'recommendation_logs',
   'task_activity_logs',
   'task_attachments',
   'task_comments',
@@ -83,8 +78,6 @@ const VENTURE_TABLES = [
   'fundraising_opportunities',
   'investor_matches',
   'match_history',
-  'investor_preferences',
-  'investors',
   'investment_history',
   'investment_recommendations',
   'investment_scores',
@@ -100,10 +93,11 @@ const VENTURE_TABLES = [
   'notification_preferences',
   'notification_templates',
   'notifications',
+  'venture_notification_delivery_logs',
+  'venture_notification_preferences',
+  'venture_notification_templates',
+  'venture_notifications',
   'admin_activity_logs',
-  'role_permissions',
-  'feature_flags',
-  'system_settings',
   'ownership_history',
   'invitation_tokens',
   'venture_activity_log',
@@ -111,6 +105,22 @@ const VENTURE_TABLES = [
   'venture_members',
   'venture_founders',
   'program_participants',
+  // System monitoring tables (venture-related data only, seed data stays)
+  'system_alerts',
+  'system_reports',
+  'job_history',
+  'queue_statistics',
+  'system_health_checks',
+  'system_metrics',
+  // Audit & security (venture-related data only)
+  'venture_audit_logs',
+  'venture_security_events',
+  'venture_login_history',
+  'venture_failed_logins',
+  // API keys & webhooks (venture-related data only)
+  'api_usage_logs',
+  'webhook_delivery_logs',
+  'webhooks',
 ];
 
 async function clearVentureData() {
