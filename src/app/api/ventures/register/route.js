@@ -12,6 +12,7 @@ import {
   addVentureHistory,
   createVentureNotification,
   sendFounderInvitation,
+  ensureVentureSchema,
 } from "@/lib/ventures";
 
 /**
@@ -37,6 +38,9 @@ import {
 export const POST = createHandler(
   { roles: ["super_admin"] },
   async (req) => {
+    // Ensure venture schema is up to date (safe migration)
+    await ensureVentureSchema();
+
     const body = await req.json();
     const {
       company_name,

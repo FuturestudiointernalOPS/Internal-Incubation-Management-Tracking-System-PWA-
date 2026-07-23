@@ -28,11 +28,13 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { team_id } = body;
 
-    if (!team_id) {
+    // Support both team_id (from PM workspace) and program_id (from dedicated promote page)
+    const { team_id, program_id, company_name, registration_number, industry, business_stage, description, website, logo_url } = body;
+
+    if (!team_id && !program_id) {
       return NextResponse.json(
-        { success: false, error: "team_id is required." },
+        { success: false, error: "team_id or program_id is required." },
         { status: 400 },
       );
     }
@@ -48,17 +50,44 @@ export async function POST(req) {
     }
 
     // ─── 2. Fetch the team ───
-    const teamRes = await db.execute({
-      sql: "SELECT * FROM v2_teams WHERE id = ?",
-      args: [team_id],
-    });
-    if (teamRes.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Team not found." },
-        { status: 404 },
-      );
+    // Support both team_id (from PM workspace button) and program_id (from dedicated promote page)
+    // When program_id is given without team_id, find the first venture-ready team
+    let team;
+    if (team_id) {
+      const teamRes = await db.execute({
+        sql: "SELECT * FROM v2_teams WHERE id = ?",
+        args: [team_id],
+      });
+      if (teamRes.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Team not found." },
+          { status: 404 },
+        );
+      }
+      team = teamRes.rows[0];
+    } else if (program_id) {
+      // Find the first venture-ready team in this program
+      const teamRes = await db.execute({
+        sql: "SELECT * FROM v2_teams WHERE program_id = ? AND is_venture_ready = 1 LIMIT 1",
+        args: [program_id],
+      });
+      if (teamRes.rows.length === 0) {
+        // Fallback: any team in the program
+        const fallbackRes = await db.execute({
+          sql: "SELECT * FROM v2_teams WHERE program_id = ? LIMIT 1",
+          args: [program_id],
+        });
+        if (fallbackRes.rows.length === 0) {
+          return NextResponse.json(
+            { success: false, error: "No teams found in this program. Create a team first." },
+            { status: 404 },
+          );
+        }
+        team = fallbackRes.rows[0];
+      } else {
+        team = teamRes.rows[0];
+      }
     }
-    const team = teamRes.rows[0];
 
     // ─── 3. Verify the team is approved (is_venture_ready) ───
     if (!team.is_venture_ready) {
@@ -100,29 +129,60 @@ export async function POST(req) {
       );
     }
 
-    // ─── 6. Create the Venture ───
-    const ventureId = uuidv4();
-    const ventureName = `${team.name} Venture`;
+    // ─── 6. Generate Venture ID ───
+    const ventureId = `VNT-${uuidv4().replace(/-/g, "").substring(0, 8).toUpperCase()}`;
     const now = new Date().toISOString();
 
+    // Use provided company info or derive from team/program names
+    const finalCompanyName = (company_name || team.name || program.name || "").trim();
+    const finalIndustry = industry || "other";
+    const finalStage = business_stage || "early_traction";
+
+    // Check for duplicate company name
+    const dupCheck = await db.execute({
+      sql: "SELECT venture_id FROM ventures WHERE LOWER(company_name) = LOWER(?)",
+      args: [finalCompanyName],
+    });
+    if (dupCheck.rows.length > 0) {
+      return NextResponse.json(
+        { success: false, error: "A company with this name already exists in Venture OS." },
+        { status: 409 },
+      );
+    }
+
+    // ─── 7. Create the Venture ───
     await db.execute({
-      sql: `INSERT INTO ventures
-        (id, name, status, description, program_id, origin_team_id, owner_id, stage, business_stage, created_at, updated_at)
-        VALUES (?, ?, 'active', ?, ?, ?, ?, 'ideation', 'early', ?, ?)`,
+      sql: `INSERT INTO ventures (venture_id, company_name, registration_number, industry, business_stage, description, website, logo_url, status, created_by, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
       args: [
         ventureId,
-        ventureName,
-        `Promoted from program: ${program.name}`,
-        team.program_id,
-        team.id,
-        team.leader_id || team.handler_id || session.cid,
+        finalCompanyName,
+        registration_number?.trim() || null,
+        finalIndustry,
+        finalStage,
+        description?.trim() || `Promoted from program: ${program.name}`,
+        website?.trim() || null,
+        logo_url?.trim() || null,
+        session.cid || "system",
         now,
         now,
       ],
     });
 
-    // ─── 7. Copy founders (from v2_team_members or v2_participants) ───
-    // Try to get team members from v2_team_members or v2_participants
+    // ─── 8. Update team with venture_id ───
+    await db.execute({
+      sql: "UPDATE v2_teams SET venture_id = ?, promoted_at = ? WHERE id = ?",
+      args: [ventureId, now, team.id],
+    });
+
+    // ─── 9. Update program with venture_id ───
+    await db.execute({
+      sql: "UPDATE v2_programs SET venture_id = ? WHERE id = ?",
+      args: [ventureId, program.id],
+    });
+
+    // ─── 10. Copy founders ───
+    // Find team members via v2_group_members or v2_participants
     let teamMembers = [];
     try {
       const memberRes = await db.execute({
@@ -143,7 +203,6 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // Insert founders
     const founderIds = [team.leader_id, team.handler_id].filter(Boolean);
     const uniqueFounders = new Set();
 
@@ -158,8 +217,10 @@ export async function POST(req) {
         });
         const contact = contactRes.rows[0] || {};
         await db.execute({
-          sql: "INSERT INTO venture_founders (venture_id, contact_id, name, email, role) VALUES (?, ?, ?, ?, 'founder') ON CONFLICT DO NOTHING",
-          args: [ventureId, fId, contact.name || fId, contact.email || null],
+          sql: `INSERT INTO venture_founders (venture_id, email, name, title, status, created_at, updated_at)
+                VALUES (?, ?, ?, 'founder', 'active', ?, ?)
+                ON CONFLICT (venture_id, email) DO NOTHING`,
+          args: [ventureId, contact.email || `${fId}@impactos.local`, contact.name || fId, now, now],
         });
       } catch (_) {}
     }
@@ -169,53 +230,54 @@ export async function POST(req) {
       if (uniqueFounders.has(member.contact_id)) continue;
       try {
         await db.execute({
-          sql: "INSERT INTO venture_members (venture_id, contact_id, member_type, role) VALUES (?, ?, 'member', 'member') ON CONFLICT DO NOTHING",
-          args: [ventureId, member.contact_id],
+          sql: `INSERT INTO venture_members (venture_id, user_cid, role, joined_at)
+                VALUES (?, ?, 'member', ?)
+                ON CONFLICT (venture_id, user_cid) DO NOTHING`,
+          args: [ventureId, String(member.contact_id), now],
         });
       } catch (_) {}
     }
 
-    // ─── 8. Update team with venture_id ───
+    // ─── 11. Create activity logs ───
     await db.execute({
-      sql: "UPDATE v2_teams SET venture_id = ?, promoted_at = ? WHERE id = ?",
-      args: [ventureId, now, team.id],
-    });
-
-    // ─── 9. Create activity logs ───
-    await db.execute({
-      sql: `INSERT INTO venture_activity_log (venture_id, action, actor_id, details, metadata)
-        VALUES (?, 'PROGRAM_PROMOTED', ?, ?, ?)`,
+      sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
+            VALUES (?, 'PROGRAM_PROMOTED', ?, ?, ?::jsonb, ?)`,
       args: [
         ventureId,
-        session.cid,
-        `Venture promoted from program ${program.name} by ${session.name || session.cid}`,
+        session.cid || "system",
+        session.name || "",
         JSON.stringify({
           program_id: program.id,
           program_name: program.name,
           team_id: team.id,
           team_name: team.name,
         }),
+        now,
       ],
     });
 
     await db.execute({
-      sql: `INSERT INTO venture_activity_log (venture_id, action, actor_id, details, metadata)
-        VALUES (?, 'VENTURE_CREATED', ?, ?, ?)`,
+      sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
+            VALUES (?, 'VENTURE_CREATED', ?, ?, ?::jsonb, ?)`,
       args: [
         ventureId,
-        session.cid,
-        `Venture "${ventureName}" created via program promotion`,
-        JSON.stringify({ venture_id: ventureId, venture_name: ventureName }),
+        session.cid || "system",
+        session.name || "",
+        JSON.stringify({
+          venture_id: ventureId,
+          venture_name: finalCompanyName,
+          registration_method: "program_promotion",
+        }),
+        now,
       ],
     });
 
-    // ─── 10. Create venture history record ───
+    // ─── 12. Create venture history record ───
     await db.execute({
-      sql: `INSERT INTO venture_history (venture_id, event_type, source, source_id, description, data)
-        VALUES (?, 'PROMOTED', 'program', ?, ?, ?)`,
+      sql: `INSERT INTO venture_history (venture_id, event_type, description, metadata, created_at)
+            VALUES (?, 'PROMOTED', ?, ?::jsonb, ?)`,
       args: [
         ventureId,
-        program.id,
         `Program-to-Venture promotion from "${program.name}"`,
         JSON.stringify({
           program_id: program.id,
@@ -224,20 +286,38 @@ export async function POST(req) {
           team_name: team.name,
           team_leader: team.leader_id || team.handler_id,
         }),
+        now,
       ],
     });
 
-    // ─── 11. Send notification ───
+    // ─── 13. Send notifications ───
     const notifyRecipients = [team.leader_id, team.handler_id, ...founderIds].filter(Boolean);
     for (const recipientId of new Set(notifyRecipients)) {
       try {
         await db.execute({
-          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, ?)",
           args: [
             recipientId,
             "Promotion Successful",
             `Your team "${team.name}" has been promoted from "${program.name}" to Venture OS. Access your venture dashboard to continue.`,
             "venture_promotion",
+            now,
+          ],
+        });
+      } catch (_) {}
+    }
+
+    // Also notify the program manager
+    if (program.assigned_pm_id && program.assigned_pm_id !== session.cid) {
+      try {
+        await db.execute({
+          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+          args: [
+            program.assigned_pm_id,
+            "Promotion Successful",
+            `Team "${team.name}" has been promoted from "${program.name}" to Venture OS (${ventureId}).`,
+            "venture_promotion",
+            now,
           ],
         });
       } catch (_) {}
@@ -245,15 +325,18 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      venture_id: ventureId,
-      venture_name: ventureName,
-      redirect: `/pm/ventures/${ventureId}`,
+      venture: {
+        venture_id: ventureId,
+        company_name: finalCompanyName,
+        status: "active",
+      },
+      redirect: `/admin/ventures/${ventureId}`,
       message: `Team "${team.name}" successfully promoted to Venture OS.`,
     });
   } catch (error) {
     console.error("Venture promote error:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error.message || "An unexpected error occurred during promotion." },
       { status: 500 },
     );
   }

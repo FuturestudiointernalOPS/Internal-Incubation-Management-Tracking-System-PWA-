@@ -10,6 +10,7 @@ import {
   Mail,
   Phone,
   Globe,
+  Globe,
   Calendar,
   Clock,
   TrendingUp,
@@ -27,6 +28,15 @@ import {
   Layers,
   Target,
   Briefcase,
+  FileText,
+  Crown,
+  Ban,
+  RefreshCw,
+  Trash2,
+  Flag,
+  Columns,
+  BookOpen,
+  Star,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -39,11 +49,12 @@ const STAGE_CONFIG = {
 };
 
 const WIZARD_STEPS = [
-  { step: 1, name: "Company Information", icon: Building2 },
-  { step: 2, name: "Founder Details", icon: User },
-  { step: 3, name: "Product / Service", icon: Rocket },
-  { step: 4, name: "Market & Traction", icon: TrendingUp },
-  { step: 5, name: "Investment Readiness", icon: Target },
+  { step: 1, name: "Startup Identity", icon: Building2 },
+  { step: 2, name: "Business Information", icon: Briefcase },
+  { step: 3, name: "Founder Information", icon: User },
+  { step: 4, name: "Team Information", icon: Users },
+  { step: 5, name: "Supporting Documents", icon: FileText },
+  { step: 6, name: "Review & Submit", icon: CheckCircle2 },
 ];
 
 const ACTIVITY_ICONS = {
@@ -52,6 +63,26 @@ const ACTIVITY_ICONS = {
   VENTURE_UPDATED: Edit3,
   PROFILE_WIZARD_INIT: Layers,
   VENTURE_REGISTERED: CheckCircle2,
+  PROGRAM_PROMOTED: Rocket,
+  PROMOTED: Rocket,
+  PROFILE_SUBMITTED: CheckCircle2,
+  FOUNDER_ACCEPTED: User,
+  FOUNDER_REMOVED: Trash2,
+  ROLE_UPDATED: Edit3,
+  OWNERSHIP_TRANSFERRED: Crown,
+  USER_SUSPENDED: Ban,
+  USER_REACTIVATED: RefreshCw,
+  VERIFICATION_SUBMITTED: Send,
+  VERIFICATION_APPROVED: CheckCircle2,
+  VERIFICATION_REJECTED: X,
+  VERIFICATION_RESUBMITTED: RefreshCw,
+  VERIFICATION_SUSPENDED: Ban,
+  MILESTONE_CREATED: Flag,
+  MILESTONE_UPDATED: Edit3,
+  MILESTONE_COMPLETED: CheckCircle2,
+  DELIVERABLE_SUBMITTED: Send,
+  DELIVERABLE_APPROVED: CheckCircle2,
+  DELIVERABLE_REJECTED: X,
 };
 
 const ACTIVITY_COLORS = {
@@ -60,6 +91,26 @@ const ACTIVITY_COLORS = {
   VENTURE_UPDATED: "text-amber-500 bg-amber-500/10",
   PROFILE_WIZARD_INIT: "text-purple-500 bg-purple-500/10",
   VENTURE_REGISTERED: "text-emerald-500 bg-emerald-500/10",
+  PROGRAM_PROMOTED: "text-indigo-500 bg-indigo-500/10",
+  PROMOTED: "text-indigo-500 bg-indigo-500/10",
+  PROFILE_SUBMITTED: "text-emerald-500 bg-emerald-500/10",
+  FOUNDER_ACCEPTED: "text-emerald-500 bg-emerald-500/10",
+  FOUNDER_REMOVED: "text-rose-500 bg-rose-500/10",
+  ROLE_UPDATED: "text-amber-500 bg-amber-500/10",
+  OWNERSHIP_TRANSFERRED: "text-amber-500 bg-amber-500/10",
+  USER_SUSPENDED: "text-rose-500 bg-rose-500/10",
+  USER_REACTIVATED: "text-emerald-500 bg-emerald-500/10",
+  VERIFICATION_SUBMITTED: "text-blue-500 bg-blue-500/10",
+  VERIFICATION_APPROVED: "text-emerald-500 bg-emerald-500/10",
+  VERIFICATION_REJECTED: "text-rose-500 bg-rose-500/10",
+  VERIFICATION_RESUBMITTED: "text-amber-500 bg-amber-500/10",
+  VERIFICATION_SUSPENDED: "text-red-500 bg-red-500/10",
+  MILESTONE_CREATED: "text-blue-500 bg-blue-500/10",
+  MILESTONE_UPDATED: "text-amber-500 bg-amber-500/10",
+  MILESTONE_COMPLETED: "text-emerald-500 bg-emerald-500/10",
+  DELIVERABLE_SUBMITTED: "text-amber-500 bg-amber-500/10",
+  DELIVERABLE_APPROVED: "text-emerald-500 bg-emerald-500/10",
+  DELIVERABLE_REJECTED: "text-rose-500 bg-rose-500/10",
 };
 
 export default function VentureDetailPage({ params }) {
@@ -129,10 +180,21 @@ export default function VentureDetailPage({ params }) {
   const stage = getStageConfig(venture.business_stage);
 
   const TABS = [
+    { id: "dashboard", label: "Dashboard", icon: Rocket },
+    { id: "timeline", label: "Timeline", icon: BarChart3 },
+    { id: "reports", label: "Reports", icon: TrendingUp },
+    { id: "feedback", label: "Feedback", icon: Star },
+    { id: "sessions", label: "Sessions", icon: Calendar },
+    { id: "coaches", label: "Coaches", icon: BookOpen },
+    { id: "knowledge", label: "Knowledge", icon: BookOpen },
+    { id: "milestones", label: "Milestones", icon: Flag },
+    { id: "tasks", label: "Tasks", icon: CheckCircle2 },
     { id: "overview", label: "Overview", icon: Building2 },
     { id: "founders", label: "Founders", icon: User },
+    { id: "verification", label: "Verification", icon: Shield },
     { id: "activity", label: "Activity", icon: Activity },
     { id: "wizard", label: "Profile Wizard", icon: Layers },
+    { id: "management", label: "Team Management", icon: Shield },
   ];
 
   return (
@@ -206,6 +268,278 @@ export default function VentureDetailPage({ params }) {
         </div>
 
         {/* Tab Content */}
+        {activeTab === "dashboard" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                  <Rocket className="w-6 h-6 text-[var(--brand-orange)]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Startup Dashboard</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Complete operational overview with widgets, progress, and quick actions
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/dashboard`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <Rocket className="w-3.5 h-3.5" /> Open Full Dashboard
+              </button>
+            </div>
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Founders</p>
+                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.founders || []).length}</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Members</p>
+                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.members || []).length}</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Wizard</p>
+                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">
+                  {(venture.history || []).filter(h => h.event_type === "PROFILE_WIZARD_INIT" && h.metadata?.completed).length}/6
+                </p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Activity</p>
+                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.activity || []).length}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "timeline" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Project Timeline & Progress</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Gantt chart, progress tracking, and delay detection
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/timeline`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <BarChart3 className="w-3.5 h-3.5" /> Open Timeline
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "reports" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Reports & Analytics</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    KPIs, project health, team productivity, and export
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/reports`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <TrendingUp className="w-3.5 h-3.5" /> Open Reports
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "sessions" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Mentoring Sessions</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Schedule and manage coaching, mentoring, and advisory sessions
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/sessions`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <Calendar className="w-3.5 h-3.5" /> Open Sessions
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "feedback" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                  <Star className="w-6 h-6 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Mentor Feedback & Analytics</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Session ratings, coach performance, and mentoring KPIs
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/feedback`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <Star className="w-3.5 h-3.5" /> Open Analytics
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "knowledge" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Knowledge Hub</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Learning resources, guides, templates, and best practices
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/knowledge`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <BookOpen className="w-3.5 h-3.5" /> Open Knowledge Hub
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "coaches" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Coaches & Advisors</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Assign and manage coaches and advisors for this venture
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/coaches`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <BookOpen className="w-3.5 h-3.5" /> Open Coaches
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "milestones" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                  <Flag className="w-6 h-6 text-[var(--brand-orange)]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Milestones & Deliverables</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Track execution progress with milestones and deliverables
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/milestones`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <Flag className="w-3.5 h-3.5" /> Open Milestones
+              </button>
+            </div>
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Milestones</p>
+                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">0</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">In Progress</p>
+                <p className="text-2xl font-black text-blue-400 mt-1">0</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Completed</p>
+                <p className="text-2xl font-black text-emerald-400 mt-1">0</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Delayed</p>
+                <p className="text-2xl font-black text-rose-400 mt-1">0</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "tasks" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6 text-[var(--brand-orange)]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Task Management & Kanban</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Kanban board, list view, and task tracking
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/tasks`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <Columns className="w-3.5 h-3.5" /> Open Kanban
+              </button>
+            </div>
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Backlog</p>
+                <p className="text-2xl font-black text-slate-400 mt-1">0</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">In Progress</p>
+                <p className="text-2xl font-black text-amber-400 mt-1">0</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Review</p>
+                <p className="text-2xl font-black text-purple-400 mt-1">0</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Done</p>
+                <p className="text-2xl font-black text-emerald-400 mt-1">0</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Info */}
@@ -370,10 +704,18 @@ export default function VentureDetailPage({ params }) {
 
         {activeTab === "founders" && (
           <div className="card">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <User className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-              Founders
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                Founders
+              </h3>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/founders`)}
+                className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-xl text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-1.5"
+              >
+                <Shield className="w-3 h-3" /> Manage
+              </button>
+            </div>
             {(venture.founders || []).length === 0 ? (
               <p className="text-[10px] text-slate-500 italic py-6 text-center">No founders registered</p>
             ) : (
@@ -467,38 +809,198 @@ export default function VentureDetailPage({ params }) {
         )}
 
         {activeTab === "wizard" && (
-          <div className="card">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Layers className="w-3.5 h-3.5 text-purple-500" />
-              Startup Profile Wizard History
-            </h3>
-            {(venture.history || []).length === 0 ? (
-              <p className="text-[10px] text-slate-500 italic py-6 text-center">No wizard history</p>
-            ) : (
-              <div className="space-y-2">
-                {(venture.history || []).map((entry, i) => (
-                  <div key={entry.id || i} className="flex items-start gap-4 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-purple-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold text-[var(--text-primary)]">{entry.event_type}</p>
-                      <p className="text-[9px] text-slate-500 mt-0.5">{entry.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[8px] text-slate-600">
-                          {new Date(entry.created_at).toLocaleString()}
-                        </span>
-                        {entry.metadata?.step && (
-                          <span className="text-[8px] font-bold text-purple-500">
-                            Step {entry.metadata.step}/{entry.metadata.total_steps}
-                          </span>
+          <div className="space-y-6">
+            {/* Link to Full Wizard */}
+            <div className="card">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center">
+                    <Layers className="w-6 h-6 text-purple-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[var(--text-primary)]">Startup Profile Wizard</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Complete or continue your startup onboarding profile
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => router.push(`/ventures/${id}/wizard`)}
+                  className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+                >
+                  <Layers className="w-3.5 h-3.5" /> Open Wizard
+                </button>
+              </div>
+            </div>
+
+            {/* Progress Overview */}
+            <div className="card">
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5 text-purple-500" />
+                Progress Overview
+              </h3>
+              <div className="space-y-3">
+                {WIZARD_STEPS.map((ws) => {
+                  const completed = (venture.history || []).some(
+                    (h) => h.event_type === "PROFILE_WIZARD_INIT" && h.metadata?.step === ws.step && h.metadata?.completed
+                  );
+                  const Icon = ws.icon;
+                  return (
+                    <div
+                      key={ws.step}
+                      className={`flex items-center gap-4 p-3 rounded-xl ${
+                        completed ? "bg-emerald-500/[0.03] border border-emerald-500/10" : "bg-tertiary border border-[var(--border-primary)]"
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        completed ? "bg-emerald-500/20 text-emerald-500" : "bg-slate-500/10 text-slate-500"
+                      }`}>
+                        {completed ? (
+                          <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                          <Icon className="w-4 h-4" />
                         )}
                       </div>
+                      <div className="flex-1">
+                        <p className={`text-[11px] font-bold ${
+                          completed ? "text-emerald-500" : "text-slate-500"
+                        }`}>
+                          Step {ws.step}: {ws.name}
+                        </p>
+                      </div>
+                      {completed && (
+                        <span className="text-[8px] font-black text-emerald-500 uppercase">Completed</span>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            )}
+            </div>
+
+            {/* Wizard History */}
+            <div className="card">
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5 text-purple-500" />
+                Startup Profile Wizard History
+              </h3>
+              {(venture.history || []).length === 0 ? (
+                <p className="text-[10px] text-slate-500 italic py-6 text-center">No wizard history yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {(venture.history || []).map((entry, i) => (
+                    <div key={entry.id || i} className="flex items-start gap-4 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                      <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4 text-purple-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)]">{entry.event_type}</p>
+                        <p className="text-[9px] text-slate-500 mt-0.5">{entry.description}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[8px] text-slate-600">
+                            {new Date(entry.created_at).toLocaleString()}
+                          </span>
+                          {entry.metadata?.step && (
+                            <span className="text-[8px] font-bold text-purple-500">
+                              Step {entry.metadata.step}/{entry.metadata.total_steps}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "verification" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Startup Verification</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Verify company legitimacy, founder identity, and documentation
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/verification`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <Shield className="w-3.5 h-3.5" /> Open Verification
+              </button>
+            </div>
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Status</p>
+                <p className="text-sm font-black text-[var(--text-primary)] mt-1 capitalize">{(venture.profile_progress?.is_completed ? "Verified" : "Pending")}</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Categories</p>
+                <p className="text-sm font-black text-[var(--text-primary)] mt-1">6 required</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Documents</p>
+                <p className="text-sm font-black text-[var(--text-primary)] mt-1">0 uploaded</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Last Review</p>
+                <p className="text-sm font-black text-slate-500 mt-1">—</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "management" && (
+          <div className="card">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-[var(--brand-orange)]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Team Management</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Manage founders, co-founders, roles, and ownership
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/founders`)}
+                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <Shield className="w-3.5 h-3.5" /> Open Founder Management
+              </button>
+            </div>
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Total Members</p>
+                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.founders || []).length}</p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Roles</p>
+                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">
+                  {new Set((venture.founders || []).map((f) => f.role || f.title)).size}
+                </p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pending</p>
+                <p className="text-2xl font-black text-amber-400 mt-1">
+                  {(venture.founders || []).filter((f) => f.status === "pending").length}
+                </p>
+              </div>
+              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Active</p>
+                <p className="text-2xl font-black text-emerald-400 mt-1">
+                  {(venture.founders || []).filter((f) => f.status === "accepted").length}
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
