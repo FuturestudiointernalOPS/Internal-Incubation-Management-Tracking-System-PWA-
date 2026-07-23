@@ -20,7 +20,7 @@ const ALLOWED_MIME_TYPES = [
 
 const ALLOWED_EXTENSIONS = /\.(pdf|png|jpg|jpeg|doc|docx|xls|xlsx|ppt|pptx)$/i
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 export const uploadFile = async (bucket, path, file) => {
   try {
@@ -35,7 +35,7 @@ export const uploadFile = async (bucket, path, file) => {
     if (!isMimeValid && !isExtensionValid) {
       return {
         success: false,
-        error: `File type "${file.type || 'unknown'}" is not supported. Allowed: PDF, images, documents, spreadsheets, presentations.`
+        error: `File type "${file.type || 'unknown'}" is not supported. Supported file types: PDF, PNG, JPG, DOC, DOCX, XLS, XLSX, PPT, PPTX. Or upload a file link/URL instead.`
       }
     }
 
@@ -43,7 +43,7 @@ export const uploadFile = async (bucket, path, file) => {
     if (file.size > MAX_FILE_SIZE) {
       return {
         success: false,
-        error: `File size exceeds maximum of 50MB. This file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`
+        error: `File size exceeds the maximum of 5MB. This file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Please compress it or upload a file link/URL instead.`
       }
     }
 
