@@ -18,6 +18,7 @@ import {
   Shield,
   Target,
   Zap,
+  Rocket,
   Clock,
   AlertCircle,
   Trash2,
@@ -1300,17 +1301,45 @@ export default function ProgramWorkspace() {
                       </div>
                       <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
                         <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                          Healthy
+                          {team.is_venture_ready ? "Venture Ready" : "In Program"}
                         </span>
+                        <div className="flex gap-2">
                         <button
                           onClick={() => {
                             setSelectedTeam(team);
                             setShowTeamDetails(true);
                           }}
-                          className="text-[var(--brand-blue)] text-xs font-bold uppercase flex items-center gap-1"
+                          className="btn btn-secondary btn-sm"
                         >
-                          Details <ChevronRight className="w-4 h-4" />
+                          <ChevronRight className="w-3 h-3" /> View
                         </button>
+                        {team.is_venture_ready && !team.venture_id && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Promote "${team.name}" to Venture OS?`)) return;
+                              try {
+                                const res = await fetch("/api/ventures/promote", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ team_id: team.id }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  notify("Venture promoted!");
+                                  fetchProgramData(true);
+                                } else {
+                                  notify(data.error || "Promotion failed.", "error");
+                                }
+                              } catch (e) {
+                                notify("Network error.", "error");
+                              }
+                            }}
+                            className="btn btn-primary btn-sm"
+                          >
+                            <Zap className="w-3 h-3" /> Promote
+                          </button>
+                        )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2119,3381 +2148,3382 @@ export default function ProgramWorkspace() {
                                   Weekly Resources
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {canContribute && (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        setMaterialSessionId(session.id);
-                                        setMaterialName("");
-                                        setMaterialUrl("");
-                                        setShowMaterialModal(true);
-                                      }}
-                                      className="text-[9px] font-black text-blue-400 uppercase hover:underline cursor-pointer flex items-center gap-1"
-                                    >
-                                      <Plus className="w-3 h-3" /> Add Link
-                                    </button>
-                                    <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
-                                      <Plus className="w-3 h-3" /> Upload
-                                      <input
-                                        type="file"
-                                        accept=".pdf"
-                                        className="hidden"
-                                        onChange={async (e) => {
-                                          const file = e.target.files[0];
-                                          if (!file) return;
-                                          notify("Syncing material...", "info");
-                                          try {
-                                            const res = await fetch(
-                                              "/api/pm/curriculum",
-                                              {
-                                                method: "POST",
-                                                headers: {
-                                                  "Content-Type":
-                                                    "application/json",
-                                                },
-                                                body: JSON.stringify({
-                                                  action: "anchor_material",
-                                                  program_id: id,
-                                                  session_id: session.id,
-                                                  file_name: file.name,
-                                                }),
-                                              },
-                                            );
-                                            if ((await res.json()).success) {
-                                              notify("Material anchored.");
-                                              fetchProgramData(true);
-                                            }
-                                          } catch (e) {
-                                            notify("Upload failed.", "error");
-                                          }
-                                        }}
-                                      />
-                                    </label>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="space-y-6">
-                              {/* ── SUPER ADMIN GUIDELINES ── */}
-                              {(program?.knowledge_assets || []).length > 0 && (
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2 pb-1">
-                                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-                                    <span className="text-[8px] font-black uppercase tracking-[0.15em] text-emerald-500">
-                                      Super Admin Guidelines
-                                    </span>
-                                    <div className="flex-1 h-px bg-gradient-to-r from-emerald-500/20 to-transparent" />
-                                  </div>
-                                  {(program?.knowledge_assets || []).map(
-                                    (kb, kIdx) => (
-                                      <div
-                                        key={`kb-${kIdx}`}
-                                        className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20 flex items-center justify-between group/asset shadow-sm"
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <BookOpen className="w-4 h-4 text-emerald-500 shrink-0" />
-                                          <div className="min-w-0">
-                                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
-                                              {kb.name || "Core Asset"}
-                                            </p>
-                                            <p className="text-[7px] text-emerald-600 font-black uppercase tracking-widest mt-0.5">
-                                              Program Guideline
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <button
-                                          onClick={() =>
-                                            setActivePDF({
-                                              url: kb.url,
-                                              name: kb.name,
-                                            })
-                                          }
-                                          className="shrink-0 px-3 py-1.5 bg-emerald-500/10 rounded-lg text-[8px] font-black text-emerald-600 uppercase hover:bg-emerald-500/20 transition-all border border-emerald-500/10"
-                                        >
-                                          View
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                </div>
-                              )}
-
-                              {/* ── WEEKLY SESSION MATERIALS ── */}
-                              {(() => {
-                                let sessionMaterials = [];
-                                try {
-                                  const raw = session.extra_materials;
-                                  sessionMaterials =
-                                    typeof raw === "string"
-                                      ? JSON.parse(raw || "[]")
-                                      : raw || [];
-                                } catch (e) {
-                                  sessionMaterials = [];
-                                }
-
-                                if (
-                                  sessionMaterials.length === 0 &&
-                                  !(program?.knowledge_assets || []).length
-                                ) {
-                                  return (
-                                    <div className="py-8 text-center opacity-20 italic space-y-2">
-                                      <Clock className="w-6 h-6 mx-auto" />
-                                      <p className="text-[9px] font-bold uppercase">
-                                        No Materials
-                                      </p>
-                                    </div>
-                                  );
-                                }
-
-                                if (sessionMaterials.length === 0) return null;
-
-                                return (
-                                  <div className="space-y-3">
-                                    <div className="flex items-center gap-2 pb-1">
-                                      <Zap className="w-3.5 h-3.5 text-blue-500" />
-                                      <span className="text-[8px] font-black uppercase tracking-[0.15em] text-blue-500">
-                                        Weekly Documents
-                                      </span>
-                                      <div className="flex-1 h-px bg-gradient-to-r from-blue-500/20 to-transparent" />
-                                    </div>
-                                    {sessionMaterials.map((mat, mIdx) => (
-                                      <div
-                                        key={`mat-${mIdx}`}
-                                        className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/20 flex items-center justify-between group/asset shadow-sm"
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <Zap className="w-4 h-4 text-blue-500 shrink-0" />
-                                          <div className="min-w-0">
-                                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
-                                              {mat.name}
-                                            </p>
-                                            <p className="text-[7px] text-blue-600 font-black uppercase tracking-widest mt-0.5">
-                                              {mat.url
-                                                ? "External Link"
-                                                : "Session Material"}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                          <button className="px-3 py-1.5 bg-blue-500/10 rounded-lg text-[8px] font-black text-blue-600 uppercase hover:bg-blue-500/20 transition-all border border-blue-500/10">
-                                            View
-                                          </button>
-                                          {canEdit && (
-                                            <button className="p-1.5 bg-rose-500/5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/10">
-                                              <Trash2 className="w-3 h-3" />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === "attendance" && (
-            <div className="space-y-6 animate-in">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  Attendance Overview
-                </h3>
-              </div>
-              <p className="text-[10px] text-[var(--text-secondary)]">
-                Select a week below to manage attendance for that session.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {sessions
-                  .filter((s) => s.type === "session")
-                  .sort((a, b) => (a.week_number || 0) - (b.week_number || 0))
-                  .map((session) => (
-                    <div
-                      key={session.id}
-                      className="card border border-[var(--border-primary)] hover:border-indigo-500/30 transition-all cursor-pointer"
-                      onClick={() => {
-                        setSelectedSessionForAttendance(session);
-                        setShowAttendanceModal(true);
-                      }}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-lg font-black text-indigo-400">
-                          {session.week_number || "?"}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                            {session.title}
-                          </p>
-                          <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
-                            Week {session.week_number}
-                          </p>
-                        </div>
-                      </div>
-                      {session.scheduled_date && (
-                        <p className="text-[9px] text-[var(--text-secondary)] mb-2">
-                          {new Date(session.scheduled_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
-                        </p>
-                      )}
-                      <button
-                        className="w-full py-2 rounded-lg bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all"
-                      >
-                        Open Attendance
-                      </button>
-                    </div>
-                  ))}
-                {sessions.filter((s) => s.type === "session").length === 0 && (
-                  <div className="col-span-3 py-12 text-center">
-                    <p className="text-[11px] text-slate-500">No sessions yet. Create weeks in the Curriculum tab first.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === "config" && (
-            <div className="space-y-8 animate-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  {/* STRATEGIC MATERIALS (PDFs) — MOVED TO TOP FOR VISIBILITY */}
-                  <div className="space-y-6 mb-8">
-                    <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-blue-500" />
-                      Assigned Materials
-                    </h3>
-                    <div className="card space-y-4">
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
-                        Assigned Assets & Curriculum PDFs
-                      </p>
-                      <div className="grid grid-cols-1 gap-3">
-                        {(() => {
-                          let materials = [];
-                          const raw = program?.materials;
-                          const kbAssets = program?.knowledge_assets || [];
-
-                          if (raw) {
-                            if (Array.isArray(raw))
-                              materials = raw.filter(
-                                (i) => i && i !== "[]" && i !== "",
-                              );
-                            else if (typeof raw === "string") {
-                              if (raw.startsWith("[") || raw.startsWith("{")) {
-                                try {
-                                  let parsed = JSON.parse(raw);
-                                  if (typeof parsed === "string")
-                                    parsed = JSON.parse(parsed);
-                                  materials = Array.isArray(parsed)
-                                    ? parsed.filter(
-                                        (i) => i && i !== "[]" && i !== "",
-                                      )
-                                    : [parsed];
-                                } catch (e) {
-                                  materials = raw === "[]" ? [] : [raw];
-                                }
-                              } else {
-                                materials =
-                                  raw === "" || raw === "[]" ? [] : [raw];
-                              }
-                            }
-                          }
-
-                          // Merge with Knowledge Base Assets with safe mapping
-                          const allMaterials = [
-                            ...materials.map((m) => {
-                              let item = m;
-                              // Handle stringified JSON inside array items
-                              if (typeof item === "string") {
-                                try {
-                                  let p = JSON.parse(item);
-                                  if (typeof p === "string") p = JSON.parse(p);
-                                  if (Array.isArray(p)) item = p[0];
-                                  else item = p;
-                                } catch (e) {}
-                              }
-                              if (Array.isArray(item)) item = item[0];
-                              if (item && typeof item === "object") {
-                                return {
-                                  name:
-                                    item.name ||
-                                    item.NAME ||
-                                    item.title ||
-                                    item.TITLE ||
-                                    "Program Document",
-                                  url:
-                                    item.url ||
-                                    item.URL ||
-                                    item.path ||
-                                    item.PATH ||
-                                    "",
-                                  source: "curriculum",
-                                };
-                              }
-                              if (typeof m === "string" && m.trim())
-                                return {
-                                  url: m,
-                                  name: m.split("/").pop(),
-                                  source: "curriculum",
-                                };
-                              return null;
-                            }),
-                            ...kbAssets.map((a) => {
-                              if (typeof a === "object" && a !== null)
-                                return { ...a, source: "knowledge" };
-                              if (typeof a === "string" && a.trim())
-                                return {
-                                  url: a,
-                                  name: a.split("/").pop(),
-                                  source: "knowledge",
-                                };
-                              return null;
-                            }),
-                          ].filter(
-                            (item) =>
-                              item && (item.name || item.url || item.path),
-                          );
-
-                          if (allMaterials.length === 0) {
-                            return (
-                              <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">
-                                No assigned materials have been anchored to this
-                                program yet.
-                              </p>
-                            );
-                          }
-
-                          return allMaterials.map((file, idx) => {
-                            const url =
-                              typeof file === "object"
-                                ? file.url || file.URL || file.path || ""
-                                : typeof file === "string"
-                                  ? file
-                                  : "";
-                            const rawName =
-                              typeof file === "object"
-                                ? file.name ||
-                                  file.NAME ||
-                                  file.title ||
-                                  file.TITLE ||
-                                  (typeof (file.url || file.URL) === "string"
-                                    ? (file.url || file.URL).split("/").pop()
-                                    : "Program Document")
-                                : typeof file === "string"
-                                  ? file.split("/").pop()
-                                  : "Program Document";
-                            const name = rawName
-                              .replace(/\.[^.]+$/, "") // strip extension (.pdf, .docx…)
-                              .replace(/[_\-]+/g, " ") // underscores/hyphens → spaces
-                              .replace(/\s+/g, " ") // collapse extra spaces
-                              .trim()
-                              .toLowerCase()
-                              .replace(/\b\w/g, (c) => c.toUpperCase()); // Title Case
-                            const isKB = file.source === "knowledge";
-
-                            // Items without valid URL will still show name, OPEN will use in-app viewer
-
-                            return (
-                              <div
-                                key={idx}
-                                className={`w-full flex items-center justify-between p-4 bg-tertiary rounded-xl border transition-all group text-left ${isKB ? "border-emerald-500/30 hover:border-emerald-500" : "border-[var(--border-primary)] hover:border-blue-500/50"}`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className={`p-2 rounded-lg ${isKB ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"}`}
-                                  >
-                                    <FileText className="w-4 h-4" />
-                                  </div>
-                                  <div>
-                                    <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px] block">
-                                      {name}
-                                    </span>
-                                    <span
-                                      className={`text-[8px] font-black uppercase tracking-widest ${isKB ? "text-emerald-500" : "text-blue-500"}`}
-                                    >
-                                      {isKB
-                                        ? "Knowledge Asset"
-                                        : "Program Material"}
-                                    </span>
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setActivePDF({ url: url || "#", name });
-                                  }}
-                                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${isKB ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black border border-emerald-500/20" : "bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-black border border-blue-500/20"}`}
-                                >
-                                  OPEN
-                                </button>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-
-                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
-                    Program Identity
-                  </h3>
-                  <div className="card space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Program Name
-                      </label>
-                      <input
-                        ref={configNameRef}
-                        type="text"
-                        defaultValue={program?.name}
-                        disabled={user.role === "program_manager"}
-                        className={`w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold ${user.role === "program_manager" ? "opacity-50 cursor-not-allowed" : ""}`}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Concept Note
-                      </label>
-                      <textarea
-                        ref={configDescRef}
-                        rows="4"
-                        defaultValue={program?.description}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Duration (Weeks)
-                        </label>
-                        <input
-                          ref={configWeeksRef}
-                          type="number"
-                          defaultValue={program?.duration_weeks}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Operational Status
-                        </label>
-                        <select
-                          ref={configStatusRef}
-                          defaultValue={program?.status}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
-                        >
-                          <option value="active">ACTIVE</option>
-                          <option value="archived">ARCHIVED</option>
-                          <option value="draft">DRAFT</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-purple-500 flex items-center gap-2">
-                          <Shield className="w-3 h-3 text-white" /> Grading Mode
-                        </label>
-                        <select
-                          ref={configGradingRef}
-                          defaultValue={program?.grading_mode || "graded"}
-                          className="w-full bg-primary border border-purple-500/30 rounded-lg px-4 py-3 text-sm focus:border-purple-500 outline-none transition-all font-bold"
-                        >
-                          <option value="graded">
-                            Graded (Score + Review)
-                          </option>
-                          <option value="review">Review Only (Feedback)</option>
-                          <option value="followup">
-                            Follow-up (Schedule Meeting)
-                          </option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2">
-                          <Calendar className="w-3 h-3 text-white" /> Project
-                          Start Date
-                        </label>
-                        <input
-                          ref={configStartRef}
-                          type="date"
-                          defaultValue={
-                            program?.start_date
-                              ? new Date(program.start_date)
-                                  .toISOString()
-                                  .split("T")[0]
-                              : ""
-                          }
-                          className="w-full bg-primary border border-emerald-500/30 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 outline-none transition-all font-bold"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-rose-500 flex items-center gap-2">
-                          <Calendar className="w-3 h-3 text-white" /> Project
-                          Finish Date
-                        </label>
-                        <input
-                          ref={configEndRef}
-                          type="date"
-                          defaultValue={
-                            program?.end_date
-                              ? new Date(program.end_date)
-                                  .toISOString()
-                                  .split("T")[0]
-                              : ""
-                          }
-                          className="w-full bg-primary border border-rose-500/30 rounded-lg px-4 py-3 text-sm focus:border-rose-500 outline-none transition-all font-bold"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 mt-4">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">
-                        PROGRAM MANAGER
-                      </label>
-                      <div className="w-full bg-primary/50 border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--brand-orange)] flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <User className="w-4 h-4" />
-                          <span className="uppercase">
-                            {program?.pm_name || "Not Assigned"}
-                          </span>
-                        </div>
-                        <Shield className="w-4 h-4 opacity-30" />
-                      </div>
-                    </div>
-                    <button
-                      onClick={saveConfig}
-                      disabled={isSaving}
-                      className="btn btn-primary w-full py-4 mt-4 gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      {isSaving ? "Saving..." : "Synchronize Global Settings"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-purple-500" />
-                    Strategic KPIs
-                    <button
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(
-                            `/api/kpi-progress?program_id=${id}`,
-                          );
-                          const data = await res.json();
-                          if (data.success) {
-                            notify("KPI progress recalculated.");
-                            fetchProgramData(true);
-                          }
-                        } catch (_) {
-                          notify("Recalculation failed.", "error");
-                        }
-                      }}
-                      className="ml-auto text-[8px] font-black text-purple-400 uppercase hover:underline flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-purple-500/10 transition-all"
-                    >
-                      <RefreshCw className="w-3 h-3" /> Recalculate
-                    </button>
-                  </h3>
-                  <div className="card space-y-4">
-                    {/* READ-ONLY KNOWLEDGE BASE FOR PM */}
-                    {program?.note_title && (
-                      <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl space-y-3 mb-6">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-emerald-500" />
-                          <h4 className="text-[11px] font-black uppercase text-white tracking-tight">
-                            {program.note_title}
-                          </h4>
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                          {program.note_description}
-                        </p>
-                        <div className="space-y-2 pt-2 border-t border-emerald-500/10">
-                          {program.knowledge_assets?.map((asset, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() =>
-                                setActivePDF({
-                                  url: asset.url,
-                                  name: asset.name,
-                                })
-                              }
-                              className="w-full flex items-center justify-between p-2 hover:bg-emerald-500/10 rounded-lg transition-all group"
-                            >
-                              <span className="text-[9px] font-bold text-slate-300 uppercase truncate">
-                                {asset.name}
-                              </span>
-                              <ExternalLink className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100" />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {kpis.map((kpi, kpiIdx) => {
-                        const progPct = kpi.progress || 0;
-                        return (
-                          <div
-                            key={kpi.id}
-                            className="card !p-4 hover:border-[var(--brand-orange)]/30 transition-all group"
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                KPI {kpiIdx + 1}
-                              </span>
-                              <span className="text-sm font-black text-[var(--brand-orange)]">
-                                {progPct}%
-                              </span>
-                            </div>
-                            <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight mb-3 group-hover:text-[var(--brand-orange)] transition-colors">
-                              {kpi.title}
-                            </p>
-                            <div className="w-full h-2 bg-[var(--border-primary)]/20 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all duration-700"
-                                style={{ width: `${progPct}%` }}
-                              />
-                            </div>
-                            <div className="flex items-center gap-3 mt-2">
-                              <span className="text-[7px] font-bold text-slate-500">
-                                Weight: {kpi.weight || 0}%
-                              </span>
-                              {kpi.linkedSessions > 0 && (
-                                <span className="text-[7px] font-bold text-slate-500">
-                                  {kpi.completedSessions}/{kpi.linkedSessions}{" "}
-                                  sessions
-                                </span>
-                              )}
-                              {kpi.linkedDocs > 0 && (
-                                <span className="text-[7px] font-bold text-slate-500">
-                                  {kpi.completedDocs}/{kpi.linkedDocs} docs
-                                </span>
-                              )}
-                              {kpi.linkedSessions === 0 &&
-                                kpi.linkedDocs === 0 && (
-                                  <span className="text-[7px] font-bold text-slate-600 italic">
-                                    No linked items
-                                  </span>
-                                )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {kpis.length === 0 && (
-                        <div className="col-span-full p-8 text-center">
-                          <p className="text-[10px] text-[var(--text-secondary)] italic">
-                            No KPIs configured. Contact your Super Admin.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "reports" && (
-            <div className="space-y-6">
-              {/* Export Bar */}
-              <div className="flex flex-wrap items-center gap-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mr-2">Export:</span>
-                {[
-                  { label: "Participants CSV", type: "participants", format: "csv" },
-                  { label: "Participants XLSX", type: "participants", format: "xlsx" },
-                  { label: "Attendance CSV", type: "attendance", format: "csv" },
-                  { label: "Submissions CSV", type: "submissions", format: "csv" },
-                  { label: "Teams CSV", type: "teams", format: "csv" },
-                  { label: "Calendar iCal", type: "ical", format: "ical" },
-                  { label: "Participants PDF", type: "participants", format: "pdf" },
-                ].map(({ label, type, format }) => (
-                  <button
-                    key={`${type}-${format}`}
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`/api/pm/export?type=${type}&program_id=${id}&format=${format}`, {
-                          credentials: "include",
-                        });
-                        if (!res.ok) throw new Error("Export failed");
-                        if (format === "pdf") {
-                          const { rows: data, filename } = await res.json();
-                          const { default: jsPDF } = await import("jspdf");
-                          const doc = new jsPDF({ orientation: "landscape" });
-                          doc.setFontSize(12);
-                          doc.text(`${type.toUpperCase()} - Talent for Startups`, 10, 10);
-                          if (data && data.length > 0) {
-                            const headers = Object.keys(data[0]);
-                            let y = 20;
-                            doc.setFontSize(7);
-                            // Header row
-                            headers.forEach((h, i) => doc.text(String(h), 10 + i * 35, y));
-                            y += 5;
-                            // Data rows (max 40 rows per page)
-                            data.slice(0, 80).forEach((row, ri) => {
-                              if (y > 180) { doc.addPage(); y = 15; }
-                              headers.forEach((h, i) => {
-                                const val = String(row[h] ?? "").substring(0, 20);
-                                doc.text(val, 10 + i * 35, y);
-                              });
-                              y += 4;
-                            });
-                          }
-                          doc.save(filename);
-                        } else {
-                          const blob = await res.blob();
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          const ext = format === "xlsx" ? "xlsx" : "csv";
-                          a.href = url;
-                          a.download = `${type}-${id}.${ext}`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }
-                        notify(`Exported ${label}`);
-                      } catch (e) {
-                        notify("Export failed", "error");
-                      }
-                    }}
-                    className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg border transition-all ${
-                      format === "xlsx"
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                        : format === "pdf"
-                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
-                          : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border-[var(--brand-orange)]/20 hover:bg-[var(--brand-orange)]/20"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-black uppercase tracking-tighter">
-                  Weekly Intelligence Feed
-                </h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                    Total Signals:
-                  </span>
-                  <span className="text-sm font-black">{reports.length}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                {reports.map((report, i) => (
-                  <div
-                    key={report.id || i}
-                    className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
-                  >
-                    <div className="p-4 bg-tertiary flex justify-between items-center border-b border-[var(--border-primary)]">
-                      <div className="flex items-center gap-4">
-                        <div className="px-3 py-1 bg-[var(--brand-orange)] text-white text-[10px] font-black rounded uppercase">
-                          Wk{report.week_number}
-                        </div>
-                        <span className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                          Submission by{" "}
-                          {report.staff_name ||
-                            report.teacher_name ||
-                            "Staff Member"}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                        {new Date(report.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] mb-1">
-                            Challenges & Blockers
-                          </p>
-                          <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.challenges || "No data reported."}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-1">
-                            Highlights & Successes
-                          </p>
-                          <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.highlights || "No data reported."}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-blue-500 mb-1">
-                            Strategic Next Steps
-                          </p>
-                          <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.next_steps || "No data reported."}
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                          <div className="p-3 bg-primary rounded-lg border border-[var(--border-primary)]">
-                            <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase">
-                              Attendance
-                            </p>
-                            <p className="text-sm font-black">
-                              {report.attendance_count || 0}
-                            </p>
-                          </div>
-                          <div className="p-3 bg-primary rounded-lg border border-[var(--border-primary)]">
-                            <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase">
-                              Sessions
-                            </p>
-                            <p className="text-sm font-black">
-                              {report.sessions_completed || 0}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {reports.length === 0 && (
-                  <div className="py-20 text-center card border-dashed opacity-40">
-                    <BarChart3 className="w-10 h-10 mx-auto mb-4 opacity-20" />
-                    <p className="text-xs font-bold uppercase tracking-widest">
-                      Awaiting initial intelligence reports...
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === "submissions" && (
-            <div className="table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Participant</th>
-                    <th>Deliverable</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th className="text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {submissions.map((sub) => (
-                    <tr key={sub.id}>
-                      <td>
-                        <div className="flex flex-col">
-                          <span className="font-black text-[var(--text-primary)]">
-                            {sub.participant_name || "N/A"}
-                          </span>
-                          <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">
-                            {sub.group_name || "Individual"}
-                          </span>
-                        </div>
-                      </td>
-                      <td>{sub.deliverable_title}</td>
-                      <td className="text-[10px] opacity-60 font-bold">
-                        {new Date(sub.created_at).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <span
-                          className={`px-2 py-1 rounded text-[9px] font-black uppercase ${sub.status === "approved" ? "bg-emerald-500/10 text-emerald-500" : "bg-orange-500/10 text-orange-500"}`}
-                        >
-                          {sub.status}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                        <button
-                          onClick={() => {
-                            setSelectedSubmission(sub);
-                            setReviewScore(sub.score || 0);
-                            setShowReviewModal(true);
-                          }}
-                          className="text-[var(--brand-blue)] text-[10px] font-black uppercase italic"
-                        >
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {submissions.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        className="py-20 text-center opacity-30 italic"
-                      >
-                        No submissions detected in this sector.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* PDF VIEWER MODAL */}
-        {activePDF && (
-          <div
-            className="fixed inset-0 z-[600] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in"
-            onClick={() => setActivePDF(null)}
-          >
-            <div
-              className="card w-full max-w-5xl h-[90vh] flex flex-col space-y-4 shadow-2xl border-[var(--border-primary)]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black uppercase text-[var(--text-primary)]">
-                      {activePDF.name}
-                    </h3>
-                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                      Document Preview
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <a
-                    href={activePDF.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn btn-secondary !py-2 text-[10px] gap-2"
-                  >
-                    <ExternalLink className="w-4 h-4" /> Open in New Tab
-                  </a>
-                  <button
-                    onClick={() => setActivePDF(null)}
-                    className="btn btn-secondary !py-2 hover:bg-rose-500/10 hover:text-rose-500 border-none"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 bg-tertiary rounded-xl overflow-hidden border border-[var(--border-primary)] relative">
-                {!activePDF.url || activePDF.url === "#" ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 opacity-50">
-                    <FileText className="w-16 h-16 mb-4 text-[var(--text-secondary)] opacity-20" />
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      No Document URL Found
-                    </h3>
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-2 max-w-sm leading-relaxed">
-                      This material was registered without a valid file path or
-                      external link. The document cannot be previewed.
-                    </p>
-                  </div>
-                ) : (
-                  <iframe
-                    src={`${activePDF.url}#toolbar=0`}
-                    className="w-full h-full"
-                    title="PDF Viewer"
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TOAST */}
-        {toast && (
-          <div
-            className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${
-              toast.type === "error"
-                ? "bg-rose-50 text-rose-700 border-rose-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}
-          >
-            {toast.msg}
-          </div>
-        )}
-
-        {/* DEPLOY STUDENT GROUP MODAL */}
-        {showTeamModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowTeamModal(false)}
-          >
-            <div
-              className="card w-full max-w-sm space-y-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <div className="space-y-1">
-                  <h3
-                    className="text-base font-black uppercase tracking-tight"
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    Initialize Student Group
-                  </h3>
-                  <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
-                    Create a collaborative cohort of students for targeted
-                    curriculum execution.
-                  </p>
-                </div>
-                <button onClick={() => setShowTeamModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="flex bg-primary p-1 rounded-xl border border-[var(--border-primary)]">
-                  <button
-                    onClick={() => setTeamAssignmentMode("new")}
-                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "new" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
-                  >
-                    Create New
-                  </button>
-                  <button
-                    onClick={() => setTeamAssignmentMode("existing")}
-                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "existing" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
-                  >
-                    Add to Existing
-                  </button>
-                </div>
-
-                {teamAssignmentMode === "new" ? (
-                  <div className="space-y-1">
-                    <label
-                      className="text-[10px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      Internal Team Name (Sub-group)
-                    </label>
-                    <input
-                      value={newTeam.name}
-                      onChange={(e) =>
-                        setNewTeam((p) => ({ ...p, name: e.target.value }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                      placeholder="e.g. Group Teh"
-                    />
-                    <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase mt-1">
-                      Note: This will be linked to the parent group
-                      automatically.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <label
-                      className="text-[10px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      Select Target Group
-                    </label>
-                    <select
-                      value={selectedExistingTeamId}
-                      onChange={(e) =>
-                        setSelectedExistingTeamId(e.target.value)
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="">Select an existing team...</option>
-                      {teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name.toUpperCase()} (Group: {t.group_name})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Assign Group Lead (Student)
-                  </label>
-                  <select
-                    value={newTeam.leader_id}
-                    onChange={(e) =>
-                      setNewTeam((p) => ({ ...p, leader_id: e.target.value }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="">Select Lead...</option>
-                    {participants
-                      .filter((p) => newTeam.member_ids.includes(p.id))
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Assign Oversight (Staff Member / Instructor)
-                  </label>
-                  <select
-                    value={newTeam.staff_id}
-                    onChange={(e) => {
-                      const staff = assignedStaff.find(
-                        (s) => String(s.cid) === e.target.value,
-                      );
-                      setNewTeam((p) => ({
-                        ...p,
-                        staff_id: e.target.value,
-                        handler_name: staff?.name || "",
-                      }));
-                    }}
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="">No Staff Assigned (Optional)</option>
-                    {assignedStaff.map((s) => (
-                      <option key={s.cid} value={s.cid}>
-                        {s.name} ({s.role === "teacher" ? "Instructor" : s.role}
-                        )
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowTeamModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={deployTeam}
-                  disabled={isSaving || !newTeam.name.trim()}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Initializing..." : "Initialize Group"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ADD SESSION MODAL */}
-        {showSessionModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowSessionModal(false)}
-          >
-            <div
-              className="card w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center pb-4 border-b border-[var(--border-primary)]">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
-                  </div>
-                  <div>
-                    <h3
-                      className="text-sm font-black uppercase tracking-tight"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      New Session
-                    </h3>
-                    <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
-                      Week {newSession.week_number}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowSessionModal(false)}
-                  className="p-2 hover:bg-[var(--surface-2)] rounded-lg transition-all"
-                >
-                  <X
-                    className="w-4 h-4"
-                    style={{ color: "var(--text-tertiary)" }}
-                  />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[9px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Session Title
-                  </label>
-                  <input
-                    value={newSession.title}
-                    onChange={(e) =>
-                      setNewSession((p) => ({ ...p, title: e.target.value }))
-                    }
-                    className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold transition-all focus:border-[var(--brand-orange)]"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="e.g. Orientation Week"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label
-                      className="text-[9px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={newSession.scheduled_date}
-                      onChange={(e) =>
-                        setNewSession((p) => ({
-                          ...p,
-                          scheduled_date: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label
-                      className="text-[9px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      Finish Date
-                    </label>
-                    <input
-                      type="date"
-                      value={newSession.end_date}
-                      onChange={(e) =>
-                        setNewSession((p) => ({
-                          ...p,
-                          end_date: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label
-                      className="text-[9px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      Start Time
-                    </label>
-                    <input
-                      type="time"
-                      value={newSession.start_time}
-                      onChange={(e) =>
-                        setNewSession((p) => ({
-                          ...p,
-                          start_time: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label
-                      className="text-[9px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      End Time
-                    </label>
-                    <input
-                      type="time"
-                      value={newSession.end_time}
-                      onChange={(e) =>
-                        setNewSession((p) => ({
-                          ...p,
-                          end_time: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Assign Teachers (click to toggle)
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto p-1 custom-scrollbar">
-                    {programTeamMembers.map((staff) => {
-                      const isSelected = (
-                        newSession.handler_ids || []
-                      ).includes(String(staff.cid));
-                      return (
-                        <button
-                          key={staff.cid}
-                          type="button"
-                          onClick={() => {
-                            const ids = newSession.handler_ids || [];
-                            const names = newSession.handler_names || [];
-                            const cidStr = String(staff.cid);
-                            if (ids.includes(cidStr)) {
-                              const idx = ids.indexOf(cidStr);
-                              setNewSession((p) => ({
-                                ...p,
-                                handler_ids: ids.filter((id) => id !== cidStr),
-                                handler_names: names.filter(
-                                  (_, i) => i !== idx,
-                                ),
-                              }));
-                            } else {
-                              setNewSession((p) => ({
-                                ...p,
-                                handler_ids: [...ids, cidStr],
-                                handler_names: [...names, staff.name],
-                              }));
-                            }
-                          }}
-                          className={`flex items-center gap-2 p-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all text-left ${
-                            isSelected
-                              ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                              : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                          }`}
-                        >
-                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[7px]">
-                            {staff.name?.charAt(0)}
-                          </div>
-                          <span className="truncate">{staff.name}</span>
-                        </button>
-                      );
-                    })}
-                    {programTeamMembers.length === 0 && (
-                      <p className="text-[10px] text-slate-600 italic col-span-full px-2">
-                        No staff assigned. Add them in the Participants tab.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Session Notes (shown to participants)
-                  </label>
-                  <textarea
-                    value={newSession.notes}
-                    onChange={(e) =>
-                      setNewSession((p) => ({
-                        ...p,
-                        notes: e.target.value,
-                      }))
-                    }
-                    rows={3}
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold resize-none"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="e.g. Please review Chapter 3 before class..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Extra Course Materials
-                  </label>
-                  {/* Material type selector */}
-                  <div className="flex gap-1 bg-primary rounded-lg p-1 border border-[var(--border-primary)] w-fit">
-                    {[
-                      { id: "text", label: "Text", icon: FileText },
-                      { id: "link", label: "Link", icon: Plus },
-                      { id: "upload", label: "File", icon: Paperclip },
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() =>
-                          setNewSessionMaterial({
-                            type: opt.id,
-                            content: "",
-                            name: "",
-                          })
-                        }
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
-                          newSessionMaterial.type === opt.id
-                            ? "bg-[var(--brand-orange)] text-black"
-                            : "text-slate-500 hover:text-white"
-                        }`}
-                      >
-                        <opt.icon className="w-3 h-3" />
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Material input */}
-                  <div className="flex gap-2">
-                    {newSessionMaterial.type === "text" && (
-                      <input
-                        value={newSessionMaterial.content}
-                        onChange={(e) =>
-                          setNewSessionMaterial((p) => ({
-                            ...p,
-                            content: e.target.value,
-                            name: "Text Note",
-                          }))
-                        }
-                        placeholder="Enter a text note or instruction..."
-                        className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                        style={{
-                          background: "var(--bg-primary)",
-                          border: "1px solid var(--border-primary)",
-                          color: "var(--text-primary)",
-                        }}
-                      />
-                    )}
-                    {newSessionMaterial.type === "link" && (
-                      <input
-                        type="url"
-                        value={newSessionMaterial.content}
-                        onChange={(e) =>
-                          setNewSessionMaterial((p) => ({
-                            ...p,
-                            content: e.target.value,
-                            name:
-                              e.target.value.split("/").pop() ||
-                              "External Link",
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                        style={{
-                          background: "var(--bg-primary)",
-                          border: "1px solid var(--border-primary)",
-                          color: "var(--text-primary)",
-                        }}
-                      />
-                    )}
-                    {newSessionMaterial.type === "upload" && (
-                      <div className="flex-1 relative group">
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file)
-                              setNewSessionMaterial((p) => ({
-                                ...p,
-                                content: file.name,
-                                name: file.name,
-                              }));
-                          }}
-                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                        />
-                        <div
-                          className="flex items-center gap-2 px-4 py-3 rounded-lg border border-dashed text-sm font-bold"
-                          style={{
-                            background: "var(--bg-primary)",
-                            borderColor: "var(--border-primary)",
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          <Paperclip className="w-4 h-4" />
-                          {newSessionMaterial.content || "Click to attach"}
-                        </div>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!newSessionMaterial.content.trim()) return;
-                        setNewSession((p) => ({
-                          ...p,
-                          extra_materials: [
-                            ...(p.extra_materials || []),
-                            { ...newSessionMaterial },
-                          ],
-                        }));
-                        setNewSessionMaterial({
-                          type: "text",
-                          content: "",
-                          name: "",
-                        });
-                      }}
-                      className="px-4 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-                    >
-                      Add
-                    </button>
-                  </div>
-
-                  {/* Added materials list */}
-                  {(newSession.extra_materials || []).length > 0 && (
-                    <div className="space-y-1.5 mt-2">
-                      {(newSession.extra_materials || []).map((mat, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-2 rounded-lg"
-                          style={{
-                            background: "var(--bg-tertiary)",
-                            border: "1px solid var(--border-primary)",
-                          }}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            {mat.type === "text" && (
-                              <FileText className="w-3 h-3 text-blue-500 shrink-0" />
-                            )}
-                            {mat.type === "link" && (
-                              <Plus className="w-3 h-3 text-emerald-500 shrink-0" />
-                            )}
-                            {mat.type === "upload" && (
-                              <Paperclip className="w-3 h-3 text-[#FF6600] shrink-0" />
-                            )}
-                            <span className="text-[10px] font-bold truncate text-[var(--text-primary)]">
-                              {mat.name || mat.content}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setNewSession((p) => ({
-                                ...p,
-                                extra_materials: (
-                                  p.extra_materials || []
-                                ).filter((_, i) => i !== idx),
-                              }))
-                            }
-                            className="text-rose-500 hover:scale-110 transition-all shrink-0"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                    <Target className="w-3 h-3 text-[#FF6600]" /> Link Strategic
-                    KPIs (Required)
-                  </label>
-                  <div className="grid grid-cols-1 gap-2 max-h-[120px] overflow-y-auto p-1 custom-scrollbar text-left">
-                    {kpis.map((kpi) => (
-                      <button
-                        key={kpi.id}
-                        onClick={() => toggleKpi("session", kpi.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                          (newSession.kpi_ids || []).includes(kpi.id)
-                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                            : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                        }`}
-                      >
-                        <span className="text-[10px] font-bold uppercase tracking-tight">
-                          {kpi.title}
-                        </span>
-                        {(newSession.kpi_ids || []).includes(kpi.id) && (
-                          <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowSessionModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={addSession}
-                  disabled={isSaving || !newSession.title.trim()}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Creating..." : "Create Session"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* REVIEW & GRADE MODAL */}
-        {showReviewModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowReviewModal(false)}
-          >
-            <div
-              className="card w-full max-w-md space-y-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Grade Submission
-                </h3>
-                <button onClick={() => setShowReviewModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-4 bg-tertiary border border-[var(--border-primary)] rounded-xl space-y-2">
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                  Participant
-                </p>
-                <p className="text-sm font-black text-[var(--text-primary)]">
-                  {selectedSubmission?.participant_name || "Group Submission"}
-                </p>
-                <a
-                  href={selectedSubmission?.submission_link}
-                  target="_blank"
-                  className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2"
-                >
-                  <ExternalLink className="w-3 h-3" /> View Source Material
-                </a>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Numerical Grade (Score)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={reviewScore}
-                    onChange={(e) => setReviewScore(e.target.value)}
-                    className="w-full rounded-lg px-4 py-3 text-2xl outline-none font-black text-center text-[var(--brand-orange)]"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "2px solid var(--border-primary)",
-                    }}
-                    placeholder="e.g. 70"
-                  />
-                  <p className="text-[9px] font-bold text-slate-500 text-center uppercase mt-2">
-                    This score will be synchronized to the global graduation
-                    aggregation engine.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowReviewModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleReviewSubmission}
-                  disabled={isSaving || reviewScore === ""}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Grading..." : "Approve & Grade"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ASSIGN STAFF MODAL */}
-        {showStaffModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowStaffModal(false)}
-          >
-            <div
-              className="card w-full max-w-sm space-y-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Assign Personnel
-                </h3>
-                <button onClick={() => setShowStaffModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Select Staff Member
-                  </label>
-                  <select
-                    value={newStaff.staff_id}
-                    onChange={(e) =>
-                      setNewStaff((p) => ({ ...p, staff_id: e.target.value }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="">Select Member...</option>
-                    {staffList
-                      .filter((s) => s.role !== "super_admin")
-                      .map((s) => (
-                        <option key={s.cid} value={s.cid}>
-                          {s.name} ({s.role})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Assigned Role
-                  </label>
-                  <select
-                    value={newStaff.role}
-                    onChange={(e) =>
-                      setNewStaff((p) => ({ ...p, role: e.target.value }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="staff">Staff Member</option>
-                    <option value="assistant">Assistant</option>
-                    <option value="evaluator">Evaluator</option>
-                    <option value="handler">Handler</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowStaffModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={assignStaff}
-                  disabled={isSaving || !newStaff.staff_id}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Assigning..." : "Assign"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* DEFINE KPI MODAL */}
-        {showKPIModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowKPIModal(false)}
-          >
-            <div
-              className="card w-full max-w-sm space-y-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Define KPI Target
-                </h3>
-                <button onClick={() => setShowKPIModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    KPI Title
-                  </label>
-                  <input
-                    value={newKPI.title}
-                    onChange={(e) =>
-                      setNewKPI((p) => ({ ...p, title: e.target.value }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="e.g. Weekly Engagement"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowKPIModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={addKPI}
-                  disabled={isSaving || !newKPI.title.trim()}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Defining..." : "Define"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ANCHOR REQUIREMENT MODAL */}
-        {showRequirementModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowRequirementModal(false)}
-          >
-            <div
-              className="card w-full max-w-sm space-y-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Add Requirement
-                </h3>
-                <button onClick={() => setShowRequirementModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    Requirement Title
-                  </label>
-                  <input
-                    value={newRequirement.title}
-                    onChange={(e) =>
-                      setNewRequirement((p) => ({
-                        ...p,
-                        title: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="e.g. Project Proposal PDF"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label
-                      className="text-[10px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      Allowed Format
-                    </label>
-                    <select
-                      value={newRequirement.allowed_format}
-                      onChange={(e) =>
-                        setNewRequirement((p) => ({
-                          ...p,
-                          allowed_format: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="pdf">PDF Document</option>
-                      <option value="image">Image File</option>
-                      <option value="link">External Link</option>
-                      <option value="video">Video Upload</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label
-                      className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      <Calendar className="w-3 h-3" /> Due Date
-                    </label>
-                    <input
-                      type="date"
-                      value={newRequirement.due_date || ""}
-                      onChange={(e) =>
-                        setNewRequirement((p) => ({
-                          ...p,
-                          due_date: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    <Users className="w-3 h-3" /> Assign To
-                  </label>
-                  <select
-                    value={newRequirement.assignee_type || "all"}
-                    onChange={(e) =>
-                      setNewRequirement((p) => ({
-                        ...p,
-                        assignee_type: e.target.value,
-                        assignee_id: "",
-                      }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="all">All Participants</option>
-                    <option value="team">Specific Team</option>
-                    <option value="individual">Specific Individual</option>
-                  </select>
-                </div>
-
-                {newRequirement.assignee_type === "team" && (
-                  <div className="space-y-1">
-                    <select
-                      value={newRequirement.assignee_id || ""}
-                      onChange={(e) =>
-                        setNewRequirement((p) => ({
-                          ...p,
-                          assignee_id: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="">Select team...</option>
-                      {teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {newRequirement.assignee_type === "individual" && (
-                  <div className="space-y-1">
-                    <select
-                      value={newRequirement.assignee_id || ""}
-                      onChange={(e) =>
-                        setNewRequirement((p) => ({
-                          ...p,
-                          assignee_id: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="">Select participant...</option>
-                      {participants.slice(0, 50).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.email})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                    <Target className="w-3 h-3 text-[#FF6600]" /> Strategic
-                    Impact (KPIs)
-                  </label>
-                  <div className="grid grid-cols-1 gap-2 max-h-[100px] overflow-y-auto p-1 custom-scrollbar text-left">
-                    {kpis.map((kpi) => (
-                      <button
-                        key={kpi.id}
-                        onClick={() => toggleKpi("requirement", kpi.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                          (newRequirement.kpi_ids || []).includes(kpi.id)
-                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                            : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                        }`}
-                      >
-                        <span className="text-[10px] font-bold uppercase tracking-tight">
-                          {kpi.title}
-                        </span>
-                        {(newRequirement.kpi_ids || []).includes(kpi.id) && (
-                          <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowRequirementModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <div className="flex-1 flex flex-col gap-2">
-                  <button
-                    onClick={() => addRequirement(false)}
-                    disabled={isSaving || !newRequirement.title.trim()}
-                    className="w-full btn btn-secondary text-[9px] py-2 border-dashed"
-                  >
-                    {isSaving ? "Saving..." : "Save & Add Another"}
-                  </button>
-                  <button
-                    onClick={() => addRequirement(true)}
-                    disabled={isSaving || !newRequirement.title.trim()}
-                    className="w-full btn btn-primary py-3"
-                  >
-                    {isSaving ? "Saving..." : "Save & Close"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ATTENDANCE MODAL */}
-        {showAttendanceModal && selectedSessionForAttendance && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowAttendanceModal(false)}
-          >
-            <div
-              className="card w-full max-w-2xl space-y-6 max-h-[85vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Attendance — {selectedSessionForAttendance.title}
-                </h3>
-                <button onClick={() => setShowAttendanceModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {participants.map((p) => {
-                  const status = attendanceRecords[p.id] || "present";
-                  return (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between p-4 bg-primary rounded-xl border border-[var(--border-primary)]"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black uppercase">
-                          {p.name?.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-[var(--text-primary)]">
-                            {p.name}
-                          </p>
-                          <p className="text-[9px] text-[var(--text-secondary)]">
-                            {p.email}
-                          </p>
-                        </div>
-                      </div>
-                      <select
-                        value={status}
-                        onChange={(e) =>
-                          setAttendanceRecords((prev) => ({
-                            ...prev,
-                            [p.id]: e.target.value,
-                          }))
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${
-                          status === "present"
-                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                            : status === "absent"
-                              ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
-                              : status === "excused"
-                                ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                                : "bg-blue-500/10 text-blue-500 border-blue-500/30"
-                        }`}
-                      >
-                        <option value="present">Present</option>
-                        <option value="absent">Absent</option>
-                        <option value="excused">Excused</option>
-                        <option value="late">Late</option>
-                      </select>
-                    </div>
-                  );
-                })}
-                {participants.length === 0 && (
-                  <p className="text-center text-[var(--text-secondary)] italic py-8">
-                    No participants enrolled in this program.
-                  </p>
-                )}
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowAttendanceModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!selectedSessionForAttendance) return;
-                    setIsSaving(true);
-                    try {
-                      const today = new Date().toISOString().split("T")[0];
-                      const records = participants.map((p) => ({
-                        session_id: selectedSessionForAttendance.id,
-                        program_id: id,
-                        participant_id: p.id,
-                        status: attendanceRecords[p.id] || "present",
-                        date: today,
-                      }));
-                      const res = await fetch("/api/attendance", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(records),
-                      });
-                      const data = await res.json();
-                      if (!data.success) throw new Error(data.error || "Unknown error");
-                      notify(`Attendance recorded — ${data.upserted} participants.`);
-                      setShowAttendanceModal(false);
-                      setAttendanceRecords({});
-                    } catch (e) {
-                      notify("Failed to save attendance.", "error");
-                    } finally {
-                      setIsSaving(false);
-                    }
-                  }}
-                  disabled={isSaving}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Saving..." : "Save Attendance"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* PM WEEKLY REPORT MODAL — Structured Reporting Flow */}
-        {showPMReportModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowPMReportModal(false)}
-          >
-            <div
-              className="card w-full max-w-lg space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center sticky top-0 bg-secondary z-10 pb-4 border-b border-[var(--border-primary)]">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Weekly Report
-                </h3>
-                <button onClick={() => setShowPMReportModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-8">
-                {/* ────────── SECTION 1: WEEKLY OVERVIEW ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-[var(--brand-orange)]/20">
-                    <div className="w-5 h-5 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[8px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20">
-                      1
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
-                      Weekly Overview
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Week Status — Required */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Week Status <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {[
-                          "successful",
-                          "partially_completed",
-                          "not_completed",
-                        ].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                week_status: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.week_status === opt
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                          >
-                            {opt.replace("_", " ")}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Overall Week Rating — Required */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Overall Week Rating{" "}
-                        <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["excellent", "good", "fair", "poor"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                week_rating: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.week_rating === opt
-                                ? opt === "excellent"
-                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                  : opt === "good"
-                                    ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                    : opt === "fair"
-                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                                      : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Main Topic — Required */}
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Main Topic / Session Covered{" "}
-                        <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={newPMReport.main_topic}
-                        onChange={(e) =>
-                          setNewPMReport((p) => ({
-                            ...p,
-                            main_topic: e.target.value,
-                          }))
-                        }
-                        placeholder="e.g. Introduction to JavaScript"
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── ASSIGNMENT TRACKING ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-violet-500/20">
-                    <div className="w-5 h-5 rounded-full bg-violet-500/10 flex items-center justify-center text-[8px] font-black text-violet-500 border border-violet-500/20">
-                      +
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-violet-500">
-                      Assignment Tracking
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Was An Assignment Given? — Required */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Was An Assignment/Task Given?{" "}
-                        <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              assignment_given: true,
-                            }))
-                          }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.assignment_given === true
-                              ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              assignment_given: false,
-                              assignment_kpi_ids: [],
-                              assignment_objective: "",
-                              assignment_outcome: "",
-                            }))
-                          }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.assignment_given === false
-                              ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
-                        >
-                          No
-                        </button>
-                      </div>
-                    </div>
-
-                    {newPMReport.assignment_given && (
-                      <>
-                        {/* Select Related KPI(s) — Required */}
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                            Select Related KPI(s){" "}
-                            <span className="text-rose-500">*</span>
-                          </label>
-                          {kpis.length === 0 ? (
-                            <p className="text-[10px] text-slate-500 italic px-2">
-                              No KPIs configured for this program. Ask a Super
-                              Admin to define them.
-                            </p>
-                          ) : (
-                            <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto p-1 custom-scrollbar">
-                              {kpis.map((kpi, kpiIdx2) => {
-                                const kpiShare2 = Math.floor(100 / kpis.length);
-                                const kpiPct2 =
-                                  kpiIdx2 === kpis.length - 1
-                                    ? 100 - kpiShare2 * (kpis.length - 1)
-                                    : kpiShare2;
-                                const isSelected = (
-                                  newPMReport.assignment_kpi_ids || []
-                                ).includes(kpi.id);
-                                return (
-                                  <button
-                                    key={kpi.id}
-                                    type="button"
-                                    onClick={() =>
-                                      setNewPMReport((p) => ({
-                                        ...p,
-                                        assignment_kpi_ids: isSelected
-                                          ? p.assignment_kpi_ids.filter(
-                                              (id) => id !== kpi.id,
-                                            )
-                                          : [...p.assignment_kpi_ids, kpi.id],
-                                      }))
-                                    }
-                                    className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold uppercase tracking-tight transition-all text-left ${
-                                      isSelected
-                                        ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
-                                        : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
-                                    }`}
-                                  >
-                                    <span>{kpi.title}</span>
-                                    <span className="text-[8px] opacity-50">
-                                      {kpiPct2}%
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Assignment Objective — Required */}
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                            Assignment Objective{" "}
-                            <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={newPMReport.assignment_objective}
-                            onChange={(e) =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                assignment_objective: e.target.value,
-                              }))
-                            }
-                            placeholder="e.g. Improve collaboration, Encourage product thinking, Test technical understanding"
-                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all"
-                          />
-                        </div>
-
-                        {/* Expected Outcome — Optional */}
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                            Expected Outcome
-                          </label>
-                          <textarea
-                            value={newPMReport.assignment_outcome}
-                            onChange={(e) =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                assignment_outcome: e.target.value,
-                              }))
-                            }
-                            rows={2}
-                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all resize-none"
-                            placeholder="What do you expect participants to achieve? (optional)"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* ────────── SECTION 2: PARTICIPATION ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-indigo-500/20">
-                    <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center text-[8px] font-black text-indigo-500 border border-indigo-500/20">
-                      2
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-500">
-                      Participation
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Attendance Level */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Attendance Level
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["high", "moderate", "low"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                attendance_level: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.attendance_level === opt
-                                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Participation Level */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Participation Level
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["very_active", "active", "passive"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                participation_level: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.participation_level === opt
-                                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                          >
-                            {opt.replace("_", " ")}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Participants/Groups Need Attention — Toggle + conditional note */}
-                    <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Any Participants/Groups Need Attention?
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              participants_need_attention:
-                                !p.participants_need_attention,
-                            }))
-                          }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.participants_need_attention
-                              ? "bg-amber-500"
-                              : "bg-white/10"
-                          }`}
-                        >
-                          <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.participants_need_attention
-                                ? "left-5"
-                                : "left-0.5"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                      {newPMReport.participants_need_attention && (
-                        <textarea
-                          value={newPMReport.participants_attention_notes}
-                          onChange={(e) =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              participants_attention_notes: e.target.value,
-                            }))
-                          }
-                          rows={2}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all resize-none"
-                          placeholder="Short note (optional)..."
-                        />
-                      )}
-                    </div>
-
-                    {/* Standout Participants — Toggle + conditional note */}
-                    <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Any Standout Participants/Groups?
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              standout_participants: !p.standout_participants,
-                            }))
-                          }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.standout_participants
-                              ? "bg-emerald-500"
-                              : "bg-white/10"
-                          }`}
-                        >
-                          <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.standout_participants
-                                ? "left-5"
-                                : "left-0.5"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                      {newPMReport.standout_participants && (
-                        <textarea
-                          value={newPMReport.standout_notes}
-                          onChange={(e) =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              standout_notes: e.target.value,
-                            }))
-                          }
-                          rows={2}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-emerald-500 transition-all resize-none"
-                          placeholder="Short note (optional)..."
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── SECTION 3: DELIVERY FEEDBACK ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-blue-500/20">
-                    <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center text-[8px] font-black text-blue-500 border border-blue-500/20">
-                      3
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500">
-                      Delivery Feedback
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Session Delivery Quality */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Session Delivery Quality
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["excellent", "good", "fair", "poor"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                delivery_quality: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.delivery_quality === opt
-                                ? opt === "excellent"
-                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                  : opt === "good"
-                                    ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                    : opt === "fair"
-                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                                      : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Participant Understanding */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Participant Understanding
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["high", "moderate", "low"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                participant_understanding: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.participant_understanding === opt
-                                ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Delivery Challenges — Toggle + conditional note */}
-                    <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Any Delivery Challenges?
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              delivery_challenges: !p.delivery_challenges,
-                            }))
-                          }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.delivery_challenges
-                              ? "bg-rose-500"
-                              : "bg-white/10"
-                          }`}
-                        >
-                          <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.delivery_challenges
-                                ? "left-5"
-                                : "left-0.5"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                      {newPMReport.delivery_challenges && (
-                        <textarea
-                          value={newPMReport.delivery_challenge_note}
-                          onChange={(e) =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              delivery_challenge_note: e.target.value,
-                            }))
-                          }
-                          rows={2}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
-                          placeholder="Short note (optional)..."
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── SECTION 4: ISSUES & SUPPORT ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-rose-500/20">
-                    <div className="w-5 h-5 rounded-full bg-rose-500/10 flex items-center justify-center text-[8px] font-black text-rose-500 border border-rose-500/20">
-                      4
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-500">
-                      Issues & Support
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Had Issues — Toggle */}
-                    <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Were There Any Issues?
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              had_issues: !p.had_issues,
-                            }))
-                          }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.had_issues
-                              ? "bg-rose-500"
-                              : "bg-white/10"
-                          }`}
-                        >
-                          <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.had_issues ? "left-5" : "left-0.5"
-                            }`}
-                          />
-                        </button>
-                      </div>
-
-                      {newPMReport.had_issues && (
-                        <div className="mt-3 space-y-3">
-                          {/* Issue Types — Multi-select chips */}
-                          <div>
-                            <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1.5 block">
-                              Issue Types
-                            </label>
-                            <div className="flex gap-1.5 flex-wrap">
-                              {[
-                                "technical",
-                                "attendance",
-                                "participation",
-                                "curriculum",
-                                "behavioral",
-                                "other",
-                              ].map((type) => {
-                                const isSelected =
-                                  newPMReport.issue_types.includes(type);
-                                return (
-                                  <button
-                                    key={type}
-                                    type="button"
-                                    onClick={() =>
-                                      setNewPMReport((p) => ({
-                                        ...p,
-                                        issue_types: isSelected
-                                          ? p.issue_types.filter(
-                                              (t) => t !== type,
-                                            )
-                                          : [...p.issue_types, type],
-                                      }))
-                                    }
-                                    className={`px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${
-                                      isSelected
-                                        ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                        : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                                    }`}
-                                  >
-                                    {type}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Requires Super Admin Attention — Toggle */}
-                          <div className="flex items-center justify-between">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-amber-500">
-                              Requires Super Admin Attention?
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setNewPMReport((p) => ({
-                                  ...p,
-                                  requires_admin_attention:
-                                    !p.requires_admin_attention,
-                                }))
-                              }
-                              className={`w-10 h-5 rounded-full transition-all relative ${
-                                newPMReport.requires_admin_attention
-                                  ? "bg-amber-500"
-                                  : "bg-white/10"
-                              }`}
-                            >
-                              <div
-                                className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                                  newPMReport.requires_admin_attention
-                                    ? "left-5"
-                                    : "left-0.5"
-                                }`}
-                              />
-                            </button>
-                          </div>
-
-                          {/* Additional Note */}
-                          <textarea
-                            value={newPMReport.additional_issue_note}
-                            onChange={(e) =>
-                              setNewPMReport((p) => ({
-                                ...p,
-                                additional_issue_note: e.target.value,
-                              }))
-                            }
-                            rows={2}
-                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
-                            placeholder="Additional note (optional)..."
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── SECTION 5: NEXT WEEK ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-emerald-500/20">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-[8px] font-black text-emerald-500 border border-emerald-500/20">
-                      5
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500">
-                      Next Week
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Program On Track — Required */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Is Program On Track?{" "}
-                        <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              program_on_track: true,
-                            }))
-                          }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.program_on_track === true
-                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((p) => ({
-                              ...p,
-                              program_on_track: false,
-                            }))
-                          }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.program_on_track === false
-                              ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
-                        >
-                          No
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Planned Adjustments */}
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Planned Adjustments for Next Week
-                      </label>
-                      <textarea
-                        value={newPMReport.planned_adjustments}
-                        onChange={(e) =>
-                          setNewPMReport((p) => ({
-                            ...p,
-                            planned_adjustments: e.target.value,
-                          }))
-                        }
-                        rows={2}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
-                        placeholder="Any changes or adjustments planned?"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── NOTES (free text for PM) ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-500/20">
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
-                      Strategic Health & Notes
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      Strategic Health
-                    </label>
-                    <select
-                      value={newPMReport.status}
-                      onChange={(e) =>
-                        setNewPMReport((p) => ({
-                          ...p,
-                          status: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="optimal">OPTIMAL</option>
-                      <option value="stable">STABLE</option>
-                      <option value="at_risk">AT RISK</option>
-                      <option value="critical">CRITICAL</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      Additional Notes (Optional)
-                    </label>
-                    <textarea
-                      value={newPMReport.summary}
-                      onChange={(e) =>
-                        setNewPMReport((p) => ({
-                          ...p,
-                          summary: e.target.value,
-                        }))
-                      }
-                      rows={3}
-                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
-                      placeholder="Any additional context, successes, or blockers..."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 sticky bottom-0 bg-secondary pt-4 border-t border-[var(--border-primary)]">
-                <button
-                  onClick={() => setShowPMReportModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={submitPMReport}
-                  disabled={isSaving}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Submitting..." : "Submit Report"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* TEAM DETAILS MODAL */}
-        {showTeamDetails && selectedTeam && (
-          <div
-            className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
-            onClick={() => setShowTeamDetails(false)}
-          >
-            <div
-              className="card w-full max-w-5xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-indigo-500/30"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-8 border-b border-[var(--border-primary)] bg-gradient-to-r from-[var(--bg-secondary)] to-[var(--bg-tertiary)] flex justify-between items-center">
-                <div>
-                  <h3 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-3">
-                    <Target className="w-6 h-6 text-[var(--brand-orange)]" />
-                    {selectedTeam.name} — Team Review
-                  </h3>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-1">
-                    Operational Performance & Records
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowTeamDetails(false)}
-                  className="p-2 hover:bg-rose-500/10 hover:text-rose-500 rounded-xl transition-all"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                <div className="grid grid-cols-1 gap-8">
-                  {/* Participant Table */}
-                  <div className="table-container !border-none !shadow-none">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Team Member</th>
-                          <th>Submissions</th>
-                          <th className="w-48 text-center">Marks Awarded</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {participants
-                          .filter((p) => p.v2_team_id === selectedTeam.id)
-                          .map((p) => {
-                            const participantSubmissions = submissions.filter(
-                              (s) =>
-                                String(s.participant_id) ===
-                                String(p.cid || p.id),
-                            );
-                            const avgScore =
-                              participantSubmissions.length > 0
-                                ? Math.round(
-                                    participantSubmissions.reduce(
-                                      (acc, s) => acc + (s.score || 0),
-                                      0,
-                                    ) / participantSubmissions.length,
-                                  )
-                                : 0;
-
-                            return (
-                              <tr
-                                key={p.id}
-                                className="hover:bg-indigo-500/5 transition-colors"
-                              >
-                                <td className="py-6">
-                                  <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-500/20">
-                                      {p.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                                        {p.name}
-                                      </p>
-                                      <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase opacity-60">
-                                        {p.email}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <div className="flex flex-wrap gap-2">
-                                    {participantSubmissions.map((sub) => (
-                                      <div
-                                        key={sub.id}
-                                        className="group relative"
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            setActivePDF({
-                                              url: sub.file_url,
-                                              name: `Submission_${sub.id}`,
-                                            })
-                                          }
-                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
-                                        >
-                                          <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                            Artifact
-                                          </span>
-                                          <span className="text-[10px] font-black text-emerald-500">
-                                            [{sub.score || "??"}]
-                                          </span>
-                                        </button>
-                                      </div>
-                                    ))}
-                                    {participantSubmissions.length === 0 && (
-                                      <span className="text-[9px] font-black uppercase tracking-widest text-rose-500/40 italic">
-                                        No submissions found
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="text-center">
-                                  <div className="inline-flex flex-col items-center gap-2">
-                                    <div
-                                      className={`text-2xl font-black ${avgScore >= 70 ? "text-emerald-500" : avgScore >= 40 ? "text-amber-500" : "text-rose-500"}`}
-                                    >
-                                      {avgScore}%
-                                    </div>
-                                    <select
-                                      className="bg-tertiary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:border-indigo-500 cursor-pointer"
-                                      value={avgScore}
-                                      onChange={(e) =>
-                                        updateParticipantScores(
-                                          p.cid || p.id,
-                                          e.target.value,
-                                        )
-                                      }
-                                    >
-                                      <option value="">Audit Marks...</option>
-                                      {[
-                                        100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
-                                        0,
-                                      ].map((m) => (
-                                        <option key={m} value={m}>
-                                          {m}% Awarded
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {participants.filter(
-                    (p) => p.group_name === selectedTeam.name,
-                  ).length === 0 && (
-                    <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                      <Users className="w-12 h-12 mb-4" />
-                      <p className="text-sm font-black uppercase tracking-[0.3em]">
-                        No members found in this team
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-6 bg-tertiary border-t border-[var(--border-primary)] flex justify-end gap-3">
-                <button
-                  onClick={() => setShowTeamDetails(false)}
-                  className="btn btn-secondary px-8"
-                >
-                  Close Audit
-                </button>
-                <button className="btn btn-primary px-8 gap-2">
-                  <Save className="w-4 h-4" />
-                  Save Adjustments
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ADD MATERIAL MODAL */}
-      {showMaterialModal && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowMaterialModal(false)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Add Link
-              </h3>
-              <button onClick={() => setShowMaterialModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Material Name
-                </label>
-                <input
-                  value={materialName}
-                  onChange={(e) => setMaterialName(e.target.value)}
-                  placeholder="e.g. Design Guide"
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  URL or Note
-                </label>
-                <input
-                  value={materialUrl}
-                  onChange={(e) => setMaterialUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowMaterialModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (!materialName.trim() || !materialUrl.trim()) return;
-                  const current = (() => {
-                    try {
-                      const sessionData = sessions.find(
-                        (s) => s.id === materialSessionId,
-                      );
-                      if (!sessionData) return [];
-                      return typeof sessionData.extra_materials === "string"
-                        ? JSON.parse(sessionData.extra_materials)
-                        : sessionData.extra_materials || [];
-                    } catch {
-                      return [];
-                    }
-                  })();
-                  updateSessionField(materialSessionId, "extra_materials", [
-                    ...current,
-                    {
-                      name: materialName.trim(),
-                      url: materialUrl.trim(),
-                      type: "link",
-                    },
-                  ]);
-                  setShowMaterialModal(false);
-                }}
-                disabled={!materialName.trim() || !materialUrl.trim()}
-                className="flex-1 btn btn-primary"
-              >
-                Add Material
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </DashboardLayout>
-  );
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                             
