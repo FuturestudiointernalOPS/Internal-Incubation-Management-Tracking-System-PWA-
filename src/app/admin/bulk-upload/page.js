@@ -66,7 +66,7 @@ export default function BulkUploadPage() {
 
   const downloadTemplate = () => {
     const csv =
-      "name,email,group_name,role\nJohn Doe,john@example.com,UAT Students,participant\nJane Smith,jane@example.com,STAFF,staff";
+      "name,email,phone,group_name,role\nJohn Doe,john@example.com,+22912345678,UAT Students,participant\nJane Smith,jane@example.com,+22987654321,STAFF,staff";
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -160,7 +160,7 @@ export default function BulkUploadPage() {
                   Click to select CSV file
                 </p>
                 <p className="text-[10px] text-[var(--text-secondary)]">
-                  Columns: name, email, group_name (optional), role (optional)
+                  Columns: name, email, phone (optional), group_name (optional), role (optional)
                 </p>
               </div>
             )}

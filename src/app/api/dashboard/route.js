@@ -183,8 +183,12 @@ export async function GET(req) {
               (SELECT 'task_assigned' AS action, title AS description, created_at AS timestamp, user_id::text
                FROM tasks WHERE assigned_to::text = ?::text
                ORDER BY created_at DESC LIMIT 3)
+              UNION ALL
+              (SELECT action, details AS description, created_at AS timestamp, user_id
+               FROM audit_log WHERE entity_type = 'program_assignment' AND user_id = ?
+               ORDER BY created_at DESC LIMIT 3)
               ORDER BY timestamp DESC LIMIT 10`,
-        args: [userId, userId, userId, userId],
+        args: [userId, userId, userId, userId, userId],
       }),
 
       // 13. Assignments (tasks assigned TO user)

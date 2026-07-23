@@ -31,6 +31,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import TaskManager from "@/components/tasks/TaskManager";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
+import TaskManager from "@/components/tasks/TaskManager";
 
 /**
  * STAFF OPERATIONAL REPORT PAGE

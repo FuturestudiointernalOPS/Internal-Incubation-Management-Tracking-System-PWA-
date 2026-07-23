@@ -33,6 +33,7 @@ import {
   UserPlus,
   Calendar,
   RefreshCw,
+  Bell,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -151,6 +152,27 @@ export default function ProgramWorkspace() {
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
 
+  // Load existing attendance when modal opens
+  useEffect(() => {
+    if (!showAttendanceModal || !selectedSessionForAttendance) return;
+    const loadAttendance = async () => {
+      try {
+        const res = await fetch(
+          `/api/attendance?session_id=${selectedSessionForAttendance.id}&program_id=${id}`
+        );
+        const data = await res.json();
+        if (data.success && data.attendance) {
+          const records = {};
+          data.attendance.forEach((a) => {
+            records[a.participant_id] = a.status;
+          });
+          setAttendanceRecords(records);
+        }
+      } catch (_) {}
+    };
+    loadAttendance();
+  }, [showAttendanceModal, selectedSessionForAttendance, id]);
+
   const [expandedSessionId, setExpandedSessionId] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [newSession, setNewSession] = useState({
@@ -161,6 +183,7 @@ export default function ProgramWorkspace() {
     handler_ids: [],
     handler_names: [],
     scheduled_date: "",
+    end_date: "",
     start_time: "",
     end_time: "",
     notes: "",
@@ -181,6 +204,9 @@ export default function ProgramWorkspace() {
     description: "",
     allowed_format: "pdf",
     kpi_ids: [],
+    due_date: "",
+    assignee_type: "all",
+    assignee_id: "",
   });
   const [newPMReport, setNewPMReport] = useState({
     summary: "",
@@ -333,6 +359,32 @@ export default function ProgramWorkspace() {
     }
   };
 
+  const changeParticipantTeam = async (participantId, newTeamId) => {
+    if (!participantId || !newTeamId) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/pm/teams", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          team_id: newTeamId,
+          member_ids: [participantId],
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Participant moved to new team.");
+        fetchProgramData(true);
+      } else {
+        notify(data.error || "Failed to move participant.", "error");
+      }
+    } catch (e) {
+      notify("Network error.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const addSession = async () => {
     if (!newSession.title.trim()) return;
     if (
@@ -407,6 +459,9 @@ export default function ProgramWorkspace() {
           description: newRequirement.description,
           allowed_format: newRequirement.allowed_format,
           kpi_ids: newRequirement.kpi_ids || [],
+          due_date: newRequirement.due_date || null,
+          assignee_type: newRequirement.assignee_type || "all",
+          assignee_id: newRequirement.assignee_id || "",
         }),
       });
       const data = await res.json();
@@ -417,6 +472,10 @@ export default function ProgramWorkspace() {
           title: "",
           description: "",
           allowed_format: "pdf",
+          kpi_ids: [],
+          due_date: "",
+          assignee_type: "all",
+          assignee_id: "",
         });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
@@ -512,6 +571,12 @@ export default function ProgramWorkspace() {
               }),
             });
           }
+        }
+      } else {
+        if (res.status === 401) {
+          notify("Session expired. Please save your work and refresh.", "error");
+        } else {
+          notify(data.error || "Field sync failed.", "error");
         }
       }
     } catch (e) {
@@ -852,6 +917,7 @@ export default function ProgramWorkspace() {
       roles: ["super_admin", "program_manager"],
     },
     { id: "curriculum", name: "Curriculum", icon: FileText },
+    { id: "attendance", name: "Attendance", icon: CheckCircle2 },
     { id: "reports", name: "Reports", icon: BarChart3 },
     { id: "participants", name: "Participants", icon: Users },
     { id: "submissions", name: "Submissions", icon: Activity },
@@ -1142,12 +1208,26 @@ export default function ProgramWorkspace() {
                                 </div>
                               </td>
                               <td className="text-right">
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end gap-2 items-center">
+                                  <select
+                                    className="text-[10px] font-black uppercase bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1"
+                                    value={p.v2_team_id || ""}
+                                    onChange={(e) => {
+                                      const newTeamId = e.target.value;
+                                      if (newTeamId && newTeamId !== (p.v2_team_id || "")) {
+                                        changeParticipantTeam(p.id, newTeamId);
+                                      }
+                                    }}
+                                  >
+                                    <option value="">No Team</option>
+                                    {teams.map((t) => (
+                                      <option key={t.id} value={t.id}>
+                                        {t.name}
+                                      </option>
+                                    ))}
+                                  </select>
                                   <button className="p-2 hover:text-[var(--brand-blue)]">
                                     <Mail className="w-4 h-4" />
-                                  </button>
-                                  <button className="p-2 hover:text-emerald-500">
-                                    <MessageCircle className="w-4 h-4" />
                                   </button>
                                 </div>
                               </td>
@@ -1405,7 +1485,10 @@ export default function ProgramWorkspace() {
                                 );
                                 let displayStatus = session.status;
                                 let statusColor = "bg-amber-500";
-                                if (session.scheduled_date) {
+                                if (session.status === "locked") {
+                                  displayStatus = "locked";
+                                  statusColor = "bg-rose-500";
+                                } else if (session.scheduled_date) {
                                   const schedDate = new Date(
                                     session.scheduled_date,
                                   );
@@ -1417,9 +1500,12 @@ export default function ProgramWorkspace() {
                                   if (session.status === "completed") {
                                     displayStatus = "completed";
                                     statusColor = "bg-emerald-500";
-                                  } else if (schedDay <= today) {
+                                  } else if (schedDay <= today && session.status !== "not started") {
                                     displayStatus = "active";
                                     statusColor = "bg-indigo-500";
+                                  } else if (session.status === "not started") {
+                                    displayStatus = "not started";
+                                    statusColor = "bg-slate-500";
                                   } else {
                                     displayStatus = "pending";
                                     statusColor = "bg-amber-500";
@@ -1456,6 +1542,11 @@ export default function ProgramWorkspace() {
                                   {new Date(
                                     session.scheduled_date,
                                   ).toLocaleDateString()}
+                                </span>
+                              )}
+                              {session.timezone && session.timezone !== 'UTC' && (
+                                <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                                  {session.timezone}
                                 </span>
                               )}
                               {session.notes && (
@@ -1537,6 +1628,26 @@ export default function ProgramWorkspace() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                const newStatus = session.status === "locked" ? "not started" : "locked";
+                                updateSessionStatus(session.id, newStatus);
+                              }}
+                              title={session.status === "locked" ? "Unlock this week" : "Lock this week"}
+                              className={`btn btn-secondary !py-2 !px-4 flex items-center gap-2 transition-all ${
+                                session.status === "locked"
+                                  ? "border-rose-500/20 text-rose-500 hover:bg-rose-500/5"
+                                  : "border-amber-500/20 text-amber-500 hover:bg-amber-500/5"
+                              }`}
+                            >
+                              <span className="text-sm">{session.status === "locked" ? "🔓" : "🔒"}</span>
+                              <span className="text-[9px] font-black uppercase italic tracking-wider">
+                                {session.status === "locked" ? "Unlock" : "Lock"}
+                              </span>
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 deleteSession(session.id);
                               }}
                               className="p-2 text-rose-500/20 hover:text-rose-500 transition-all"
@@ -1578,7 +1689,8 @@ export default function ProgramWorkspace() {
                                       e.target.value,
                                     )
                                   }
-                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all"
+                                  disabled={session.status === "locked"}
+                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                               </div>
 
@@ -1589,13 +1701,18 @@ export default function ProgramWorkspace() {
                                 </label>
                                 <textarea
                                   value={session.description || ""}
-                                  onChange={(e) =>
+                                  onBlur={(e) =>
                                     updateSessionField(
                                       session.id,
                                       "description",
                                       e.target.value,
                                     )
                                   }
+                                  onChange={(e) => {
+                                    // Update local state only, save on blur
+                                    const updated = sessions.map(s => s.id === session.id ? {...s, description: e.target.value} : s);
+                                    setSessions(updated);
+                                  }}
                                   rows={2}
                                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all resize-none"
                                 />
@@ -1657,38 +1774,109 @@ export default function ProgramWorkspace() {
                                 </div>
                               </div>
 
-                              <div className="space-y-1">
+                              {/* Timezone */}
+                              <div className="space-y-1 mt-2">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  Assign Staff Member
+                                  Timezone
                                 </label>
                                 <select
-                                  value={session.handler_id || ""}
-                                  onChange={(e) => {
-                                    const staff = assignedStaff.find(
-                                      (s) => String(s.cid) === e.target.value,
-                                    );
-                                    updateSessionField(
-                                      session.id,
-                                      "handler_id",
-                                      e.target.value,
-                                      staff?.name,
-                                    );
-                                  }}
-                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                                  value={session.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')}
+                                  onChange={(e) =>
+                                    updateSessionField(session.id, "timezone", e.target.value)
+                                  }
+                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
                                 >
-                                  <option value="">Select Member...</option>
-                                  {programTeamMembers.length > 0
-                                    ? programTeamMembers.map((s) => (
-                                        <option key={s.cid} value={s.cid}>
-                                          {s.name} ({s.role})
-                                        </option>
-                                      ))
-                                    : assignedStaff.map((s) => (
-                                        <option key={s.cid} value={s.cid}>
-                                          {s.name} ({s.role})
-                                        </option>
-                                      ))}
+                                  {["UTC", "Africa/Porto-Novo", "Europe/Paris", "America/New_York", "Asia/Dubai", "Europe/London"].map(tz => (
+                                    <option key={tz} value={tz}>{tz}</option>
+                                  ))}
                                 </select>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
+                                  Assign Staff Member(s)
+                                </label>
+                                <div className="space-y-2 p-3 bg-tertiary border border-[var(--border-primary)] rounded-xl max-h-40 overflow-y-auto custom-scrollbar">
+                                  {(programTeamMembers.length > 0
+                                    ? programTeamMembers
+                                    : assignedStaff
+                                  ).map((s) => {
+                                    const stringId = String(s.cid);
+                                    let isSelected = false;
+                                    try {
+                                      const ids = JSON.parse(
+                                        session.handler_id || "[]",
+                                      );
+                                      isSelected = Array.isArray(ids)
+                                        ? ids.includes(stringId)
+                                        : session.handler_id === stringId;
+                                    } catch (e) {
+                                      isSelected = session.handler_id === stringId;
+                                    }
+                                    return (
+                                      <label
+                                        key={s.cid}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            let currentIds = [];
+                                            try {
+                                              currentIds = JSON.parse(
+                                                session.handler_id || "[]",
+                                              );
+                                              if (!Array.isArray(currentIds))
+                                                currentIds = session.handler_id
+                                                  ? [session.handler_id]
+                                                  : [];
+                                            } catch (err) {
+                                              currentIds = session.handler_id
+                                                ? [session.handler_id]
+                                                : [];
+                                            }
+
+                                            let newIds;
+                                            if (checked) {
+                                              newIds = [
+                                                ...new Set([...currentIds, stringId]),
+                                              ];
+                                            } else {
+                                              newIds = currentIds.filter(
+                                                (id) => id !== stringId,
+                                              );
+                                            }
+
+                                            const staffList =
+                                              programTeamMembers.length > 0
+                                                ? programTeamMembers
+                                                : assignedStaff;
+                                            const selectedStaff = staffList.filter(
+                                              (staff) =>
+                                                newIds.includes(String(staff.cid)),
+                                            );
+                                            const selectedNames = selectedStaff.map(
+                                              (staff) => staff.name,
+                                            );
+
+                                            updateSessionField(
+                                              session.id,
+                                              "handler_id",
+                                              JSON.stringify(newIds),
+                                              JSON.stringify(selectedNames),
+                                            );
+                                          }}
+                                          className="rounded border-[var(--border-primary)] bg-[var(--surface-2)] text-indigo-500"
+                                        />
+                                        <span className="text-[11px] font-bold text-[var(--text-primary)]">
+                                          {s.name} ({s.role})
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
                               </div>
 
                               <div className="grid grid-cols-2 gap-3">
@@ -1754,21 +1942,38 @@ export default function ProgramWorkspace() {
                                       e.target.value,
                                     )
                                   }
+                                  disabled={session.status === "locked"}
                                   className={`w-full mt-1 px-4 py-3 rounded-xl border text-[10px] font-black uppercase outline-none transition-all cursor-pointer ${
-                                    session.status === "completed"
-                                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                                      : session.status === "in progress"
-                                        ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
-                                        : "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                    session.status === "locked"
+                                      ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                                      : session.status === "completed"
+                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                                        : session.status === "in progress"
+                                          ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
+                                          : session.status === "not started"
+                                            ? "bg-slate-500/10 text-slate-400 border-slate-500/30"
+                                            : "bg-amber-500/10 text-amber-500 border-amber-500/30"
                                   }`}
                                 >
+                                  <option value="not started">NOT STARTED</option>
                                   <option value="pending">PENDING</option>
                                   <option value="in progress">
                                     IN PROGRESS
                                   </option>
                                   <option value="completed">COMPLETED</option>
+                                  <option value="locked">🔒 LOCKED</option>
                                 </select>
                               </div>
+                              {session.version > 1 && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                                    Version: {session.version}
+                                  </span>
+                                  <span className="text-[7px] text-slate-500">
+                                    ({session.version - 1} revision{session.version > 2 ? 's' : ''})
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -1815,17 +2020,72 @@ export default function ProgramWorkspace() {
                                         <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
                                           {req.title}
                                         </p>
-                                        <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic">
-                                          Requirement:{" "}
-                                          {req.allowed_format || "PDF"}
+                                        <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic flex items-center gap-2">
+                                          <span>Requirement: {req.allowed_format || "PDF"}</span>
+                                          {req.due_date && (() => {
+                                            const now = new Date();
+                                            const due = new Date(req.due_date);
+                                            const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+                                            const isOverdue = diffDays < 0;
+                                            const isDueSoon = diffDays >= 0 && diffDays <= 3;
+                                            return (
+                                              <>
+                                                <span>•</span>
+                                                <span className={isOverdue ? "text-rose-500" : isDueSoon ? "text-amber-500" : "text-amber-500/60"}>
+                                                  Due: {due.toLocaleDateString()}
+                                                </span>
+                                                {isOverdue && (
+                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-rose-500/20 text-rose-400">OVERDUE</span>
+                                                )}
+                                                {isDueSoon && (
+                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-amber-500/20 text-amber-400">DUE SOON</span>
+                                                )}
+                                              </>
+                                            );
+                                          })()}
                                         </p>
                                       </div>
                                     </div>
-                                    {canEdit && (
-                                      <button className="text-rose-500/10 hover:text-rose-500 transition-all">
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
+                                    <div className="flex items-center gap-1">
+                                      {req.due_date && canEdit && (
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              const res = await fetch("/api/pm/curriculum", {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({
+                                                  action: "send_reminder",
+                                                  requirement_id: req.id,
+                                                  program_id: id,
+                                                }),
+                                              });
+                                              const data = await res.json();
+                                              if (data.success) {
+                                                const msg = data.sent > 0
+                                                  ? `Reminder sent to ${data.sent} participant(s)`
+                                                  : "Reminder sent";
+                                                notify(msg);
+                                              } else {
+                                                notify("Reminder failed");
+                                              }
+                                            } catch (e) {
+                                              notify("Reminder error");
+                                            }
+                                          }}
+                                          className="text-[7px] font-black uppercase text-[var(--brand-orange)]/60 hover:text-[var(--brand-orange)] transition-all px-2 py-1 rounded border border-[var(--brand-orange)]/20 hover:border-[var(--brand-orange)]/50"
+                                          title="Send reminder to assigned participants"
+                                        >
+                                          <Bell className="w-3 h-3 inline mr-1" />
+                                          REMIND
+                                        </button>
+                                      )}
+                                      {canEdit && (
+                                        <button className="text-rose-500/10 hover:text-rose-500 transition-all">
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 ))}
                               {requirements.filter(
@@ -2037,6 +2297,63 @@ export default function ProgramWorkspace() {
                       </div>
                     </div>
                   ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "attendance" && (
+            <div className="space-y-6 animate-in">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  Attendance Overview
+                </h3>
+              </div>
+              <p className="text-[10px] text-[var(--text-secondary)]">
+                Select a week below to manage attendance for that session.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {sessions
+                  .filter((s) => s.type === "session")
+                  .sort((a, b) => (a.week_number || 0) - (b.week_number || 0))
+                  .map((session) => (
+                    <div
+                      key={session.id}
+                      className="card border border-[var(--border-primary)] hover:border-indigo-500/30 transition-all cursor-pointer"
+                      onClick={() => {
+                        setSelectedSessionForAttendance(session);
+                        setShowAttendanceModal(true);
+                      }}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-lg font-black text-indigo-400">
+                          {session.week_number || "?"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                            {session.title}
+                          </p>
+                          <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
+                            Week {session.week_number}
+                          </p>
+                        </div>
+                      </div>
+                      {session.scheduled_date && (
+                        <p className="text-[9px] text-[var(--text-secondary)] mb-2">
+                          {new Date(session.scheduled_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      )}
+                      <button
+                        className="w-full py-2 rounded-lg bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all"
+                      >
+                        Open Attendance
+                      </button>
+                    </div>
+                  ))}
+                {sessions.filter((s) => s.type === "session").length === 0 && (
+                  <div className="col-span-3 py-12 text-center">
+                    <p className="text-[11px] text-slate-500">No sessions yet. Create weeks in the Curriculum tab first.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2485,6 +2802,78 @@ export default function ProgramWorkspace() {
 
           {activeTab === "reports" && (
             <div className="space-y-6">
+              {/* Export Bar */}
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mr-2">Export:</span>
+                {[
+                  { label: "Participants CSV", type: "participants", format: "csv" },
+                  { label: "Participants XLSX", type: "participants", format: "xlsx" },
+                  { label: "Attendance CSV", type: "attendance", format: "csv" },
+                  { label: "Submissions CSV", type: "submissions", format: "csv" },
+                  { label: "Teams CSV", type: "teams", format: "csv" },
+                  { label: "Calendar iCal", type: "ical", format: "ical" },
+                  { label: "Participants PDF", type: "participants", format: "pdf" },
+                ].map(({ label, type, format }) => (
+                  <button
+                    key={`${type}-${format}`}
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/pm/export?type=${type}&program_id=${id}&format=${format}`, {
+                          credentials: "include",
+                        });
+                        if (!res.ok) throw new Error("Export failed");
+                        if (format === "pdf") {
+                          const { rows: data, filename } = await res.json();
+                          const { default: jsPDF } = await import("jspdf");
+                          const doc = new jsPDF({ orientation: "landscape" });
+                          doc.setFontSize(12);
+                          doc.text(`${type.toUpperCase()} - Talent for Startups`, 10, 10);
+                          if (data && data.length > 0) {
+                            const headers = Object.keys(data[0]);
+                            let y = 20;
+                            doc.setFontSize(7);
+                            // Header row
+                            headers.forEach((h, i) => doc.text(String(h), 10 + i * 35, y));
+                            y += 5;
+                            // Data rows (max 40 rows per page)
+                            data.slice(0, 80).forEach((row, ri) => {
+                              if (y > 180) { doc.addPage(); y = 15; }
+                              headers.forEach((h, i) => {
+                                const val = String(row[h] ?? "").substring(0, 20);
+                                doc.text(val, 10 + i * 35, y);
+                              });
+                              y += 4;
+                            });
+                          }
+                          doc.save(filename);
+                        } else {
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          const ext = format === "xlsx" ? "xlsx" : "csv";
+                          a.href = url;
+                          a.download = `${type}-${id}.${ext}`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }
+                        notify(`Exported ${label}`);
+                      } catch (e) {
+                        notify("Export failed", "error");
+                      }
+                    }}
+                    className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg border transition-all ${
+                      format === "xlsx"
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                        : format === "pdf"
+                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
+                          : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border-[var(--brand-orange)]/20 hover:bg-[var(--brand-orange)]/20"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
                   Weekly Intelligence Feed
@@ -3667,19 +4056,75 @@ export default function ProgramWorkspace() {
                     placeholder="e.g. Project Proposal PDF"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Allowed Format
+                    </label>
+                    <select
+                      value={newRequirement.allowed_format}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          allowed_format: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="pdf">PDF Document</option>
+                      <option value="image">Image File</option>
+                      <option value="link">External Link</option>
+                      <option value="video">Video Upload</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <Calendar className="w-3 h-3" /> Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newRequirement.due_date || ""}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          due_date: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label
-                    className="text-[10px] font-black uppercase tracking-widest"
+                    className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Allowed Format
+                    <Users className="w-3 h-3" /> Assign To
                   </label>
                   <select
-                    value={newRequirement.allowed_format}
+                    value={newRequirement.assignee_type || "all"}
                     onChange={(e) =>
                       setNewRequirement((p) => ({
                         ...p,
-                        allowed_format: e.target.value,
+                        assignee_type: e.target.value,
+                        assignee_id: "",
                       }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -3689,12 +4134,65 @@ export default function ProgramWorkspace() {
                       color: "var(--text-primary)",
                     }}
                   >
-                    <option value="pdf">PDF Document</option>
-                    <option value="image">Image File</option>
-                    <option value="link">External Link</option>
-                    <option value="video">Video Upload</option>
+                    <option value="all">All Participants</option>
+                    <option value="team">Specific Team</option>
+                    <option value="individual">Specific Individual</option>
                   </select>
                 </div>
+
+                {newRequirement.assignee_type === "team" && (
+                  <div className="space-y-1">
+                    <select
+                      value={newRequirement.assignee_id || ""}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          assignee_id: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="">Select team...</option>
+                      {teams.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {newRequirement.assignee_type === "individual" && (
+                  <div className="space-y-1">
+                    <select
+                      value={newRequirement.assignee_id || ""}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          assignee_id: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="">Select participant...</option>
+                      {participants.slice(0, 50).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
@@ -3840,21 +4338,21 @@ export default function ProgramWorkspace() {
                     setIsSaving(true);
                     try {
                       const today = new Date().toISOString().split("T")[0];
-                      for (const p of participants) {
-                        const status = attendanceRecords[p.id] || "present";
-                        await fetch("/api/attendance", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            session_id: selectedSessionForAttendance.id,
-                            program_id: id,
-                            participant_id: p.id,
-                            status,
-                            date: today,
-                          }),
-                        });
-                      }
-                      notify("Attendance recorded.");
+                      const records = participants.map((p) => ({
+                        session_id: selectedSessionForAttendance.id,
+                        program_id: id,
+                        participant_id: p.id,
+                        status: attendanceRecords[p.id] || "present",
+                        date: today,
+                      }));
+                      const res = await fetch("/api/attendance", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(records),
+                      });
+                      const data = await res.json();
+                      if (!data.success) throw new Error(data.error || "Unknown error");
+                      notify(`Attendance recorded — ${data.upserted} participants.`);
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});
                     } catch (e) {

@@ -930,8 +930,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       fetchAnnouncements();
       fetchUnreadMessageCount();
       fetchPendingUsersCount();
-      // Trigger deadline check (idempotent, safe)
-      fetch("/api/tasks/notify-deadlines", { method: "POST" }).catch(() => {});
     }, 15000);
     return () => clearTimeout(id);
   }, [
@@ -1132,8 +1130,9 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
         g.toUpperCase() === "INTERN",
     );
 
-    if (isIntern) {
+    if (isIntern && activeRole !== "participant") {
       // Interns get restricted navigation regardless of their role
+      // Exception: participants keep their own dashboard
       return [
         {
           id: "dashboard",

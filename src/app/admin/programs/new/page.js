@@ -63,6 +63,9 @@ export default function NewProgram() {
     registration_window: "",
     language: "en",
     assigned_pm_id: "",
+    expected_outcomes: "",
+    success_metrics: "",
+    banner_url: "",
   });
 
   // Date validation
@@ -218,7 +221,9 @@ export default function NewProgram() {
         setProgram((p) => ({ ...p, assigned_segments: [data.group.id] }));
         setSegments((prev) => [...prev, data.group]);
         setIsCreatingGroup(false);
-        notify("success", "Created");
+        notify("success", "Group created. Saving program...");
+        // Auto-save program
+        setTimeout(() => handleDeploy({ preventDefault: () => {} }), 300);
       }
     } catch (e) {
       notify("error", e.message);
@@ -317,6 +322,9 @@ export default function NewProgram() {
               : program.description || null,
           vision: program.vision || null,
           objectives: program.objectives || null,
+          expected_outcomes: program.expected_outcomes || null,
+          success_metrics: program.success_metrics || null,
+          banner_url: program.banner_url || null,
           program_type: program.program_type || "incubation",
           visibility: program.visibility || "private",
           participant_limit: program.participant_limit || 0,
@@ -618,6 +626,54 @@ export default function NewProgram() {
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
             </div>
+          </div>
+
+          {/* Expected Outcomes & Success Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Expected Outcomes
+              </label>
+              <textarea
+                rows={3}
+                value={program.expected_outcomes || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, expected_outcomes: e.target.value })
+                }
+                placeholder="What are the expected outcomes?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Success Metrics
+              </label>
+              <textarea
+                rows={3}
+                value={program.success_metrics || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, success_metrics: e.target.value })
+                }
+                placeholder="How will success be measured?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Program Banner */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              Program Banner URL
+            </label>
+            <input
+              type="url"
+              value={program.banner_url || ""}
+              onChange={(e) =>
+                setProgram({ ...program, banner_url: e.target.value })
+              }
+              placeholder="https://example.com/banner.jpg"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -1121,6 +1177,17 @@ export default function NewProgram() {
                     }
                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
                   />
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={kpiInput.target_value}
+                    onChange={(e) =>
+                      setKpiInput({ ...kpiInput, target_value: parseInt(e.target.value) || 0 })
+                    }
+                    className="w-20 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] text-center"
+                    placeholder="%"
+                  />
                   <button
                     type="button"
                     onClick={() => {
@@ -1129,9 +1196,10 @@ export default function NewProgram() {
                         ...kpisList,
                         {
                           title: kpiInput.title,
+                          target_value: kpiInput.target_value || 80,
                         },
                       ]);
-                      setKpiInput({ title: "" });
+                      setKpiInput({ title: "", target_value: 80 });
                     }}
                     className="px-6 bg-[var(--brand-orange)] text-black font-bold uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all flex items-center justify-center shrink-0"
                   >

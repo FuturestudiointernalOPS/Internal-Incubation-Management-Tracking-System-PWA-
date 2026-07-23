@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [success, setSuccess] = useState(false);
   const { t, lang, switchLang } = useI18n();
@@ -33,7 +34,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/session-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, remember_me: rememberMe }),
       });
 
       const data = await res.json();
@@ -138,7 +139,18 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-[var(--brand-orange)] cursor-pointer"
+                />
+                <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                  Remember Me
+                </span>
+              </label>
               <button
                 type="button"
                 onClick={() => router.push("/forgot-password")}

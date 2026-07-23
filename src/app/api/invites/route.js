@@ -20,6 +20,23 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
     );
   }
 
+  // Ensure table exists
+  try {
+    await db.execute({
+      sql: `CREATE TABLE IF NOT EXISTS v2_invitations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT NOT NULL UNIQUE,
+        program_id TEXT NOT NULL,
+        group_name TEXT,
+        team_id TEXT,
+        role TEXT DEFAULT 'participant',
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+      args: [],
+    });
+  } catch (_) {}
+
   const token = uuidv4();
   const expiresAt = new Date();
 
@@ -31,14 +48,15 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
 
   try {
     await db.execute({
-      sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, email, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [
         token,
         program_id,
         group_name || null,
         team_id || null,
         role,
+        '',
         expiresAt.toISOString().replace("T", " ").replace("Z", ""),
       ],
     });
@@ -56,9 +74,9 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
       expiresAt,
     });
   } catch (error) {
-    console.error("[Invite Generation Error]:", error);
+    console.error("[Invite Generation Error]:", error.message, error.stack);
     return NextResponse.json(
-      { error: "Failed to generate invite" },
+      { error: "Failed to generate invite: " + error.message },
       { status: 500 },
     );
   }

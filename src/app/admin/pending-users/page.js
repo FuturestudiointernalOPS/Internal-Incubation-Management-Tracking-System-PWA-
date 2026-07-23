@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronRight,
   RefreshCw,
+  Archive,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -62,11 +63,14 @@ export default function PendingUsersPage() {
   const handleApprove = async (userCid, userName) => {
     setProcessingId(userCid);
     setActionMsg(null);
+    // Get selected role from dropdown
+    const roleSelect = document.getElementById("role-" + userCid);
+    const selectedRole = roleSelect ? roleSelect.value : "staff";
     try {
       const res = await fetch("/api/admin/approve-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_cid: userCid, admin_name: "super_admin" }),
+        body: JSON.stringify({ user_cid: userCid, admin_name: "super_admin", role: selectedRole }),
       });
       const data = await res.json();
       if (data.success) {
@@ -83,6 +87,50 @@ export default function PendingUsersPage() {
       }
     } catch (err) {
       setActionMsg({ type: "error", text: "Network error during approval." });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleArchive = async (userCid, userName) => {
+    if (!confirm(`Archive ${userName}? They will go to the recycle bin.`)) return;
+    setProcessingId(userCid);
+    setActionMsg(null);
+    try {
+      const res = await fetch("/api/contacts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cid: userCid, deleted: 1 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg({ type: "success", text: `${userName} archived.` });
+        fetchPendingUsers();
+      } else {
+        setActionMsg({ type: "error", text: data.error || "Failed to archive." });
+      }
+    } catch (err) {
+      setActionMsg({ type: "error", text: "Network error." });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleResendInvite = async (userCid, userName) => {
+    setProcessingId(userCid);
+    setActionMsg(null);
+    try {
+      const res = await fetch("/api/auth/resend-invite/" + userCid, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg({ type: "success", text: `Invite resent to ${userName}.` });
+      } else {
+        setActionMsg({ type: "error", text: data.error || "Failed to resend." });
+      }
+    } catch (err) {
+      setActionMsg({ type: "error", text: "Network error." });
     } finally {
       setProcessingId(null);
     }
@@ -372,7 +420,16 @@ export default function PendingUsersPage() {
                               </span>
                             </td>
                             <td className="p-4">
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-2 flex-wrap">
+                                <select
+                                  id={"role-" + user.cid}
+                                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none text-[var(--text-primary)]"
+                                >
+                                  <option value="staff">Staff</option>
+                                  <option value="intern">Intern</option>
+                                  <option value="developer">Developer</option>
+                                  <option value="participant">Participant</option>
+                                </select>
                                 <button
                                   onClick={() =>
                                     handleReject(user.cid, user.name)
@@ -384,9 +441,30 @@ export default function PendingUsersPage() {
                                   <XCircle className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() =>
-                                    handleApprove(user.cid, user.name)
-                                  }
+                                                                  onClick={() =>
+                                                                    handleArchive(user.cid, user.name)
+                                                                  }
+                                                                  disabled={processingId === user.cid}
+                                                                  className="btn !bg-amber-500/10 hover:!bg-amber-500/20 border border-amber-500/20 text-amber-500 p-2 rounded-lg transition-all"
+                                                                  title="Archive"
+                                                                >
+                                                                  <Archive className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                  onClick={() =>
+                                                                    handleResendInvite(user.cid, user.name)
+                                                                  }
+                                                                  disabled={processingId === user.cid}
+                                                                  className="btn !bg-blue-500/10 hover:!bg-blue-500/20 border border-blue-500/20 text-blue-500 p-2 rounded-lg transition-all flex items-center gap-1"
+                                                                  title="Resend Invite"
+                                                                >
+                                                                  <Mail className="w-4 h-4" />
+                                                                  <span className="text-[8px] font-black uppercase hidden lg:inline">Resend</span>
+                                                                </button>
+                                                                <button
+                                                                  onClick={() =>
+                                                                    handleApprove(user.cid, user.name)
+                                                                  }
                                   disabled={processingId === user.cid}
                                   className="btn !bg-emerald-500 hover:!bg-emerald-600 border-none text-white p-2 rounded-lg transition-all flex items-center gap-2"
                                   title="Approve"

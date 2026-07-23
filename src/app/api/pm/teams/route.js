@@ -94,18 +94,30 @@ export async function POST(req) {
     if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
       // Separate IDs by type
       const intIds = member_ids.filter(
-        (id) => id && !isNaN(id) && !id.toString().startsWith("USER_"),
+        (id) => id && !isNaN(id) && !id.toString().toUpperCase().startsWith("USR"),
       );
       const strIds = member_ids.filter(
-        (id) => id && id.toString().startsWith("USER_"),
+        (id) => id && id.toString().toUpperCase().startsWith("USR"),
+      );
+      const uuidIds = member_ids.filter(
+        (id) => id && !id.toString().toUpperCase().startsWith("USR") && isNaN(id),
       );
 
-      // Update manual participants
+      // Update manual participants (int IDs)
       if (intIds.length > 0) {
         const placeholders = intIds.map(() => "?").join(",");
         await db.execute({
           sql: `UPDATE v2_participants SET v2_team_id = ? WHERE id IN (${placeholders})`,
           args: [team.id, ...intIds],
+        });
+      }
+
+      // Update UUID-based participants
+      if (uuidIds.length > 0) {
+        const placeholders = uuidIds.map(() => "?").join(",");
+        await db.execute({
+          sql: `UPDATE v2_participants SET v2_team_id = ? WHERE id IN (${placeholders})`,
+          args: [team.id, ...uuidIds],
         });
       }
 

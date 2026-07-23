@@ -56,18 +56,35 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
 
-    let sql = "SELECT * FROM v2_groups";
-    let args = [];
+    // B15: read from both families (used by program creation) and v2_groups
+    let allGroups = [];
 
-    if (program_id) {
-      sql += " WHERE program_id = ?";
-      args.push(program_id);
-    }
+    // Query families table
+    try {
+      let famSql = "SELECT CAST(id AS TEXT) as id, program_id, name, description as project_description, created_at FROM families";
+      let famArgs = [];
+      if (program_id) {
+        famSql += " WHERE program_id = ?";
+        famArgs.push(program_id);
+      }
+      const famRes = await db.execute({ sql: famSql, args: famArgs });
+      allGroups.push(...famRes.rows.map(r => ({ ...r, source: 'family' })));
+    } catch (_) {}
 
-    sql += " ORDER BY created_at DESC";
+    // Query v2_groups table
+    try {
+      let v2Sql = "SELECT CAST(id AS TEXT) as id, program_id, name, project_description, created_at FROM v2_groups";
+      let v2Args = [];
+      if (program_id) {
+        v2Sql += " WHERE program_id = ?";
+        v2Args.push(program_id);
+      }
+      const v2Res = await db.execute({ sql: v2Sql, args: v2Args });
+      allGroups.push(...v2Res.rows.map(r => ({ ...r, source: 'v2_group' })));
+    } catch (_) {}
 
-    const { rows } = await db.execute({ sql, args });
-    return NextResponse.json({ success: true, groups: rows });
+    allGroups.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return NextResponse.json({ success: true, groups: allGroups });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

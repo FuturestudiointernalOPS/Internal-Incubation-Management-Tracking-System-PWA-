@@ -18,14 +18,15 @@ async function fireInvite(cid, name, email, role, groupId) {
       args: [token, cid],
     });
 
-    // Send email (non-blocking, fire and forget)
-    import("@/lib/email").then(({ sendInviteEmail }) => {
-      sendInviteEmail({ to: email, name, role, token }).catch((e) =>
-        console.error("Invite email failed:", e),
-      );
+    await db.execute({
+      sql: "UPDATE contacts SET invited_at = NOW() WHERE cid = ?",
+      args: [cid],
     });
+    // Send email synchronously so Vercel doesn't kill the worker
+    const { sendInviteEmail } = await import("@/lib/email");
+    await sendInviteEmail({ to: email, name, role, token });
   } catch (e) {
-    console.error("Invite fire failed (non-blocking):", e.message);
+    console.error("Invite fire failed:", e.message || e);
   }
 }
 
@@ -153,11 +154,9 @@ export async function POST(req) {
           });
         }
 
-        // Fire invite for auto-approved roles (participants) or pending that get auto-approved
-        if (vc.status === "approved" || vc.role === "participant") {
-          fireInvite(vc.cid, vc.name, vc.email, vc.role, vc.program_id).catch(
-            () => {},
-          );
+        // Fire invite for ALL new contacts so they receive activation email
+        if (vc.email) {
+          await fireInvite(vc.cid, vc.name, vc.email, vc.role, vc.program_id);
         }
 
         // If program_ids or program_id provided, sync to participant_programs
@@ -371,9 +370,10 @@ export async function PUT(req) {
           const u = userRes.rows[0];
 
           // Fire invite for approved staff (participants already invited on registration)
-          if (u.role !== "participant") {
-            fireInvite(data.cid, u.name, u.email, u.role, null).catch(() => {});
-          }
+          // Commented out — invite is now sent on registration, not on approval
+          // if (u.role !== "participant") {
+          //   fireInvite(data.cid, u.name, u.email, u.role, null).catch(() => {});
+          // }
 
           // Clear notifications
           await db.execute({
@@ -423,20 +423,25 @@ export async function GET(req) {
     ]);
     if (authError) return authError;
 
+    const { searchParams } = new URL(req.url);
+    const archived = searchParams.get("archived");
+
     let result;
     if (session.role === "participant") {
-      // Participants can only see their own contact
       result = await db.execute({
         sql: "SELECT * FROM contacts WHERE cid = ?",
         args: [session.cid],
       });
+    } else if (archived === "1" && session.role === "super_admin") {
+      // 9.4: Archived contacts for recycle bin
+      result = await db.execute(
+        "SELECT * FROM contacts WHERE deleted = 1 ORDER BY name ASC",
+      );
     } else if (session.role === "super_admin") {
-      // Super admins see ALL users including pending/inactive
       result = await db.execute(
         "SELECT * FROM contacts WHERE deleted = 0 ORDER BY name ASC",
       );
     } else {
-      // Other roles only see active users
       result = await db.execute(
         "SELECT * FROM contacts WHERE deleted = 0 AND status = 'active' ORDER BY name ASC",
       );
