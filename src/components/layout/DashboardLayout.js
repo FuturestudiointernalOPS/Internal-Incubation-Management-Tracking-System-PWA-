@@ -132,7 +132,7 @@ const SidebarContent = ({
       )}
 
       <nav className="flex-1 space-y-2 overflow-y-auto min-h-0 pr-1">
-        {navItems.map((item) => {
+        {(navItems || []).map((item) => {
           if (item.subItems) {
             const isChildActive = item.subItems.some((sub) =>
               pathname?.startsWith(sub.href),
@@ -245,7 +245,8 @@ const SidebarContent = ({
         </Link>
         <button
           onClick={() => {
-            const current = typeof window !== "undefined" ? localStorage.getItem("impactos_lang") || "en" : "en";
+            if (typeof window === "undefined") return;
+            const current = localStorage.getItem("impactos_lang") || "en";
             const next = current === "en" ? "fr" : "en";
             localStorage.setItem("impactos_lang", next);
             window.location.reload();
@@ -253,7 +254,7 @@ const SidebarContent = ({
           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-black uppercase tracking-widest text-[10px]"
         >
           <Globe className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span>{typeof window !== "undefined" && localStorage.getItem("impactos_lang") === "fr" ? "EN" : "FR"}</span>}
+          {!collapsed && <span>FR/EN</span>}
         </button>
         <button
           onClick={handleLogout}
