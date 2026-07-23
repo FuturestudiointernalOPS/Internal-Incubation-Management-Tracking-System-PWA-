@@ -35,6 +35,7 @@ import {
   Wrench,
   CheckSquare,
   Megaphone,
+  HeartPulse,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -295,6 +296,9 @@ const NAVIGATION_MATRIX = {
           name: "REGISTER STARTUP",
           href: "/admin/ventures/register",
         },
+        { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
+        { id: "security", name: "SECURITY", href: "/admin/security" },
+        { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
       ],
     },
 
@@ -404,6 +408,12 @@ const NAVIGATION_MATRIX = {
         },
         { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
       ],
+    },
+    {
+      id: "system",
+      name: "SYSTEM MONITORING",
+      icon: HeartPulse,
+      href: "/admin/system",
     },
   ],
   admin: [
