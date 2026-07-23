@@ -873,22 +873,27 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </span>
                 </div>
                 <div className="space-y-1">
-                  attention.overdueTasks.slice(0, 5).map((t) => (
-                                      <div
-                                        key={t.id}
-                                        onClick={() => {
-                                          const r =
-                                            user?.role === "super_admin" ||
-                                            user?.role === "developer"
-                                              ? "admin"
-                                              : "staff";
-                                          router.push(
-                                            user?.role === "developer"
-                                              ? "/staff/op-report"
-                                              : "/" + r + "/op-report",
+                  {attention.overdueTasks.slice(0, 5).map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => {
+                        const r =
+                          user?.role === "super_admin" ||
+                          user?.role === "developer"
+                            ? "admin"
+                            : "staff";
+                        router.push(
+                          user?.role === "developer"
+                            ? "/staff/op-report"
+                            : "/" + r + "/op-report",
                         );
                       }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 cursor-pointer hover:brightness-110 transition-all"
+                    >
+                      <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                        {t.title}
+                      </span>
+                      {t.priority && (
                         <span
                           className={cn(
                             "text-[7px] font-black uppercase px-1.5 py-0.5 rounded",
@@ -1185,19 +1190,19 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    quickAccess.tasks?.slice(0, 6).map((t) => (
-                                          <div
-                                            key={t.id}
-                                            onClick={() => {
-                                              const r =
-                                                user?.role === "super_admin" ||
-                                                user?.role === "developer"
-                                                  ? "admin"
-                                                  : "staff";
-                                              router.push(
-                                                user?.role === "developer"
-                                                  ? "/staff/op-report"
-                                                  : "/" + r + "/op-report",
+                    {quickAccess.tasks?.slice(0, 6).map((t) => (
+                      <div
+                        key={t.id}
+                        onClick={() => {
+                          const r =
+                            user?.role === "super_admin" ||
+                            user?.role === "developer"
+                              ? "admin"
+                              : "staff";
+                          router.push(
+                            user?.role === "developer"
+                              ? "/staff/op-report"
+                              : "/" + r + "/op-report",
                           );
                         }}
                         className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
