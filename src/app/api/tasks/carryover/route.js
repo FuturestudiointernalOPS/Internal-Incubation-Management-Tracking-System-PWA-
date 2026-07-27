@@ -59,3 +59,133 @@ export async function GET(req) {
     );
   }
 }
+
+/**
+ * POST /api/tasks/carryover
+ *
+ * Clones a task, follows the chain forward to find the LATEST clone,
+ * migrates blockers/comments/resources/subtasks, marks old as carried_over.
+ */
+export async function POST(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
+
+    const body = await req.json();
+    const { task_id, target_week, target_year, user_id, user_name } = body;
+
+    if (!task_id || !target_week || !target_year) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "task_id, target_week, and target_year are required",
+        },
+        { status: 400 },
+      );
+    }
+
+    const oldId = parseInt(task_id);
+
+    // 1. Fetch the original task
+    const origRes = await db.execute({
+      sql: "SELECT * FROM tasks WHERE id = ?",
+      args: [oldId],
+    });
+    if (origRes.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Task not found" },
+        { status: 404 },
+      );
+    }
+    const orig = origRes.rows[0];
+
+    // 2. Follow chain forward to find the LATEST clone (not the original)
+    // This prevents repeatedly cloning the same original task each week.
+    let taskToClone = orig;
+    while (true) {
+      const nextRes = await db.execute({
+        sql: "SELECT * FROM tasks WHERE carried_over_from_task_id = ? AND status != 'archived' ORDER BY created_week DESC, id DESC LIMIT 1",
+        args: [taskToClone.id],
+      });
+      if (nextRes.rows.length === 0) break;
+      taskToClone = nextRes.rows[0];
+    }
+    const sourceTask = taskToClone;
+    const sourceId = sourceTask.id;
+
+    // 3. Clone the LATEST task in the chain
+    const cloneRes = await db.execute({
+      sql: `INSERT INTO tasks
+        (user_id, user_name, title, description, status, project_id, category,
+         created_week, created_year, carried_over_from_task_id,
+         parent_task_id, start_date, end_date, assigned_to, link, priority)
+        VALUES (?, ?, ?, ?, 'in_progress', ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
+        RETURNING id`,
+      args: [
+        user_id || sourceTask.user_id,
+        user_name || sourceTask.user_name,
+        sourceTask.title,
+        sourceTask.description,
+        sourceTask.project_id,
+        sourceTask.category,
+        target_week,
+        target_year,
+        sourceId,
+        sourceTask.start_date,
+        sourceTask.end_date,
+        sourceTask.assigned_to || null,
+        sourceTask.link || null,
+        sourceTask.priority || null,
+      ],
+    });
+    const newId = Number(cloneRes.rows[0]?.id ?? cloneRes.lastInsertRowid);
+
+    // 4. Migrate blockers from the LATEST task
+    await db.execute({
+      sql: "UPDATE blockers SET task_id = ? WHERE task_id = ?",
+      args: [newId, sourceId],
+    });
+
+    // 5. Migrate comments
+    try {
+      await db.execute({
+        sql: "UPDATE v2_task_comments SET task_id = ? WHERE task_id = ?",
+        args: [newId, sourceId],
+      });
+    } catch (_) {}
+
+    // 6. Migrate resources/attachments
+    try {
+      await db.execute({
+        sql: "UPDATE task_resources SET task_id = ? WHERE task_id = ?",
+        args: [newId, sourceId],
+      });
+    } catch (_) {}
+
+    // 7. Re-parent subtasks
+    await db.execute({
+      sql: "UPDATE tasks SET parent_task_id = ? WHERE parent_task_id = ?",
+      args: [newId, sourceId],
+    });
+
+    // 8. Mark the LATEST task as carried_over
+    await db.execute({
+      sql: "UPDATE tasks SET status = 'carried_over', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      args: [sourceId],
+    });
+
+    return NextResponse.json({
+      success: true,
+      id: newId,
+      oldId,
+      action: "carried_over",
+    });
+  } catch (error) {
+    console.error("POST carryover error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
