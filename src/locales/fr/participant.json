@@ -49,6 +49,26 @@
     "sessions": "Sessions",
     "deliverables": "Livrables",
     "submit": "Soumettre",
-    "score": "Score"
-  }
+    "score": "Score",
+        "version": "Version",
+        "submissionHistory": "Historique des soumissions",
+        "submitted": "Soumis",
+        "accepted": "Accepté",
+        "revisionRequested": "Révision demandée",
+        "pendingFollowup": "Suivi en attente",
+        "followUpMeeting": "Réunion de suivi",
+        "scheduleMeeting": "Planifier une réunion",
+        "evaluation": "Évaluation",
+        "academic": "Académique",
+        "incubation": "Incubation",
+        "startupReadiness": "Préparation startup",
+        "meetingLink": "Lien de réunion",
+        "teacher_feedback": "Commentaires de l'instructeur",
+        "rejectionReason": "Motif du rejet",
+        "requestRevision": "Demander une révision",
+        "reject": "Rejeter",
+        "approve": "Approuver",
+        "noDeliverables": "Aucun livrable assigné",
+        "dueDate": "Date d'échéance"
+      }
 }

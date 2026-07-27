@@ -76,6 +76,7 @@ const NAV_KEY_MAP = {
   no_new_intel: "navigation.noNewIntel",
   intel_feed: "navigation.intelFeed",
   announcements: "navigation.announcements",
+  followups: "navigation.followups",
 };
 
 function tnav(key) {
@@ -643,6 +644,12 @@ const NAVIGATION_MATRIX = {
       name: "COMMUNICATION",
       icon: MessageSquare,
       href: "/participant/messages",
+    },
+    {
+      id: "followups",
+      name: "FOLLOW-UPS",
+      icon: Calendar,
+      href: "/participant/followups",
     },
   ],
 };

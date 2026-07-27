@@ -95,13 +95,16 @@ export async function GET(req) {
         }),
       ]);
 
-      const program = progRes.rows[0];
-      if (!program) continue;
-      const deliverables = delRes.rows || [];
-      const submissions = subRes.rows || [];
+        const program = progRes.rows[0];
+        if (!program) continue;
+        const deliverables = delRes.rows || [];
+        const submissions = subRes.rows || [];
 
-      for (const d of deliverables) {
-        const sub = submissions.find((s) => s.deliverable_id === d.id);
+        for (const d of deliverables) {
+          // Match by document_id (preferred) or deliverable_id (legacy/int compat)
+          const sub = submissions.find(
+            (s) => s.document_id === d.id || s.deliverable_id == d.id
+          );
         allAssignments.push({
           id: d.id,
           title: d.title,

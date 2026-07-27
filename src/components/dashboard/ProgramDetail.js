@@ -29,6 +29,7 @@ import {
   Mail,
   X,
   Upload,
+  Send
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
@@ -265,7 +266,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSubmit?.(del.id, week.number);
+                          onSubmit?.(del.id, week.number, del);
                         }}
                         className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-xs font-medium hover:brightness-110"
                       >
@@ -299,10 +300,11 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
     if (!file && !url.trim()) return;
     setSubmitting(true);
     try {
-      let fileUrl = url.trim() || null;
+      let fileUrl = null;
+      let supportingUrl = url.trim() || null;
 
-      // If a file was selected, upload it first
-      if (file && !fileUrl) {
+      // If a file was selected, upload it
+      if (file) {
         try {
           const { uploadFile } = await import("@/lib/storage");
           const result = await uploadFile(
@@ -318,7 +320,9 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
         participant_id: user.cid || user.id,
         program_id: programId,
         deliverable_id: deliverableId,
+        document_id: deliverableId, // Track 2 compatibility (v2_document_requirements uses integer IDs)
         file_url: fileUrl,
+        supporting_url: supportingUrl,
         status: "pending",
       };
       const res = await fetch("/api/submissions", {
@@ -340,6 +344,34 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
 
   return (
     <div className="space-y-4">
+      {/* Deliverable Info */}
+      {deliverable && (
+        <div className="bg-[var(--surface-2)] rounded-lg p-3 border border-[var(--border-primary)] space-y-1">
+          <p className="text-[9px] font-bold text-[var(--text-primary)]">
+            {deliverable.title}
+          </p>
+          {deliverable.description && (
+            <p className="text-[8px] text-[var(--text-secondary)]">
+              {deliverable.description}
+            </p>
+          )}
+          {deliverable.dueDate && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <Clock className="w-3 h-3 text-amber-400" />
+              <span className={`text-[8px] font-bold ${new Date(deliverable.dueDate) < new Date() ? 'text-rose-400' : 'text-amber-400'}`}>
+                Due: {new Date(deliverable.dueDate).toLocaleDateString()}
+                {new Date(deliverable.dueDate) < new Date() ? ' (Overdue)' : ''}
+              </span>
+            </div>
+          )}
+          {deliverable.allowedFormat && (
+            <p className="text-[7px] text-[var(--text-tertiary)] mt-1">
+              Format: {deliverable.allowedFormat}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-1">
         <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
           Upload File
@@ -347,7 +379,7 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
         <input
           type="file"
           onChange={(e) => setFile(e.target.files[0])}
-          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none"
+          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer"
         />
       </div>
       <div className="text-center text-[8px] text-slate-500 uppercase tracking-widest">
@@ -355,7 +387,7 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
       </div>
       <div className="space-y-1">
         <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-          Link URL
+          Supporting URL
         </label>
         <input
           type="url"
@@ -376,7 +408,7 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
         className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
       >
         {submitting ? (
-          "Submitting..."
+          <><RefreshCw className="w-4 h-4 animate-spin" /> Submitting...</>
         ) : (
           <>
             <Upload className="w-4 h-4" /> {t ? t("participant.submit") : "Submit"}
@@ -481,7 +513,13 @@ export default function ProgramDetail({ programId }) {
   const [error, setError] = useState(null);
   const [expandedWeeks, setExpandedWeeks] = useState({});
   const [activeTab, setActiveTab] = useState("curriculum");
-  const [submitModal, setSubmitModal] = useState(null); // { deliverableId, weekNumber }
+  const [user, setUser] = useState({});
+  const [submitModal, setSubmitModal] = useState(null); // { deliverableId, weekNumber, deliverable }
+
+  useEffect(() => {
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    setUser(u);
+  }, []);
 
   const fetchDetail = useCallback(async () => {
     try {
@@ -714,6 +752,7 @@ export default function ProgramDetail({ programId }) {
                   setSubmitModal({
                     deliverableId: delId,
                     weekNumber: week.number,
+                    deliverable: delData,
                   })
                 }
               />
@@ -857,59 +896,15 @@ export default function ProgramDetail({ programId }) {
             </div>
           </div>
 
-          {/* Submissions */}
+          {/* Submissions — Version History */}
           <div>
             <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
               Submission History
             </h3>
-            {submissions.length === 0 ? (
-              <div className="text-center py-8 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                <FileText className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-                <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                  No submissions yet
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {submissions.slice(0, 10).map((sub) => (
-                  <div
-                    key={sub.id}
-                    className="flex flex-col p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <StatusBadge status={sub.status} />
-                        <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                          Deliverable #{sub.document_id}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {sub.score > 0 && (
-                          <span className="text-[9px] font-bold text-emerald-400">
-                            {sub.score} pts
-                          </span>
-                        )}
-                        <span className="text-[8px] text-[var(--text-tertiary)]">
-                          {sub.created_at
-                            ? new Date(sub.created_at).toLocaleDateString()
-                            : ""}
-                        </span>
-                      </div>
-                    </div>
-                    {sub.feedback && (
-                      <div className="mt-2 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                        <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">
-                          PM Feedback
-                        </p>
-                        <p className="text-[10px] text-[var(--text-primary)] leading-relaxed">
-                          {sub.feedback}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <SubmissionVersionHistory
+              participantId={user?.cid || user?.id}
+              programId={programId}
+            />
           </div>
 
           {/* Follow-ups */}
@@ -1055,7 +1050,8 @@ export default function ProgramDetail({ programId }) {
                 setSubmitModal(null);
                 fetchDetail();
               }}
-            />
+                      deliverable={submitModal.deliverable}
+                    />
           </div>
         </div>
       )}

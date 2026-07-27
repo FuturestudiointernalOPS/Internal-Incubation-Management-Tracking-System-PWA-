@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export async function POST(req) {
   try {
@@ -92,20 +93,51 @@ export async function GET(req) {
     const sessionId = searchParams.get("session_id");
     const programId = searchParams.get("program_id");
     const participantId = searchParams.get("participant_id");
+    const summary = searchParams.get("summary") === "true";
 
-    let sql = "SELECT * FROM v2_attendance WHERE 1=1";
+    // ── Summary mode: return attendance rates per participant ──
+    if (summary && programId) {
+      const summaryRes = await db.execute({
+        sql: `
+          SELECT
+            a.participant_id,
+            p.name as participant_name,
+            COUNT(*) as total_sessions,
+            SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present_count,
+            SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as absent_count,
+            SUM(CASE WHEN a.status = 'excused' THEN 1 ELSE 0 END) as excused_count,
+            SUM(CASE WHEN a.status = 'late' THEN 1 ELSE 0 END) as late_count,
+            ROUND(
+              (SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END)::decimal / NULLIF(COUNT(*), 0)) * 100
+            , 1) as attendance_rate
+          FROM v2_attendance a
+          LEFT JOIN v2_participants p ON a.participant_id = p.id
+          WHERE a.program_id = ?
+          GROUP BY a.participant_id, p.name
+          ORDER BY attendance_rate DESC
+        `,
+        args: [programId],
+      });
+
+      return NextResponse.json({
+        success: true,
+        summary: summaryRes.rows,
+      });
+    }
+
+    let sql = "SELECT a.*, p.name as participant_name FROM v2_attendance a LEFT JOIN v2_participants p ON a.participant_id = p.id WHERE 1=1";
     const args = [];
 
     if (sessionId) {
-      sql += " AND session_id = ?";
+      sql += " AND a.session_id = ?";
       args.push(sessionId);
     }
     if (programId) {
-      sql += " AND program_id = ?";
+      sql += " AND a.program_id = ?";
       args.push(programId);
     }
     if (participantId) {
-      sql += " AND participant_id = ?";
+      sql += " AND a.participant_id = ?";
       args.push(participantId);
     }
     sql += " ORDER BY date DESC, created_at DESC";

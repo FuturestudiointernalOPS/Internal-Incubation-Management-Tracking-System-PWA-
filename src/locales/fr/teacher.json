@@ -4,6 +4,29 @@
     "reviews": "Révision des soumissions",
     "pendingReviews": "Révisions en attente",
     "sessions": "Gestion des sessions",
-    "upcomingSessions": "Sessions à venir"
-  }
+    "upcomingSessions": "Sessions à venir",
+        "approve": "Accepter",
+        "requestRevision": "Demander une révision",
+        "reject": "Rejeter",
+        "scheduleFollowup": "Planifier un suivi",
+        "feedbackRequired": "Un commentaire écrit est requis",
+        "rejectionReasonRequired": "Un motif de rejet est requis",
+        "feedbackPlaceholder": "Fournissez des commentaires détaillés au participant...",
+        "rejectionReasonPlaceholder": "Expliquez pourquoi cette soumission a été rejetée...",
+        "followupDate": "Date du suivi",
+        "followupTime": "Heure",
+        "followupDuration": "Durée (minutes)",
+        "followupNotes": "Notes de réunion",
+        "meetingLink": "Lien de réunion (optionnel)",
+        "actionApproved": "Soumission approuvée avec succès",
+        "actionRevisionRequested": "Révision demandée",
+        "actionRejected": "Soumission rejetée",
+        "actionFollowupScheduled": "Réunion de suivi planifiée",
+        "reviewActions": "Actions de révision",
+        "evaluation": "Évaluation",
+        "academicScore": "Score (0-100)",
+        "incubationScore": "Score de préparation startup (1-5)",
+        "academic": "Mode académique",
+        "incubation": "Mode incubation"
+      }
 }
