@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
@@ -47,7 +47,7 @@ export const dynamic = "force-dynamic";
  * Performance-first, modular data loading, and clean data-first UI.
  */
 
-function ProgramWorkspace() {
+export default function ProgramWorkspace() {
   const { id } = useParams();
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -152,7 +152,7 @@ function ProgramWorkspace() {
   });
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [promoteTarget, setPromoteTarget] = useState(null);
+  const [promoteTarget, setPromoteTarget] = useState(null); // { team, action: 'approve' | 'promote' }
 
   // Load existing attendance when modal opens
   useEffect(() => {
@@ -1346,23 +1346,23 @@ function ProgramWorkspace() {
                           className="btn btn-secondary btn-sm"
                         >
                           <ChevronRight className="w-3 h-3" /> View
+                        </button>
+                        {!team.is_venture_ready && (
+                          <button
+                            onClick={() => setPromoteTarget({ team, action: "approve" })}
+                            className="btn btn-primary btn-sm"
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> Approve
                           </button>
-                          {!team.is_venture_ready && (
-                            <button
-                              onClick={() => setPromoteTarget({ team, action: "approve" })}
-                              className="btn btn-primary btn-sm"
-                            >
-                              <CheckCircle2 className="w-3 h-3" /> Approve
-                            </button>
-                          )}
-                          {team.is_venture_ready && !team.venture_id && (
-                            <button
-                              onClick={() => setPromoteTarget({ team, action: "promote" })}
-                              className="btn btn-primary btn-sm"
-                            >
-                              <Zap className="w-3 h-3" /> Promote
-                            </button>
-                          )}
+                        )}
+                        {team.is_venture_ready && !team.venture_id && (
+                          <button
+                            onClick={() => setPromoteTarget({ team, action: "promote" })}
+                            className="btn btn-primary btn-sm"
+                          >
+                            <Zap className="w-3 h-3" /> Promote
+                          </button>
+                        )}
                         </div>
                       </div>
                     </div>
@@ -5243,6 +5243,82 @@ function ProgramWorkspace() {
           </div>
         )}
 
+      {/* Team Details Modal */}
+      {showTeamDetails && selectedTeam && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => { setShowTeamDetails(false); setSelectedTeam(null); }}
+          style={{ background: "rgba(0,0,0,0.6)" }}
+        >
+          <div
+            className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-800">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Target className="w-5 h-5 text-[var(--brand-orange)]" />
+                {selectedTeam.name}
+              </h2>
+              <button onClick={() => { setShowTeamDetails(false); setSelectedTeam(null); }} className="p-2 hover:bg-white/5 rounded-lg">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Program</p>
+                  <p className="font-medium">{program?.name || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <span className={"text-xs px-2.5 py-1 rounded-full " + (selectedTeam.is_venture_ready ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400")}>
+                    {selectedTeam.is_venture_ready ? "Venture Ready" : "In Program"}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Team Lead</p>
+                  <p className="font-medium">{selectedTeam.leader_name || selectedTeam.leader_id || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Handler</p>
+                  <p className="font-medium">{selectedTeam.handler_name || "Unassigned"}</p>
+                </div>
+                {selectedTeam.venture_id && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500 mb-1">Venture ID</p>
+                    <p className="font-mono text-sm text-[var(--brand-orange)]">{selectedTeam.venture_id}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 border-t border-gray-800">
+                <h3 className="text-sm font-medium mb-3">
+                  Members ({participants.filter(p => p.v2_team_id === selectedTeam.id).length})
+                </h3>
+                <div className="space-y-2">
+                  {participants
+                    .filter(p => p.v2_team_id === selectedTeam.id)
+                    .map(p => (
+                      <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#020617]">
+                        <div className="w-8 h-8 rounded-full bg-tertiary flex items-center justify-center text-xs font-bold">
+                          {p.name?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{p.name}</p>
+                          <p className="text-xs text-gray-500">{p.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                  {participants.filter(p => p.v2_team_id === selectedTeam.id).length === 0 && (
+                    <p className="text-sm text-gray-500">No members assigned to this team.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal for Approve/Promote */}
       {promoteTarget && (
         <div
@@ -5264,7 +5340,7 @@ function ProgramWorkspace() {
                     <div>
                       <h3 className="text-lg font-bold">Approve Team</h3>
                       <p className="text-sm text-gray-400">
-                        Approve &quot;{promoteTarget.team.name}&quot; for Venture OS promotion?
+                        Approve "{promoteTarget.team.name}" for Venture OS promotion?
                       </p>
                     </div>
                   </div>
@@ -5315,7 +5391,7 @@ function ProgramWorkspace() {
                     <div>
                       <h3 className="text-lg font-bold">Promote to Venture OS</h3>
                       <p className="text-sm text-gray-400">
-                        Promote &quot;{promoteTarget.team.name}&quot; to Venture OS?
+                        Promote "{promoteTarget.team.name}" to Venture OS?
                       </p>
                     </div>
                   </div>
@@ -5358,15 +5434,6 @@ function ProgramWorkspace() {
           </div>
         </div>
       )}
-        </div>
     </DashboardLayout>
-  );
-}
-
-export default function ProgramWorkspacePage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-primary flex items-center justify-center"><div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" /></div>}>
-      <ProgramWorkspace />
-    </Suspense>
   );
 }
