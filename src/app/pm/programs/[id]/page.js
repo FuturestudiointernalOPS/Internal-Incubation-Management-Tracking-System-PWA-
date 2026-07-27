@@ -5242,9 +5242,6 @@ export default function ProgramWorkspace() {
             </div>
           </div>
         )}
-        </div>
-      )}
-      </div>
 
       {/* Confirmation Modal for Approve/Promote */}
       {promoteTarget && (
@@ -5361,6 +5358,9 @@ export default function ProgramWorkspace() {
           </div>
         </div>
       )}
+        </div>
+      )}
+      </div>
     </DashboardLayout>
   );
 }
