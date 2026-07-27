@@ -873,6 +873,27 @@ export async function PUT(req) {
           }
         }
       } catch (_) {}
+
+      // ─── Walk carryover chain backwards and mark ancestors as completed ───
+      // When a cloned task is completed, its originals (carried_over status)
+      // should also be marked completed so they stop appearing in carryover.
+      try {
+        let ancestorId = task.carried_over_from_task_id;
+        while (ancestorId) {
+          const updateRes = await db.execute({
+            sql: `UPDATE tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'completed' AND status != 'archived'`,
+            args: [parseInt(ancestorId)],
+          });
+          if (updateRes.rowsAffected === 0) break; // chain end or already completed
+          // Fetch the next ancestor
+          const ancestorTask = await db.execute({
+            sql: "SELECT carried_over_from_task_id FROM tasks WHERE id = ?",
+            args: [parseInt(ancestorId)],
+          });
+          if (ancestorTask.rows.length === 0) break;
+          ancestorId = ancestorTask.rows[0].carried_over_from_task_id;
+        }
+      } catch (_) {}
     }
 
     // ─── Log assignment event to task_assignment_log ───
