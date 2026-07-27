@@ -5434,6 +5434,7 @@ function ProgramWorkspace() {
           </div>
         </div>
       )}
+        </div>
     </DashboardLayout>
   );
 }
