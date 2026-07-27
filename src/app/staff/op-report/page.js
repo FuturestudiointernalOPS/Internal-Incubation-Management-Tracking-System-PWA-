@@ -1012,7 +1012,7 @@ export default function StaffOpReport() {
                             const data = await res.json();
                             const prevWeekTasks = (data.tasks || []).filter(
                               (t) =>
-                                !["archived", "completed"].includes(t.status) &&
+                                !["archived", "completed", "carried_over"].includes(t.status) &&
                                 !t.parent_task_id &&
                                 (t.created_week !== curWeek ||
                                   t.created_year !== curYear),
