@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
@@ -47,7 +47,7 @@ export const dynamic = "force-dynamic";
  * Performance-first, modular data loading, and clean data-first UI.
  */
 
-export default function ProgramWorkspace() {
+function ProgramWorkspace() {
   const { id } = useParams();
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -5360,5 +5360,13 @@ export default function ProgramWorkspace() {
       )}
         </div>
     </DashboardLayout>
+  );
+}
+
+export default function ProgramWorkspacePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-primary flex items-center justify-center"><div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" /></div>}>
+      <ProgramWorkspace />
+    </Suspense>
   );
 }

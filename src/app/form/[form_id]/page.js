@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import GlobalToast from '@/components/ui/GlobalToast';
-export default function PublicFormView() {
+function PublicFormContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const form_id = params.form_id;
@@ -173,5 +173,13 @@ export default function PublicFormView() {
        </div>
        <GlobalToast />
     </div>
+  );
+}
+
+export default function PublicFormView() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+      <PublicFormContent />
+    </Suspense>
   );
 }
