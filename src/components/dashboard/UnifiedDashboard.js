@@ -1015,7 +1015,6 @@ export default function UnifiedDashboard({ role: propRole }) {
                     </p>
                   </div>
                 </div>
-                  </div>
                   <ChevronRight className="w-5 h-5 text-slate-400" />
                 </div>
               )}

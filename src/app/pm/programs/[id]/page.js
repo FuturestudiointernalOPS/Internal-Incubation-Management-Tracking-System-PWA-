@@ -2181,7 +2181,6 @@ export default function ProgramWorkspace() {
               </div>
             </div>
           )}
-<<<<<<< HEAD
 
           {activeTab === "attendance" && (
             <div className="space-y-6 animate-in">
@@ -5243,9 +5242,6 @@ export default function ProgramWorkspace() {
             </div>
           </div>
         )}
-        </div>
-      )}
-      </div>
 
       {/* Team Details Modal */}
       {showTeamDetails && selectedTeam && (
