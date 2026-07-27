@@ -5359,8 +5359,6 @@ export default function ProgramWorkspace() {
         </div>
       )}
         </div>
-      )}
-      </div>
     </DashboardLayout>
   );
 }
