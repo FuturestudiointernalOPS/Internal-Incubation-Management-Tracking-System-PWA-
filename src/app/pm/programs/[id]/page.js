@@ -152,6 +152,7 @@ export default function ProgramWorkspace() {
   });
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [promoteTarget, setPromoteTarget] = useState(null); // { team, action: 'approve' | 'promote' }
 
   // Load existing attendance when modal opens
   useEffect(() => {
@@ -1346,27 +1347,17 @@ export default function ProgramWorkspace() {
                         >
                           <ChevronRight className="w-3 h-3" /> View
                         </button>
+                        {!team.is_venture_ready && (
+                          <button
+                            onClick={() => setPromoteTarget({ team, action: "approve" })}
+                            className="btn btn-primary btn-sm"
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> Approve
+                          </button>
+                        )}
                         {team.is_venture_ready && !team.venture_id && (
                           <button
-                            onClick={async () => {
-                              if (!confirm(`Promote "${team.name}" to Venture OS?`)) return;
-                              try {
-                                const res = await fetch("/api/ventures/promote", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ team_id: team.id }),
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                  notify("Venture promoted!");
-                                  fetchProgramData(true);
-                                } else {
-                                  notify(data.error || "Promotion failed.", "error");
-                                }
-                              } catch (e) {
-                                notify("Network error.", "error");
-                              }
-                            }}
+                            onClick={() => setPromoteTarget({ team, action: "promote" })}
                             className="btn btn-primary btn-sm"
                           >
                             <Zap className="w-3 h-3" /> Promote
@@ -2190,7 +2181,6 @@ export default function ProgramWorkspace() {
               </div>
             </div>
           )}
-<<<<<<< HEAD
 
           {activeTab === "attendance" && (
             <div className="space-y-6 animate-in">
@@ -5076,185 +5066,197 @@ export default function ProgramWorkspace() {
             </div>
           </div>
         )}
-        {/* TEAM DETAILS MODAL */}
-        {showTeamDetails && selectedTeam && (
+      {/* Team Details Modal */}
+      {showTeamDetails && selectedTeam && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => { setShowTeamDetails(false); setSelectedTeam(null); }}
+          style={{ background: "rgba(0,0,0,0.6)" }}
+        >
           <div
-            className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
-            onClick={() => setShowTeamDetails(false)}
+            className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="card w-full max-w-5xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-indigo-500/30"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-8 border-b border-[var(--border-primary)] bg-gradient-to-r from-[var(--bg-secondary)] to-[var(--bg-tertiary)] flex justify-between items-center">
+            <div className="flex items-center justify-between p-6 border-b border-gray-800">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Target className="w-5 h-5 text-[var(--brand-orange)]" />
+                {selectedTeam.name}
+              </h2>
+              <button onClick={() => { setShowTeamDetails(false); setSelectedTeam(null); }} className="p-2 hover:bg-white/5 rounded-lg">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <h3 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-3">
-                    <Target className="w-6 h-6 text-[var(--brand-orange)]" />
-                    {selectedTeam.name} — Team Review
-                  </h3>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-1">
-                    Operational Performance & Records
-                  </p>
+                  <p className="text-xs text-gray-500 mb-1">Program</p>
+                  <p className="font-medium">{program?.name || "N/A"}</p>
                 </div>
-                <button
-                  onClick={() => setShowTeamDetails(false)}
-                  className="p-2 hover:bg-rose-500/10 hover:text-rose-500 rounded-xl transition-all"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                <div className="grid grid-cols-1 gap-8">
-                  {/* Participant Table */}
-                  <div className="table-container !border-none !shadow-none">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Team Member</th>
-                          <th>Submissions</th>
-                          <th className="w-48 text-center">Marks Awarded</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {participants
-                          .filter((p) => p.v2_team_id === selectedTeam.id)
-                          .map((p) => {
-                            const participantSubmissions = submissions.filter(
-                              (s) =>
-                                String(s.participant_id) ===
-                                String(p.cid || p.id),
-                            );
-                            const avgScore =
-                              participantSubmissions.length > 0
-                                ? Math.round(
-                                  participantSubmissions.reduce(
-                                    (acc, s) => acc + (s.score || 0),
-                                    0,
-                                  ) / participantSubmissions.length,
-                                )
-                                : 0;
-
-                            return (
-                              <tr
-                                key={p.id}
-                                className="hover:bg-indigo-500/5 transition-colors"
-                              >
-                                <td className="py-6">
-                                  <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-500/20">
-                                      {p.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                                        {p.name}
-                                      </p>
-                                      <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase opacity-60">
-                                        {p.email}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <div className="flex flex-wrap gap-2">
-                                    {participantSubmissions.map((sub) => (
-                                      <div
-                                        key={sub.id}
-                                        className="group relative"
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            setActivePDF({
-                                              url: sub.file_url,
-                                              name: `Submission_${sub.id}`,
-                                            })
-                                          }
-                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
-                                        >
-                                          <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                            Artifact
-                                          </span>
-                                          <span className="text-[10px] font-black text-emerald-500">
-                                            [{sub.score || "??"}]
-                                          </span>
-                                        </button>
-                                      </div>
-                                    ))}
-                                    {participantSubmissions.length === 0 && (
-                                      <span className="text-[9px] font-black uppercase tracking-widest text-rose-500/40 italic">
-                                        No submissions found
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="text-center">
-                                  <div className="inline-flex flex-col items-center gap-2">
-                                    <div
-                                      className={`text-2xl font-black ${avgScore >= 70 ? "text-emerald-500" : avgScore >= 40 ? "text-amber-500" : "text-rose-500"}`}
-                                    >
-                                      {avgScore}%
-                                    </div>
-                                    <select
-                                      className="bg-tertiary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:border-indigo-500 cursor-pointer"
-                                      value={avgScore}
-                                      onChange={(e) =>
-                                        updateParticipantScores(
-                                          p.cid || p.id,
-                                          e.target.value,
-                                        )
-                                      }
-                                    >
-                                      <option value="">Audit Marks...</option>
-                                      {[
-                                        100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
-                                        0,
-                                      ].map((m) => (
-                                        <option key={m} value={m}>
-                                          {m}% Awarded
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <span className={"text-xs px-2.5 py-1 rounded-full " + (selectedTeam.is_venture_ready ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400")}>
+                    {selectedTeam.is_venture_ready ? "Venture Ready" : "In Program"}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Team Lead</p>
+                  <p className="font-medium">{selectedTeam.leader_name || selectedTeam.leader_id || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Handler</p>
+                  <p className="font-medium">{selectedTeam.handler_name || "Unassigned"}</p>
+                </div>
+                {selectedTeam.venture_id && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500 mb-1">Venture ID</p>
+                    <p className="font-mono text-sm text-[var(--brand-orange)]">{selectedTeam.venture_id}</p>
                   </div>
-
-                  {participants.filter(
-                    (p) => p.group_name === selectedTeam.name,
-                  ).length === 0 && (
-                      <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                        <Users className="w-12 h-12 mb-4" />
-                        <p className="text-sm font-black uppercase tracking-[0.3em]">
-                          No members found in this team
-                        </p>
-                      </div>
-                    )}
-                </div>
+                )}
               </div>
 
-              <div className="p-6 bg-tertiary border-t border-[var(--border-primary)] flex justify-end gap-3">
-                <button
-                  onClick={() => setShowTeamDetails(false)}
-                  className="btn btn-secondary px-8"
-                >
-                  Close Audit
-                </button>
-                <button className="btn btn-primary px-8 gap-2">
-                  <Save className="w-4 h-4" />
-                  Save Adjustments
-                </button>
+              <div className="pt-4 border-t border-gray-800">
+                <h3 className="text-sm font-medium mb-3">
+                  Members ({participants.filter(p => p.v2_team_id === selectedTeam.id).length})
+                </h3>
+                <div className="space-y-2">
+                  {participants
+                    .filter(p => p.v2_team_id === selectedTeam.id)
+                    .map(p => (
+                      <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#020617]">
+                        <div className="w-8 h-8 rounded-full bg-tertiary flex items-center justify-center text-xs font-bold">
+                          {p.name?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{p.name}</p>
+                          <p className="text-xs text-gray-500">{p.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                  {participants.filter(p => p.v2_team_id === selectedTeam.id).length === 0 && (
+                    <p className="text-sm text-gray-500">No members assigned to this team.</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        )}
         </div>
       )}
-      </div>
+
+      {/* Confirmation Modal for Approve/Promote */}
+      {promoteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setPromoteTarget(null)}
+          style={{ background: "rgba(0,0,0,0.6)" }}
+        >
+          <div
+            className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              {promoteTarget.action === "approve" ? (
+                <>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-emerald-500/10 rounded-xl">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">Approve Team</h3>
+                      <p className="text-sm text-gray-400">
+                        Approve "{promoteTarget.team.name}" for Venture OS promotion?
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setPromoteTarget(null)}
+                      className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const team = promoteTarget.team;
+                        setPromoteTarget(null);
+                        try {
+                          const res = await fetch("/api/pm/teams", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              team_id: team.id,
+                              action: "set_venture_ready",
+                              is_venture_ready: true,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            notify("Team approved for Venture OS!");
+                            fetchProgramData(true);
+                          } else {
+                            notify(data.error || "Approval failed.", "error");
+                          }
+                        } catch (e) {
+                          notify("Network error.", "error");
+                        }
+                      }}
+                      className="flex-1 px-4 py-2.5 bg-emerald-500 rounded-lg text-sm font-medium hover:bg-emerald-600"
+                    >
+                      Approve
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-[var(--brand-orange)]/10 rounded-xl">
+                      <Zap className="w-6 h-6 text-[var(--brand-orange)]" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">Promote to Venture OS</h3>
+                      <p className="text-sm text-gray-400">
+                        Promote "{promoteTarget.team.name}" to Venture OS?
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setPromoteTarget(null)}
+                      className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const team = promoteTarget.team;
+                        setPromoteTarget(null);
+                        try {
+                          const res = await fetch("/api/ventures/promote", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ team_id: team.id }),
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            notify("Venture promoted!");
+                            fetchProgramData(true);
+                          } else {
+                            notify(data.error || "Promotion failed.", "error");
+                          }
+                        } catch (e) {
+                          notify("Network error.", "error");
+                        }
+                      }}
+                      className="flex-1 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold hover:opacity-90"
+                    >
+                      Promote
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
