@@ -92,7 +92,22 @@ export const POST = createHandler(async (req) => {
   }
   const orig = origRes.rows[0];
 
-  // 2. Clone the task — preserve ALL fields including assigned_to, priority, link
+  // 2. Follow chain forward to find the LATEST clone (not the original)
+  // This prevents repeatedly cloning the same original task each week.
+  let taskToClone = orig;
+  while (true) {
+    const nextRes = await db.execute({
+      sql: "SELECT * FROM tasks WHERE carried_over_from_task_id = ? AND status != 'archived' ORDER BY created_week DESC, id DESC LIMIT 1",
+      args: [taskToClone.id],
+    });
+    if (nextRes.rows.length === 0) break;
+    taskToClone = nextRes.rows[0];
+  }
+  const sourceTask = taskToClone;
+
+  const sourceId = sourceTask.id;
+
+  // 3. Clone the LATEST task in the chain — preserve ALL fields
   const cloneRes = await db.execute({
     sql: `INSERT INTO tasks
       (user_id, user_name, title, description, status, project_id, category,
@@ -101,60 +116,60 @@ export const POST = createHandler(async (req) => {
       VALUES (?, ?, ?, ?, 'in_progress', ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
       RETURNING id`,
     args: [
-      user_id || orig.user_id,
-      user_name || orig.user_name,
-      orig.title,
-      orig.description,
-      orig.project_id,
-      orig.category,
+      user_id || sourceTask.user_id,
+      user_name || sourceTask.user_name,
+      sourceTask.title,
+      sourceTask.description,
+      sourceTask.project_id,
+      sourceTask.category,
       target_week,
       target_year,
-      oldId,
-      orig.start_date,
-      orig.end_date,
-      orig.assigned_to || null,
-      orig.link || null,
-      orig.priority || null,
+      sourceId,  // Link to the LATEST task in chain, not the original
+      sourceTask.start_date,
+      sourceTask.end_date,
+      sourceTask.assigned_to || null,
+      sourceTask.link || null,
+      sourceTask.priority || null,
     ],
   });
   const newId = Number(cloneRes.rows[0]?.id ?? cloneRes.lastInsertRowid);
 
-  // 3. Migrate blockers
+  // 4. Migrate blockers from the LATEST task (not the original)
   await db.execute({
     sql: "UPDATE blockers SET task_id = ? WHERE task_id = ?",
-    args: [newId, oldId],
+    args: [newId, sourceId],
   });
 
-  // 4. Migrate comments
+  // 5. Migrate comments
   try {
     await db.execute({
       sql: "UPDATE v2_task_comments SET task_id = ? WHERE task_id = ?",
-      args: [newId, oldId],
+      args: [newId, sourceId],
     });
   } catch (_) {
     /* table may not exist yet */
   }
 
-  // 5. Migrate resources/attachments
+  // 6. Migrate resources/attachments
   try {
     await db.execute({
       sql: "UPDATE task_resources SET task_id = ? WHERE task_id = ?",
-      args: [newId, oldId],
+      args: [newId, sourceId],
     });
   } catch (_) {
     /* table may not exist yet */
   }
 
-  // 6. Re-parent subtasks
+  // 7. Re-parent subtasks from the LATEST task
   await db.execute({
     sql: "UPDATE tasks SET parent_task_id = ? WHERE parent_task_id = ?",
-    args: [newId, oldId],
+    args: [newId, sourceId],
   });
 
-  // 7. Mark old task as carried_over
+  // 8. Mark the LATEST task as carried_over (not the original)
   await db.execute({
     sql: "UPDATE tasks SET status = 'carried_over', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-    args: [oldId],
+    args: [sourceId],
   });
 
   return NextResponse.json({
