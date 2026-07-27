@@ -20,7 +20,8 @@ import {
   Globe,
   Archive,
   ArrowLeft,
-  RefreshCw,
+  Trash2,
+  RotateCcw,
   Link as LinkIcon,
   Copy,
   Check,
@@ -28,6 +29,7 @@ import {
   UserX,
   TrendingUp,
   UploadCloud,
+  AlertTriangle,
 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,7 +48,6 @@ function ContactsPageContent() {
   const [search, setSearch] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("All Contacts");
   const [selectedTeamTab, setSelectedTeamTab] = useState("All Teams");
-  const [showArchived, setShowArchived] = useState(false);
   const [copiedGroup, setCopiedGroup] = useState(null);
   const [isCsvUploading, setIsCsvUploading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -55,6 +56,7 @@ function ContactsPageContent() {
   const [showManualModal, setShowManualModal] = useState(false);
   const [showCredsModal, setShowCredsModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
   const [contactPrograms, setContactPrograms] = useState([]);
   const [showBulkProgramModal, setShowBulkProgramModal] = useState(false);
   const [bulkSelected, setBulkSelected] = useState([]);
@@ -120,8 +122,9 @@ function ContactsPageContent() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const statusParam = statusFilter === "Archived" ? "?status=archived" : "";
       const [contRes, progRes] = await Promise.all([
-        fetch("/api/contacts/full-state"),
+        fetch(`/api/contacts/full-state${statusParam}`),
         fetch("/api/pm/programs"),
       ]);
       const [contData, progData] = await Promise.all([
@@ -140,7 +143,7 @@ function ContactsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchData();
@@ -301,6 +304,125 @@ function ContactsPageContent() {
     }
   };
 
+  const handleArchive = async (c) => {
+    setIsProcessing(true);
+    try {
+      const userStr = localStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : {};
+      const archivedBy = user.name || user.email || "unknown";
+      const res = await fetch("/api/contacts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cid: c.cid,
+          archived_at: new Date().toISOString(),
+          archived_by: archivedBy,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "success", message: `${c.name} archived.` },
+          }),
+        );
+        fetchData();
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "error", message: data.error || "Archive failed." },
+          }),
+        );
+      }
+    } catch (e) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: "Network error." },
+        }),
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRestore = async (c) => {
+    setIsProcessing(true);
+    try {
+      const res = await fetch("/api/contacts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cid: c.cid,
+          archived_at: null,
+          archived_by: null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "success", message: `${c.name} restored.` },
+          }),
+        );
+        fetchData();
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "error", message: data.error || "Restore failed." },
+          }),
+        );
+      }
+    } catch (e) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: "Network error." },
+        }),
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSoftDelete = (c) => {
+    setConfirmTarget({
+      id: c.cid,
+      message: `Permanently delete ${c.name}? This cannot be undone from the UI.`,
+      onConfirm: () => performSoftDelete(c),
+    });
+  };
+
+  const performSoftDelete = async (c) => {
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`/api/contacts?cid=${encodeURIComponent(c.cid)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "success", message: `${c.name} permanently deleted.` },
+          }),
+        );
+        fetchData();
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "error", message: data.error || "Delete failed." },
+          }),
+        );
+      }
+    } catch (e) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: "Network error." },
+        }),
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleCsvUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -373,9 +495,10 @@ function ContactsPageContent() {
   };
 
   const filtered = contacts.filter((c) => {
+    const lowerSearch = search.toLowerCase();
     const matchesSearch =
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase());
+      (c.name || "").toLowerCase().includes(lowerSearch) ||
+      (c.email || "").toLowerCase().includes(lowerSearch);
     const matchesGroup =
       selectedGroup === "All Contacts" ||
       c.group_name?.toUpperCase() === selectedGroup.toUpperCase();
@@ -390,13 +513,13 @@ function ContactsPageContent() {
     else if (statusFilter === "Inactive")
       matchesStatus = c.status === "inactive";
     else if (statusFilter === "Pending") matchesStatus = c.status === "pending";
+    // "Archived" and "All" are already filtered server-side
 
     return (
       matchesSearch &&
       matchesGroup &&
       matchesTeam &&
-      matchesStatus &&
-      (!showArchived ? !c.deleted : !!c.deleted)
+      matchesStatus
     );
   });
 
@@ -436,12 +559,6 @@ function ContactsPageContent() {
   };
 
   const handlePivotToEntity = async (c) => {
-    if (
-      !confirm(
-        `Initialize Pivot Protocol for ${c.name}? This will convert them to a Business Entity.`,
-      )
-    )
-      return;
     setIsProcessing(true);
     try {
       const entityName = `${c.name} Entity`;
@@ -514,49 +631,53 @@ function ContactsPageContent() {
             </div>
           </div>
           <div className="flex gap-3">
-            <div className="relative">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCsvUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-              <button
-                disabled={isCsvUploading}
-                className="btn btn-secondary gap-2 border-emerald-500/30 text-emerald-500"
-              >
-                {isCsvUploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <UploadCloud className="w-4 h-4" />
-                )}
-                Bulk CSV
-              </button>
-            </div>
-            <button
-              onClick={() => {
-                setForm({
-                  cid: "",
-                  name: "",
-                  email: "",
-                  phone: "",
-                  group_name: "",
-                  password: "",
-                  program_id: "",
-                });
-                setContactPrograms([]);
-                setShowManualModal(true);
-              }}
-              className="btn btn-primary gap-2"
-            >
-              <Plus className="w-4 h-4" /> Add Member
-            </button>
-            <button
-              onClick={() => setShowBulkProgramModal(true)}
-              className="btn btn-secondary gap-2"
-            >
-              <Users className="w-4 h-4" /> Bulk Assign
-            </button>
+            {statusFilter !== "Archived" && (
+              <>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCsvUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                  <button
+                    disabled={isCsvUploading}
+                    className="btn btn-secondary gap-2 border-emerald-500/30 text-emerald-500"
+                  >
+                    {isCsvUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <UploadCloud className="w-4 h-4" />
+                    )}
+                    Bulk CSV
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    setForm({
+                      cid: "",
+                      name: "",
+                      email: "",
+                      phone: "",
+                      group_name: "",
+                      password: "",
+                      program_id: "",
+                    });
+                    setContactPrograms([]);
+                    setShowManualModal(true);
+                  }}
+                  className="btn btn-primary gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Add Member
+                </button>
+                <button
+                  onClick={() => setShowBulkProgramModal(true)}
+                  className="btn btn-secondary gap-2"
+                >
+                  <Users className="w-4 h-4" /> Bulk Assign
+                </button>
+              </>
+            )}
           </div>
         </header>
 
@@ -642,7 +763,7 @@ function ContactsPageContent() {
           <div className="xl:col-span-3 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex bg-secondary p-1 rounded-xl border border-[var(--border-primary)]">
-                {["All", "Active", "Inactive", "Pending"].map((status) => (
+                {["All", "Active", "Inactive", "Pending", "Archived"].map((status) => (
                   <button
                     key={status}
                     onClick={() => setStatusFilter(status)}
@@ -689,8 +810,8 @@ function ContactsPageContent() {
               </div>
             </div>
 
-            {/* SUB-TEAM TABS (Only shown when a group is selected) */}
-            {selectedGroup !== "All Contacts" && (
+            {/* SUB-TEAM TABS (Only shown when a group is selected and not in Archived mode) */}
+            {selectedGroup !== "All Contacts" && statusFilter !== "Archived" && (
               <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
                 <button
                   onClick={() => setSelectedTeamTab("All Teams")}
@@ -724,20 +845,22 @@ function ContactsPageContent() {
                   <thead>
                     <tr>
                       <th className="w-10">
-                        <input
-                          type="checkbox"
-                          checked={
-                            selectedContacts.length === filtered.length &&
-                            filtered.length > 0
-                          }
-                          onChange={() => {
-                            if (selectedContacts.length === filtered.length)
-                              setSelectedContacts([]);
-                            else
-                              setSelectedContacts(filtered.map((c) => c.cid));
-                          }}
-                          className="w-4 h-4 rounded border-[var(--border-primary)] bg-primary accent-[var(--brand-orange)]"
-                        />
+                        {statusFilter !== "Archived" && (
+                          <input
+                            type="checkbox"
+                            checked={
+                              selectedContacts.length === filtered.length &&
+                              filtered.length > 0
+                            }
+                            onChange={() => {
+                              if (selectedContacts.length === filtered.length)
+                                setSelectedContacts([]);
+                              else
+                                setSelectedContacts(filtered.map((c) => c.cid));
+                            }}
+                            className="w-4 h-4 rounded border-[var(--border-primary)] bg-primary accent-[var(--brand-orange)]"
+                          />
+                        )}
                       </th>
                       <th>Identity</th>
                       <th>Group / Status</th>
@@ -751,12 +874,14 @@ function ContactsPageContent() {
                         className={`group ${selectedContacts.includes(c.cid) ? "bg-[var(--brand-orange)]/5" : ""}`}
                       >
                         <td>
-                          <input
-                            type="checkbox"
-                            checked={selectedContacts.includes(c.cid)}
-                            onChange={() => toggleSelection(c.cid)}
-                            className="w-4 h-4 rounded border-[var(--border-primary)] bg-primary accent-[var(--brand-orange)]"
-                          />
+                          {statusFilter !== "Archived" && (
+                            <input
+                              type="checkbox"
+                              checked={selectedContacts.includes(c.cid)}
+                              onChange={() => toggleSelection(c.cid)}
+                              className="w-4 h-4 rounded border-[var(--border-primary)] bg-primary accent-[var(--brand-orange)]"
+                            />
+                          )}
                         </td>
                         <td>
                           <div className="flex flex-col">
@@ -796,52 +921,83 @@ function ContactsPageContent() {
                         </td>
                         <td className="text-right">
                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                            <button
-                              onClick={() => toggleStatus(c.cid, c.status, c.group_name)}
-                              title={
-                                c.status === "active"
-                                  ? "Deactivate"
-                                  : "Activate"
-                              }
-                              className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500 transition-all"
-                            >
-                              {c.status === "active" ? (
-                                <UserX className="w-4 h-4" />
-                              ) : (
-                                <UserCheck className="w-4 h-4" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setForm(c);
-                                setContactPrograms(c.program_ids || []);
-                                // Fetch actual program assignments
-                                fetch(
-                                  "/api/participant-programs?participant_id=" +
-                                    (c.cid || c.id),
-                                )
-                                  .then((r) => r.json())
-                                  .then((d) => {
-                                    if (d.success)
-                                      setContactPrograms(
-                                        d.assignments.map((a) => a.program_id),
-                                      );
-                                  })
-                                  .catch(() => {});
-                                setShowManualModal(true);
-                              }}
-                              title="Edit Contact"
-                              className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-[var(--brand-orange)]"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handlePivotToEntity(c)}
-                              title="Pivot to Entity"
-                              className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500"
-                            >
-                              <TrendingUp className="w-4 h-4" />
-                            </button>
+                            {statusFilter === "Archived" ? (
+                              <>
+                                <button
+                                  onClick={() => handleRestore(c)}
+                                  title="Restore Contact"
+                                  disabled={isProcessing}
+                                  className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500 transition-all"
+                                >
+                                  <RotateCcw className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleSoftDelete(c)}
+                                  title="Permanently Delete"
+                                  disabled={isProcessing}
+                                  className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-rose-500 transition-all"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => toggleStatus(c.cid, c.status, c.group_name)}
+                                  title={
+                                    c.status === "active"
+                                      ? "Deactivate"
+                                      : "Activate"
+                                  }
+                                  className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500 transition-all"
+                                >
+                                  {c.status === "active" ? (
+                                    <UserX className="w-4 h-4" />
+                                  ) : (
+                                    <UserCheck className="w-4 h-4" />
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setForm(c);
+                                    setContactPrograms(c.program_ids || []);
+                                    // Fetch actual program assignments
+                                    fetch(
+                                      "/api/participant-programs?participant_id=" +
+                                        (c.cid || c.id),
+                                    )
+                                      .then((r) => r.json())
+                                      .then((d) => {
+                                        if (d.success)
+                                          setContactPrograms(
+                                            d.assignments.map((a) => a.program_id),
+                                          );
+                                      })
+                                      .catch(() => {});
+                                    setShowManualModal(true);
+                                  }}
+                                  title="Edit Contact"
+                                  className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-[var(--brand-orange)]"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handlePivotToEntity(c)}
+                                  title="Pivot to Entity"
+                                  className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-emerald-500"
+                                >
+                                  <TrendingUp className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleArchive(c)}
+                                  title="Archive Contact"
+                                  disabled={isProcessing}
+                                  className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-amber-500 transition-all"
+                                >
+                                  <Archive className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1367,6 +1523,25 @@ function ContactsPageContent() {
                   ? "Processing..."
                   : `Assign ${bulkSelected.length} Participant(s) to Program`}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Dialog */}
+      {confirmTarget && (
+        <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTarget(null)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-tight">Confirm Action</h3>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{confirmTarget.message}</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">Cancel</button>
+              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">Confirm</button>
             </div>
           </div>
         </div>

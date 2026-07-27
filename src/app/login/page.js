@@ -58,11 +58,13 @@ export default function LoginPage() {
                       ? "/developer"
                       : data.user.role === "team"
                         ? "/team/" + data.user.team_id
-                        : data.user.role === "participant"
-                          ? "/participant"
-                          : data.user.role === "finance"
-                            ? "/finance"
-                            : "/participant";
+                        : data.user.role === "investor"
+                          ? "/investor/dashboard"
+                          : data.user.role === "participant"
+                            ? "/participant"
+                            : data.user.role === "finance"
+                              ? "/finance"
+                              : "/participant";
           window.location.href = target;
         }, 800);
       } else {
@@ -159,6 +161,13 @@ export default function LoginPage() {
                 className="text-[9px] font-bold text-[var(--brand-orange)] hover:underline uppercase tracking-wider"
               >
                 Forgot Password?
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/investor/register")}
+                className="text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--brand-orange)] uppercase tracking-wider"
+              >
+                Register as Investor
               </button>
             </div>
 

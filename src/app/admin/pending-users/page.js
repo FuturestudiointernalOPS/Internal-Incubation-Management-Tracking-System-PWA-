@@ -93,7 +93,6 @@ export default function PendingUsersPage() {
   };
 
   const handleArchive = async (userCid, userName) => {
-    if (!confirm(`Archive ${userName}? They will go to the recycle bin.`)) return;
     setProcessingId(userCid);
     setActionMsg(null);
     try {

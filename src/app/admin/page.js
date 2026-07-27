@@ -910,69 +910,96 @@ export default function AdminDashboard() {
                         {isPending ? (
                           <div className="flex gap-1.5 shrink-0">
                             <button
+                              disabled={processingId !== null}
                               onClick={async () => {
-                                await fetch("/api/tasks/assignment-action", {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    task_id: task.id,
-                                    user_id:
-                                      JSON.parse(
-                                        localStorage.getItem("user") || "{}",
-                                      ).cid || "sa",
-                                    action: "accepted",
-                                  }),
-                                });
-                                fetchWidgetData();
+                                setProcessingId(task.id);
+                                try {
+                                  await fetch("/api/tasks/assignment-action", {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      task_id: task.id,
+                                      user_id:
+                                        JSON.parse(
+                                          localStorage.getItem("user") || "{}",
+                                        ).cid || "sa",
+                                      action: "accepted",
+                                    }),
+                                  });
+                                  fetchWidgetData();
+                                } finally {
+                                  setProcessingId(null);
+                                }
                               }}
-                              className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
+                              className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                             >
+                              {processingId === task.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : null}
                               {t("common.accept")}
                             </button>
                             <button
+                              disabled={processingId !== null}
                               onClick={async () => {
-                                await fetch("/api/tasks/assignment-action", {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    task_id: task.id,
-                                    user_id:
-                                      JSON.parse(
-                                        localStorage.getItem("user") || "{}",
-                                      ).cid || "sa",
-                                    action: "declined",
-                                  }),
-                                });
-                                fetchWidgetData();
+                                setProcessingId(task.id);
+                                try {
+                                  await fetch("/api/tasks/assignment-action", {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      task_id: task.id,
+                                      user_id:
+                                        JSON.parse(
+                                          localStorage.getItem("user") || "{}",
+                                        ).cid || "sa",
+                                      action: "declined",
+                                    }),
+                                  });
+                                  fetchWidgetData();
+                                } finally {
+                                  setProcessingId(null);
+                                }
                               }}
-                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
+                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                             >
+                              {processingId === task.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : null}
                               {t("common.decline")}
                             </button>
                           </div>
                         ) : (
                           <button
+                            disabled={processingId !== null}
                             onClick={async () => {
-                              await fetch("/api/tasks/assignment-action", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  task_id: task.id,
-                                  user_id:
-                                    JSON.parse(
-                                      localStorage.getItem("user") || "{}",
-                                    ).cid || "sa",
-                                  action: "completed_assignment",
-                                }),
-                              });
-                              fetchWidgetData();
+                              setProcessingId(task.id);
+                              try {
+                                await fetch("/api/tasks/assignment-action", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    task_id: task.id,
+                                    user_id:
+                                      JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      ).cid || "sa",
+                                    action: "completed_assignment",
+                                  }),
+                                });
+                                fetchWidgetData();
+                              } finally {
+                                setProcessingId(null);
+                              }
                             }}
-                            className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0"
+                            className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                           >
+                            {processingId === task.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : null}
                             {t("common.complete")}
                           </button>
                         )}
@@ -1564,6 +1591,16 @@ export default function AdminDashboard() {
                           </p>
                         )}
                       </div>
+                      <button
+                        disabled={resolvingBlocker !== null}
+                        onClick={() => handleResolveBlocker(b.id)}
+                        className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-rose-500/20 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                      >
+                        {resolvingBlocker === b.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : null}
+                        {t("common.resolve")}
+                      </button>
                     </div>
                   ))}
                 </div>

@@ -34,7 +34,7 @@ export async function POST(req) {
 
     // 1. Find the user
     const userResult = await db.execute({
-      sql: "SELECT * FROM contacts WHERE cid = ? AND deleted = 0 LIMIT 1",
+      sql: "SELECT * FROM contacts WHERE cid = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
       args: [user_cid],
     });
 

@@ -101,6 +101,7 @@ export default function AdminProjects() {
   const [uploadingEditConcept, setUploadingEditConcept] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [toast, setToast] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     if (toast) setTimeout(() => setToast(null), 3000);
@@ -206,7 +207,7 @@ export default function AdminProjects() {
   };
 
   const handleArchiveProject = async (project) => {
-    if (!window.confirm("Archive this project?")) return;
+    setActionLoading(true);
     try {
       await fetch("/api/projects", {
         method: "PUT",
@@ -216,11 +217,13 @@ export default function AdminProjects() {
       fetchData();
     } catch (e) {
       console.error(e);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleUnarchiveProject = async (project) => {
-    if (!window.confirm("Restore this project?")) return;
+    setActionLoading(true);
     try {
       await fetch("/api/projects", {
         method: "PUT",
@@ -230,11 +233,13 @@ export default function AdminProjects() {
       fetchData();
     } catch (e) {
       console.error(e);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const quickStatus = async (project, newStatus, confirmMsg) => {
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    setActionLoading(true);
     try {
       await fetch("/api/projects", {
         method: "PUT",
@@ -244,6 +249,8 @@ export default function AdminProjects() {
       fetchData();
     } catch (e) {
       console.error(e);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -763,9 +770,10 @@ export default function AdminProjects() {
                                 e.stopPropagation();
                                 quickStatus(project, "Paused");
                               }}
-                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white transition-all"
+                              disabled={actionLoading}
+                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
                             >
-                              Pause
+                              {actionLoading ? "..." : "Pause"}
                             </button>
                           )}
                           {project.status === "Paused" && (
@@ -774,9 +782,10 @@ export default function AdminProjects() {
                                 e.stopPropagation();
                                 quickStatus(project, "Active");
                               }}
-                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"
+                              disabled={actionLoading}
+                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
                             >
-                              Resume
+                              {actionLoading ? "..." : "Resume"}
                             </button>
                           )}
                           {project.status === "Active" && (
@@ -789,9 +798,10 @@ export default function AdminProjects() {
                                   "Mark as completed?",
                                 );
                               }}
-                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white transition-all"
+                              disabled={actionLoading}
+                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
                             >
-                              Complete
+                              {actionLoading ? "..." : "Complete"}
                             </button>
                           )}
                           <button
@@ -830,15 +840,16 @@ export default function AdminProjects() {
                                 handleArchiveProject(project);
                               }
                             }}
-                            className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider transition-all ${
+                            disabled={actionLoading}
+                            className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-wait ${
                               project.status === "Archived"
                                 ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white"
                                 : "bg-slate-500/10 text-slate-500 hover:bg-rose-500 hover:text-white"
                             }`}
                           >
-                            {project.status === "Archived"
+                            {actionLoading ? "..." : (project.status === "Archived"
                               ? "Restore"
-                              : "Archive"}
+                              : "Archive")}
                           </button>
                         </div>
                       </td>

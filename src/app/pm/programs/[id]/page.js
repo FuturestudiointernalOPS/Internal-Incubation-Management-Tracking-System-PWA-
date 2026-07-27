@@ -240,7 +240,7 @@ export default function ProgramWorkspace() {
   });
   const [newStaff, setNewStaff] = useState({ staff_id: "", role: "staff" });
 
-  const [toast, setToast] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -255,8 +255,7 @@ export default function ProgramWorkspace() {
   const configGradingRef = useRef(null);
 
   const notify = (msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message: msg } }));
   };
 
   const saveConfig = async () => {
@@ -715,12 +714,19 @@ export default function ProgramWorkspace() {
     }
   };
 
-  const removeKPI = async (kpiId) => {
+  const removeKPI = (kpiId) => {
     if (user.role !== "super_admin") {
       notify("Only SuperAdmin can decommission KPIs.", "error");
       return;
     }
-    if (!confirm("Decommission this KPI?")) return;
+    setConfirmTarget({
+      id: kpiId,
+      message: "Decommission this KPI?",
+      onConfirm: () => performRemoveKPI(kpiId),
+    });
+  };
+
+  const performRemoveKPI = async (kpiId) => {
     try {
       await fetch("/api/v2/kpis", {
         method: "DELETE",
@@ -754,8 +760,15 @@ export default function ProgramWorkspace() {
     }
   };
 
-  const removeStaff = async (staffId) => {
-    if (!confirm("Remove this staff member?")) return;
+  const removeStaff = (staffId) => {
+    setConfirmTarget({
+      id: staffId,
+      message: "Remove this staff member?",
+      onConfirm: () => performRemoveStaff(staffId),
+    });
+  };
+
+  const performRemoveStaff = async (staffId) => {
     try {
       const record = assignedStaff.find((s) => s.cid === staffId);
       if (record && record.id) {
@@ -769,8 +782,15 @@ export default function ProgramWorkspace() {
     } catch (e) { }
   };
 
-  const deleteTeam = async (teamId) => {
-    if (!confirm("Decommission this student group?")) return;
+  const deleteTeam = (teamId) => {
+    setConfirmTarget({
+      id: teamId,
+      message: "Decommission this student group?",
+      onConfirm: () => performDeleteTeam(teamId),
+    });
+  };
+
+  const performDeleteTeam = async (teamId) => {
     try {
       const res = await fetch("/api/pm/teams", {
         method: "DELETE",
@@ -788,8 +808,15 @@ export default function ProgramWorkspace() {
 
   const [showArchivedSessions, setShowArchivedSessions] = useState(false);
 
-  const deleteSession = async (sessionId) => {
-    if (!confirm("Archive this session? It can be restored later.")) return;
+  const deleteSession = (sessionId) => {
+    setConfirmTarget({
+      id: sessionId,
+      message: "Archive this session? It can be restored later.",
+      onConfirm: () => performDeleteSession(sessionId),
+    });
+  };
+
+  const performDeleteSession = async (sessionId) => {
     try {
       await fetch("/api/pm/curriculum", {
         method: "POST",

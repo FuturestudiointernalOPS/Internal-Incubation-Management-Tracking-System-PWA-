@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export const GET = createHandler({ roles: ["super_admin"] }, async () => {
   const result = await db.execute({
-    sql: `SELECT cid, name, email, phone, group_name, role, created_at, program_name, gender FROM contacts WHERE status = 'pending' AND deleted = 0 ORDER BY created_at DESC`,
+    sql: `SELECT cid, name, email, phone, group_name, role, created_at, program_name, gender FROM contacts WHERE status = 'pending' AND deleted = 0 AND deleted_at IS NULL ORDER BY created_at DESC`,
     args: [],
   });
 

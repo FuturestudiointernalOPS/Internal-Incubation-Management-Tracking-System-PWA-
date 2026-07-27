@@ -41,9 +41,9 @@ export default function GroupWorkspaceV2({ params }) {
     try {
       // In a real scenario, we'd have a PATCH /api/v2/groups/[id]
       // For now, we'll just mock the update or use the same route if supported
-      alert("Workspace metrics anchored to ledger.");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Workspace metrics anchored to ledger.' } }));
     } catch (e) {
-      alert("Update failed.");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Update failed.' } }));
     } finally {
       setLoading(false);
     }

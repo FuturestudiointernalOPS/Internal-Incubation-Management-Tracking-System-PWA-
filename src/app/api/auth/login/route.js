@@ -23,7 +23,7 @@ export async function POST(req) {
 
     // Search Database for User
     const result = await db.execute({
-      sql: "SELECT * FROM contacts WHERE (email = ? OR id = ?) AND deleted = 0 LIMIT 1",
+      sql: "SELECT * FROM contacts WHERE (email = ? OR id = ?) AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
       args: [cleanEmail, cleanEmail],
     });
 
@@ -147,10 +147,14 @@ export async function POST(req) {
       finalRole = "super_admin";
     } else if (user.role === "developer") {
       finalRole = "developer";
+    } else if (user.role === "investor") {
+      finalRole = "investor";
     } else if (pmLeadAssignment.rows.length > 0) {
       finalRole = "program_manager"; // Project Manager (Head)
     } else if (activeTeammateAssignment.rows.length > 0) {
       finalRole = "teacher"; // Active Teammate
+    } else if (user.role === "investor") {
+      finalRole = "investor";
     } else if (
       user.role === "project_manager" ||
       user.group_name?.toUpperCase() === "STAFF" ||

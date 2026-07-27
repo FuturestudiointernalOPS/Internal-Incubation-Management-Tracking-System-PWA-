@@ -184,7 +184,6 @@ export default function ProjectKanbanBoard() {
   const [deletingTaskId, setDeletingTaskId] = useState(null);
 
   const handleDeleteTask = useCallback(async (taskId) => {
-    if (!confirm("Delete this task? This action cannot be undone.")) return;
     setDeletingTaskId(taskId);
     try {
       const res = await fetch(`/api/tasks?id=${taskId}`, { method: "DELETE" });
@@ -192,11 +191,11 @@ export default function ProjectKanbanBoard() {
       if (data.success) {
         setAllTasks((prev) => prev.filter((t) => t.id !== taskId));
       } else {
-        alert(data.error || "Failed to delete task.");
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || "Failed to delete task." } }));
       }
     } catch (e) {
       console.error("Delete error:", e);
-      alert("Network error deleting task.");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: "Network error deleting task." } }));
     } finally {
       setDeletingTaskId(null);
     }

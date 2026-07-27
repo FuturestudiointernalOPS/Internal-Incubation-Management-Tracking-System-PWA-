@@ -55,7 +55,6 @@ export default function SuperAdminStandardization() {
 
   const handleDeleteType = async (item) => {
     if (activeTab === 'media') return; // Absolute protection
-    if (!confirm(`Permanently decommission ${item.label}?`)) return;
     setIsProcessing(true);
     try {
       const res = await fetch('/api/superadmin/standard-types', {
@@ -67,9 +66,9 @@ export default function SuperAdminStandardization() {
       if (data.success) {
         fetchTypes();
       } else {
-        alert(data.error);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error } }));
       }
-    } catch (e) { alert('Action failed. Check network connection.'); }
+    } catch (e) { window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Action failed. Check network connection.' } })); }
     setIsProcessing(false);
   };
 

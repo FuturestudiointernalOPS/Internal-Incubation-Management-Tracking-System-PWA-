@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -107,6 +108,8 @@ export default function AdminTasks() {
   const [commentInput, setCommentInput] = useState("");
   const [assignValue, setAssignValue] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
+  const [statusUpdating, setStatusUpdating] = useState(null);
+  const [assigningUser, setAssigningUser] = useState(false);
   const { t } = useI18n();
 
   const fetchTasks = useCallback(async () => {
@@ -245,6 +248,7 @@ export default function AdminTasks() {
   }, [tasks]);
 
   const handleStatusUpdate = async (taskId, newStatus) => {
+    setStatusUpdating(taskId);
     try {
       const res = await fetch("/api/tasks", {
         method: "PUT",
@@ -270,6 +274,8 @@ export default function AdminTasks() {
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setStatusUpdating(null);
     }
   };
 
@@ -594,10 +600,11 @@ export default function AdminTasks() {
                                     onClick={() =>
                                       handleStatusUpdate(task.id, "in_progress")
                                     }
-                                    className="p-1.5 rounded-lg hover:bg-blue-500/10 text-blue-500 transition-all"
+                                    disabled={statusUpdating !== null}
+                                    className="p-1.5 rounded-lg hover:bg-blue-500/10 text-blue-500 transition-all disabled:opacity-40 disabled:cursor-wait"
                                     title="Mark In Progress"
                                   >
-                                    <Clock className="w-3.5 h-3.5" />
+                                    {statusUpdating === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
                                   </button>
                                 )}
                                 {task.status !== "blocked" && (
@@ -605,20 +612,22 @@ export default function AdminTasks() {
                                     onClick={() =>
                                       handleStatusUpdate(task.id, "blocked")
                                     }
-                                    className="p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all"
+                                    disabled={statusUpdating !== null}
+                                    className="p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all disabled:opacity-40 disabled:cursor-wait"
                                     title="Mark Blocked"
                                   >
-                                    <AlertTriangle className="w-3.5 h-3.5" />
+                                    {statusUpdating === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
                                   </button>
                                 )}
                                 <button
                                   onClick={() =>
                                     handleStatusUpdate(task.id, "completed")
                                   }
-                                  className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-emerald-500 transition-all"
+                                  disabled={statusUpdating !== null}
+                                  className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-emerald-500 transition-all disabled:opacity-40 disabled:cursor-wait"
                                   title="Mark Completed"
                                 >
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  {statusUpdating === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                                 </button>
                               </>
                             )}
@@ -804,28 +813,34 @@ export default function AdminTasks() {
                   <div className="flex gap-2">
                     <select
                       value={assignValue}
+                      disabled={assigningUser}
                       onChange={async (e) => {
                         const val = e.target.value;
                         if (!val) return;
-                        const res = await fetch(`/api/tasks`, {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            id: viewingTask.id,
-                            assigned_to: val,
-                          }),
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                          setViewingTask((prev) => ({
-                            ...prev,
-                            assigned_to: val,
-                          }));
-                        } else {
-                          alert(data.error || "Failed to assign");
+                        setAssigningUser(true);
+                        try {
+                          const res = await fetch(`/api/tasks`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              id: viewingTask.id,
+                              assigned_to: val,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            setViewingTask((prev) => ({
+                              ...prev,
+                              assigned_to: val,
+                            }));
+                          } else {
+                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || 'Failed to assign' } }));
+                          }
+                        } catch (_) {} finally {
+                          setAssigningUser(false);
                         }
                       }}
-                      className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all appearance-none cursor-pointer"
+                      className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-wait"
                     >
                       <option value="">Unassigned</option>
                       {allUsers.map((u) => (
@@ -852,7 +867,8 @@ export default function AdminTasks() {
                               handleStatusUpdate(viewingTask.id, s);
                               setViewingTask(null);
                             }}
-                            className={`text-[8px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border transition-all ${STATUS_CONFIG[s]?.bg} ${STATUS_CONFIG[s]?.color} ${STATUS_CONFIG[s]?.border} hover:brightness-110`}
+                            disabled={statusUpdating !== null}
+                            className={`text-[8px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border transition-all ${STATUS_CONFIG[s]?.bg} ${STATUS_CONFIG[s]?.color} ${STATUS_CONFIG[s]?.border} hover:brightness-110 disabled:opacity-40 disabled:cursor-wait`}
                           >
                             {t(
                               "status." +
