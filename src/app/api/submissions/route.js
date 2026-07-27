@@ -17,6 +17,7 @@ export async function POST(req) {
       "super_admin",
       "program_manager",
       "participant",
+      "team",
     ]);
     if (authError) return authError;
     const body = await req.json();
@@ -25,6 +26,7 @@ export async function POST(req) {
       deliverable_id,
       group_id,
       participant_id,
+      team_id,
       submission_link,
       file_path,
       file_url,
@@ -88,6 +90,7 @@ export async function POST(req) {
         finalDocumentId,
         group_id || null,
         participant_id || null,
+        team_id || null,
         resolvedFileUrl,
         supporting_url || null,
         status || "pending",
@@ -121,6 +124,7 @@ export async function PATCH(req) {
       "staff",
       "super_admin",
       "program_manager",
+      "teacher",
     ]);
     if (authError) return authError;
     const {
@@ -163,7 +167,7 @@ export async function PATCH(req) {
     // 1. Fetch current submission & participant details for notification
     const subRes = await db.execute({
       sql: `
-           SELECT s.program_id, s.participant_id,
+           SELECT s.id, s.program_id, s.participant_id, s.team_id,
                   c.email, c.name as participant_name,
                   d.title as deliverable_title, prog.assigned_pm_id,
                   prog.name as program_name
@@ -239,7 +243,6 @@ export async function PATCH(req) {
 
     // 4. Dispatch In-App Notification to Participant (non-blocking)
     if (sub && sub.participant_id) {
-      const statusLabel = status?.replace(/_/g, " ") || "reviewed";
       try {
         let notifTitle = `Submission ${statusLabel}`;
         let notifMessage = feedback
@@ -257,7 +260,6 @@ export async function PATCH(req) {
         });
       } catch (_) {}
 
-      // Also try email if we have an email
       if (sub.email) {
         try {
           let emailBody = `Hello ${sub.participant_name || ""},\n\nYour submission for "${sub.deliverable_title || ""}" has been reviewed.\n\nStatus: ${statusLabel}\n`;
@@ -288,6 +290,7 @@ export async function GET(req) {
     await initDb();
     const { searchParams } = new URL(req.url);
     const participant_id = searchParams.get("participant_id");
+    const team_id = searchParams.get("team_id");
     const group_id = searchParams.get("group_id");
     const program_id = searchParams.get("program_id");
     const deliverable_id = searchParams.get("deliverable_id");
@@ -313,6 +316,10 @@ export async function GET(req) {
     if (participant_id) {
       sql += " AND s.participant_id = ?";
       args.push(participant_id);
+    }
+    if (team_id) {
+      sql += " AND s.team_id = ?";
+      args.push(team_id);
     }
     if (group_id) {
       sql += " AND s.group_id = ?";

@@ -97,7 +97,9 @@ export default function AppTabs({
                   {tab.count}
                 </span>
               )}
-              {style.indicator(isActive)}
+              {isActive && variant === "underline" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--brand-orange)]" />
+              )}
             </div>
           </button>
         );

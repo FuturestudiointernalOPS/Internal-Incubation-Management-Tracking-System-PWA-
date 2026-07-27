@@ -40,7 +40,7 @@ export const POST = createHandler(
 );
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin"] },
+  { roles: ["staff", "super_admin", "program_manager", "team", "participant"] },
   async (req) => {
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");

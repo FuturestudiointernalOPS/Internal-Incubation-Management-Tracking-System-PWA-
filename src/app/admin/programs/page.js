@@ -603,6 +603,16 @@ export default function ProgramManagement() {
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/admin/programs/${p?.id}/teams`);
+                              }}
+                              title="Manage Teams"
+                              className="p-2 hover:text-[var(--brand-orange)]"
+                            >
+                              <Users className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={(e) =>
                                 handleArchiveAction(p?.id, true, e)
                               }

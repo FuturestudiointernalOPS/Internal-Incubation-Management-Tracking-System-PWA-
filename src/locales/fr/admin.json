@@ -117,9 +117,6 @@
     "addKpi": "Ajouter KPI",
     "startDate": "Date de début",
     "endDate": "Date de fin",
-    "programPersonnel": "Personnel du programme",
-    "selectManager": "Sélectionner le gestionnaire",
-    "unassigned": "Non assigné",
     "curriculumMaterials": "Matériel pédagogique (PDF)",
     "noProgramPdfs": "Aucun PDF spécifique au programme n'a été importé.",
     "uploadPdf": "Importer un PDF",
@@ -127,6 +124,27 @@
     "assignProgramToGroups": "Assigner ce programme à des cohortes ou familles spécifiques.",
     "copyLink": "Copier le lien",
     "copied": "Copié !",
-    "createNewGroup": "+ Créer un nouveau groupe"
+    "createNewGroup": "+ Créer un nouveau groupe",
+    "teams": {
+      "title": "Gestion des équipes",
+      "subtitle": "Gérer les équipes et les affectations de participants pour ce programme",
+      "createTeam": "Créer une équipe",
+      "editTeam": "Modifier l'équipe",
+      "deleteTeam": "Supprimer l'équipe",
+      "teamName": "Nom de l'équipe",
+      "teamNamePlaceholder": "Entrez le nom de l'équipe...",
+      "handler": "Responsable",
+      "handlerPlaceholder": "Sélectionner un responsable...",
+      "members": "Membres",
+      "membersCount": "{{count}} membres",
+      "selectMembers": "Sélectionner les participants...",
+      "noTeams": "Aucune équipe créée",
+      "noTeamsDesc": "Créez une équipe pour organiser les participants en groupes",
+      "createSuccess": "Équipe créée avec succès",
+      "updateSuccess": "Équipe mise à jour avec succès",
+      "deleteSuccess": "Équipe supprimée avec succès",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette équipe ? Cette action est irréversible.",
+      "backToPrograms": "Retour aux programmes"
+    }
   }
 }
