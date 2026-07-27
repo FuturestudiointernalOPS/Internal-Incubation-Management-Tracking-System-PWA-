@@ -3033,7 +3033,10 @@ export default function StaffOpReport() {
                       </h3>
                       {(() => {
                         const carryOverTasks = summaryTasks.filter(
-                          (t) => t.status !== "completed",
+                          (t) =>
+                            ["pending", "in_progress", "blocked"].includes(
+                              t.status,
+                            ),
                         );
                         if (carryOverTasks.length === 0)
                           return (

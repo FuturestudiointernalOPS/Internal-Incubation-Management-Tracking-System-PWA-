@@ -8,23 +8,46 @@ export const GET = createHandler(async (req) => {
   const week_number = searchParams.get("week");
   const year = searchParams.get("year");
 
-  let sql =
-    "SELECT * FROM tasks WHERE status IN ('carried_over', 'in_progress', 'blocked')";
-  const args = [];
+  // Fetch in_progress and blocked tasks — these always need carryover consideration.
+  // For 'carried_over' tasks: only include them if their cloned copy has NOT been completed
+  // or archived. This prevents completed carried-over tasks from re-appearing each week.
+  let sql = `
+    SELECT * FROM tasks
+    WHERE status IN ('in_progress', 'blocked')
+    UNION
+    SELECT t.* FROM tasks t
+    WHERE t.status = 'carried_over'
+      AND NOT EXISTS (
+        SELECT 1 FROM tasks clone
+        WHERE clone.carried_over_from_task_id = t.id
+          AND clone.status IN ('completed', 'archived')
+      )
+  `;
+  const baseArgs = [];
+
+  // Wrap with user/week/year filters
+  const filterClauses = [];
+  const filterArgs = [];
   if (user_id) {
-    sql += " AND user_id = ?";
-    args.push(user_id);
+    filterClauses.push("user_id = ?");
+    filterArgs.push(user_id);
   }
   if (week_number) {
-    sql += " AND created_week <= ?";
-    args.push(parseInt(week_number));
+    filterClauses.push("created_week <= ?");
+    filterArgs.push(parseInt(week_number));
   }
   if (year) {
-    sql += " AND created_year = ?";
-    args.push(parseInt(year));
+    filterClauses.push("created_year = ?");
+    filterArgs.push(parseInt(year));
   }
-  sql += " ORDER BY created_at DESC";
 
+  if (filterClauses.length > 0) {
+    sql = `SELECT * FROM (${sql}) AS eligible WHERE ${filterClauses.join(" AND ")} ORDER BY created_at DESC`;
+  } else {
+    sql = `SELECT * FROM (${sql}) AS eligible ORDER BY created_at DESC`;
+  }
+
+  const args = [...baseArgs, ...filterArgs];
   const result = await db.execute({ sql, args });
   const tasksWithBlockers = await Promise.all(
     result.rows.map(async (task) => {
