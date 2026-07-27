@@ -1127,40 +1127,12 @@ export default function StaffOpReport() {
                               `/api/tasks?user_id=${userId}&sort=oldest`,
                             );
                             const data = await res.json();
-                            const allTasks = data.tasks || [];
-
-                            // Build forward-link map for carryover chain walking
-                            const forwardLinks = {};
-                            allTasks.forEach((t) => {
-                              if (t.carried_over_from_task_id) {
-                                const key = String(t.carried_over_from_task_id);
-                                if (!forwardLinks[key]) forwardLinks[key] = [];
-                                forwardLinks[key].push(t);
-                              }
-                            });
-
-                            // Walk the carryover chain forward to find the latest status
-                            function getLatestInChain(task) {
-                              let latest = task;
-                              let currentId = task.id;
-                              while (true) {
-                                const next = forwardLinks[String(currentId)];
-                                if (!next || next.length === 0) break;
-                                latest = next[next.length - 1];
-                                currentId = latest.id;
-                              }
-                              return latest;
-                            }
-
-                            const prevWeekTasks = allTasks.filter(
+                            const prevWeekTasks = (data.tasks || []).filter(
                               (t) =>
                                 !["archived", "completed"].includes(t.status) &&
                                 !t.parent_task_id &&
                                 (t.created_week !== curWeek ||
-                                  t.created_year !== curYear) &&
-                                // For carried_over tasks: follow chain. If latest clone is completed, exclude.
-                                (t.status !== "carried_over" ||
-                                  getLatestInChain(t).status !== "completed"),
+                                  t.created_year !== curYear),
                             );
 
                             if (prevWeekTasks.length > 0) {

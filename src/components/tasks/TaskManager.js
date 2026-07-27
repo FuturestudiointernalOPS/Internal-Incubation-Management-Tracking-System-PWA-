@@ -726,48 +726,16 @@ export default function TaskManager({
     return tasks;
   }, [tasks, mode, effectiveWeekInfo]);
 
-  const carryOverTasks = useMemo(() => {
-    // Build forward-link map: task_id → tasks that cloned it
-    const forwardLinks = {};
-    tasks.forEach((t) => {
-      if (t.carried_over_from_task_id) {
-        const key = String(t.carried_over_from_task_id);
-        if (!forwardLinks[key]) forwardLinks[key] = [];
-        forwardLinks[key].push(t);
-      }
-    });
-
-    // Walk the carryover chain forward to find the latest status
-    function getLatestInChain(task) {
-      let latest = task;
-      let currentId = task.id;
-      while (true) {
-        const next = forwardLinks[String(currentId)];
-        if (!next || next.length === 0) break;
-        latest = next[next.length - 1];
-        currentId = latest.id;
-      }
-      return latest;
-    }
-
-    return tasks.filter((t) => {
-      // Must be incomplete and not archived
-      if (["completed", "archived"].includes(t.status)) return false;
-      // Must be from a previous week
-      if (t.created_week === effectiveWeekInfo?.week) return false;
-      // Must not be a subtask
-      if (t.parent_task_id) return false;
-
-      // For carried_over tasks: follow the chain. If the latest clone
-      // in the chain is completed, this task's work is done — hide it.
-      if (t.status === "carried_over") {
-        const latest = getLatestInChain(t);
-        if (latest.status === "completed") return false;
-      }
-
-      return true;
-    });
-  }, [tasks, effectiveWeekInfo]);
+  const carryOverTasks = useMemo(
+    () =>
+      tasks.filter(
+        (t) =>
+          !["completed", "archived"].includes(t.status) &&
+          t.created_week !== effectiveWeekInfo?.week &&
+          !t.parent_task_id,
+      ),
+    [tasks, effectiveWeekInfo],
+  );
 
   const activeTasks = useMemo(
     () =>
