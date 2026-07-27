@@ -91,7 +91,7 @@ export default function SystemMonitoringPage() {
         fetch("/api/system/reports?limit=10"),
       ]);
       const [statusData, healthData, alertStatsData, apiData, storageData, dbData, jobsData, jobStatsData, reportsData] =
-        await Promise.all([statusRes.json(), healthRes.json(), alertStatsRes.json(), apiRes.json(), storageRes.json(), dbRes.json(), jobsRes.json(), jobStatsRes.json(), reportsRes.json()]);
+        await Promise.all([statusRes.json(), healthRes.json(), alertsRes.json(), apiRes.json(), storageRes.json(), dbRes.json(), jobsRes.json(), jobStatsRes.json(), reportsRes.json()]);
       if (statusData.success) setStatus(statusData);
       if (healthData.success) setHealth(healthData.results || healthData.checks || []);
       if (apiData.success) setApiMonitor(apiData);
