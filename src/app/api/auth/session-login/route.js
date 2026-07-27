@@ -157,6 +157,12 @@ export async function POST(req) {
         finalRole = "super_admin";
       } else if (user.role === "developer") {
         finalRole = "developer";
+      } else if (user.role === "investor") {
+        // Explicit DB role must win over the activeTeammateAssignment fallback below —
+        // otherwise an investor account that also happens to match a stray v2_teams
+        // handler_id (or v2_programs assistant) silently loses investor-only
+        // document visibility restrictions and is treated as a teacher.
+        finalRole = "investor";
       } else if (pmLeadAssignment.rows.length > 0) {
         finalRole = "program_manager";
       } else if (user.role === "program_manager") {

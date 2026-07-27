@@ -31,6 +31,7 @@ import enTime from "@/locales/en/time.json";
 import enFinance from "@/locales/en/finance.json";
 import enDeveloper from "@/locales/en/developer.json";
 import enMessaging from "@/locales/en/messaging.json";
+import enVenture from "@/locales/en/venture.json";
 
 import frCommon from "@/locales/fr/common.json";
 import frAuth from "@/locales/fr/auth.json";
@@ -47,6 +48,7 @@ import frTime from "@/locales/fr/time.json";
 import frFinance from "@/locales/fr/finance.json";
 import frDeveloper from "@/locales/fr/developer.json";
 import frMessaging from "@/locales/fr/messaging.json";
+import frVenture from "@/locales/fr/venture.json";
 
 // ─── Deep merge: recursively merges objects ───
 function deepMerge(target, source) {
@@ -78,6 +80,7 @@ const EN = [
   enFinance,
   enDeveloper,
   enMessaging,
+  enVenture,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
 
 const FR = [
@@ -96,6 +99,7 @@ const FR = [
   frFinance,
   frDeveloper,
   frMessaging,
+  frVenture,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
 
 export const LOCALE_REGISTRY = {
