@@ -8,6 +8,21 @@ import { Pool } from "pg";
  */
 
 let pgPool = null;
+let poolErrorCount = 0;
+const MAX_POOL_ERRORS = 5;
+
+/**
+ * Reset the pool entirely, forcing creation of fresh connections.
+ */
+const resetPool = () => {
+  if (pgPool) {
+    try {
+      pgPool.end().catch(() => {});
+    } catch (_) {}
+    pgPool = null;
+  }
+  poolErrorCount = 0;
+};
 
 const getPool = () => {
   if (pgPool) return pgPool;
@@ -45,9 +60,24 @@ const getPool = () => {
 
     // Prevent uncaughtException when idle connections fail (e.g. read ETIMEDOUT)
     pgPool.on("error", (err) => {
-      console.error(
-        ` forensics | Pool error — idle client failed: ${err.message}`,
-      );
+      poolErrorCount++;
+      if (poolErrorCount <= 3) {
+        console.error(
+          ` forensics | Pool connection dropped: ${err.message}. ` +
+          `Auto-recovery active (${poolErrorCount}/${MAX_POOL_ERRORS}).`,
+        );
+      }
+      if (poolErrorCount >= MAX_POOL_ERRORS) {
+        console.warn(
+          " forensics | Too many pool errors. Recycling connection pool.",
+        );
+        resetPool();
+      }
+    });
+
+    // Remove idle connections more aggressively to avoid stale sockets
+    pgPool.on("remove", (client) => {
+      // Connection was removed from pool — normal lifecycle
     });
 
     return pgPool;
@@ -96,6 +126,43 @@ const execute = async (queryObj) => {
       lastInsertRowid: result.rows[0]?.id || null,
     };
   } catch (err) {
+    // Detect connection-level errors and retry once with a fresh pool
+    const isConnError =
+      err.message?.includes("Connection terminated") ||
+      err.message?.includes("read ETIMEDOUT") ||
+      err.message?.includes("ECONNRESET") ||
+      err.message?.includes("socket hang up") ||
+      err.message?.includes("getaddrinfo") ||
+      err.code === "ECONNRESET" ||
+      err.code === "ETIMEDOUT";
+
+    if (isConnError) {
+      console.warn(
+        ` forensics | Connection error detected, recycling pool and retrying...`,
+      );
+      resetPool();
+      const freshPool = getPool();
+      if (freshPool) {
+        try {
+          const retryResult = await freshPool.query(pgSql, args);
+          const retryDuration = Date.now() - start;
+          console.warn(
+            ` forensics | Retry succeeded (${retryDuration}ms)`,
+          );
+          return {
+            rows: retryResult.rows,
+            columns: retryResult.fields ? retryResult.fields.map((f) => f.name) : [],
+            rowsAffected: retryResult.rowCount,
+            lastInsertRowid: retryResult.rows[0]?.id || null,
+          };
+        } catch (retryErr) {
+          console.error(
+            ` forensics | Retry also failed: ${retryErr.message}`,
+          );
+        }
+      }
+    }
+
     console.error(" forensics | Supabase DB Error:", err.message);
     console.error(" forensics | Failing Query:", sql);
     throw err;

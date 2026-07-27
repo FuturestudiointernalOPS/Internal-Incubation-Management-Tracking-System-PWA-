@@ -18,6 +18,7 @@ import {
   Shield,
   Target,
   Zap,
+  Rocket,
   Clock,
   AlertCircle,
   Trash2,
@@ -1306,17 +1307,45 @@ export default function ProgramWorkspace() {
                       </div>
                       <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
                         <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                          Healthy
+                          {team.is_venture_ready ? "Venture Ready" : "In Program"}
                         </span>
+                        <div className="flex gap-2">
                         <button
                           onClick={() => {
                             setSelectedTeam(team);
                             setShowTeamDetails(true);
                           }}
-                          className="text-[var(--brand-blue)] text-xs font-bold uppercase flex items-center gap-1"
+                          className="btn btn-secondary btn-sm"
                         >
-                          Details <ChevronRight className="w-4 h-4" />
+                          <ChevronRight className="w-3 h-3" /> View
                         </button>
+                        {team.is_venture_ready && !team.venture_id && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Promote "${team.name}" to Venture OS?`)) return;
+                              try {
+                                const res = await fetch("/api/ventures/promote", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ team_id: team.id }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  notify("Venture promoted!");
+                                  fetchProgramData(true);
+                                } else {
+                                  notify(data.error || "Promotion failed.", "error");
+                                }
+                              } catch (e) {
+                                notify("Network error.", "error");
+                              }
+                            }}
+                            className="btn btn-primary btn-sm"
+                          >
+                            <Zap className="w-3 h-3" /> Promote
+                          </button>
+                        )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2124,187 +2153,17 @@ export default function ProgramWorkspace() {
                                   Weekly Resources
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {canContribute && (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        setMaterialSessionId(session.id);
-                                        setMaterialName("");
-                                        setMaterialUrl("");
-                                        setShowMaterialModal(true);
-                                      }}
-                                      className="text-[9px] font-black text-blue-400 uppercase hover:underline cursor-pointer flex items-center gap-1"
-                                    >
-                                      <Plus className="w-3 h-3" /> Add Link
-                                    </button>
-                                    <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
-                                      <Plus className="w-3 h-3" /> Upload
-                                      <input
-                                        type="file"
-                                        accept=".pdf"
-                                        className="hidden"
-                                        onChange={async (e) => {
-                                          const file = e.target.files[0];
-                                          if (!file) return;
-                                          notify("Syncing material...", "info");
-                                          try {
-                                            const res = await fetch(
-                                              "/api/pm/curriculum",
-                                              {
-                                                method: "POST",
-                                                headers: {
-                                                  "Content-Type":
-                                                    "application/json",
-                                                },
-                                                body: JSON.stringify({
-                                                  action: "anchor_material",
-                                                  program_id: id,
-                                                  session_id: session.id,
-                                                  file_name: file.name,
-                                                }),
-                                              },
-                                            );
-                                            if ((await res.json()).success) {
-                                              notify("Material anchored.");
-                                              fetchProgramData(true);
-                                            }
-                                          } catch (e) {
-                                            notify("Upload failed.", "error");
-                                          }
-                                        }}
-                                      />
-                                    </label>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="space-y-6">
-                              {/* ── SUPER ADMIN GUIDELINES ── */}
-                              {(program?.knowledge_assets || []).length > 0 && (
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2 pb-1">
-                                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-                                    <span className="text-[8px] font-black uppercase tracking-[0.15em] text-emerald-500">
-                                      Super Admin Guidelines
-                                    </span>
-                                    <div className="flex-1 h-px bg-gradient-to-r from-emerald-500/20 to-transparent" />
-                                  </div>
-                                  {(program?.knowledge_assets || []).map(
-                                    (kb, kIdx) => (
-                                      <div
-                                        key={`kb-${kIdx}`}
-                                        className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20 flex items-center justify-between group/asset shadow-sm"
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <BookOpen className="w-4 h-4 text-emerald-500 shrink-0" />
-                                          <div className="min-w-0">
-                                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
-                                              {kb.name || "Core Asset"}
-                                            </p>
-                                            <p className="text-[7px] text-emerald-600 font-black uppercase tracking-widest mt-0.5">
-                                              Program Guideline
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <button
-                                          onClick={() =>
-                                            setActivePDF({
-                                              url: kb.url,
-                                              name: kb.name,
-                                            })
-                                          }
-                                          className="shrink-0 px-3 py-1.5 bg-emerald-500/10 rounded-lg text-[8px] font-black text-emerald-600 uppercase hover:bg-emerald-500/20 transition-all border border-emerald-500/10"
-                                        >
-                                          View
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                </div>
-                              )}
-
-                              {/* ── WEEKLY SESSION MATERIALS ── */}
-                              {(() => {
-                                let sessionMaterials = [];
-                                try {
-                                  const raw = session.extra_materials;
-                                  sessionMaterials =
-                                    typeof raw === "string"
-                                      ? JSON.parse(raw || "[]")
-                                      : raw || [];
-                                } catch (e) {
-                                  sessionMaterials = [];
-                                }
-
-                                if (
-                                  sessionMaterials.length === 0 &&
-                                  !(program?.knowledge_assets || []).length
-                                ) {
-                                  return (
-                                    <div className="py-8 text-center opacity-20 italic space-y-2">
-                                      <Clock className="w-6 h-6 mx-auto" />
-                                      <p className="text-[9px] font-bold uppercase">
-                                        No Materials
-                                      </p>
-                                    </div>
-                                  );
-                                }
-
-                                if (sessionMaterials.length === 0) return null;
-
-                                return (
-                                  <div className="space-y-3">
-                                    <div className="flex items-center gap-2 pb-1">
-                                      <Zap className="w-3.5 h-3.5 text-blue-500" />
-                                      <span className="text-[8px] font-black uppercase tracking-[0.15em] text-blue-500">
-                                        Weekly Documents
-                                      </span>
-                                      <div className="flex-1 h-px bg-gradient-to-r from-blue-500/20 to-transparent" />
-                                    </div>
-                                    {sessionMaterials.map((mat, mIdx) => (
-                                      <div
-                                        key={`mat-${mIdx}`}
-                                        className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/20 flex items-center justify-between group/asset shadow-sm"
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <Zap className="w-4 h-4 text-blue-500 shrink-0" />
-                                          <div className="min-w-0">
-                                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
-                                              {mat.name}
-                                            </p>
-                                            <p className="text-[7px] text-blue-600 font-black uppercase tracking-widest mt-0.5">
-                                              {mat.url
-                                                ? "External Link"
-                                                : "Session Material"}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                          <button className="px-3 py-1.5 bg-blue-500/10 rounded-lg text-[8px] font-black text-blue-600 uppercase hover:bg-blue-500/20 transition-all border border-blue-500/10">
-                                            View
-                                          </button>
-                                          {canEdit && (
-                                            <button className="p-1.5 bg-rose-500/5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/10">
-                                              <Trash2 className="w-3 h-3" />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                );
-                              })()}
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  ))
+                }
               </div>
             </div>
           )}
+<<<<<<< HEAD
 
           {activeTab === "attendance" && (
             <div className="space-y-6 animate-in">
@@ -5366,111 +5225,9 @@ export default function ProgramWorkspace() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* ADD MATERIAL MODAL */}
-      {showMaterialModal && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowMaterialModal(false)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Add Link
-              </h3>
-              <button onClick={() => setShowMaterialModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Material Name
-                </label>
-                <input
-                  value={materialName}
-                  onChange={(e) => setMaterialName(e.target.value)}
-                  placeholder="e.g. Design Guide"
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  URL or Note
-                </label>
-                <input
-                  value={materialUrl}
-                  onChange={(e) => setMaterialUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowMaterialModal(false)}
-                className="flex-1 btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (!materialName.trim() || !materialUrl.trim()) return;
-                  const current = (() => {
-                    try {
-                      const sessionData = sessions.find(
-                        (s) => s.id === materialSessionId,
-                      );
-                      if (!sessionData) return [];
-                      return typeof sessionData.extra_materials === "string"
-                        ? JSON.parse(sessionData.extra_materials)
-                        : sessionData.extra_materials || [];
-                    } catch {
-                      return [];
-                    }
-                  })();
-                  updateSessionField(materialSessionId, "extra_materials", [
-                    ...current,
-                    {
-                      name: materialName.trim(),
-                      url: materialUrl.trim(),
-                      type: "link",
-                    },
-                  ]);
-                  setShowMaterialModal(false);
-                }}
-                disabled={!materialName.trim() || !materialUrl.trim()}
-                className="flex-1 btn btn-primary"
-              >
-                Add Material
-              </button>
-            </div>
-          </div>
         </div>
       )}
+      </div>
     </DashboardLayout>
   );
 }

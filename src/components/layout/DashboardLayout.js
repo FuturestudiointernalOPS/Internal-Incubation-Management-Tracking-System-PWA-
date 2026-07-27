@@ -35,6 +35,7 @@ import {
   Wrench,
   CheckSquare,
   Megaphone,
+  HeartPulse,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -285,6 +286,23 @@ const NAVIGATION_MATRIX = {
     },
 
     {
+      id: "ventures",
+      name: "VENTURES",
+      icon: Rocket,
+      subItems: [
+        { id: "all_ventures", name: "ALL VENTURES", href: "/admin/ventures" },
+        {
+          id: "register_venture",
+          name: "REGISTER STARTUP",
+          href: "/admin/ventures/register",
+        },
+        { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
+        { id: "security", name: "SECURITY", href: "/admin/security" },
+        { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
+      ],
+    },
+
+    {
       id: "internal_ops",
       name: "Internal Ops",
       icon: ListTodo,
@@ -390,6 +408,12 @@ const NAVIGATION_MATRIX = {
         },
         { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
       ],
+    },
+    {
+      id: "system",
+      name: "SYSTEM MONITORING",
+      icon: HeartPulse,
+      href: "/admin/system",
     },
   ],
   admin: [
@@ -668,6 +692,9 @@ const NAV_RESPONSIBILITY_MAP = {
   reports: "reporting",
   permissions: "user_management",
   // Nav sections with custom naming
+  ventures: "program_management",
+  all_ventures: "program_management",
+  register_venture: "program_management",
   internal_ops: "operations",
   // Additional nav items from other role matrices
   dashboard: null, // always visible
