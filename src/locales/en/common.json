@@ -48,7 +48,49 @@
     "send": "Send",
     "targeting": "Targeting",
     "target": "Target",
-    "audience": "Audience"
+    "audience": "Audience",
+    "allPrograms": "All Programs",
+    "due": "Due:",
+    "resolve": "Resolve",
+    "project": "Project:"
+  },
+  "dashboard": {
+    "myTasks": "My Tasks",
+    "assignedToMe": "Assigned To Me",
+    "awaitingAction": "awaiting action",
+    "assignedBy": "Assigned by:",
+    "attentionRequired": "Attention Required",
+    "overdueTasks": "Overdue Tasks",
+    "criticalBlockers": "Critical Blockers",
+    "dueToday": "Due Today",
+    "weeklyStandup": "Weekly Standup",
+    "submitReport": "View or submit your weekly operational report",
+    "myPrograms": "My Programs",
+    "noPrograms": "No programs",
+    "progress": "Progress",
+    "openReport": "Open Report",
+    "noActiveTasks": "No active tasks",
+    "recentActivity": "Recent Activity",
+    "quickStats": "Quick Stats",
+    "programs": "Programs",
+    "openTasks": "Open Tasks",
+    "activeBlockers": "Active Blockers",
+    "overdue": "Overdue",
+    "myProjects": "My Projects",
+    "noProjects": "No projects assigned",
+    "noActiveBlockers": "No active blockers",
+    "thisWeek": "This Week",
+    "moreTasks": "more tasks"
+  },
+  "roles": {
+    "owner": "Owner",
+    "collaborator": "Collaborator"
+  },
+  "activity": {
+    "task created": "Task created",
+    "task completed": "Task completed",
+    "blocker resolved": "Blocker resolved",
+    "task assigned": "Task assigned"
   },
   "announcements": {
     "title": "Announcements",

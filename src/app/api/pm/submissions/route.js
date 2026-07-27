@@ -22,7 +22,7 @@ export const GET = createHandler(
       args: [assignedPmId],
     });
     const programs = progRes.rows || [];
-    const programIds = programs.map((p) => p.id);
+    const programIds = programs.map((p) => String(p.id));
 
     if (programIds.length === 0) {
       return NextResponse.json({ success: true, submissions: [], programs });
@@ -33,11 +33,11 @@ export const GET = createHandler(
       sql: `SELECT s.*, d.title as deliverable_title, d.week_number as deliverable_week,
                    c.name as participant_name, c.group_name as participant_group,
                    prog.grading_mode
-            FROM v2_submissions s
-            LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
-            LEFT JOIN contacts c ON s.participant_id::text = c.cid
-            LEFT JOIN v2_programs prog ON s.program_id::text = prog.id::text
-            WHERE s.program_id IN (${placeholders})
+            			FROM v2_submissions s
+                        LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
+                        LEFT JOIN contacts c ON s.participant_id::text = c.cid
+                        LEFT JOIN v2_programs prog ON s.program_id::text = prog.id::text
+                        WHERE s.program_id::text IN (${placeholders})
             ORDER BY s.created_at DESC`,
       args: programIds,
     });

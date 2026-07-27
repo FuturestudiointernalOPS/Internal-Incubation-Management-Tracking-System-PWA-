@@ -79,7 +79,14 @@ export async function GET(req) {
       },
       {
         name: "submissions",
-        sql: "SELECT * FROM v2_submissions WHERE program_id = ?",
+        sql: `SELECT s.*, 
+                     COALESCE(c.name, vp.name) as participant_name, 
+                     d.title as deliverable_title
+              FROM v2_submissions s
+              LEFT JOIN contacts c ON s.participant_id = c.cid OR s.participant_id = CAST(c.id AS TEXT)
+              LEFT JOIN v2_participants vp ON s.participant_id = CAST(vp.id AS TEXT)
+              LEFT JOIN v2_document_requirements d ON s.deliverable_id = CAST(d.id AS TEXT)
+              WHERE s.program_id = ?`,
         args: [id],
       },
       {

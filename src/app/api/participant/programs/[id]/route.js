@@ -43,7 +43,7 @@ export async function GET(req, { params }) {
       if (!isAssigned) {
         try {
           const ppRes = await db.execute({
-            sql: "SELECT 1 FROM participant_programs WHERE participant_id = ? AND program_id = ?",
+            sql: "SELECT 1 FROM participant_programs WHERE participant_id::text = ? AND program_id = ?",
             args: [cid, programId],
           });
           if (ppRes.rows.length > 0) isAssigned = true;
@@ -103,11 +103,11 @@ export async function GET(req, { params }) {
           args: [programId],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ? ORDER BY created_at DESC",
           args: [cid, programId],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ? ORDER BY date ASC",
+          sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id = ? ORDER BY a.created_at ASC",
           args: [cid, programId],
         }),
         db.execute({
@@ -237,7 +237,7 @@ export async function GET(req, { params }) {
     for (const [wn, data] of weekMap) {
       const completedDels = data.deliverables.filter((d) =>
         submissions.some(
-          (s) => s.document_id === d.id && s.status === "approved",
+          (s) => String(s.deliverable_id) === String(d.id) && s.status === "approved",
         ),
       ).length;
       
@@ -248,7 +248,7 @@ export async function GET(req, { params }) {
         sessions: data.sessions,
         locked: !isWeekUnlocked,
         deliverables: data.deliverables.map((d) => {
-          const sub = submissions.find((s) => s.document_id === d.id);
+          const sub = submissions.find((s) => String(s.deliverable_id) === String(d.id));
           return {
             id: d.id,
             title: d.title,
@@ -310,10 +310,13 @@ export async function GET(req, { params }) {
       return true;
     });
 
+    const unlockedWeeks = weeks.filter((w) => !w.locked);
+    const unlockedDeliverables = unlockedWeeks.flatMap((w) => w.deliverables);
+
     const totalDeliverables = unlockedDeliverables.length || 1;
     const completedDeliverables = unlockedDeliverables.filter((d) =>
       submissions.some(
-        (s) => s.document_id === d.id && s.status === "approved",
+        (s) => String(s.deliverable_id) === String(d.id) && s.status === "approved",
       ),
     ).length;
     const percentComplete = Math.round(

@@ -156,10 +156,10 @@ export async function GET(req) {
                 FROM blockers b JOIN tasks t ON b.task_id = t.id
                 WHERE b.status = 'active' GROUP BY t.project_id
               ) b_stats ON p.id = b_stats.project_id
-              WHERE (p.owner_id = ? OR EXISTS (
+              WHERE (p.owner_id::text = ?::text OR EXISTS (
                 SELECT 1 FROM project_members pm
-                WHERE pm.project_id::text = p.id::text AND pm.user_cid = ? AND pm.role = 'lead'
-              )) OR ? IN ('super_admin', 'admin')
+                WHERE pm.project_id::text = p.id::text AND pm.user_cid::text = ?::text AND pm.role = 'lead'
+              )) OR ?::text IN ('super_admin', 'admin')
               ORDER BY p.created_at DESC`,
         args: [userId, userId, role],
       }),
@@ -172,16 +172,16 @@ export async function GET(req) {
 
       // 12. Recent activity
       db.execute({
-        sql: `(SELECT 'task_completed' AS action, title AS description, updated_at AS timestamp, user_id
-               FROM tasks WHERE (user_id = ? OR assigned_to = ?) AND status = 'completed'
+        sql: `(SELECT 'task_completed' AS action, title AS description, updated_at AS timestamp, user_id::text
+               FROM tasks WHERE (user_id::text = ?::text OR assigned_to::text = ?::text) AND status = 'completed'
                ORDER BY updated_at DESC LIMIT 5)
               UNION ALL
-              (SELECT 'blocker_resolved' AS action, title AS description, resolved_at AS timestamp, resolved_by AS user_id
-               FROM blockers WHERE resolved_by = ? AND status = 'resolved'
+              (SELECT 'blocker_resolved' AS action, title AS description, resolved_at AS timestamp, resolved_by::text AS user_id
+               FROM blockers WHERE resolved_by::text = ?::text AND status = 'resolved'
                ORDER BY resolved_at DESC LIMIT 3)
               UNION ALL
-              (SELECT 'task_assigned' AS action, title AS description, created_at AS timestamp, user_id
-               FROM tasks WHERE assigned_to = ?
+              (SELECT 'task_assigned' AS action, title AS description, created_at AS timestamp, user_id::text
+               FROM tasks WHERE assigned_to::text = ?::text
                ORDER BY created_at DESC LIMIT 3)
               UNION ALL
               (SELECT action, details AS description, created_at AS timestamp, user_id
@@ -194,14 +194,14 @@ export async function GET(req) {
       // 13. Assignments (tasks assigned TO user)
       db.execute({
         sql: `SELECT id, title, status, end_date, user_name, user_id, priority, created_at
-              FROM tasks WHERE assigned_to = ? ORDER BY created_at DESC`,
+              FROM tasks WHERE assigned_to::text = ?::text ORDER BY created_at DESC`,
         args: [userId],
       }),
 
       // 14. User's own tasks (quick access)
       db.execute({
         sql: `SELECT id, title, status, end_date, priority, project_id
-              FROM tasks WHERE user_id = ?
+              FROM tasks WHERE user_id::text = ?::text
               ORDER BY
                 CASE status
                   WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1

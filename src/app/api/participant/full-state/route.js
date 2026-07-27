@@ -41,7 +41,7 @@ export async function GET(req) {
         args: [groupName],
       }),
       db.execute({
-        sql: "SELECT * FROM v2_submissions WHERE participant_id = ?",
+        sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ?",
         args: [cid],
       }),
       db.execute({
