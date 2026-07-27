@@ -730,7 +730,7 @@ export default function TaskManager({
     () =>
       tasks.filter(
         (t) =>
-          !["completed", "archived", "carried_over"].includes(t.status) &&
+          !["completed", "archived"].includes(t.status) &&
           t.created_week !== effectiveWeekInfo?.week &&
           !t.parent_task_id,
       ),
