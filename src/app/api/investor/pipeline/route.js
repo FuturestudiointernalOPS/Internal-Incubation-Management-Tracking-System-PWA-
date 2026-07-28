@@ -66,12 +66,13 @@ export async function POST(req) {
         });
         for (const a of admins.rows) {
           await db.execute({
-            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                  VALUES (?, ?, ?, 'investor', 0, NOW())`,
+            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
+                  VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
             args: [
               a.cid,
               `Meeting Requested: ${inv.venture_name || "Venture"}`,
               `${inv.investor_name || "Investor"} (${inv.organization_name || "Individual"}) requested a meeting with ${inv.venture_name || "a venture"}.`,
+              "/admin/investors/overview",
             ],
           });
         }
@@ -121,12 +122,13 @@ export async function POST(req) {
         });
         for (const a of admins.rows) {
           await db.execute({
-            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                  VALUES (?, ?, ?, 'investor', 0, NOW())`,
+            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
+                  VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
             args: [
               a.cid,
               `Investment Confirmed: ${inv.venture_name || "Venture"}`,
               `${inv.investor_name || "Investor"} (${inv.organization_name || "Individual"}) has invested in ${inv.venture_name || "a venture"}.`,
+              "/admin/investors/overview",
             ],
           });
         }
