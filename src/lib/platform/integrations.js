@@ -10,7 +10,7 @@
 
 import { logAuditEvent } from "@/lib/audit";
 import { sendEmail } from "@/lib/mailer";
-import { geminiIntelligence } from "@/lib/gemini";
+import { deepseekIntelligence } from "@/lib/deepseek";
 
 // ─── AUDIT ────────────────────────────────────────────────────────────
 
@@ -145,7 +145,7 @@ Status: ${submission.status || "submitted"}
 Submission data:
 ${fields || "No data provided"}`;
 
-    const summary = await geminiIntelligence.chat(prompt, "gemini-2.0-flash");
+    const summary = await deepseekIntelligence.chat(prompt);
     return summary;
   } catch (e) {
     console.error("[Platform AI] Summarization failed:", e.message);
@@ -174,7 +174,7 @@ ${fields || "No data"}
 
 Return ONLY valid JSON, no markdown, no extra text. Format: {"summary":"...","flags":["..."],"score":5}`;
 
-    const raw = await geminiIntelligence.chat(prompt, "gemini-2.0-flash");
+    const raw = await deepseekIntelligence.chat(prompt);
     // Extract JSON from potential markdown
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -223,7 +223,7 @@ export async function healthCheck() {
 
   // AI
   try {
-    results.ai = process.env.GOOGLE_AI_STUDIO_API_KEY ? "configured" : "unconfigured";
+    results.ai = process.env.DEEPSEEK_API_KEY ? "configured" : "unconfigured";
   } catch { results.ai = "error"; }
 
   // DB

@@ -202,6 +202,37 @@ const RULES = [
       }
     },
   },
+
+  // ── Run launched → sync deadlines to calendar ──
+  {
+    event: PLATFORM_EVENTS.RUN_LAUNCHED,
+    description: "Sync run deadlines to external calendar (if configured)",
+    action: async (ctx) => {
+      const { run } = ctx;
+      try {
+        const { syncRunDeadlines } = await import("@/lib/integrations/calendar/sync");
+        await syncRunDeadlines(run.id);
+      } catch (e) {
+        console.error("[Automation] Calendar sync failed:", e.message);
+      }
+    },
+  },
+
+  // ── Submission received → sync to Notion ──
+  {
+    event: PLATFORM_EVENTS.SUBMISSION_RECEIVED,
+    description: "Sync submission to Notion database (if configured)",
+    condition: (ctx) => ctx.submission?.status === "submitted",
+    action: async (ctx) => {
+      const { submission } = ctx;
+      try {
+        const { syncSubmission } = await import("@/lib/integrations/notion/sync");
+        await syncSubmission(submission.id);
+      } catch (e) {
+        console.error("[Automation] Notion sync failed:", e.message);
+      }
+    },
+  },
 ];
 
 // ─── ENGINE ────────────────────────────────────────────────────────

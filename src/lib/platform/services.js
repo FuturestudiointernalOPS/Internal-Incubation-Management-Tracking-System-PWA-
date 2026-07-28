@@ -44,6 +44,20 @@ export const SERVICE_DEFINITIONS = {
     optional: true,
     methods: ["summarize", "score", "generate", "evaluate"],
   },
+  calendar: {
+    name: "Calendar Sync",
+    description: "Sync Platform deadlines to Microsoft Graph or Google Calendar",
+    type: "integration",
+    optional: true,
+    methods: ["sync", "unsync", "syncAll"],
+  },
+  notion: {
+    name: "Notion Sync",
+    description: "Push submissions and runs to Notion databases",
+    type: "integration",
+    optional: true,
+    methods: ["sync", "syncAll"],
+  },
 };
 
 /**

@@ -31,6 +31,95 @@ function logTimeline(submissionId, action, actorId, actorName, meta = {}) {
   }).catch(() => {});
 }
 
+/**
+ * Calculate assessment scores for a submission.
+ * Expects submissionData to contain rating field values keyed by field label.
+ * Returns { sections, overall, ranking } or null if scoring is not configured.
+ */
+async function calculateSubmissionScores(runId, submissionData) {
+  try {
+    const run = await db.execute({
+      sql: "SELECT form_id, settings FROM platform_form_runs WHERE id = ?",
+      args: [parseInt(runId)],
+    });
+    if (run.rows.length === 0) return null;
+
+    // Check run-level scoring config first, then fall back to form-level
+    const runSettings = run.rows[0].settings || {};
+    let scoring = runSettings.scoring;
+
+    if (!scoring || !scoring.enabled) {
+      const form = await db.execute({
+        sql: "SELECT settings FROM platform_forms WHERE id = ?",
+        args: [run.rows[0].form_id],
+      });
+      if (form.rows.length === 0) return null;
+      const formSettings = form.rows[0].settings || {};
+      scoring = formSettings.scoring;
+    }
+
+    if (!scoring || !scoring.enabled || !scoring.sections) return null;
+
+    const { sections, rankings } = scoring;
+    const maxPerQuestion = scoring.max_per_question || 5; // configurable scale (default 5 for Likert)
+    const sectionResults = {};
+
+    for (const [sectionName, sectionConfig] of Object.entries(sections)) {
+      const { weight, field_labels, max_per_question: sectionMax } = sectionConfig;
+      const effectiveMax = sectionMax || maxPerQuestion;
+      let sectionTotal = 0;
+      let sectionCount = 0;
+
+      if (Array.isArray(field_labels)) {
+        for (const label of field_labels) {
+          const value = submissionData[label];
+          if (value !== undefined && value !== null && value !== "") {
+            const numVal = parseFloat(value);
+            if (!isNaN(numVal)) {
+              sectionTotal += numVal;
+              sectionCount++;
+            }
+          }
+        }
+      }
+
+      const maxPossible = sectionCount * effectiveMax;
+      const sectionScore = sectionCount > 0 ? Math.round((sectionTotal / maxPossible) * 1000) / 10 : 0;
+
+      sectionResults[sectionName] = {
+        score: sectionScore,
+        maxPossible,
+        total: sectionTotal,
+        count: sectionCount,
+        weight: weight || 0,
+      };
+    }
+
+    // Overall weighted score
+    let overallScore = 0;
+    for (const [, data] of Object.entries(sectionResults)) {
+      overallScore += data.score * (data.weight / 100);
+    }
+    overallScore = Math.round(overallScore * 10) / 10;
+
+    // Ranking
+    let ranking = null;
+    if (Array.isArray(rankings)) {
+      for (const rank of rankings) {
+        if (overallScore >= rank.min && overallScore <= rank.max) {
+          ranking = rank.label;
+          break;
+        }
+      }
+    }
+
+    return { sections: sectionResults, overall: overallScore, ranking };
+  } catch (e) {
+    console.error("[Scoring] Calculation failed:", e.message);
+    return null;
+  }
+}
+
 export async function GET(req) {
   try {
     await initDb();
@@ -134,6 +223,55 @@ export async function GET(req) {
       return NextResponse.json({ success: true, contacts: users.rows });
     }
 
+    // ─── SCORING BREAKDOWN for a submission ───
+    if (searchParams.has("scoring")) {
+      const submissionId = parseInt(searchParams.get("scoring"));
+      if (!submissionId) return NextResponse.json({ success: false, error: "Invalid submission id" }, { status: 400 });
+
+      const sub = await db.execute({
+        sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
+        args: [submissionId],
+      });
+      if (sub.rows.length === 0) return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
+
+      const submission = sub.rows[0];
+      const subData = submission.data || {};
+      const scores = subData._scores || null;
+
+      // Fetch run for context
+      const run = await db.execute({
+        sql: "SELECT id, name, form_id, settings FROM platform_form_runs WHERE id = ?",
+        args: [submission.run_id],
+      });
+
+      // Fetch scoring config from run or form
+      let scoringConfig = null;
+      if (run.rows.length > 0) {
+        const runSettings = run.rows[0].settings || {};
+        if (runSettings.scoring?.enabled) {
+          scoringConfig = runSettings.scoring;
+        } else {
+          const form = await db.execute({
+            sql: "SELECT settings FROM platform_forms WHERE id = ?",
+            args: [run.rows[0].form_id],
+          });
+          if (form.rows.length > 0) {
+            const formSettings = form.rows[0].settings || {};
+            if (formSettings.scoring?.enabled) scoringConfig = formSettings.scoring;
+          }
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        submission_id: submission.id,
+        run_name: run.rows[0]?.name || null,
+        scores,
+        scoring_config: scoringConfig,
+        submission_data: subData,
+      });
+    }
+
     // Single run with submissions
     if (id) {
       const run = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(id)] });
@@ -218,6 +356,13 @@ export async function POST(req) {
 
       const newStatus = subStatus || "submitted";
 
+      // Build final data with optional scoring
+      let finalData = { ...(data || {}) };
+      if (newStatus === "submitted") {
+        const scores = await calculateSubmissionScores(run_id, finalData);
+        if (scores) finalData._scores = scores;
+      }
+
       if (existing.rows.length > 0) {
         const cur = await db.execute({ sql: "SELECT status FROM platform_form_submissions WHERE id = ?", args: [existing.rows[0].id] });
         // Don't allow overwriting approved/rejected submissions
@@ -226,7 +371,7 @@ export async function POST(req) {
         }
         const result = await db.execute({
           sql: `UPDATE platform_form_submissions SET data = ?, status = ?, submitted_at = COALESCE(submitted_at, CASE WHEN ? = 'submitted' THEN NOW() ELSE NULL END), updated_at = NOW() WHERE id = ? RETURNING *`,
-          args: [JSON.stringify(data || {}), newStatus, newStatus, existing.rows[0].id],
+          args: [JSON.stringify(finalData), newStatus, newStatus, existing.rows[0].id],
         });
         logTimeline(existing.rows[0].id, newStatus === "draft" ? "draft_saved" : "submitted", session.cid, null);
         // Fire automation — get run details for context
@@ -238,7 +383,7 @@ export async function POST(req) {
       } else {
         const result = await db.execute({
           sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, submitted_at) VALUES (?, ?, ?, ?, ?, CASE WHEN ? = 'submitted' THEN NOW() ELSE NULL END) RETURNING *`,
-          args: [parseInt(run_id), session.cid, null, newStatus, JSON.stringify(data || {}), newStatus],
+          args: [parseInt(run_id), session.cid, null, newStatus, JSON.stringify(finalData), newStatus],
         });
         logTimeline(result.rows[0].id, newStatus === "draft" ? "started" : "submitted", session.cid, null);
         // Fire automation — get run details for context

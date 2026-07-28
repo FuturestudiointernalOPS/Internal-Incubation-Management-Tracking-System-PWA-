@@ -6,7 +6,7 @@ import {
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
-  Type, Upload,
+  Type, Upload, BarChart3, PlusCircle, MinusCircle,
 } from "lucide-react";
 
 /**
@@ -59,6 +59,10 @@ export default function FormsPage() {
   const [selectedField, setSelectedField] = useState(null);
   const [addingFieldType, setAddingFieldType] = useState(null);
 
+  // Scoring config panel
+  const [showScoring, setShowScoring] = useState(false);
+  const [scoringConfig, setScoringConfig] = useState(null);
+
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: "", description: "", collection_id: "", visibility: "internal", tags: "" });
@@ -91,6 +95,13 @@ export default function FormsPage() {
     setEditingForm(form);
     setShowBuilder(true);
     setPreviewMode(false);
+
+    // Load scoring config from form settings
+    const formSettings = form.settings || {};
+    setScoringConfig(formSettings.scoring && formSettings.scoring.enabled
+      ? { ...formSettings.scoring }
+      : { enabled: false, max_per_question: 5, sections: {}, rankings: [{ min: 0, max: 59, label: "Needs Work" }, { min: 60, max: 79, label: "Good" }, { min: 80, max: 100, label: "Excellent" }] }
+    );
 
     try {
       const res = await fetch(`/api/platform/forms?id=${form.id}`);
@@ -226,10 +237,15 @@ export default function FormsPage() {
     if (!editingForm) return;
     setSaving(true);
     try {
+      const payload = { id: editingForm.id, fields, sections };
+      // Save scoring config in form settings
+      if (scoringConfig) {
+        payload.settings = { ...(editingForm.settings || {}), scoring: scoringConfig };
+      }
       const res = await fetch("/api/platform/forms", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingForm.id, fields, sections }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) notify("Form saved");
@@ -547,6 +563,9 @@ export default function FormsPage() {
           <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${editingForm?.status === "published" ? "text-emerald-500 bg-emerald-500/10" : "text-amber-500 bg-amber-500/10"}`}>{editingForm?.status || "draft"}</span>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowScoring(!showScoring)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showScoring ? "bg-indigo-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
+            <BarChart3 className="w-3 h-3 inline mr-1.5" />Scoring {scoringConfig?.enabled && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+          </button>
           <button onClick={() => setPreviewMode(!previewMode)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${previewMode ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <Eye className="w-3 h-3 inline mr-1.5" />{previewMode ? "Editing" : "Preview"}
           </button>
@@ -554,6 +573,176 @@ export default function FormsPage() {
           <button onClick={handlePublish} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110">{saving ? "Publishing..." : "Publish"}</button>
         </div>
       </div>
+
+      {/* Scoring Configuration Panel */}
+      {showScoring && scoringConfig && (
+        <div className="px-6 py-4 bg-secondary border-b border-[var(--border-primary)] space-y-4 shrink-0 max-h-[50vh] overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <BarChart3 className="w-4 h-4 text-indigo-400" />
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Scoring Configuration</h3>
+            </div>
+            <button onClick={() => setShowScoring(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
+          </div>
+
+          {/* Enable toggle & global settings */}
+          <div className="grid grid-cols-3 gap-4">
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer">
+              <input type="checkbox" checked={scoringConfig.enabled} onChange={(e) => setScoringConfig({ ...scoringConfig, enabled: e.target.checked })} className="w-4 h-4 rounded accent-indigo-500" />
+              <div>
+                <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">Enable Scoring</p>
+                <p className="text-[8px] text-[var(--text-secondary)]">Auto-calculate on submission</p>
+              </div>
+            </label>
+            <div className="space-y-1 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Max Per Question</label>
+              <input type="number" min={2} max={10} value={scoringConfig.max_per_question || 5} onChange={(e) => setScoringConfig({ ...scoringConfig, max_per_question: parseInt(e.target.value) || 5 })} className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none" />
+            </div>
+            <div className="space-y-1 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Total Section Weight</label>
+              <p className={`text-xl font-black ${Object.values(scoringConfig.sections || {}).reduce((s, sec) => s + (sec.weight || 0), 0) === 100 ? "text-emerald-400" : "text-rose-400"}`}>
+                {Object.values(scoringConfig.sections || {}).reduce((s, sec) => s + (sec.weight || 0), 0)}%
+              </p>
+            </div>
+          </div>
+
+          {/* Section weights */}
+          {scoringConfig.enabled && (
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Section Weights &amp; Scored Fields</h4>
+              <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
+                <table className="w-full text-left">
+                  <thead className="bg-tertiary">
+                    <tr className="text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                      <th className="px-3 py-2">Section</th>
+                      <th className="px-3 py-2">Weight (%)</th>
+                      <th className="px-3 py-2">Scored Fields</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-primary)]">
+                    {sections.map((sec) => {
+                      const sectionFields = fields.filter((f) => f.section_id === sec.id);
+                      const ratingFields = sectionFields.filter((f) => f.field_type === "rating");
+                      const sectionKey = sec.title;
+                      const currentWeight = (scoringConfig.sections?.[sectionKey]?.weight) || 0;
+                      const currentLabels = scoringConfig.sections?.[sectionKey]?.field_labels || [];
+                      return (
+                        <tr key={sec.title} className="text-[10px] font-bold text-[var(--text-primary)]">
+                          <td className="px-3 py-2">{sec.title}</td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={currentWeight}
+                              onChange={(e) => setScoringConfig({
+                                ...scoringConfig,
+                                sections: { ...scoringConfig.sections, [sectionKey]: { ...scoringConfig.sections?.[sectionKey], weight: parseInt(e.target.value) || 0, field_labels: scoringConfig.sections?.[sectionKey]?.field_labels || ratingFields.map((f) => f.label) } },
+                              })}
+                              className="w-16 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex flex-wrap gap-1">
+                              {ratingFields.map((f) => {
+                                const isScored = currentLabels.includes(f.label);
+                                return (
+                                  <button
+                                    key={f.label}
+                                    onClick={() => {
+                                      const next = isScored ? currentLabels.filter((l) => l !== f.label) : [...currentLabels, f.label];
+                                      setScoringConfig({
+                                        ...scoringConfig,
+                                        sections: { ...scoringConfig.sections, [sectionKey]: { ...scoringConfig.sections?.[sectionKey], weight: currentWeight, field_labels: next } },
+                                      });
+                                    }}
+                                    className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase transition-all ${isScored ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "bg-tertiary text-[var(--text-secondary)] border border-[var(--border-primary)]"}`}
+                                  >
+                                    {f.label.substring(0, 30)}{f.label.length > 30 ? "..." : ""}
+                                  </button>
+                                );
+                              })}
+                              {ratingFields.length === 0 && <span className="text-[8px] text-[var(--text-secondary)] italic">No rating fields in this section</span>}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Rankings */}
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-2">Ranking Thresholds</h4>
+              <div className="space-y-2">
+                {(scoringConfig.rankings || []).map((rank, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                    <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: rank.color || "#64748b" }} />
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={rank.min}
+                      onChange={(e) => {
+                        const next = [...(scoringConfig.rankings || [])];
+                        next[idx] = { ...next[idx], min: parseInt(e.target.value) || 0 };
+                        setScoringConfig({ ...scoringConfig, rankings: next });
+                      }}
+                      className="w-14 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center"
+                      placeholder="Min"
+                    />
+                    <span className="text-[var(--text-secondary)] text-[9px]">–</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={rank.max}
+                      onChange={(e) => {
+                        const next = [...(scoringConfig.rankings || [])];
+                        next[idx] = { ...next[idx], max: parseInt(e.target.value) || 0 };
+                        setScoringConfig({ ...scoringConfig, rankings: next });
+                      }}
+                      className="w-14 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center"
+                      placeholder="Max"
+                    />
+                    <input
+                      type="text"
+                      value={rank.label}
+                      onChange={(e) => {
+                        const next = [...(scoringConfig.rankings || [])];
+                        next[idx] = { ...next[idx], label: e.target.value };
+                        setScoringConfig({ ...scoringConfig, rankings: next });
+                      }}
+                      className="flex-1 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
+                      placeholder="Label"
+                    />
+                    <input
+                      type="text"
+                      value={rank.color || ""}
+                      onChange={(e) => {
+                        const next = [...(scoringConfig.rankings || [])];
+                        next[idx] = { ...next[idx], color: e.target.value };
+                        setScoringConfig({ ...scoringConfig, rankings: next });
+                      }}
+                      className="w-20 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none font-mono"
+                      placeholder="#color"
+                    />
+                    <button onClick={() => {
+                      const next = [...(scoringConfig.rankings || [])];
+                      next.splice(idx, 1);
+                      setScoringConfig({ ...scoringConfig, rankings: next });
+                    }} className="text-rose-500 hover:text-rose-400 shrink-0"><MinusCircle className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+                <button onClick={() => setScoringConfig({
+                  ...scoringConfig,
+                  rankings: [...(scoringConfig.rankings || []), { min: 0, max: 100, label: "New Tier", color: "#64748b" }],
+                })} className="flex items-center gap-1 text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase"><PlusCircle className="w-3 h-3" /> Add Ranking Tier</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Builder body */}
       <div className="flex-1 flex overflow-hidden">

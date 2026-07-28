@@ -268,7 +268,7 @@ export async function PUT(req) {
     }
 
     // SIMPLE UPDATE (metadata only)
-    const { id, name, description, collection_id, visibility, tags, status } = body;
+    const { id, name, description, collection_id, visibility, tags, status, settings } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
@@ -283,6 +283,10 @@ export async function PUT(req) {
         fields.push(`${key} = ?`);
         args.push(key === "collection_id" && value ? parseInt(value) : value);
       }
+    }
+    if (settings !== undefined) {
+      fields.push("settings = ?");
+      args.push(JSON.stringify(settings));
     }
     fields.push("updated_at = NOW()");
     args.push(parseInt(id));

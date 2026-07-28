@@ -361,6 +361,7 @@ export default function FormRunsPage() {
                       <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
                         <th className="px-4 py-3">Submitter</th>
                         <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Score</th>
                         <th className="px-4 py-3">Submitted</th>
                         <th className="px-4 py-3">Last Review</th>
                         <th className="px-4 py-3">Actions</th>
@@ -371,12 +372,36 @@ export default function FormRunsPage() {
                         const sc = SUB_STATUS[s.status] || SUB_STATUS.draft;
                         const subReviews = reviews.filter((r) => r.submission_id === s.id);
                         const lastReview = subReviews[subReviews.length - 1];
+                        const subData = s.data || {};
+                        const scores = subData._scores;
+                        const overall = scores?.overall;
+                        const ranking = scores?.ranking;
+                        const scoreColor = overall != null
+                          ? overall >= 80 ? "text-emerald-500"
+                          : overall >= 60 ? "text-amber-500"
+                          : "text-rose-500"
+                          : "";
+                        const scoreBg = overall != null
+                          ? overall >= 80 ? "bg-emerald-500/10"
+                          : overall >= 60 ? "bg-amber-500/10"
+                          : "bg-rose-500/10"
+                          : "";
                         return (
                           <tr key={s.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.submitter_name || s.submitter_id}</div>
                             </td>
                             <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{sc.label}</span></td>
+                            <td className="px-4 py-3">
+                              {overall != null ? (
+                                <div className="flex flex-col">
+                                  <span className={cn("text-[11px] font-black", scoreColor)}>{overall}%</span>
+                                  {ranking && <span className={cn("text-[8px] font-bold uppercase mt-0.5 px-1.5 py-0.5 rounded", scoreColor, scoreBg)}>{ranking}</span>}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-[var(--text-secondary)]">—</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}</td>
                             <td className="px-4 py-3 text-[9px] text-[var(--text-secondary)]">
                               {lastReview ? <span>{lastReview.decision} by {lastReview.reviewer_name || lastReview.reviewer_id}</span> : "—"}
@@ -566,7 +591,25 @@ export default function FormRunsPage() {
               {reviewing.data && Object.keys(reviewing.data).length > 0 && (
                 <div className="space-y-2 bg-tertiary rounded-xl p-4 border border-[var(--border-primary)]">
                   <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-2">Submitted Data</p>
-                  {Object.entries(reviewing.data).map(([key, value]) => (
+                  {/* Scoring Breakdown */}
+                  {reviewing.data._scores && (
+                    <div className="mb-3 p-2.5 rounded-lg bg-[var(--border-primary)]/30">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[8px] font-black uppercase text-[var(--text-primary)]">Score</span>
+                        <span className={cn("text-[12px] font-black", reviewing.data._scores.overall >= 80 ? "text-emerald-500" : reviewing.data._scores.overall >= 60 ? "text-amber-500" : "text-rose-500")}>
+                          {reviewing.data._scores.overall}%
+                          {reviewing.data._scores.ranking && <span className="ml-1.5 text-[8px]">({reviewing.data._scores.ranking})</span>}
+                        </span>
+                      </div>
+                      {reviewing.data._scores.sections && Object.entries(reviewing.data._scores.sections).map(([name, sec]) => (
+                        <div key={name} className="flex items-center justify-between text-[9px] py-0.5">
+                          <span className="text-[var(--text-secondary)]">{name} <span className="text-[7px]">(wt:{sec.weight})</span></span>
+                          <span className={cn("font-bold", sec.score >= 80 ? "text-emerald-500" : sec.score >= 60 ? "text-amber-500" : "text-rose-500")}>{sec.score}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {Object.entries(reviewing.data).filter(([k]) => k !== "_scores").map(([key, value]) => (
                     <div key={key} className="flex items-start gap-2 text-[11px]">
                       <span className="font-black text-[var(--text-secondary)] uppercase shrink-0">{key}:</span>
                       <span className="text-[var(--text-primary)] font-bold break-all">{String(value)}</span>
@@ -739,6 +782,10 @@ function Toggle({ checked, onChange }) {
 function SubmissionTimeline({ submission, onClose }) {
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scoringData, setScoringData] = useState(null);
+
+  const subData = submission.data || {};
+  const scores = subData._scores;
 
   useEffect(() => {
     async function load() {
@@ -747,10 +794,24 @@ function SubmissionTimeline({ submission, onClose }) {
         const data = await res.json();
         if (data.success) setTimeline(data.timeline || []);
       } catch (_) {}
+
+      // Fetch scoring breakdown if not already in submission data
+      if (scores) {
+        try {
+          const scoringRes = await fetch(`/api/platform/form-runs?scoring=${submission.id}`);
+          const scoringJson = await scoringRes.json();
+          if (scoringJson.success) setScoringData(scoringJson);
+        } catch (_) {}
+      }
       setLoading(false);
     }
     load();
   }, [submission.id]);
+
+  const getScoreColor = (val) =>
+    val >= 80 ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/30" :
+    val >= 60 ? "text-amber-500 bg-amber-500/10 border-amber-500/30" :
+    "text-rose-500 bg-rose-500/10 border-rose-500/30";
 
   return (
     <div className="rounded-xl border border-[var(--border-primary)] bg-secondary overflow-hidden">
@@ -759,6 +820,42 @@ function SubmissionTimeline({ submission, onClose }) {
         <button onClick={onClose}><X className="w-3.5 h-3.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" /></button>
       </div>
       <div className="p-4 max-h-64 overflow-y-auto">
+        {/* Scoring Breakdown */}
+        {scores && (
+          <div className="mb-4 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Assessment Score</p>
+              <div className="flex items-center gap-2">
+                <span className={cn("text-[14px] font-black", scores.overall >= 80 ? "text-emerald-500" : scores.overall >= 60 ? "text-amber-500" : "text-rose-500")}>{scores.overall}%</span>
+                {scores.ranking && (
+                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", getScoreColor(scores.overall))}>{scores.ranking}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Section breakdown */}
+            {scores.sections && Object.keys(scores.sections).length > 0 && (
+              <div className="space-y-1.5">
+                {Object.entries(scores.sections).map(([name, sec]) => (
+                  <div key={name} className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[var(--text-primary)] font-bold truncate">{name}</span>
+                      <span className="text-[var(--text-secondary)] text-[8px]">({sec.count} rated, wt: {sec.weight}%)</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Score bar */}
+                      <div className="w-16 h-1.5 rounded-full bg-[var(--border-primary)] overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all", sec.score >= 80 ? "bg-emerald-500" : sec.score >= 60 ? "bg-amber-500" : "bg-rose-500")} style={{ width: `${Math.min(sec.score, 100)}%` }} />
+                      </div>
+                      <span className={cn("text-[10px] font-black w-10 text-right", sec.score >= 80 ? "text-emerald-500" : sec.score >= 60 ? "text-amber-500" : "text-rose-500")}>{sec.score}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto text-[var(--brand-orange)]" /> : timeline.length === 0 ? (
           <p className="text-[10px] text-[var(--text-secondary)] text-center py-4">No timeline entries yet.</p>
         ) : (

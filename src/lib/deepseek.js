@@ -1,74 +1,90 @@
-import axios from 'axios';
+/**
+ * DeepSeek AI Provider Adapter
+ *
+ * Drop-in replacement for Gemini — exposes the same `chat(prompt)` interface
+ * used by the Platform Integration layer.
+ *
+ * Uses DeepSeek's OpenAI-compatible Chat Completions API.
+ * Model: deepseek-chat (DeepSeek V4 Pro)
+ *
+ * Required env: DEEPSEEK_API_KEY=sk-...
+ */
 
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1'; // Placeholder URL, update as needed
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
-const deepseekClient = axios.create({
-  baseURL: DEEPSEEK_API_URL,
-  headers: {
-    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-    'Content-Type': 'application/json',
-  },
-});
+if (!DEEPSEEK_API_KEY) {
+  console.warn("[DeepSeek] DEEPSEEK_API_KEY is not set. AI features will be unavailable.");
+}
+
+const DEEPSEEK_BASE = "https://api.deepseek.com/v1";
+const DEFAULT_MODEL = "deepseek-chat";
 
 /**
- * DeepSeek AI Layer Logic
+ * Generic chat completion — send any prompt, get a text response.
+ * API Reference: https://api-docs.deepseek.com/api/create-chat-completion
+ *
+ * @param {string} prompt
+ * @param {string} [modelName] — defaults to "deepseek-chat"
+ * @returns {Promise<string>} text response
  */
-export const aiIntelligence = {
+async function chat(prompt, modelName = DEFAULT_MODEL) {
+  if (!DEEPSEEK_API_KEY) {
+    throw new Error("[DeepSeek] Client not initialised — missing DEEPSEEK_API_KEY.");
+  }
+
+  const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 1024,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`[DeepSeek] API error (${res.status}): ${err}`);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+/**
+ * DeepSeek AI Layer — mirrors the geminiIntelligence interface
+ * so the Platform Integration layer can swap providers without refactoring.
+ */
+export const deepseekIntelligence = {
+  chat,
+
   /**
    * Parse mentor recordings into structured feedback templates.
    */
   parseMentorFeedback: async (transcription) => {
-    try {
-      const response = await deepseekClient.post('/chat/completions', {
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: 'You are an incubation program assistant. Parse the following transcription into a structured feedback template with categories: Strengths, Weaknesses, Next Steps, and Product Maturity Level.' },
-          { role: 'user', content: transcription }
-        ],
-      });
-      return response.data;
-    } catch (error) {
-      console.error('DeepSeek Feedback Parsing Error:', error);
-      throw error;
-    }
+    const prompt = `You are an incubation program assistant. Parse the following transcription into a structured feedback template with categories: Strengths, Weaknesses, Next Steps, and Product Maturity Level.\n\nTranscription:\n${transcription}`;
+    return chat(prompt);
   },
 
   /**
    * Analyze operational data for trends and risks.
    */
   generateProgramInsights: async (cohortData) => {
-    try {
-      const response = await deepseekClient.post('/chat/completions', {
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: 'You are a data analyst. Analyze the following cohort performance data and provide insights on startup readiness and potential risks.' },
-          { role: 'user', content: JSON.stringify(cohortData) }
-        ],
-      });
-      return response.data;
-    } catch (error) {
-      console.error('DeepSeek Analysis Error:', error);
-      throw error;
-    }
+    const prompt = `You are a data analyst. Analyze the following cohort performance data and provide insights on startup readiness and potential risks.\n\nData:\n${JSON.stringify(cohortData, null, 2)}`;
+    return chat(prompt);
   },
 
   /**
    * Generate an investor-ready summary for a startup.
    */
   generateInvestorReport: async (startupMetrics) => {
-    try {
-      const response = await deepseekClient.post('/chat/completions', {
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: 'You are a venture capital consultant. Generate a concise, professional investor report based on these metrics.' },
-          { role: 'user', content: JSON.stringify(startupMetrics) }
-        ],
-      });
-      return response.data;
-    } catch (error) {
-      console.error('DeepSeek Report Error:', error);
-      throw error;
-    }
-  }
+    const prompt = `You are a venture capital consultant. Generate a concise, professional investor report based on these metrics.\n\nMetrics:\n${JSON.stringify(startupMetrics, null, 2)}`;
+    return chat(prompt);
+  },
 };
+
+export default deepseekIntelligence;

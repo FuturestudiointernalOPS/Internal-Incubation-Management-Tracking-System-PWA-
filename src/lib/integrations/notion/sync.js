@@ -1,177 +1,164 @@
 /**
- * Notion Sync Engine
+ * Platform Notion Sync Engine
  *
- * Pushes ImpactOS tasks and projects to Notion databases.
- * One-way sync: ImpactOS → Notion.
+ * Pushes Platform form submissions and runs to Notion databases.
+ * One-way sync: ImpactOS Platform → Notion.
  *
- * This is called from API routes or can be triggered manually.
- * It never modifies existing ImpactOS data.
+ * Adapted from main branch — syncs platform_form_submissions and platform_form_runs
+ * instead of tasks and v2_projects.
+ *
+ * This is called from API routes or automation rules.
+ * It never modifies existing ImpactOS data beyond storing notion_page_id.
  */
 
 import db from "@/lib/db";
 import {
   isConfigured,
   createPage,
+  updatePage,
   queryDatabase,
-  taskToProperties,
-  projectToProperties,
 } from "./client";
 
 /**
- * Sync a single task to Notion
- * @param {number|string} taskId - ID in the local tasks table
+ * Build Notion properties for a form submission.
+ *
+ * Expected Notion DB columns:
+ *   - Title (title) → submitter name + run name
+ *   - Status (select) → submission status
+ *   - Form (select) → form name
+ *   - Run (select) → run name
+ *   - Score (number) → overall score if available
+ *   - Ranking (select) → ranking label if available
+ *   - Submitted (date) → submitted_at date
  */
-export async function syncTask(taskId) {
+function submissionToProperties(submission, run, form) {
+  const subData = submission.data || {};
+  const scores = subData._scores;
+
+  const props = {
+    Title: {
+      title: [{ text: { content: `${submission.submitter_name || submission.submitter_id} — ${run?.name || "Run"}` } }],
+    },
+  };
+
+  if (submission.status) {
+    props.Status = { select: { name: submission.status.replace(/_/g, " ") } };
+  }
+
+  if (form?.name) {
+    props.Form = { select: { name: form.name } };
+  }
+
+  if (run?.name) {
+    props.Run = { select: { name: run.name } };
+  }
+
+  if (scores?.overall != null) {
+    props.Score = { number: scores.overall };
+  }
+
+  if (scores?.ranking) {
+    props.Ranking = { select: { name: scores.ranking } };
+  }
+
+  if (submission.submitted_at) {
+    props.Submitted = { date: { start: submission.submitted_at } };
+  }
+
+  return props;
+}
+
+/**
+ * Sync a single submission to Notion.
+ * @param {number} submissionId - platform_form_submissions.id
+ */
+export async function syncSubmission(submissionId) {
   if (!isConfigured()) {
     return { skipped: true, reason: "Notion not configured" };
   }
-
-  // Fetch the task with project name
-  const res = await db.execute({
-    sql: `SELECT t.*, p.name as project_name
-          FROM tasks t
-          LEFT JOIN v2_projects p ON t.project_id = p.id::text
-          WHERE t.id = ?`,
-    args: [taskId],
-  });
-
-  const task = res.rows[0];
-  if (!task) return { skipped: true, reason: "Task not found" };
 
   const databaseId = process.env.NOTION_TASKS_DATABASE_ID;
-  const properties = taskToProperties(task);
+  if (!databaseId) {
+    return { skipped: true, reason: "NOTION_TASKS_DATABASE_ID not set" };
+  }
+
+  const sub = await db.execute({
+    sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
+    args: [submissionId],
+  });
+  if (sub.rows.length === 0) return { skipped: true, reason: "Submission not found" };
+
+  const submission = sub.rows[0];
+
+  // Get run and form context
+  const runRes = await db.execute({
+    sql: "SELECT * FROM platform_form_runs WHERE id = ?",
+    args: [submission.run_id],
+  });
+  const run = runRes.rows[0] || null;
+
+  let form = null;
+  if (run?.form_id) {
+    const formRes = await db.execute({
+      sql: "SELECT * FROM platform_forms WHERE id = ?",
+      args: [run.form_id],
+    });
+    form = formRes.rows[0] || null;
+  }
+
+  const properties = submissionToProperties(submission, run, form);
 
   try {
-    // Check if a Notion page already exists for this task
-    const existing = await db.execute({
-      sql: "SELECT notion_page_id FROM tasks WHERE id = ? AND notion_page_id IS NOT NULL",
-      args: [taskId],
-    });
-
-    if (existing.rows[0]?.notion_page_id) {
-      // Update existing Notion page
-      await updatePage(existing.rows[0].notion_page_id, properties);
+    // Check if already synced
+    if (submission.notion_page_id) {
+      await updatePage(submission.notion_page_id, properties);
       return { success: true, action: "updated" };
     }
 
-    // Create new Notion page
     const page = await createPage(databaseId, properties);
 
-    // Store the Notion page ID on the task
     await db.execute({
-      sql: "UPDATE tasks SET notion_page_id = ? WHERE id = ?",
-      args: [page.id, taskId],
+      sql: "UPDATE platform_form_submissions SET notion_page_id = ? WHERE id = ?",
+      args: [page.id, submissionId],
     });
 
     return { success: true, action: "created", notionPageId: page.id };
   } catch (error) {
-    console.error("Notion task sync failed:", error.message);
+    console.error("[Platform Notion] Submission sync failed:", error.message);
     return { success: false, error: error.message };
   }
 }
 
 /**
- * Sync a single project to Notion
- * @param {number|string} projectId - ID in v2_projects
+ * Batch sync all submissions not yet in Notion.
  */
-export async function syncProject(projectId) {
-  if (!isConfigured()) {
-    return { skipped: true, reason: "Notion not configured" };
-  }
-
-  const projectDbId = process.env.NOTION_PROJECTS_DATABASE_ID;
-  if (!projectDbId) {
-    return { skipped: true, reason: "NOTION_PROJECTS_DATABASE_ID not set" };
-  }
-
-  // Fetch the project with program and PM info
-  const res = await db.execute({
-    sql: `SELECT p.*, prog.name as program_name, c.name as pm_name
-          FROM v2_projects p
-          LEFT JOIN v2_programs prog ON p.program_id = prog.id
-          LEFT JOIN contacts c ON prog.assigned_pm_id = c.cid
-          WHERE p.id = ?`,
-    args: [projectId],
-  });
-
-  const project = res.rows[0];
-  if (!project) return { skipped: true, reason: "Project not found" };
-
-  const properties = projectToProperties(project);
-
-  try {
-    const existing = await db.execute({
-      sql: "SELECT notion_page_id FROM v2_projects WHERE id = ? AND notion_page_id IS NOT NULL",
-      args: [projectId],
-    });
-
-    if (existing.rows[0]?.notion_page_id) {
-      const { updatePage } = require("./client");
-      await updatePage(existing.rows[0].notion_page_id, properties);
-      return { success: true, action: "updated" };
-    }
-
-    const { createPage } = require("./client");
-    const page = await createPage(projectDbId, properties);
-
-    await db.execute({
-      sql: "UPDATE v2_projects SET notion_page_id = ? WHERE id = ?",
-      args: [page.id, projectId],
-    });
-
-    return { success: true, action: "created", notionPageId: page.id };
-  } catch (error) {
-    console.error("Notion project sync failed:", error.message);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Batch sync all pending tasks to Notion
- * Useful for initial bulk sync
- */
-export async function syncAllTasks() {
+export async function syncAllSubmissions() {
   if (!isConfigured()) return { skipped: true };
 
-  const res = await db.execute({
-    sql: `SELECT t.*, p.name as project_name
-          FROM tasks t
-          LEFT JOIN v2_projects p ON t.project_id = p.id::text
-          WHERE t.notion_page_id IS NULL
+  const subs = await db.execute({
+    sql: `SELECT id FROM platform_form_submissions
+          WHERE notion_page_id IS NULL
+            AND status = 'submitted'
           LIMIT 50`,
     args: [],
   });
 
   const results = [];
-  for (const task of res.rows) {
-    const result = await syncTask(task.id);
-    results.push({ taskId: task.id, ...result });
+  for (const sub of subs.rows) {
+    const result = await syncSubmission(sub.id);
+    results.push({ submissionId: sub.id, ...result });
   }
 
   return { synced: results.length, results };
 }
 
 /**
- * Batch sync all projects to Notion
+ * Check if Notion integration is configured.
  */
-export async function syncAllProjects() {
-  if (!isConfigured()) return { skipped: true };
-
-  const res = await db.execute({
-    sql: `SELECT p.*, prog.name as program_name, c.name as pm_name
-          FROM v2_projects p
-          LEFT JOIN v2_programs prog ON p.program_id = prog.id
-          LEFT JOIN contacts c ON prog.assigned_pm_id = c.cid
-          WHERE p.notion_page_id IS NULL
-          LIMIT 50`,
-    args: [],
-  });
-
-  const results = [];
-  for (const project of res.rows) {
-    const result = await syncProject(project.id);
-    results.push({ projectId: project.id, ...result });
-  }
-
-  return { synced: results.length, results };
+export function checkNotionHealth() {
+  return {
+    configured: isConfigured(),
+    tasksDbId: !!process.env.NOTION_TASKS_DATABASE_ID,
+    projectsDbId: !!process.env.NOTION_PROJECTS_DATABASE_ID,
+  };
 }

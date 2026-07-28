@@ -1,114 +1,136 @@
 /**
- * Calendar Sync Engine
+ * Platform Calendar Sync Engine
  *
- * Watches for calendar-syncable events in the app and pushes them
- * to the configured external calendar provider (Microsoft/Google).
+ * Syncs Platform form run deadlines to external calendar providers
+ * (Microsoft Graph / Google Calendar) via the provider abstraction.
+ *
+ * Adapted from main branch — syncs platform_form_runs instead of v2_events.
  *
  * How it works:
- *   1. When an event is created/updated in ImpactOS, call `syncEvent()`
- *   2. The engine pushes it to the external calendar
- *   3. The external calendar event ID is stored alongside the local event
- *      so future updates/deletes stay in sync
- *
- * This is called from API routes — it never touches existing functionality.
+ *   1. When a run is launched with opens_at/closes_at dates, call syncRunDeadline()
+ *   2. The engine pushes deadline events to the external calendar
+ *   3. External calendar IDs are stored on the run for future updates/deletes
  */
 
 import db from "@/lib/db";
 import { getCalendarProvider } from "./provider";
 
 /**
- * Sync an event to the external calendar.
- * Creates if no externalId exists, updates if it does.
+ * Sync a run's open/close deadlines to the external calendar.
+ * Creates "Submission Opens" and "Submission Closes" events.
  *
- * @param {Object} event - from v2_events or similar
- * @param {string} event.id - local database ID
- * @param {string} event.title
- * @param {string} [event.description]
- * @param {string} event.start_time - ISO 8601
- * @param {string} [event.end_time] - ISO 8601
- * @param {string} [event.location]
- * @param {string} [event.participant_email]
+ * @param {number} runId - platform_form_runs.id
  */
-export async function syncEvent(event) {
-  if (!event.start_time) return { skipped: true, reason: "No start_time" };
-
-  const provider = await getCalendarProvider();
-
+export async function syncRunDeadlines(runId) {
   try {
-    // Check if we already synced this event
-    const existing = await db.execute({
-      sql: "SELECT external_calendar_id FROM v2_events WHERE id = ? AND external_calendar_id IS NOT NULL",
-      args: [event.id],
+    const run = await db.execute({
+      sql: "SELECT * FROM platform_form_runs WHERE id = ?",
+      args: [runId],
     });
+    if (run.rows.length === 0) return { skipped: true, reason: "Run not found" };
 
-    const externalId = existing.rows[0]?.external_calendar_id;
+    const r = run.rows[0];
+    const provider = await getCalendarProvider();
+    const results = [];
 
-    // Build attendees list if participant email available
-    const attendees = [];
-    if (event.participant_email) {
-      attendees.push(event.participant_email);
-    }
+    // Sync "Opens" deadline
+    if (r.opens_at && !r.external_calendar_id) {
+      const result = await provider.createEvent({
+        title: `[Opens] ${r.name}`,
+        description: r.description || `Form run opens for submissions.`,
+        startTime: r.opens_at,
+        endTime: r.opens_at,
+        location: `/platform/runs/submit/${r.id}`,
+      });
 
-    const calendarEvent = {
-      title: event.title,
-      description: event.description || "",
-      startTime: event.start_time,
-      endTime: event.end_time || event.start_time,
-      location: event.location || undefined,
-      ...(attendees.length && { attendees }),
-    };
-
-    let result;
-
-    if (externalId) {
-      // Update existing external event
-      result = await provider.updateEvent(externalId, calendarEvent);
-    } else {
-      // Create new external event
-      result = await provider.createEvent(calendarEvent);
-
-      // Store the external ID back on the local event
       if (result.externalId) {
         await db.execute({
-          sql: "UPDATE v2_events SET external_calendar_id = ?, external_calendar_url = ? WHERE id = ?",
-          args: [result.externalId, result.url || null, event.id],
+          sql: "UPDATE platform_form_runs SET external_calendar_id = ?, external_calendar_url = ? WHERE id = ?",
+          args: [result.externalId, result.url || null, r.id],
         });
       }
+      results.push({ type: "opens", ...result });
     }
 
-    return { success: true, externalId: result.externalId, url: result.url };
+    // Sync "Closes" deadline
+    if (r.closes_at) {
+      const closesResult = await provider.createEvent({
+        title: `[Closes] ${r.name}`,
+        description: r.description || `Form run submission deadline.`,
+        startTime: r.closes_at,
+        endTime: r.closes_at,
+        location: `/platform/runs?id=${r.id}`,
+      });
+
+      if (closesResult.externalId) {
+        await db.execute({
+          sql: "UPDATE platform_form_runs SET external_calendar_url = COALESCE(external_calendar_url, ?) WHERE id = ?",
+          args: [closesResult.url || null, r.id],
+        });
+      }
+      results.push({ type: "closes", ...closesResult });
+    }
+
+    return { success: true, results };
   } catch (error) {
-    console.error("Calendar sync failed:", error.message);
+    console.error("[Platform Calendar] Sync failed:", error.message);
     return { success: false, error: error.message };
   }
 }
 
 /**
- * Remove a synced event from the external calendar
- * @param {string} localEventId - ID in v2_events
+ * Remove synced calendar events for a run.
  */
-export async function unsyncEvent(localEventId) {
-  // Get the external ID before deleting locally
-  const existing = await db.execute({
-    sql: "SELECT external_calendar_id FROM v2_events WHERE id = ?",
-    args: [localEventId],
-  });
-
-  const externalId = existing.rows[0]?.external_calendar_id;
-  if (!externalId) return { skipped: true };
-
+export async function unsyncRunDeadlines(runId) {
   try {
+    const run = await db.execute({
+      sql: "SELECT external_calendar_id FROM platform_form_runs WHERE id = ? AND external_calendar_id IS NOT NULL",
+      args: [runId],
+    });
+
+    if (run.rows.length === 0 || !run.rows[0].external_calendar_id) {
+      return { skipped: true };
+    }
+
     const provider = await getCalendarProvider();
-    await provider.deleteEvent(externalId);
+    await provider.deleteEvent(run.rows[0].external_calendar_id);
+
+    await db.execute({
+      sql: "UPDATE platform_form_runs SET external_calendar_id = NULL, external_calendar_url = NULL WHERE id = ?",
+      args: [runId],
+    });
+
     return { success: true };
   } catch (error) {
-    console.error("Calendar unsync failed:", error.message);
+    console.error("[Platform Calendar] Unsync failed:", error.message);
     return { success: false, error: error.message };
   }
 }
 
 /**
- * Check if the calendar integration is configured and working
+ * Bulk sync all runs with deadlines that haven't been synced yet.
+ */
+export async function syncAllRunDeadlines() {
+  const runs = await db.execute({
+    sql: `SELECT id FROM platform_form_runs
+          WHERE external_calendar_id IS NULL
+            AND opens_at IS NOT NULL
+            AND status = 'active'
+          LIMIT 50`,
+    args: [],
+  });
+
+  const results = [];
+  for (const run of runs.rows) {
+    const result = await syncRunDeadlines(run.id);
+    results.push({ runId: run.id, ...result });
+  }
+
+  return { synced: results.length, results };
+}
+
+/**
+ * Check if the calendar integration is configured and working.
  */
 export async function checkCalendarHealth() {
   try {
