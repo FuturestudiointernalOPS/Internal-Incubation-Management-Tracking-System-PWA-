@@ -1285,8 +1285,8 @@ export default function StaffOpReport() {
                                   <button
                                     onClick={() => {
                                       const key = `${report.week_number}-${report.year}`;
-                                      setExpandedWeek(
-                                        expandedWeek === key ? null : key,
+                                      setExpandedWeek((prev) =>
+                                        prev === key ? null : key,
                                       );
                                     }}
                                     className="text-[11px] font-medium text-[var(--brand-orange)] hover:underline flex items-center gap-1 ml-auto"
@@ -1806,8 +1806,8 @@ export default function StaffOpReport() {
                                 <td className="px-4 py-3 text-right">
                                   <button
                                     onClick={() =>
-                                      setExpandedWeek(
-                                        isExpanded ? null : weekKey,
+                                      setExpandedWeek((prev) =>
+                                        prev === weekKey ? null : weekKey,
                                       )
                                     }
                                     className="text-[11px] font-medium text-[var(--brand-orange)] hover:underline flex items-center gap-1 ml-auto"
