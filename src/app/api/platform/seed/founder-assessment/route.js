@@ -382,3 +382,8 @@ export async function POST() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+// Also allow GET for one-click browser access
+export async function GET() {
+  return POST();
+}
