@@ -46,20 +46,20 @@ export async function GET(req) {
       args: [profile.id],
     });
 
-    // 4. Recommendations — ventures matching investor preferences, or all if no prefs
+    // 4. Recommendations — ventures matching investor preferences
     let recommendations = [];
-    try {
-      const hasPrefs = profile.industries?.length > 0 || profile.countries?.length > 0;
-      let recSql = `SELECT p.id, p.name, p.description, p.status, p.industry,
-                            p.country, p.created_at, p.completion_index,
-                            (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = p.id) as investor_interest_count
-                     FROM v2_programs p
-                     WHERE p.status = 'active' AND p.is_archived = 0`;
-      const recArgs = [];
-
-      if (hasPrefs) {
+    if (profile.industries?.length > 0 || profile.countries?.length > 0 || profile.startup_stages?.length > 0) {
+      try {
         const industries = profile.industries || [];
         const countries = profile.countries || [];
+        const stages = profile.startup_stages || [];
+        let recSql = `SELECT p.id, p.name, p.description, p.status, p.industry,
+                              p.country, p.created_at, p.completion_index,
+                              (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = p.id) as investor_interest_count
+                       FROM v2_programs p
+                       WHERE p.status = 'active' AND p.is_archived = 0`;
+        const recArgs = [];
+
         if (industries.length > 0) {
           recSql += ` AND (${industries.map(() => "p.industry ILIKE ?").join(" OR ")})`;
           industries.forEach(i => recArgs.push(`%${i}%`));
@@ -68,12 +68,16 @@ export async function GET(req) {
           recSql += ` AND (${countries.map(() => "p.country ILIKE ?").join(" OR ")})`;
           countries.forEach(c => recArgs.push(`%${c}%`));
         }
-      }
-      recSql += " ORDER BY p.created_at DESC LIMIT 20";
+        if (stages.length > 0) {
+          recSql += ` AND (${stages.map(() => "p.business_stage ILIKE ?").join(" OR ")})`;
+          stages.forEach(s => recArgs.push(`%${s}%`));
+        }
+        recSql += " ORDER BY p.created_at DESC LIMIT 20";
 
-      const recRes = await db.execute({ sql: recSql, args: recArgs });
-      recommendations = recRes.rows;
-    } catch (_) {}
+        const recRes = await db.execute({ sql: recSql, args: recArgs });
+        recommendations = recRes.rows;
+      } catch (_) {}
+    }
 
     // 5. Stats
     const statsRes = await db.execute({

@@ -288,7 +288,7 @@ export default function InvestorDashboard() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && searchVentures()}
-                  placeholder="Search ventures by name, industry, or description..."
+                  placeholder="Search by name, industry, or description..."
                   className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60"
                 />
               </div>
@@ -386,8 +386,17 @@ export default function InvestorDashboard() {
             {(ventures.length > 0 ? ventures : recommendations).length === 0 ? (
               <div className="text-center py-16">
                 <Building2 className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
-                <p className="text-sm font-bold text-[var(--text-secondary)]">No ventures found</p>
-                <p className="text-xs text-[var(--text-tertiary)] mt-1">Try adjusting your filters or search terms.</p>
+                {venturesTotal > 0 || search || filterIndustry.length > 0 || filterCountry.length > 0 || filterStage.length > 0 ? (
+                  <>
+                    <p className="text-sm font-bold text-[var(--text-secondary)]">No ventures found</p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Try adjusting your filters or search terms.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-[var(--text-secondary)]">Discover ventures</p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Use the search bar and filters to find investment opportunities.</p>
+                  </>
+                )}
               </div>
             ) : (
               <>
