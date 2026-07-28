@@ -38,6 +38,75 @@ const TARGET_LABELS = {
 
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
 
+
+// ─── Mini Calendar Picker ───
+function MiniCalendar({ value, onChange, onClose }) {
+  const [viewDate, setViewDate] = React.useState(() => value ? new Date(value) : new Date());
+  const [timeStr, setTimeStr] = React.useState(() => {
+    if (!value) return "09:00";
+    const d = new Date(value);
+    return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  });
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const DAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const days = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let i = 1; i <= daysInMonth; i++) days.push(i);
+
+  const selectDay = (day) => {
+    const d = new Date(year, month, day);
+    const [h, m] = timeStr.split(":").map(Number);
+    d.setHours(h, m, 0, 0);
+    onChange(d.toISOString().slice(0, 16));
+    onClose?.();
+  };
+
+  const isSelected = (day) => {
+    if (!value || !day) return false;
+    const d = new Date(value);
+    return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+  };
+
+  return (
+    <div className="p-3 rounded-xl bg-secondary border border-[var(--border-primary)] shadow-lg w-64 z-[500]" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between mb-3">
+        <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="p-1 hover:bg-tertiary rounded"><ChevronDown className="w-3.5 h-3.5 rotate-90 text-[var(--text-secondary)]" /></button>
+        <span className="text-[11px] font-black text-[var(--text-primary)]">{MONTHS[month]} {year}</span>
+        <button onClick={() => setViewDate(new Date(year, month + 1, 1))} className="p-1 hover:bg-tertiary rounded"><ChevronDown className="w-3.5 h-3.5 -rotate-90 text-[var(--text-secondary)]" /></button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {DAYS.map((d) => <div key={d} className="text-center text-[7px] font-black text-[var(--text-secondary)] py-1">{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((day, i) => {
+          const past = day && new Date(year, month, day, 23, 59, 59) < today;
+          const sel = isSelected(day);
+          return (
+            <button key={i} disabled={!day || past} onClick={() => day && selectDay(day)}
+              className={"h-8 rounded-lg text-[10px] font-bold transition-all " + (!day ? "" : sel ? "bg-[var(--brand-orange)] text-black" : past ? "text-[var(--text-secondary)] opacity-30 cursor-not-allowed" : "text-[var(--text-primary)] hover:bg-tertiary")}>
+              {day || ""}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 pt-3 border-t border-[var(--border-primary)]">
+        <label className="text-[8px] font-black uppercase text-[var(--text-secondary)] block mb-1">Time</label>
+        <input type="time" value={timeStr} onChange={(e) => { setTimeStr(e.target.value); if (value) { const d = new Date(value); const [h,m] = e.target.value.split(":").map(Number); d.setHours(h,m,0,0); onChange(d.toISOString().slice(0,16)); } }}
+          className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none [color-scheme:dark]" />
+      </div>
+    </div>
+  );
+}
+
 export default function FormRunsPage() {
   const [runs, setRuns] = useState([]);
   const [forms, setForms] = useState([]);
@@ -59,6 +128,8 @@ export default function FormRunsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createData, setCreateData] = useState({ form_id: "", name: "", description: "", opens_at: "", closes_at: "" });
   const [saving, setSaving] = useState(false);
+  const [showOpensCal, setShowOpensCal] = useState(false);
+  const [showClosesCal, setShowClosesCal] = useState(false);
 
   // Review modal
   const [showReview, setShowReview] = useState(false);
@@ -729,7 +800,7 @@ export default function FormRunsPage() {
 
       {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowCreate(false)}>
+        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setShowOpensCal(false); setShowClosesCal(false); }}>
           <div className="card w-full max-w-md space-y-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">New Form Run</h3><button onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
             <div className="space-y-4">
@@ -742,8 +813,8 @@ export default function FormRunsPage() {
               <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Run Name</label><input value={createData.name} onChange={(e) => setCreateData({ ...createData, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder="e.g. Bootcamp Sept 2027 Applications" /></div>
               <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Description</label><textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Opens</label><input type="datetime-local" value={createData.opens_at} onChange={(e) => setCreateData({ ...createData, opens_at: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" /></div>
-                <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Closes</label><input type="datetime-local" value={createData.closes_at} onChange={(e) => setCreateData({ ...createData, closes_at: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" /></div>
+                <div className="space-y-1 relative"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Opens</label><button onClick={() => { setShowOpensCal(!showOpensCal); setShowClosesCal(false); }} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-left flex items-center gap-2 hover:border-[var(--brand-orange)] transition-all"><Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" /><span className={createData.opens_at ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}>{createData.opens_at ? new Date(createData.opens_at).toLocaleString() : "Select date and time..."}</span></button>{showOpensCal && <div className="absolute top-full left-0 mt-1 z-[500]"><MiniCalendar value={createData.opens_at} onClose={() => setShowOpensCal(false)} /></div>}</div>
+                <div className="space-y-1 relative"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Closes</label><button onClick={() => { setShowClosesCal(!showClosesCal); setShowOpensCal(false); }} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-left flex items-center gap-2 hover:border-[var(--brand-orange)] transition-all"><Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" /><span className={createData.closes_at ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}>{createData.closes_at ? new Date(createData.closes_at).toLocaleString() : "Select date and time..."}</span></button>{showClosesCal && <div className="absolute top-full left-0 mt-1 z-[500]"><MiniCalendar value={createData.closes_at} onClose={() => setShowClosesCal(false)} /></div>}</div>
               </div>
             </div>
             <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">Cancel</button><button onClick={handleCreate} disabled={saving || !createData.form_id || !createData.name.trim()} className="flex-1 btn btn-primary">{saving ? "Creating..." : "Create Run"}</button></div>
