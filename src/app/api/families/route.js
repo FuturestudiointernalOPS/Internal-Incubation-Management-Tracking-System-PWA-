@@ -36,7 +36,7 @@ export async function POST(req) {
 
     // Schema Migration: Ensure description exists
     try {
-      await db.execute("ALTER TABLE families ADD COLUMN description TEXT");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
     } catch (e) {
       // Column likely exists
     }

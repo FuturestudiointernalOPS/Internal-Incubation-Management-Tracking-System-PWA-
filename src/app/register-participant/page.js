@@ -24,8 +24,13 @@ export default function RegisterParticipantPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
 
   useEffect(() => {
-    if (groupId) fetchGroup();
-    else { setError('No group ID provided.'); setLoading(false); }
+    if (groupId) {
+      setError('');
+      fetchGroup();
+    } else {
+      setError('No group ID provided.');
+      setLoading(false);
+    }
   }, [groupId]);
 
   const fetchGroup = async () => {
@@ -34,6 +39,24 @@ export default function RegisterParticipantPage() {
       const data = await res.json();
       if (data.group) {
         setGroup(data.group);
+        setError('');
+        // Vérifier la fenêtre d'inscription
+        if (data.group.registration_window) {
+          const parts = data.group.registration_window.split('|');
+          if (parts.length === 2) {
+            const start = new Date(parts[0]);
+            const end = new Date(parts[1]);
+            end.setHours(23, 59, 59, 999);
+            const now = new Date();
+            if (now < start) {
+              setError(`Registration opens on ${parts[0]}. Please come back then.`);
+              setGroup(null);
+            } else if (now > end) {
+              setError('Registration window has closed.');
+              setGroup(null);
+            }
+          }
+        }
       } else {
         setError('Group not found.');
       }
@@ -49,39 +72,21 @@ export default function RegisterParticipantPage() {
     if (!form.name || !form.email || !form.password) return;
     setSubmitting(true);
 
-    // For group registration, create an invite then accept it
     try {
-      // First create the invite for this group
-      const inviteRes = await fetch('/api/invites', {
+      const res = await fetch('/api/public/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          program_id: group?.program_id,
-          group_name: group?.name,
-          role: 'participant',
-          expiresInDays: 7,
+          ...form,
+          group_id: groupId,
         }),
       });
-      const inviteData = await inviteRes.json();
+      const data = await res.json();
 
-      if (!inviteData.token) {
-        setError('Failed to generate registration link.');
-        setSubmitting(false);
-        return;
-      }
-
-      // Then accept the invite
-      const acceptRes = await fetch(`/api/invites/${inviteData.token}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const acceptData = await acceptRes.json();
-
-      if (acceptData.user) {
+      if (data.success) {
         setSuccess(true);
       } else {
-        setError(acceptData.error || 'Registration failed.');
+        setError(data.error || 'Registration failed.');
       }
     } catch (e) {
       setError('Network error during registration.');
