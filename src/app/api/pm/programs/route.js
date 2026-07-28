@@ -331,6 +331,7 @@ export async function PUT(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "admin",
     ]);
     if (authError) return authError;
     const {
