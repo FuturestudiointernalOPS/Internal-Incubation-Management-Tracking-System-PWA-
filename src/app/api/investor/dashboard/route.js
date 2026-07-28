@@ -48,14 +48,11 @@ export async function GET(req) {
 
     // 4. Recommendations — ventures matching investor preferences
     let recommendations = [];
-    if (profile.industries?.length > 0 || profile.countries?.length > 0 || profile.startup_stages?.length > 0) {
+    if (profile.industries?.length > 0 || profile.countries?.length > 0) {
       try {
         const industries = profile.industries || [];
         const countries = profile.countries || [];
-        const stages = profile.startup_stages || [];
-        let recSql = `SELECT p.id, p.name, p.description, p.status, p.industry,
-                              p.country, p.created_at, p.completion_index,
-                              (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = p.id) as investor_interest_count
+        let recSql = `SELECT p.id, p.name, p.description, p.status, p.industry, p.country
                        FROM v2_programs p
                        WHERE p.status = 'active' AND p.is_archived = 0`;
         const recArgs = [];
@@ -67,10 +64,6 @@ export async function GET(req) {
         if (countries.length > 0) {
           recSql += ` AND (${countries.map(() => "p.country ILIKE ?").join(" OR ")})`;
           countries.forEach(c => recArgs.push(`%${c}%`));
-        }
-        if (stages.length > 0) {
-          recSql += ` AND (${stages.map(() => "p.business_stage ILIKE ?").join(" OR ")})`;
-          stages.forEach(s => recArgs.push(`%${s}%`));
         }
         recSql += " ORDER BY p.created_at DESC LIMIT 20";
 
