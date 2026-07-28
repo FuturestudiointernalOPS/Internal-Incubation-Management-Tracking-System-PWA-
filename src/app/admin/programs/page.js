@@ -220,6 +220,8 @@ export default function ProgramManagement() {
   const handleArchiveAction = async (id, isArchiving, e) => {
     if (!id) return;
     e.stopPropagation();
+    if (isArchiving && !window.confirm("Are you sure you want to archive this program? This action can be undone by restoring.")) return;
+    if (!isArchiving && !window.confirm("Are you sure you want to restore this program?")) return;
     try {
       const res = await fetch("/api/pm/programs", {
         method: "PUT",
