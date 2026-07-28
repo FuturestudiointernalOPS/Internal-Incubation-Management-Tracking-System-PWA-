@@ -301,8 +301,8 @@ export async function GET(req) {
 
     let sql = `
        SELECT s.*,
-              COALESCE(d.title, dr.title) as deliverable_title,
-              COALESCE(d.week_number, dr.week_number) as deliverable_week,
+              d.title as deliverable_title,
+              d.week_number as deliverable_week,
               d.due_date as deliverable_due_date,
               p.name as participant_name, g.name as group_name
        FROM v2_submissions s
