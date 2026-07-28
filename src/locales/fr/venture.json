@@ -73,10 +73,18 @@
     "autoCalculated": "Calculé automatiquement", "manualEntry": "Saisie manuelle", "updateValue": "Mettre à jour",
     "recentNotifications": "Notifications",
     "unread": "non lues",
+        "linkedCompletedTasks": "Tâches complétées liées",
+        "subtaskOf": "Sous-tâche de",
     "noNotifications": "Aucune notification pour le moment",
     "noRecentActivity": "Aucune activité récente",
     "progressSummary": "Résumé d'avancement",
     "profileCompletion": "Complétion du profil",
-    "noProgressData": "Aucune donnée de progression"
+    "noProgressData": "Aucune donnée de progression",
+    "backlog": "Backlog",
+    "todo": "À faire",
+    "in_progress": "En cours",
+    "done": "Terminé",
+    "blocked": "Bloqué",
+    "cancelled": "Annulé"
   }
 }

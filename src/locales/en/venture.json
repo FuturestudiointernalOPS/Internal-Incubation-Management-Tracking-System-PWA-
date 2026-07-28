@@ -73,10 +73,18 @@
     "autoCalculated": "Auto-calculated", "manualEntry": "Manual entry", "updateValue": "Update Value",
     "recentNotifications": "Notifications",
     "unread": "unread",
+        "linkedCompletedTasks": "Linked Completed Tasks",
+        "subtaskOf": "Subtask of",
     "noNotifications": "No notifications yet",
     "noRecentActivity": "No recent activity",
     "progressSummary": "Progress Summary",
     "profileCompletion": "Profile Completion",
-    "noProgressData": "No progress data yet"
+    "noProgressData": "No progress data yet",
+    "backlog": "Backlog",
+    "todo": "To Do",
+    "in_progress": "In Progress",
+    "done": "Done",
+    "blocked": "Blocked",
+    "cancelled": "Cancelled"
   }
 }

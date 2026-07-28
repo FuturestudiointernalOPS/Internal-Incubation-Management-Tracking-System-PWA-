@@ -132,7 +132,7 @@ export default function VentureDetail() {
   useEffect(() => {
     if (!params.id || !venture) return;
     if (activeTab === "founders" || activeTab === "team") loadMembers();
-    if (activeTab === "dashboard") loadDashboard();
+    if (activeTab === "dashboard") { loadDashboard(); fetchProgress(); }
     if (activeTab === "history") loadHistory();
     if (activeTab === "businessModel") fetchBm();
     if (activeTab === "discovery") fetchInterviews();
@@ -141,7 +141,7 @@ export default function VentureDetail() {
     if (activeTab === "milestones") fetchMilestones();
     if (activeTab === "actionPlans") fetchActionPlans();
     if (activeTab === "tasks") fetchTasks();
-    if (activeTab === "standups") fetchStandups();
+    if (activeTab === "standups") { fetchStandups(); fetchTasks(); }
     if (activeTab === "retros") fetchRetros();
     if (activeTab === "blockers") { fetchBlockers(); fetchRetros(); fetchTasks(); }
     if (activeTab === "calendar") fetchCalendar();
@@ -208,6 +208,13 @@ export default function VentureDetail() {
   }
   async function fetchCalendar() {
     try { const r = await fetch(`/api/ventures/${params.id}/calendar`); const d = await r.json(); if (d.success) setCalendarEvents(d.events || []); } catch(e){}
+  }
+  async function handleTaskStatusChange(taskId, newStatus) {
+    try {
+      const r = await fetch(`/api/ventures/${params.id}/tasks?id=${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
+      const d = await r.json();
+      if (d.success) { fetchTasks(); fetchProgress(); }
+    } catch(e) {}
   }
   async function fetchProgress() {
     try { const r = await fetch(`/api/ventures/${params.id}/progress`); const d = await r.json(); if (d.success) setProgressData(d.progress); } catch(e){}
@@ -654,21 +661,24 @@ export default function VentureDetail() {
                     <Activity size={16} style={{ color: "var(--brand-orange)" }} />
                     {t("venture.progressSummary")}
                   </h3>
-                  {dashboardData.profile_completion ? (
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span>{t("venture.profileCompletion")}</span>
-                        <span className="font-bold" style={{ color: "var(--brand-orange)" }}>{dashboardData.profile_completion.percentage}%</span>
+                  {progressData ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg p-3 border" style={cardStyle}>
+                        <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.taskCompletion')}</p>
+                        <p className="text-xl font-bold mt-1">{progressData.task_completion||0}%</p>
                       </div>
-                      <div className="w-full h-2 rounded-full bg-white/10 mb-4">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${dashboardData.profile_completion.percentage}%`, backgroundColor: "var(--brand-orange)" }} />
+                      <div className="rounded-lg p-3 border" style={cardStyle}>
+                        <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.avgMilestoneProgress')}</p>
+                        <p className="text-xl font-bold mt-1">{progressData.avg_milestone_progress||0}%</p>
                       </div>
-                      {dashboardData.profile_completion.items?.map((item, i) => (
-                        <div key={i} className="flex items-center gap-2 py-1 text-sm">
-                          <span className={item.completed ? "text-green-400" : "text-slate-500"}>{item.completed ? "✓" : "○"}</span>
-                          <span style={{ color: item.completed ? "var(--text-primary)" : "var(--text-secondary)" }}>{item.name}</span>
-                        </div>
-                      ))}
+                      <div className="rounded-lg p-3 border" style={cardStyle}>
+                        <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.standupsCount')}</p>
+                        <p className="text-xl font-bold mt-1">{progressData.standups_count||0}</p>
+                      </div>
+                      <div className="rounded-lg p-3 border" style={cardStyle}>
+                        <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.retrosCount')}</p>
+                        <p className="text-xl font-bold mt-1">{progressData.retros_count||0}</p>
+                      </div>
                     </div>
                   ) : (
                     <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noProgressData")}</p>
@@ -907,9 +917,21 @@ export default function VentureDetail() {
             </div>
             {tasks.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               tasks.map(tk=>(
-                <div key={tk.id} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
-                  <div><p className="font-medium">{tk.title}</p>{tk.assigned_to&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.assignedTo')}: {tk.assigned_to}</p>}</div>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">{tk.status||'open'}</span>
+                <div key={tk.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-bold">{tk.title}</p>
+                      {tk.parent_task_id&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>↳ {t('venture.subtaskOf')}: {tasks.find(p=>p.id===tk.parent_task_id)?.title||tk.parent_task_id}</p>}
+                      {tk.assigned_to&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.assignedTo')}: {tk.assigned_to}</p>}
+                      {tk.due_date&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>📅 {new Date(tk.due_date).toLocaleDateString()}</p>}
+                    </div>
+                    <select value={tk.status||'backlog'} onChange={e=>handleTaskStatusChange(tk.id, e.target.value)} className={`text-xs px-2 py-0.5 rounded-full outline-none cursor-pointer border-0 ${tk.status==='done'?'bg-green-500/20 text-green-400':tk.status==='in_progress'?'bg-amber-500/20 text-amber-400':tk.status==='review'?'bg-purple-500/20 text-purple-400':tk.status==='blocked'?'bg-red-500/20 text-red-400':'bg-white/10 text-slate-400'}`} style={{appearance:'none',WebkitAppearance:'none'}}>
+                      {['backlog','todo','in_progress','review','done','blocked','cancelled'].map(s=><option key={s} value={s}>{t(`venture.${s}`)}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${tk.priority==='high'?'bg-red-500/20 text-red-400':tk.priority==='medium'?'bg-amber-500/20 text-amber-400':'bg-blue-500/20 text-blue-400'}`}>{t(`venture.${tk.priority||'medium'}`)}</span>
+                  </div>
                 </div>
               ))
             }
@@ -923,12 +945,12 @@ export default function VentureDetail() {
               <button onClick={()=>setShowAddStandup(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><MessageCircle size={16}/> {t('venture.addStandup')}</button>
             </div>
             {standups.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
-              standups.map(s=>(
-                <div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
-                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.week')} {s.week_number} • {s.year}</p>
-                  {s.top_priorities&&<p className="text-sm mt-1">{s.top_priorities}</p>}
-                </div>
-              ))
+              standups.map(s=>{const now=new Date(s.year,0,1);const linkedTasks=tasks.filter(tk=>{if(!tk.created_at)return false;const d=new Date(tk.created_at);const soy=new Date(d.getFullYear(),0,1);const w=Math.ceil((((d-soy)/86400000)+soy.getDay()+1)/7);return w===s.week_number&&d.getFullYear()===s.year;});return(<div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <p className="font-semibold">Week {s.week_number}, {s.year}</p>
+                  {s.top_priorities&&<div className="mt-2"><span className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.topPriorities')}:</span><p className="text-sm">{s.top_priorities}</p></div>}
+                  {s.expected_deliverables&&<div className="mt-2"><span className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.expectedDeliverables')}:</span><p className="text-sm">{s.expected_deliverables}</p></div>}
+                  {linkedTasks.length>0&&<div className="mt-3 pt-2 border-t" style={{borderColor:'rgb(255 255 255 / 0.08)'}}><span className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.tasks')} ({linkedTasks.length}):</span>{linkedTasks.map(tk=><div key={tk.id} className="text-sm mt-1 flex items-center gap-2"><span className={`w-1.5 h-1.5 rounded-full ${tk.status==='done'?'bg-green-400':tk.status==='in_progress'?'bg-amber-400':'bg-slate-400'}`}/>{tk.title}</div>)}</div>}
+                </div>)})
             }
           </div>
         )}
@@ -940,13 +962,13 @@ export default function VentureDetail() {
               <button onClick={()=>setShowAddRetro(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><RotateCcw size={16}/> {t('venture.addRetro')}</button>
             </div>
             {retros.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
-              retros.map(r=>(
-                <div key={r.id} className="rounded-xl p-4 border" style={cardStyle}>
-                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.week')} {r.week_number} • {r.year}</p>
-                  {r.completed_tasks&&<p className="text-sm mt-1">✓ {r.completed_tasks}</p>}
-                  {r.outstanding_tasks&&<p className="text-sm mt-1" style={{color:'var(--text-secondary)'}}>{r.outstanding_tasks}</p>}
-                </div>
-              ))
+              retros.map(r=>{const linkedTasks=tasks.filter(tk=>tk.status==='done'&&tk.created_at&&(()=>{const d=new Date(tk.created_at);const soy=new Date(d.getFullYear(),0,1);const w=Math.ceil((((d-soy)/86400000)+soy.getDay()+1)/7);return w===r.week_number&&d.getFullYear()===r.year;})());return(<div key={r.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <p className="font-semibold">Week {r.week_number}, {r.year}</p>
+                  {r.completed_tasks&&<div className="mt-2"><span className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.completedTasks')}:</span><p className="text-sm">{r.completed_tasks}</p></div>}
+                  {r.outstanding_tasks&&<div className="mt-2"><span className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.outstandingTasks')}:</span><p className="text-sm">{r.outstanding_tasks}</p></div>}
+                  {r.carry_forward_notes&&<div className="mt-2"><span className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.carryForwardNotes')}:</span><p className="text-sm">{r.carry_forward_notes}</p></div>}
+                  {linkedTasks.length>0&&<div className="mt-3 pt-2 border-t" style={{borderColor:'rgb(255 255 255 / 0.08)'}}><span className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.linkedCompletedTasks')} ({linkedTasks.length}):</span>{linkedTasks.map(tk=><div key={tk.id} className="text-sm mt-1 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-green-400"/>{tk.title}</div>)}</div>}
+                </div>)})
             }
           </div>
         )}
@@ -959,13 +981,19 @@ export default function VentureDetail() {
             </div>
             {blockers.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               blockers.map(b=>(
-                <div key={b.id} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
-                  <div><p className="font-medium">{b.title}</p>{b.description&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>{b.description}</p>}</div>
-                  {b.status==='resolved'?(
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">{t('venture.resolved')}</span>
-                  ):(
-                    <button onClick={()=>handleResolveBlocker(b.id)} className="text-xs px-3 py-1 rounded-lg" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}>{t('venture.resolve')}</button>
-                  )}
+                <div key={b.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium">{b.title}</p>
+                      {b.description&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>{b.description}</p>}
+                      {b.supporting_url&&<a href={b.supporting_url} target="_blank" rel="noreferrer" className="text-xs mt-1 inline-block text-blue-400 hover:underline break-all">{b.supporting_url}</a>}
+                    </div>
+                    {b.status==='resolved'?(
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 flex items-center gap-1 shrink-0 ml-2"><span>✓</span> {t('venture.resolved')}</span>
+                    ):(
+                      <button onClick={()=>handleResolveBlocker(b.id)} className="text-xs px-3 py-1 rounded-lg shrink-0 ml-2" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}>{t('venture.resolve')}</button>
+                    )}
+                  </div>
                 </div>
               ))
             }
@@ -977,12 +1005,34 @@ export default function VentureDetail() {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold flex items-center gap-2"><CalendarDays size={18}/> {t('venture.calendar')}</h2>
             {calendarEvents.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
-              calendarEvents.map((ev,i)=>(
-                <div key={i} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
-                  <div><p className="font-medium">{ev.title}</p><p className="text-xs" style={{color:'var(--text-secondary)'}}>{ev.type}</p></div>
-                  {ev.date&&<span className="text-xs" style={{color:'var(--text-secondary)'}}>{new Date(ev.date).toLocaleDateString()}</span>}
-                </div>
-              ))
+              calendarEvents.map((ev,i)=>{
+                const typeIcon = ev.type==='milestone'?'🗓':ev.type==='task'?'📋':ev.type==='action'?'📌':'📅';
+                const statusMap = {not_started:'notStarted',in_progress:'inProgress',completed:'completed',done:'completed'};
+                const statusClass = ev.status==='completed'||ev.status==='done'?'bg-green-500/20 text-green-400':ev.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400';
+                return (
+                  <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold mb-1 flex items-center gap-2">
+                          <span className="shrink-0">{typeIcon}</span>
+                          <span className="truncate">{ev.title}</span>
+                        </p>
+                        {ev.date&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>📅 {new Date(ev.date).toLocaleDateString()}</p>}
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${statusClass}`}>
+                        {t(`venture.${statusMap[ev.status]||ev.status||'notStarted'}`)}
+                      </span>
+                    </div>
+                    {(ev.type==='task'||ev.type==='action')&&ev.priority&&(
+                      <div className="flex gap-2 mt-2">
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${ev.priority==='high'?'bg-red-500/20 text-red-400':ev.priority==='medium'?'bg-amber-500/20 text-amber-400':'bg-blue-500/20 text-blue-400'}`}>
+                          {t(`venture.${ev.priority}`)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             }
           </div>
         )}
@@ -1194,6 +1244,15 @@ export default function VentureDetail() {
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(taskForm)});setShowAddTask(false);setTaskForm({});fetchTasks();}} className="space-y-3">
                 <input placeholder={t('venture.namePlaceholder')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={taskForm.title||''} onChange={e=>setTaskForm({...taskForm,title:e.target.value})} required />
                 <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={taskForm.description||''} onChange={e=>setTaskForm({...taskForm,description:e.target.value})} />
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={taskForm.priority||'medium'} onChange={e=>setTaskForm({...taskForm,priority:e.target.value})}>
+                  {['low','medium','high'].map(p=>(<option key={p} value={p}>{t(`venture.${p}`)}</option>))}
+                </select>
+                {tasks.length>0&&<select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={taskForm.parent_task_id||''} onChange={e=>setTaskForm({...taskForm,parent_task_id:e.target.value||null})}>
+                  <option value="">{t('venture.unassigned')}</option>
+                  {tasks.map(tk=><option key={tk.id} value={tk.id}>{tk.title}</option>)}
+                </select>}
+                <input placeholder={t('venture.assignedTo')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={taskForm.assigned_cid||''} onChange={e=>setTaskForm({...taskForm,assigned_cid:e.target.value})} />
+                <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={taskForm.due_date||''} onChange={e=>setTaskForm({...taskForm,due_date:e.target.value})} />
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>
             </div>
@@ -1205,11 +1264,12 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddStandup(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addStandup')}</h2><button onClick={()=>setShowAddStandup(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const now=new Date();const week=Math.ceil((((now-new Date(now.getFullYear(),0,1))/86400000)+new Date(now.getFullYear(),0,1).getDay()+1)/7);const res=await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:standupForm.week_number||week,year:standupForm.year||now.getFullYear(),...standupForm})});const d=await res.json();if(!d.success)alert(d.error);setShowAddStandup(false);setStandupForm({});fetchStandups();}} className="space-y-3">
+              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,top_priorities:standupForm.top_priorities,expected_deliverables:standupForm.expected_deliverables,weekly_priorities:standupForm.weekly_priorities})});const d=await res.json();if(!d.success){alert(d.error);if(d.error?.includes('already exists'))return;}setShowAddStandup(false);setStandupForm({});fetchStandups();}} className="space-y-3">
+                <div className="text-sm text-center py-1 rounded-lg" style={{color:'var(--text-secondary)',backgroundColor:'rgb(255 255 255 / 0.05)'}}>Week {week}, {now.getFullYear()}</div>
                 <textarea placeholder={t('venture.topPriorities')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={standupForm.top_priorities||''} onChange={e=>setStandupForm({...standupForm,top_priorities:e.target.value})} />
                 <textarea placeholder={t('venture.expectedDeliverables')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={standupForm.expected_deliverables||''} onChange={e=>setStandupForm({...standupForm,expected_deliverables:e.target.value})} />
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
-              </form>
+              </form>)})()}
             </div>
           </div>
         )}
@@ -1219,11 +1279,12 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddRetro(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addRetro')}</h2><button onClick={()=>setShowAddRetro(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const now=new Date();const week=Math.ceil((((now-new Date(now.getFullYear(),0,1))/86400000)+new Date(now.getFullYear(),0,1).getDay()+1)/7);const res=await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:retroForm.week_number||week,year:retroForm.year||now.getFullYear(),...retroForm})});const d=await res.json();if(!d.success)alert(d.error);setShowAddRetro(false);setRetroForm({});fetchRetros();}} className="space-y-3">
+              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,completed_tasks:retroForm.completed_tasks,outstanding_tasks:retroForm.outstanding_tasks,carry_forward_notes:retroForm.carry_forward_notes})});const d=await res.json();if(!d.success){alert(d.error);if(d.error?.includes('already exists'))return;}setShowAddRetro(false);setRetroForm({});fetchRetros();}} className="space-y-3">
+                <div className="text-sm text-center py-1 rounded-lg" style={{color:'var(--text-secondary)',backgroundColor:'rgb(255 255 255 / 0.05)'}}>Week {week}, {now.getFullYear()}</div>
                 <textarea placeholder={t('venture.completedTasks')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={retroForm.completed_tasks||''} onChange={e=>setRetroForm({...retroForm,completed_tasks:e.target.value})} />
                 <textarea placeholder={t('venture.outstandingTasks')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={retroForm.outstanding_tasks||''} onChange={e=>setRetroForm({...retroForm,outstanding_tasks:e.target.value})} />
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
-              </form>
+              </form>)})()}
             </div>
           </div>
         )}
@@ -1244,6 +1305,7 @@ export default function VentureDetail() {
                 </select>
                 <input placeholder={t('venture.namePlaceholder')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={blockerForm.title||''} onChange={e=>setBlockerForm({...blockerForm,title:e.target.value})} required />
                 <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={blockerForm.description||''} onChange={e=>setBlockerForm({...blockerForm,description:e.target.value})} />
+                <input placeholder="Supporting URL (optional)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={blockerForm.supporting_url||''} onChange={e=>setBlockerForm({...blockerForm,supporting_url:e.target.value})} />
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>
             </div>

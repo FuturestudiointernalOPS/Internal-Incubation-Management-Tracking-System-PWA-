@@ -2178,12 +2178,12 @@ export const TASK_STATUSES = ["backlog", "todo", "in_progress", "review", "done"
 export const TASK_PRIORITIES = ["low", "medium", "high", "critical"];
 
 export async function listTasks(ventureId, milestoneId, status, assignedCid) {
-  let sql = "SELECT * FROM venture_tasks WHERE venture_id = ?";
+  let sql = `SELECT vt.*, pt.title AS parent_title FROM venture_tasks vt LEFT JOIN venture_tasks pt ON vt.parent_task_id = pt.id WHERE vt.venture_id = ?`;
   const args = [ventureId];
-  if (milestoneId) { sql += " AND milestone_id = ?"; args.push(milestoneId); }
-  if (status) { sql += " AND status = ?"; args.push(status); }
-  if (assignedCid) { sql += " AND assigned_cid = ?"; args.push(assignedCid); }
-  sql += " ORDER BY display_order ASC, created_at DESC";
+  if (milestoneId) { sql += " AND vt.milestone_id = ?"; args.push(milestoneId); }
+  if (status) { sql += " AND vt.status = ?"; args.push(status); }
+  if (assignedCid) { sql += " AND vt.assigned_cid = ?"; args.push(assignedCid); }
+  sql += " ORDER BY vt.display_order ASC, vt.created_at DESC";
   const res = await db.execute({ sql, args });
   return (res.rows || []).map((t) => ({
     ...t,
@@ -2201,15 +2201,15 @@ export async function getTask(taskId) {
   return t;
 }
 
-export async function createTask({ ventureId, milestoneId, title, description, priority, dueDate, estimatedHours, assignedCid, assignedName, reporterCid, reporterName, labels, displayOrder }) {
+export async function createTask({ ventureId, milestoneId, title, description, priority, dueDate, estimatedHours, assignedCid, assignedName, reporterCid, reporterName, labels, displayOrder, parentTaskId }) {
   if (!displayOrder) {
     const o = await db.execute({ sql: "SELECT COALESCE(MAX(display_order), 0) + 1 as n FROM venture_tasks WHERE venture_id = ?", args: [ventureId] });
     displayOrder = o.rows[0]?.n || 1;
   }
   const res = await db.execute({
-    sql: `INSERT INTO venture_tasks (venture_id, milestone_id, title, description, priority, due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid, reporter_name, labels, display_order)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?) RETURNING id`,
-    args: [ventureId, milestoneId || null, title.trim(), description?.trim() || null, priority || "medium", dueDate || null, estimatedHours || null, assignedCid || null, assignedName || null, reporterCid || null, reporterName || null, JSON.stringify(labels || []), displayOrder],
+    sql: `INSERT INTO venture_tasks (venture_id, milestone_id, title, description, priority, due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid, reporter_name, labels, display_order, parent_task_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?) RETURNING id`,
+    args: [ventureId, milestoneId || null, title.trim(), description?.trim() || null, priority || "medium", dueDate || null, estimatedHours || null, assignedCid || null, assignedName || null, reporterCid || null, reporterName || null, JSON.stringify(labels || []), displayOrder, parentTaskId || null],
   });
   return { id: res.rows[0]?.id || res.lastInsertRowid };
 }
