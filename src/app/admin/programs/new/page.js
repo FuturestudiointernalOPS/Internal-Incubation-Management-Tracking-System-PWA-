@@ -363,7 +363,7 @@ export default function NewProgram() {
           assigned_assistant_id: program.assigned_assistant_id || null,
           note_id: program.note_id || null,
           materials: program.materials,
-          assigned_segments: program.assigned_segments,
+          assigned_segments: existingGroupId ? [existingGroupId] : program.assigned_segments,
           kpis: kpisList,
         }),
       });
