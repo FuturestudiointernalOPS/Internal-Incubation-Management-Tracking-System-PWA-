@@ -816,7 +816,7 @@ export default function VentureDetail() {
                   <div key={v.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{borderColor:'rgb(255 255 255 / 0.05)'}}>
                     <div><p className="text-sm">{v.notes||'—'}</p><p className="text-xs" style={{color:'var(--text-secondary)'}}>{new Date(v.created_at).toLocaleDateString()}</p></div>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${v.status==='validated'?'bg-green-500/20 text-green-400':v.status==='invalidated'?'bg-red-500/20 text-red-400':v.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400'}`}>
-                      {t(`venture.${v.status||'notStarted'}`)}
+                      {t(`venture.${({not_started:'notStarted',in_progress:'inProgress',validated:'validated',invalidated:'invalidated'})[v.status]||v.status||'notStarted'}`)}
                     </span>
                   </div>
                 ))}
@@ -859,11 +859,14 @@ export default function VentureDetail() {
                 return <div key={m.id} className="rounded-xl p-4 border" style={cardStyle}>
                   <div className="flex items-start justify-between">
                     <div><h3 className="font-semibold">{m.title}</h3>{m.description&&<p className="text-sm" style={{color:'var(--text-secondary)'}}>{m.description}</p>}</div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${m.status==='completed'?'bg-green-500/20 text-green-400':m.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400'}`}>{t(`venture.${m.status||'notStarted'}`)}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${m.status==='completed'?'bg-green-500/20 text-green-400':m.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400'}`}>{t(`venture.${{not_started:'notStarted',in_progress:'inProgress',completed:'completed'}[m.status]||m.status||'notStarted'}`)}</span>
                   </div>
                   {m.target_date&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>🎯 {new Date(m.target_date).toLocaleDateString()}</p>}
-                  <div className="mt-2 w-full h-2 rounded-full bg-white/10"><div className="h-full rounded-full transition-all" style={{width:`${m.progress||0}%`,backgroundColor:'var(--brand-orange)'}}/></div>
-                  <p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>{m.progress||0}%</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <input type="range" min="0" max="100" value={m.progress||0} onChange={async e=>{const v=parseInt(e.target.value);await fetch(`/api/ventures/${params.id}/milestones?id=${m.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({progress:v})});fetchMilestones();}} className="flex-1" style={{accentColor:'var(--brand-orange)'}} />
+                    <span className="text-xs font-bold" style={{color:'var(--brand-orange)',minWidth:'2.5rem',textAlign:'right'}}>{m.progress||0}%</span>
+                  </div>
+                  {m.status!=='completed'&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/milestones?id=${m.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'completed',progress:100})});fetchMilestones();}} className="mt-2 text-xs px-2 py-1 rounded" style={{border:'1px solid rgb(255 255 255 / 0.15)',color:'var(--text-secondary)'}}>✓ Mark Completed</button>)}
                   {plans.length>0&&<div className="mt-2 space-y-1"><p className="text-xs font-medium" style={{color:'var(--text-secondary)'}}>{t('venture.actionPlans')}:</p>{plans.map(p=>(
                     <div key={p.id} className="text-xs flex items-center gap-2" style={{color:'var(--text-secondary)'}}><span>• {p.title}</span><span className={`px-1.5 py-0.5 rounded ${p.priority==='high'?'bg-red-500/20 text-red-400':p.priority==='medium'?'bg-amber-500/20 text-amber-400':'bg-blue-500/20 text-blue-400'}`}>{t(`venture.${p.priority}`)}</span></div>
                   ))}</div>}
@@ -1120,10 +1123,10 @@ export default function VentureDetail() {
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addEntry')}</h2><button onClick={()=>setShowAddValidation(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/validations`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({validation_type:validationForm.type,notes:validationForm.notes,status:validationForm.status})});setShowAddValidation(false);setValidationForm({type:'problem'});fetchValidations();}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={validationForm.type} onChange={e=>setValidationForm({...validationForm,type:e.target.value})}>
-                  {['problem','solution','product'].map(t=><option key={t} value={t}>{t(`venture.${t}`)}</option>)}
+                  {['problem','solution','product'].map(vt=><option key={vt} value={vt}>{t(`venture.${vt}`)}</option>)}
                 </select>
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={validationForm.status||'in_progress'} onChange={e=>setValidationForm({...validationForm,status:e.target.value})}>
-                  {['not_started','in_progress','validated','invalidated'].map(s=><option key={s} value={s}>{t(`venture.${s}`)}</option>)}
+                  {['not_started','in_progress','validated','invalidated'].map(s=>{const k={not_started:'notStarted',in_progress:'inProgress'}[s]||s;return <option key={s} value={s}>{t(`venture.${k}`)}</option>;})}
                 </select>
                 <textarea placeholder={t('venture.notes')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={3} value={validationForm.notes||''} onChange={e=>setValidationForm({...validationForm,notes:e.target.value})} />
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>

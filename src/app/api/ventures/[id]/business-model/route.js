@@ -6,6 +6,14 @@ import { requireVentureAccess } from "@/lib/ventureAuth";
 const ROLES = ["participant", "staff", "program_manager", "super_admin", "teacher", "developer"];
 const ALLOWED = ["participant", "staff", "program_manager", "super_admin", "teacher"];
 
+async function resolveVentureDbId(ventureId) {
+  const r = await db.execute({
+    sql: "SELECT id FROM ventures WHERE venture_id = ?",
+    args: [ventureId],
+  });
+  return r.rows?.[0]?.id || null;
+}
+
 export async function GET(req, { params }) {
   try {
     await initDb();
@@ -15,9 +23,12 @@ export async function GET(req, { params }) {
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
+    const dbId = await resolveVentureDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+
     const r = await db.execute({
       sql: `SELECT * FROM venture_business_models WHERE venture_id = ?`,
-      args: [id],
+      args: [dbId],
     });
     return NextResponse.json({ success: true, business_model: r.rows?.[0] || null });
   } catch (e) {
@@ -34,13 +45,16 @@ export async function PUT(req, { params }) {
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
+    const dbId = await resolveVentureDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+
     const body = await req.json();
     const fields = ["business_model_canvas", "lean_canvas", "revenue_streams", "cost_structure", "key_partners"];
 
     // Check if row exists
     const existing = await db.execute({
       sql: "SELECT id FROM venture_business_models WHERE venture_id = ?",
-      args: [id],
+      args: [dbId],
     });
 
     if (existing.rows?.length > 0) {
@@ -58,7 +72,7 @@ export async function PUT(req, { params }) {
       setClauses.push("updated_at = NOW()");
       setClauses.push("updated_by = ?");
       upArgs.push(session.cid);
-      upArgs.push(id);
+      upArgs.push(dbId);
       await db.execute({
         sql: `UPDATE venture_business_models SET ${setClauses.join(", ")} WHERE venture_id = ?`,
         args: upArgs,
@@ -67,7 +81,7 @@ export async function PUT(req, { params }) {
       // INSERT
       const insertCols = ["venture_id"];
       const insertVals = ["?"];
-      const insertArgs = [id];
+      const insertArgs = [dbId];
       for (const f of fields) {
         if (body[f] !== undefined) {
           let val = body[f];
