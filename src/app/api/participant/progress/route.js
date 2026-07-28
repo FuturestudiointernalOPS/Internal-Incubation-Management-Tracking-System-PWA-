@@ -124,8 +124,8 @@ export async function GET(req) {
           args: [cid, pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE (a.participant_id::text = ? OR a.participant_id::text = (SELECT CAST(id AS TEXT) FROM v2_participants WHERE user_id = ? OR email = ? LIMIT 1)) AND s.program_id = ?",
-          args: [cid, cid, contact.email, pid],
+          sql: "SELECT * FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE s.program_id = ? AND (a.participant_id::text = ? OR a.participant_id::text IN (SELECT CAST(id AS TEXT) FROM v2_participants WHERE user_id = ? OR email = ?))",
+          args: [pid, cid, cid, contact.email],
         }),
         db.execute({
           sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
@@ -206,7 +206,7 @@ export async function GET(req) {
       const attendedSessions = attendance.filter(
         (a) => a.status === "present",
       ).length;
-      const totalSessions = unlockedSessions.length || 1;
+      const totalSessions = sessions.length || 1;
       const attendanceRate = Math.round(
         (attendedSessions / totalSessions) * 100,
       );
