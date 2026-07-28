@@ -80,6 +80,7 @@ function ProgramWorkspace() {
   const [assignedStaff, setAssignedStaff] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState(null);
   const toggleKpi = (type, kpiId) => {
     if (type === "session") {
       setNewSession((prev) => {

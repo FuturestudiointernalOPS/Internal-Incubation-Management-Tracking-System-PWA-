@@ -39,6 +39,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@babel/parser": "^7.29.7",
     "autoprefixer": "^10.4.27",
     "eslint": "9.18.0",
