@@ -125,7 +125,7 @@ export async function GET(req) {
         }),
         db.execute({
           sql: "SELECT * FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE (a.participant_id::text = ? OR a.participant_id::text = (SELECT CAST(id AS TEXT) FROM v2_participants WHERE user_id = ? OR email = ? LIMIT 1)) AND s.program_id = ?",
-          args: [cid, cid, email, pid],
+          args: [cid, cid, contact.email, pid],
         }),
         db.execute({
           sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
