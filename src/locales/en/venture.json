@@ -80,6 +80,7 @@
     "progressSummary": "Progress Summary",
     "profileCompletion": "Profile Completion",
     "noProgressData": "No progress data yet",
+        "edit": "Edit",
         "create": "Create",
         "unit": "Unit",
         "followUpDate": "Follow-up Date",

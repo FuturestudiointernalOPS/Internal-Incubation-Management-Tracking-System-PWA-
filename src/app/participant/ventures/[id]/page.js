@@ -72,6 +72,9 @@ export default function VentureDetail() {
   const [showAddCoaching, setShowAddCoaching] = useState(false);
   const [showAddKpi, setShowAddKpi] = useState(false);
   const [showAddKpiDefinition, setShowAddKpiDefinition] = useState(false);
+  const [editingKpiDef, setEditingKpiDef] = useState(null);
+  const [showEditCoaching, setShowEditCoaching] = useState(false);
+  const [editingCoaching, setEditingCoaching] = useState(null);
   const [advisorForm, setAdvisorForm] = useState({});
   const [coachingForm, setCoachingForm] = useState({});
   const [kpiForm, setKpiForm] = useState({});
@@ -1128,7 +1131,10 @@ export default function VentureDetail() {
             {coachingSessions.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               coachingSessions.map(s=>(
                 <div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
-                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{s.advisor_name||s.advisor_contact_id} {s.session_date&&`• ${new Date(s.session_date).toLocaleDateString()}`}{s.start_time&&` at ${s.start_time}`}</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs" style={{color:'var(--text-secondary)'}}>{s.advisor_name||s.advisor_contact_id} {s.session_date&&`• ${new Date(s.session_date).toLocaleDateString()}`}{s.start_time&&` at ${s.start_time}`}</p>
+                    <button onClick={()=>{setEditingCoaching(s);setShowEditCoaching(true);setCoachingForm({});}} className="text-xs px-2 py-0.5 rounded" style={{color:'var(--brand-orange)',border:'1px solid var(--brand-orange)'}}>{t('venture.edit')}</button>
+                  </div>
                   {s.location&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>📍 {s.location}</p>}
                   {s.meeting_link&&<p className="text-xs mt-1"><a href={s.meeting_link} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">🔗 {s.meeting_link}</a></p>}
                   {s.notes&&<p className="text-sm mt-1">{s.notes}</p>}
@@ -1153,7 +1159,10 @@ export default function VentureDetail() {
               kpis.map(k=>(
                 <div key={k.id} className="rounded-xl p-4 border" style={cardStyle}>
                   <div className="flex items-center justify-between">
-                    <p className="font-medium">{k.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{k.name}</p>
+                      <button onClick={()=>{const def=kpiDefinitions.find(d=>d.id===k.kpi_definition_id); if(def){setKpiDefForm(def);setEditingKpiDef(def);setShowAddKpiDefinition(true);}}} className="text-xs px-2 py-0.5 rounded" style={{color:'var(--brand-orange)',border:'1px solid var(--brand-orange)'}}>{t('venture.edit')}</button>
+                    </div>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">{k.auto_calc_source?t('venture.autoCalculated'):t('venture.manualEntry')}</span>
                   </div>
                   <p className="text-sm mt-1" style={{color:'var(--text-secondary)'}}>{t('venture.current')}: {k.current_value ?? 0}{k.target_value&&` / ${t('venture.target')}: ${k.target_value}`} {k.unit}</p>
@@ -1388,8 +1397,8 @@ export default function VentureDetail() {
         {showAddKpiDefinition && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddKpiDefinition(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.create')} KPI</h2><button onClick={()=>setShowAddKpiDefinition(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();await fetch('/api/venture-kpi-definitions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(kpiDefForm)});setShowAddKpiDefinition(false);setKpiDefForm({});fetchKpiDefinitions();}} className="space-y-3">
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{editingKpiDef?t('venture.edit'):t('venture.create')} KPI</h2><button onClick={()=>{setShowAddKpiDefinition(false);setEditingKpiDef(null);setKpiDefForm({});}} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();const method=editingKpiDef?'PATCH':'POST';const url=editingKpiDef?'/api/venture-kpi-definitions':'/api/venture-kpi-definitions';const body=editingKpiDef?{...kpiDefForm,id:editingKpiDef.id}:kpiDefForm;await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});setShowAddKpiDefinition(false);setEditingKpiDef(null);setKpiDefForm({});fetchKpiDefinitions();fetchKpis();}} className="space-y-3">
                 <input placeholder="KPI Name" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.name||''} onChange={e=>setKpiDefForm({...kpiDefForm,name:e.target.value})} required />
                 <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={kpiDefForm.description||''} onChange={e=>setKpiDefForm({...kpiDefForm,description:e.target.value})} />
                 <input placeholder={t('venture.unit')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.unit||''} onChange={e=>setKpiDefForm({...kpiDefForm,unit:e.target.value})} />
@@ -1398,6 +1407,25 @@ export default function VentureDetail() {
                   <option value="customer_interviews">{t('venture.autoCalculated')} — Customer Interviews</option>
                   <option value="milestones">{t('venture.autoCalculated')} — Milestones</option>
                 </select>
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Coaching Session Modal */}
+        {showEditCoaching && editingCoaching && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>{setShowEditCoaching(false);setEditingCoaching(null);}}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.edit')} Session</h2><button onClick={()=>{setShowEditCoaching(false);setEditingCoaching(null);}} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();const body={...coachingForm,session_date:coachingForm.session_date||editingCoaching.session_date,start_time:coachingForm.start_time||editingCoaching.start_time,location:coachingForm.location||editingCoaching.location,meeting_link:coachingForm.meeting_link||editingCoaching.meeting_link,notes:coachingForm.notes||editingCoaching.notes,observations:coachingForm.observations||editingCoaching.observations,recommendations:coachingForm.recommendations||editingCoaching.recommendations,follow_up_date:coachingForm.follow_up_date||editingCoaching.follow_up_date};await fetch(`/api/ventures/${params.id}/coaching?id=${editingCoaching.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});setShowEditCoaching(false);setEditingCoaching(null);setCoachingForm({});fetchCoaching();}} className="space-y-3">
+                <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.session_date||editingCoaching.session_date||''} onChange={e=>setCoachingForm({...coachingForm,session_date:e.target.value})} />
+                <input type="time" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.start_time||editingCoaching.start_time||''} onChange={e=>setCoachingForm({...coachingForm,start_time:e.target.value})} />
+                <input type="text" placeholder="Location" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.location||editingCoaching.location||''} onChange={e=>setCoachingForm({...coachingForm,location:e.target.value})} />
+                <input type="url" placeholder="Meeting Link" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.meeting_link||editingCoaching.meeting_link||''} onChange={e=>setCoachingForm({...coachingForm,meeting_link:e.target.value})} />
+                <textarea placeholder={t('venture.notes')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={coachingForm.notes||editingCoaching.notes||''} onChange={e=>setCoachingForm({...coachingForm,notes:e.target.value})} />
+                <textarea placeholder={t('venture.recommendations')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={coachingForm.recommendations||editingCoaching.recommendations||''} onChange={e=>setCoachingForm({...coachingForm,recommendations:e.target.value})} />
+                <div><label className="block text-sm mb-1">{t('venture.followUpDate')||'Follow-up Date'}</label><input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.follow_up_date||editingCoaching.follow_up_date||''} onChange={e=>setCoachingForm({...coachingForm,follow_up_date:e.target.value})} /></div>
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>
             </div>
