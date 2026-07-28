@@ -162,13 +162,6 @@ export default function LoginPage() {
               >
                 Forgot Password?
               </button>
-              <button
-                type="button"
-                onClick={() => router.push("/investor/register")}
-                className="text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--brand-orange)] uppercase tracking-wider"
-              >
-                Register as Investor
-              </button>
             </div>
 
             <button
