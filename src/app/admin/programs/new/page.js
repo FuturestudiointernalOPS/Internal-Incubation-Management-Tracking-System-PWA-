@@ -246,8 +246,8 @@ export default function NewProgram() {
         setSegments((prev) => [...prev, data.group]);
         setIsCreatingGroup(false);
         notify("success", "Group created. Saving program...");
-        // Auto-save program
-        setTimeout(() => handleDeploy({ preventDefault: () => {} }), 300);
+        // Auto-save program with explicit groupId to avoid stale closure
+        setTimeout(() => handleDeploy({ preventDefault: () => {} }, data.group.id), 300);
       }
     } catch (e) {
       notify("error", e.message);
@@ -291,7 +291,7 @@ export default function NewProgram() {
     }));
   };
 
-  const handleDeploy = async (e) => {
+  const handleDeploy = async (e, existingGroupId) => {
     e.preventDefault();
     if (!program.name || !program.assigned_pm_id) {
       notify(
@@ -315,7 +315,7 @@ export default function NewProgram() {
     setIsDeploying(true);
     try {
       // Create contact group first if a group name was provided
-      let groupId = program.assigned_segments?.[0];
+      let groupId = existingGroupId || program.assigned_segments?.[0];
       if (!groupId && newGroup.name?.trim()) {
         const groupRes = await fetch("/api/families", {
           method: "POST",
