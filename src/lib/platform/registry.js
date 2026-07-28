@@ -69,6 +69,18 @@ const REGISTERED_MODULES = [
     future: true,
   },
   {
+    id: "platform-runs",
+    name: "Runs",
+    description: "Launch form runs, manage submissions and reviews",
+    icon: "Play",
+    href: "/platform/runs",
+    enabled: true,
+    visible: true,
+    permissions: ["super_admin"],
+    order: 5,
+    future: false,
+  },
+  {
     id: "platform-settings",
     name: "Settings",
     description: "Platform configuration and governance",

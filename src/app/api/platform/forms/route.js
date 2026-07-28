@@ -17,16 +17,18 @@ import { requireAuth } from "@/lib/auth";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin", "staff"]);
-    if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const collectionId = searchParams.get("collection_id");
     const status = searchParams.get("status");
 
-    // Single form with fields + sections
+    // Single form with fields + sections — allow any authenticated user (participants need this)
     if (id) {
+      const { getSession } = await import("@/lib/auth");
+      const session = await getSession();
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+
       const form = await db.execute({
         sql: "SELECT * FROM platform_forms WHERE id = ?",
         args: [parseInt(id)],
@@ -45,13 +47,33 @@ export async function GET(req) {
         args: [parseInt(id)],
       });
 
+      let sectionsResult = sections.rows;
+      let fieldsResult = fields.rows;
+
+      // ─── Fallback: read from version snapshot if live tables are empty but form is published ───
+      if (sectionsResult.length === 0 && fieldsResult.length === 0 && form.rows[0].status === "published") {
+        const version = await db.execute({
+          sql: "SELECT snapshot FROM platform_form_versions WHERE form_id = ? ORDER BY version DESC LIMIT 1",
+          args: [parseInt(id)],
+        });
+        if (version.rows.length > 0 && version.rows[0].snapshot) {
+          const snap = version.rows[0].snapshot;
+          sectionsResult = snap.sections || [];
+          fieldsResult = snap.fields || [];
+        }
+      }
+
       return NextResponse.json({
         success: true,
         form: form.rows[0],
-        sections: sections.rows,
-        fields: fields.rows,
+        sections: sectionsResult,
+        fields: fieldsResult,
       });
     }
+
+    // All other operations require admin
+    const authError = await requireAuth(["super_admin", "admin", "staff"]);
+    if (authError) return authError;
 
     // List forms with filters
     let sql = "SELECT * FROM platform_forms WHERE 1=1";
