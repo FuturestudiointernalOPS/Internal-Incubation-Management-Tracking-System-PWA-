@@ -592,7 +592,17 @@ export default function ProgramManagement() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditingProgram(p);
+                                // Formater les dates pour input type="date" (YYYY-MM-DD)
+                                const formatted = { ...p };
+                                if (p.start_date) {
+                                  const d = new Date(p.start_date);
+                                  formatted.start_date = d.toISOString().split('T')[0];
+                                }
+                                if (p.end_date) {
+                                  const d = new Date(p.end_date);
+                                  formatted.end_date = d.toISOString().split('T')[0];
+                                }
+                                setEditingProgram(formatted);
                               }}
                               title={t("admin.edit")}
                               className="p-2 hover:text-[var(--brand-orange)]"
