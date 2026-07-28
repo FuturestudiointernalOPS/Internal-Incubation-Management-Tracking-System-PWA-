@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
+import SubmissionVersionHistory from "./SubmissionVersionHistory";
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function StatusBadge({ status }) {

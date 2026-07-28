@@ -301,9 +301,9 @@ export async function GET(req) {
 
     let sql = `
        SELECT s.*,
-              COALESCE(del.title, dr.title) as deliverable_title,
-              COALESCE(del.week_number, dr.week_number) as deliverable_week,
-              del.due_date as deliverable_due_date,
+              COALESCE(d.title, dr.title) as deliverable_title,
+              COALESCE(d.week_number, dr.week_number) as deliverable_week,
+              d.due_date as deliverable_due_date,
               p.name as participant_name, g.name as group_name
        FROM v2_submissions s
        LEFT JOIN v2_deliverables d ON s.deliverable_id = CAST(d.id AS TEXT)
