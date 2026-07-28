@@ -49,11 +49,11 @@ export async function GET(req) {
         filename = `participants-${programId}.csv`;
         break;
       case "attendance":
-        sql = `SELECT vp.name, vp.email, va.status as attendance_status, va.session_date, va.week_number
+        sql = `SELECT vp.name, vp.email, va.status as attendance_status, va.date as session_date, va.week_number
                FROM v2_attendance va
                JOIN v2_participants vp ON va.participant_id = vp.user_id
                WHERE va.program_id = $1
-               ORDER BY va.session_date, vp.name`;
+               ORDER BY va.date, vp.name`;
         filename = `attendance-${programId}.csv`;
         break;
       case "submissions":
