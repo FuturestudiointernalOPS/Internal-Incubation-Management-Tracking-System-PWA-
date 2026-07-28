@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Clock, History, Briefcase, Target, Lightbulb, TrendingUp, CheckSquare, ListChecks, ChevronDown, ChevronUp, ListTodo, MessageCircle, RotateCcw, AlertTriangle, CalendarDays, Activity, FileText, GraduationCap, Award, Gauge } from "lucide-react";
+import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Bell, Clock, History, Briefcase, Target, Lightbulb, TrendingUp, CheckSquare, ListChecks, ChevronDown, ChevronUp, ListTodo, MessageCircle, RotateCcw, AlertTriangle, CalendarDays, Activity, FileText, GraduationCap, Award, Gauge } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useRouter, useParams } from "next/navigation";
@@ -164,7 +164,7 @@ export default function VentureDetail() {
     try {
       const res = await fetch(`/api/ventures/${params.id}/dashboard`);
       const d = await res.json();
-      if (d.success) setDashboardData(d);
+      if (d.success) setDashboardData(d.dashboard);
     } catch (e) { console.error(e); }
   }
 
@@ -268,6 +268,22 @@ export default function VentureDetail() {
     } catch (e) {
       alert(t("venture.updateError"));
     } finally { setSaving(false); }
+  }
+
+  const FOUNDER_ROLES = ["Founder", "Lead Founder", "Co-Founder", "Technical Founder", "Business Founder"];
+  const TEAM_ROLES = ["Team Member", "Developer", "Designer", "Product Manager", "Marketing", "Operations", "Advisor"];
+
+  async function handleUpdateMemberRole(memberId, newRole) {
+    try {
+      const res = await fetch(`/api/ventures/${params.id}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_id: memberId, role: newRole }),
+      });
+      const d = await res.json();
+      if (!d.success) alert(d.error);
+      else loadMembers();
+    } catch (e) { alert(e.message); }
   }
 
   async function handleAddMember(contactId) {
@@ -516,8 +532,12 @@ export default function VentureDetail() {
                 <div key={m.id} className="flex items-center justify-between p-4 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
                   <div>
                     <p className="font-medium">{m.contact_name || m.contact_id}</p>
-                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                      {m.role || t("venture.founders")} • {t("venture.memberSince")} {new Date(m.joined_at).toLocaleDateString()}
+                    <p className="text-xs flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
+                      <select value={m.role || "Founder"} onChange={e => handleUpdateMemberRole(m.id, e.target.value)}
+                        className="text-xs px-1 py-0.5 rounded" style={{ backgroundColor: "transparent", border: "1px solid rgb(255 255 255 / 0.15)", color: "var(--text-secondary)" }}>
+                        {FOUNDER_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      • {t("venture.memberSince")} {new Date(m.joined_at).toLocaleDateString()}
                     </p>
                   </div>
                   <button onClick={() => setRemoveConfirm(m)}
@@ -549,8 +569,12 @@ export default function VentureDetail() {
                 <div key={m.id} className="flex items-center justify-between p-4 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
                   <div>
                     <p className="font-medium">{m.contact_name || m.contact_id}</p>
-                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                      {m.role || t("venture.teamMembers")} • {t("venture.memberSince")} {new Date(m.joined_at).toLocaleDateString()}
+                    <p className="text-xs flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
+                      <select value={m.role || "Team Member"} onChange={e => handleUpdateMemberRole(m.id, e.target.value)}
+                        className="text-xs px-1 py-0.5 rounded" style={{ backgroundColor: "transparent", border: "1px solid rgb(255 255 255 / 0.15)", color: "var(--text-secondary)" }}>
+                        {TEAM_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      • {t("venture.memberSince")} {new Date(m.joined_at).toLocaleDateString()}
                     </p>
                   </div>
                   <button onClick={() => setRemoveConfirm(m)}
@@ -573,10 +597,10 @@ export default function VentureDetail() {
               <>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
-                    { label: t("venture.founderCount"), value: dashboardData.venture.founder_count, icon: Users },
-                    { label: t("venture.memberCount"), value: dashboardData.venture.member_count, icon: Users },
-                    { label: t("venture.businessStage"), value: t(`venture.stages.${dashboardData.venture.business_stage || "idea"}`), icon: BarChart3 },
-                    { label: t("venture.status"), value: t(`venture.statuses.${dashboardData.venture.status || "active"}`), icon: Clock },
+                    { label: t("venture.founderCount"), value: dashboardData.founders?.total ?? 0, icon: Users },
+                    { label: t("venture.memberCount"), value: (getFounders().length + getTeam().length) || 0, icon: Users },
+                    { label: t("venture.businessStage"), value: t(`venture.stages.${dashboardData.venture?.business_stage || "idea"}`), icon: BarChart3 },
+                    { label: t("venture.status"), value: t(`venture.statuses.${dashboardData.venture?.status || "active"}`), icon: Clock },
                   ].map((stat, i) => (
                     <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
                       <stat.icon size={18} className="mb-2" style={{ color: "var(--brand-orange)" }} />
@@ -586,21 +610,69 @@ export default function VentureDetail() {
                   ))}
                 </div>
 
+                {/* Recent Activity */}
                 <div className="rounded-xl p-6 border" style={cardStyle}>
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
                     <Clock size={16} style={{ color: "var(--brand-orange)" }} />
                     {t("venture.recentActivity")}
                   </h3>
                   {dashboardData.recent_activity?.length === 0 ? (
-                    <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noTeamMembersYet")}</p>
+                    <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noRecentActivity")}</p>
                   ) : dashboardData.recent_activity?.map((a, i) => (
                     <div key={i} className="flex items-center gap-3 py-2 border-b last:border-0 text-sm" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--brand-orange)" }} />
-                      <span className="font-medium">{a.contact_name || a.contact_id}</span>
-                      <span style={{ color: "var(--text-secondary)" }}>{a.member_type === "founder" ? t("venture.founders") : t("venture.teamMembers")}</span>
-                      <span style={{ color: "var(--text-secondary)" }}>• {new Date(a.joined_at).toLocaleDateString()}</span>
+                      <span className="font-medium">{a.actor || "System"}</span>
+                      <span style={{ color: "var(--text-secondary)" }}>{a.action}</span>
+                      <span style={{ color: "var(--text-secondary)" }}>• {new Date(a.created_at).toLocaleDateString()}</span>
                     </div>
                   ))}
+                </div>
+
+                {/* Notifications */}
+                <div className="rounded-xl p-6 border" style={cardStyle}>
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <Bell size={16} style={{ color: "var(--brand-orange)" }} />
+                    {t("venture.recentNotifications")} {dashboardData.notifications?.unread > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">{dashboardData.notifications.unread} {t("venture.unread")}</span>}
+                  </h3>
+                  {!dashboardData.notifications?.recent?.length ? (
+                    <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noNotifications")}</p>
+                  ) : dashboardData.notifications.recent.map((n, i) => (
+                    <div key={n.id || i} className="py-2 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+                      <div className="flex items-center gap-2">
+                        {!n.is_read && <span className="w-2 h-2 rounded-full bg-blue-400" />}
+                        <p className="text-sm font-medium">{n.title}</p>
+                      </div>
+                      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{n.message}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{new Date(n.created_at).toLocaleDateString()}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Progress Summary */}
+                <div className="rounded-xl p-6 border" style={cardStyle}>
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <Activity size={16} style={{ color: "var(--brand-orange)" }} />
+                    {t("venture.progressSummary")}
+                  </h3>
+                  {dashboardData.profile_completion ? (
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span>{t("venture.profileCompletion")}</span>
+                        <span className="font-bold" style={{ color: "var(--brand-orange)" }}>{dashboardData.profile_completion.percentage}%</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-white/10 mb-4">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${dashboardData.profile_completion.percentage}%`, backgroundColor: "var(--brand-orange)" }} />
+                      </div>
+                      {dashboardData.profile_completion.items?.map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 py-1 text-sm">
+                          <span className={item.completed ? "text-green-400" : "text-slate-500"}>{item.completed ? "✓" : "○"}</span>
+                          <span style={{ color: item.completed ? "var(--text-primary)" : "var(--text-secondary)" }}>{item.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noProgressData")}</p>
+                  )}
                 </div>
               </>
             )}

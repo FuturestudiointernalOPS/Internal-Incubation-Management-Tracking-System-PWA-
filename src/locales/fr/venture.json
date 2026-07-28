@@ -70,6 +70,13 @@
     "coaching": "Coaching", "addSession": "Nouvelle session", "sessionDate": "Date de session",
     "observations": "Observations", "recommendations": "Recommandations",
     "kpis": "KPIs", "assignKpi": "Assigner un KPI", "target": "Cible", "current": "Actuel",
-    "autoCalculated": "Calculé automatiquement", "manualEntry": "Saisie manuelle", "updateValue": "Mettre à jour"
+    "autoCalculated": "Calculé automatiquement", "manualEntry": "Saisie manuelle", "updateValue": "Mettre à jour",
+    "recentNotifications": "Notifications",
+    "unread": "non lues",
+    "noNotifications": "Aucune notification pour le moment",
+    "noRecentActivity": "Aucune activité récente",
+    "progressSummary": "Résumé d'avancement",
+    "profileCompletion": "Complétion du profil",
+    "noProgressData": "Aucune donnée de progression"
   }
 }

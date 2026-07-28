@@ -14,7 +14,7 @@ export async function GET(req, { params }) {
     const { id } = await params;
 
     const ventureRes = await db.execute({
-      sql: `SELECT * FROM ventures WHERE id = ?`,
+      sql: `SELECT * FROM ventures WHERE venture_id = ?`,
       args: [id],
     });
 
@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
     let program = null;
     if (venture.program_id) {
       const progRes = await db.execute({
-        sql: `SELECT id, name, start_date, end_date, deliverables FROM v2_programs WHERE id = ?::uuid`,
+        sql: `SELECT id, name, start_date, end_date, deliverables FROM v2_programs WHERE id = ?`,
         args: [venture.program_id],
       });
       if (progRes.rows?.[0]) {

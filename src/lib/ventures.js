@@ -503,14 +503,22 @@ export async function getVentureById(ventureId) {
  */
 export async function updateVenture(ventureId, updates) {
   const allowedFields = [
+    "name",
     "company_name",
     "registration_number",
+    "mission",
+    "vision",
     "industry",
+    "sector",
     "business_stage",
     "description",
     "website",
     "logo_url",
+    "social_media",
     "status",
+    "visibility",
+    "language",
+    "branding",
   ];
 
   const setClauses = [];
