@@ -2815,7 +2815,7 @@ export default function ProgramWorkspace() {
                             Strategic Next Steps
                           </p>
                           <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.next_steps || "No data reported."}
+                            {report.planned_adjustments || report.next_steps || "No data reported."}
                           </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-2">
@@ -3675,9 +3675,10 @@ export default function ProgramWorkspace() {
                   {selectedSubmission?.participant_name || "Group Submission"}
                 </p>
                 <a
-                  href={selectedSubmission?.submission_link}
+                  href={selectedSubmission?.file_url || selectedSubmission?.submission_url || selectedSubmission?.submission_link || '#'}
                   target="_blank"
-                  className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2"
+                  rel="noreferrer"
+                  className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2 hover:text-white transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" /> View Source Material
                 </a>
@@ -4214,13 +4215,16 @@ export default function ProgramWorkspace() {
                     setIsSaving(true);
                     try {
                       const today = new Date().toISOString().split("T")[0];
-                      const records = participants.map((p) => ({
-                        session_id: selectedSessionForAttendance.id,
-                        program_id: id,
-                        participant_id: p.id,
-                        status: attendanceRecords[p.id] || "present",
-                        date: today,
-                      }));
+                      const records = participants.map((p) => {
+                        const pid = p.user_id || p.cid || p.id;
+                        return {
+                          session_id: selectedSessionForAttendance.id,
+                          program_id: id,
+                          participant_id: pid,
+                          status: attendanceRecords[pid] || "present",
+                          date: today,
+                        };
+                      });
                       const res = await fetch("/api/attendance", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },

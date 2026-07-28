@@ -111,7 +111,7 @@ export async function GET(req) {
               (SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END)::decimal / NULLIF(COUNT(*), 0)) * 100
             , 1) as attendance_rate
           FROM v2_attendance a
-          LEFT JOIN v2_participants p ON a.participant_id = p.id
+          LEFT JOIN v2_participants p ON a.participant_id::text = p.user_id::text
           WHERE a.program_id = ?
           GROUP BY a.participant_id, p.name
           ORDER BY attendance_rate DESC
@@ -125,7 +125,7 @@ export async function GET(req) {
       });
     }
 
-    let sql = "SELECT a.*, p.name as participant_name FROM v2_attendance a LEFT JOIN v2_participants p ON a.participant_id = p.id WHERE 1=1";
+    let sql = "SELECT a.*, p.name as participant_name FROM v2_attendance a LEFT JOIN v2_participants p ON a.participant_id::text = p.user_id::text WHERE 1=1";
     const args = [];
 
     if (sessionId) {
