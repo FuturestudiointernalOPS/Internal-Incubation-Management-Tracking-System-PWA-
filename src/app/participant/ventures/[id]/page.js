@@ -71,9 +71,11 @@ export default function VentureDetail() {
   const [showAddAdvisor, setShowAddAdvisor] = useState(false);
   const [showAddCoaching, setShowAddCoaching] = useState(false);
   const [showAddKpi, setShowAddKpi] = useState(false);
+  const [showAddKpiDefinition, setShowAddKpiDefinition] = useState(false);
   const [advisorForm, setAdvisorForm] = useState({});
   const [coachingForm, setCoachingForm] = useState({});
   const [kpiForm, setKpiForm] = useState({});
+  const [kpiDefForm, setKpiDefForm] = useState({});
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -240,6 +242,11 @@ export default function VentureDetail() {
   }
   async function handleMakePrimaryAdvisor(advisorId) {
     await fetch(`/api/ventures/${params.id}/advisors`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ advisor_id: advisorId, is_primary: true }) });
+    fetchAdvisors();
+  }
+  async function handleRemoveAdvisor(advisorId) {
+    if (!confirm(t('venture.confirmRemove')||'Remove this advisor?')) return;
+    await fetch(`/api/ventures/${params.id}/advisors`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ advisor_id: advisorId, action: "remove" }) });
     fetchAdvisors();
   }
   async function handleDocumentTransition(docId, approval_status) {
@@ -1006,7 +1013,7 @@ export default function VentureDetail() {
             <h2 className="text-lg font-semibold flex items-center gap-2"><CalendarDays size={18}/> {t('venture.calendar')}</h2>
             {calendarEvents.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               calendarEvents.map((ev,i)=>{
-                const typeIcon = ev.type==='milestone'?'🗓':ev.type==='task'?'📋':ev.type==='action'?'📌':'📅';
+                const typeIcon = ev.type==='milestone'?'🗓':ev.type==='task'?'📋':ev.type==='action'?'📌':ev.type==='coaching'?'🎯':ev.type==='followup'?'📅':'📅';
                 const statusMap = {not_started:'notStarted',in_progress:'inProgress',completed:'completed',done:'completed'};
                 const statusClass = ev.status==='completed'||ev.status==='done'?'bg-green-500/20 text-green-400':ev.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400';
                 return (
@@ -1017,7 +1024,9 @@ export default function VentureDetail() {
                           <span className="shrink-0">{typeIcon}</span>
                           <span className="truncate">{ev.title}</span>
                         </p>
-                        {ev.date&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>📅 {new Date(ev.date).toLocaleDateString()}</p>}
+                        {ev.date&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>📅 {new Date(ev.date).toLocaleDateString()}{ev.start_time?` at ${ev.start_time}`:''}</p>}
+                        {ev.location&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>📍 {ev.location}</p>}
+                        {ev.meeting_link&&<p className="text-xs"><a href={ev.meeting_link} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">🔗 Link</a></p>}
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${statusClass}`}>
                         {t(`venture.${statusMap[ev.status]||ev.status||'notStarted'}`)}
@@ -1095,12 +1104,15 @@ export default function VentureDetail() {
             {advisors.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               advisors.map(a=>(
                 <div key={a.id} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
-                  <div><p className="font-medium">{a.advisor_contact_id}</p></div>
-                  {a.is_primary?(
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{t('venture.primary')}</span>
-                  ):(
-                    <button onClick={()=>handleMakePrimaryAdvisor(a.id)} className="text-xs px-3 py-1 rounded-lg" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}>{t('venture.makePrimary')}</button>
-                  )}
+                  <div><p className="font-medium">{a.advisor_name||a.advisor_contact_id}</p></div>
+                  <div className="flex items-center gap-2">
+                    {a.is_primary?(
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{t('venture.primary')}</span>
+                    ):(
+                      <button onClick={()=>handleMakePrimaryAdvisor(a.id)} className="text-xs px-3 py-1 rounded-lg" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}>{t('venture.makePrimary')}</button>
+                    )}
+                    <button onClick={()=>handleRemoveAdvisor(a.id)} className="text-xs px-3 py-1 rounded-lg" style={{color:'#ef4444',border:'1px solid rgb(239 68 68 / 0.3)'}}>{t('venture.remove')}</button>
+                  </div>
                 </div>
               ))
             }
@@ -1116,9 +1128,12 @@ export default function VentureDetail() {
             {coachingSessions.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               coachingSessions.map(s=>(
                 <div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
-                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{s.advisor_name||s.advisor_contact_id} {s.session_date&&`• ${new Date(s.session_date).toLocaleDateString()}`}</p>
+                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{s.advisor_name||s.advisor_contact_id} {s.session_date&&`• ${new Date(s.session_date).toLocaleDateString()}`}{s.start_time&&` at ${s.start_time}`}</p>
+                  {s.location&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>📍 {s.location}</p>}
+                  {s.meeting_link&&<p className="text-xs mt-1"><a href={s.meeting_link} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">🔗 {s.meeting_link}</a></p>}
                   {s.notes&&<p className="text-sm mt-1">{s.notes}</p>}
                   {s.recommendations&&<p className="text-sm mt-1" style={{color:'var(--brand-orange)'}}>💡 {s.recommendations}</p>}
+                  {s.follow_up_date&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>📅 Follow-up: {new Date(s.follow_up_date).toLocaleDateString()}</p>}
                 </div>
               ))
             }
@@ -1129,7 +1144,10 @@ export default function VentureDetail() {
         {activeTab === "kpis" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.kpis')} ({kpis.length})</h2>
-              <button onClick={()=>setShowAddKpi(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Gauge size={16}/> {t('venture.assignKpi')}</button>
+              <div className="flex gap-2">
+                <button onClick={()=>setShowAddKpiDefinition(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}><Gauge size={16}/> {t('venture.create')}</button>
+                <button onClick={()=>setShowAddKpi(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Gauge size={16}/> {t('venture.assignKpi')}</button>
+              </div>
             </div>
             {kpis.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               kpis.map(k=>(
@@ -1350,11 +1368,36 @@ export default function VentureDetail() {
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/coaching`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(coachingForm)});setShowAddCoaching(false);setCoachingForm({});fetchCoaching();}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.advisor_contact_id||''} onChange={e=>setCoachingForm({...coachingForm,advisor_contact_id:e.target.value})}>
                   <option value="">{t('venture.advisors')}</option>
-                  {advisors.map(a=><option key={a.id} value={a.advisor_contact_id}>{a.advisor_contact_id}</option>)}
+                  {advisors.map(a=><option key={a.id} value={a.advisor_contact_id}>{a.advisor_name||a.advisor_contact_id}</option>)}
                 </select>
                 <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.session_date||''} onChange={e=>setCoachingForm({...coachingForm,session_date:e.target.value})} />
+                <input type="time" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.start_time||''} onChange={e=>setCoachingForm({...coachingForm,start_time:e.target.value})} placeholder="HH:MM" />
+                <input type="text" placeholder="Location" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.location||''} onChange={e=>setCoachingForm({...coachingForm,location:e.target.value})} />
+                <input type="url" placeholder="Meeting Link" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.meeting_link||''} onChange={e=>setCoachingForm({...coachingForm,meeting_link:e.target.value})} />
+                <textarea placeholder={t('venture.observations')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={coachingForm.observations||''} onChange={e=>setCoachingForm({...coachingForm,observations:e.target.value})} />
                 <textarea placeholder={t('venture.notes')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={coachingForm.notes||''} onChange={e=>setCoachingForm({...coachingForm,notes:e.target.value})} />
                 <textarea placeholder={t('venture.recommendations')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={coachingForm.recommendations||''} onChange={e=>setCoachingForm({...coachingForm,recommendations:e.target.value})} />
+                <div><label className="block text-sm mb-1">{t('venture.followUpDate')||'Follow-up Date'}</label><input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.follow_up_date||''} onChange={e=>setCoachingForm({...coachingForm,follow_up_date:e.target.value})} /></div>
+                <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Create KPI Definition Modal */}
+        {showAddKpiDefinition && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddKpiDefinition(false)}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.create')} KPI</h2><button onClick={()=>setShowAddKpiDefinition(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
+              <form onSubmit={async e=>{e.preventDefault();await fetch('/api/venture-kpi-definitions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(kpiDefForm)});setShowAddKpiDefinition(false);setKpiDefForm({});fetchKpiDefinitions();}} className="space-y-3">
+                <input placeholder="KPI Name" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.name||''} onChange={e=>setKpiDefForm({...kpiDefForm,name:e.target.value})} required />
+                <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={kpiDefForm.description||''} onChange={e=>setKpiDefForm({...kpiDefForm,description:e.target.value})} />
+                <input placeholder={t('venture.unit')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.unit||''} onChange={e=>setKpiDefForm({...kpiDefForm,unit:e.target.value})} />
+                <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.auto_calc_source||''} onChange={e=>setKpiDefForm({...kpiDefForm,auto_calc_source:e.target.value})}>
+                  <option value="">{t('venture.manualEntry')}</option>
+                  <option value="customer_interviews">{t('venture.autoCalculated')} — Customer Interviews</option>
+                  <option value="milestones">{t('venture.autoCalculated')} — Milestones</option>
+                </select>
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>
             </div>
