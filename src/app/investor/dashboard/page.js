@@ -39,6 +39,10 @@ const STAGE_LABELS = {
   declined: "Declined",
 };
 
+const INDUSTRY_OPTIONS = ["FinTech","HealthTech","AgriTech","EdTech","CleanTech","Logistics","E-Commerce","SaaS","AI/ML","Renewable Energy"];
+const COUNTRY_OPTIONS = ["CD","KE","NG","ZA","GH","RW","UG","TZ","EG","MA"];
+const STAGE_OPTIONS = ["Pre-Seed","Seed","Series A","Series B","Growth"];
+
 export default function InvestorDashboard() {
   const router = useRouter();
   const [profile, setProfile] = useState(null);
@@ -54,9 +58,9 @@ export default function InvestorDashboard() {
 
   // Advanced filters
   const [showFilters, setShowFilters] = useState(false);
-  const [filterIndustry, setFilterIndustry] = useState("");
-  const [filterCountry, setFilterCountry] = useState("");
-  const [filterStage, setFilterStage] = useState("");
+  const [filterIndustry, setFilterIndustry] = useState([]);
+  const [filterCountry, setFilterCountry] = useState([]);
+  const [filterStage, setFilterStage] = useState([]);
   const [filterFundingMin, setFilterFundingMin] = useState("");
   const [filterFundingMax, setFilterFundingMax] = useState("");
   const [ventures, setVentures] = useState([]);
@@ -129,9 +133,9 @@ export default function InvestorDashboard() {
   const searchVentures = async () => {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
-    if (filterIndustry) params.set("industry", filterIndustry);
-    if (filterCountry) params.set("country", filterCountry);
-    if (filterStage) params.set("stage", filterStage);
+    if (filterIndustry.length) params.set("industry", filterIndustry.join(","));
+    if (filterCountry.length) params.set("country", filterCountry.join(","));
+    if (filterStage.length) params.set("stage", filterStage.join(","));
     if (filterFundingMin) params.set("funding_min", filterFundingMin);
     if (filterFundingMax) params.set("funding_max", filterFundingMax);
     try {
@@ -300,28 +304,43 @@ export default function InvestorDashboard() {
 
             {/* Advanced filters */}
             {showFilters && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl">
+              <div className="p-4 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl space-y-3">
                 <div>
                   <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Industry</label>
-                  <input value={filterIndustry} onChange={e => setFilterIndustry(e.target.value)}
-                    placeholder="e.g. FinTech, HealthTech"
-                    className="w-full mt-1 px-3 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {INDUSTRY_OPTIONS.map(ind => (
+                      <button key={ind} onClick={() => setFilterIndustry(prev => prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind])}
+                        className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
+                          filterIndustry.includes(ind) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        }`}>{ind}</button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Country</label>
-                  <input value={filterCountry} onChange={e => setFilterCountry(e.target.value)}
-                    placeholder="e.g. CD, KE, NG"
-                    className="w-full mt-1 px-3 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {COUNTRY_OPTIONS.map(c => (
+                      <button key={c} onClick={() => setFilterCountry(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                        className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
+                          filterCountry.includes(c) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        }`}>{c}</button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Stage</label>
-                  <input value={filterStage} onChange={e => setFilterStage(e.target.value)}
-                    placeholder="Seed, Series A"
-                    className="w-full mt-1 px-3 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {STAGE_OPTIONS.map(s => (
+                      <button key={s} onClick={() => setFilterStage(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                        className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
+                          filterStage.includes(s) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        }`}>{s}</button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Funding (USD)</label>
-                  <div className="flex gap-1 mt-1">
+                  <div className="flex gap-1 mt-1.5">
                     <input value={filterFundingMin} onChange={e => setFilterFundingMin(e.target.value)}
                       type="number" placeholder="Min"
                       className="w-full px-2 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
@@ -330,9 +349,9 @@ export default function InvestorDashboard() {
                       className="w-full px-2 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
                   </div>
                 </div>
-                {(filterIndustry || filterCountry || filterStage || filterFundingMin || filterFundingMax) && (
-                  <button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterStage(""); setFilterFundingMin(""); setFilterFundingMax(""); }}
-                    className="col-span-full text-[10px] font-bold text-[var(--brand-orange)] hover:underline text-center">
+                {(filterIndustry.length > 0 || filterCountry.length > 0 || filterStage.length > 0 || filterFundingMin || filterFundingMax) && (
+                  <button onClick={() => { setFilterIndustry([]); setFilterCountry([]); setFilterStage([]); setFilterFundingMin(""); setFilterFundingMax(""); }}
+                    className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline">
                     Clear all filters
                   </button>
                 )}
