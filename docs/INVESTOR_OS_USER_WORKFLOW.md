@@ -143,15 +143,15 @@ Le pipeline suit chaque venture à travers les étapes du cycle d'investissement
 
 ### Stages (dans l'ordre) :
 
-| Stage | Signification |
-|-------|---------------|
-| **Interested** | L'investisseur a exprimé son intérêt |
-| **Watching** | L'investisseur surveille la venture |
-| **Meeting Requested** | Une réunion est demandée |
-| **Due Diligence** | Évaluation approfondie en cours |
-| **Negotiation** | Négociation des termes |
-| **Invested** | Investissement confirmé |
-| **Declined** | Opportunité déclinée |
+| Stage | Signification | Ce qui se passe |
+|-------|---------------|-----------------|
+| **Interested** | L'investisseur a exprimé son intérêt | La venture entre dans le pipeline. Rien d'automatique. |
+| **Watching** | L'investisseur surveille la venture | Aucune notification. |
+| **Meeting Requested** | Une réunion est demandée | 🔔 **Super Admin notifié** + 📅 **Événement calendrier créé**. L'admin contacte investisseur + founder. |
+| **Due Diligence** | Évaluation approfondie en cours | 🔓 **Workspace DD activé** (demandes, évaluation fondateurs, risques, notes). |
+| **Negotiation** | Négociation des termes | Phase de discussion humaine. L'investisseur peut revoir les notes DD, discuter les termes, planifier des réunions. |
+| **Invested** | Investissement confirmé | 🔔 **Super Admin notifié** + 💰 **Décision enregistrée**. La venture passe dans le **Portfolio**. |
+| **Declined** | Opportunité déclinée | La venture quitte le pipeline actif. |
 
 ### Ajouter au pipeline :
 
@@ -165,6 +165,23 @@ Le pipeline suit chaque venture à travers les étapes du cycle d'investissement
 3. Pour chaque venture :
    - **Dropdown de stage** → changer le stage (ex: Interested → Due Diligence)
    - **Open Workspace** (si stage = Due Diligence)
+
+### Stage Negotiation :
+
+Quand l'investisseur passe une venture en **Negotiation**, cela signifie que la Due Diligence est terminée et que les deux parties entrent en discussion sur les termes de l'investissement.
+
+**Ce que l'investisseur peut faire :**
+- **Revoir les notes de Due Diligence** — toutes les évaluations (fondateurs, risques, demandes) restent accessibles
+- **Discuter les termes** — valorisation, montant, equity, conditions — via les canaux de communication de Future Studio
+- **Planifier des réunions** — depuis le Portfolio (si déjà en portefeuille) ou via l'espace Due Diligence complété
+- **Modifier le stage** à tout moment :
+  - **Invested** → accord trouvé, passage à l'investissement (déclenche notification admin + création automatique de la décision)
+  - **Declined** → désaccord, abandon de l'opportunité
+  - **Revenir à Due Diligence** → si des points nécessitent une analyse supplémentaire
+
+**Ce qui se passe automatiquement :**
+- Aucune notification ou événement automatique n'est déclenché à ce stade — c'est une phase de discussion humaine
+- L'Admin de Future Studio peut faciliter la négociation en mettant en contact direct l'investisseur et le founder
 
 ---
 
