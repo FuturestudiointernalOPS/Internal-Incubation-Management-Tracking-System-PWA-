@@ -5,7 +5,7 @@ import {
   Briefcase, TrendingUp, Star, Eye, BarChart3, Users,
   Building2, Clock, ArrowRight, Loader2, Search, Filter,
   Bookmark, BookmarkCheck, Target, DollarSign, SlidersHorizontal,
-  X, ChevronLeft, ExternalLink, GitCompare, Check,
+  X, ChevronLeft, ExternalLink, GitCompare, Check, ChevronDown,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -61,6 +61,7 @@ export default function InvestorDashboard() {
   const [filterIndustry, setFilterIndustry] = useState([]);
   const [filterCountry, setFilterCountry] = useState([]);
   const [filterStage, setFilterStage] = useState([]);
+  const [openDropdown, setOpenDropdown] = useState(null); // 'industry' | 'country' | 'stage' | null
   const [filterFundingMin, setFilterFundingMin] = useState("");
   const [filterFundingMax, setFilterFundingMax] = useState("");
   const [ventures, setVentures] = useState([]);
@@ -304,58 +305,81 @@ export default function InvestorDashboard() {
 
             {/* Advanced filters */}
             {showFilters && (
-              <div className="p-4 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl space-y-3">
-                <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Industry</label>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {INDUSTRY_OPTIONS.map(ind => (
-                      <button key={ind} onClick={() => setFilterIndustry(prev => prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind])}
-                        className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
-                          filterIndustry.includes(ind) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        }`}>{ind}</button>
-                    ))}
-                  </div>
+              <>
+                {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl relative z-20">
+                {/* Industry Dropdown */}
+                <div className="relative">
+                  <button onClick={() => setOpenDropdown(openDropdown === 'industry' ? null : 'industry')}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-[9px] font-bold uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                    <span className="truncate">{filterIndustry.length > 0 ? filterIndustry.join(', ') : 'Industry'}</span>
+                    <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${openDropdown === 'industry' ? 'rotate-180' : ''}`} />
+                  </button>
+                  {openDropdown === 'industry' && (
+                    <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-lg shadow-xl p-1.5 space-y-0.5">
+                      {INDUSTRY_OPTIONS.map(ind => (
+                        <label key={ind} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--surface-3)] cursor-pointer">
+                          <input type="checkbox" checked={filterIndustry.includes(ind)} onChange={() => setFilterIndustry(prev => prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind])} className="accent-[var(--brand-orange)]" />
+                          <span className="text-[10px] font-bold text-[var(--text-primary)]">{ind}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Country</label>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {COUNTRY_OPTIONS.map(c => (
-                      <button key={c} onClick={() => setFilterCountry(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
-                        className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
-                          filterCountry.includes(c) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        }`}>{c}</button>
-                    ))}
-                  </div>
+                {/* Country Dropdown */}
+                <div className="relative">
+                  <button onClick={() => setOpenDropdown(openDropdown === 'country' ? null : 'country')}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-[9px] font-bold uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                    <span className="truncate">{filterCountry.length > 0 ? filterCountry.join(', ') : 'Country'}</span>
+                    <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${openDropdown === 'country' ? 'rotate-180' : ''}`} />
+                  </button>
+                  {openDropdown === 'country' && (
+                    <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-lg shadow-xl p-1.5 space-y-0.5">
+                      {COUNTRY_OPTIONS.map(c => (
+                        <label key={c} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--surface-3)] cursor-pointer">
+                          <input type="checkbox" checked={filterCountry.includes(c)} onChange={() => setFilterCountry(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])} className="accent-[var(--brand-orange)]" />
+                          <span className="text-[10px] font-bold text-[var(--text-primary)]">{c}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Stage</label>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {STAGE_OPTIONS.map(s => (
-                      <button key={s} onClick={() => setFilterStage(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
-                        className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
-                          filterStage.includes(s) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        }`}>{s}</button>
-                    ))}
-                  </div>
+                {/* Stage Dropdown */}
+                <div className="relative">
+                  <button onClick={() => setOpenDropdown(openDropdown === 'stage' ? null : 'stage')}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-[9px] font-bold uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                    <span className="truncate">{filterStage.length > 0 ? filterStage.join(', ') : 'Stage'}</span>
+                    <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${openDropdown === 'stage' ? 'rotate-180' : ''}`} />
+                  </button>
+                  {openDropdown === 'stage' && (
+                    <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-lg shadow-xl p-1.5 space-y-0.5">
+                      {STAGE_OPTIONS.map(s => (
+                        <label key={s} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--surface-3)] cursor-pointer">
+                          <input type="checkbox" checked={filterStage.includes(s)} onChange={() => setFilterStage(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])} className="accent-[var(--brand-orange)]" />
+                          <span className="text-[10px] font-bold text-[var(--text-primary)]">{s}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
+                {/* Funding */}
                 <div>
                   <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Funding (USD)</label>
                   <div className="flex gap-1 mt-1.5">
-                    <input value={filterFundingMin} onChange={e => setFilterFundingMin(e.target.value)}
-                      type="number" placeholder="Min"
+                    <input value={filterFundingMin} onChange={e => setFilterFundingMin(e.target.value)} type="number" placeholder="Min"
                       className="w-full px-2 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
-                    <input value={filterFundingMax} onChange={e => setFilterFundingMax(e.target.value)}
-                      type="number" placeholder="Max"
+                    <input value={filterFundingMax} onChange={e => setFilterFundingMax(e.target.value)} type="number" placeholder="Max"
                       className="w-full px-2 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
                   </div>
                 </div>
                 {(filterIndustry.length > 0 || filterCountry.length > 0 || filterStage.length > 0 || filterFundingMin || filterFundingMax) && (
                   <button onClick={() => { setFilterIndustry([]); setFilterCountry([]); setFilterStage([]); setFilterFundingMin(""); setFilterFundingMax(""); }}
-                    className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline">
+                    className="col-span-full text-[10px] font-bold text-[var(--brand-orange)] hover:underline text-center">
                     Clear all filters
                   </button>
                 )}
               </div>
+              </>
             )}
 
             {/* Results */}
