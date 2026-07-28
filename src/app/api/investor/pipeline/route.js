@@ -45,7 +45,56 @@ export async function POST(req) {
       args: [investorId, venture_id, newStage, notes || null],
     });
 
-    // If stage is "invested", auto-create a decision record
+    // If stage is "meeting_requested", notify admin + create calendar placeholder
+    if (newStage === "meeting_requested") {
+      try {
+        // Get investor and venture names
+        const info = await db.execute({
+          sql: `SELECT c.name as investor_name, ipr.organization_name, p.name as venture_name
+                FROM investor_profiles ipr
+                JOIN contacts c ON ipr.user_id = c.cid
+                LEFT JOIN v2_programs p ON p.id = ?
+                WHERE ipr.id = ?`,
+          args: [venture_id, investorId],
+        });
+        const inv = info.rows[0] || {};
+
+        // Notify super admins
+        const admins = await db.execute({
+          sql: "SELECT cid FROM contacts WHERE role = 'super_admin' AND deleted_at IS NULL",
+          args: [],
+        });
+        for (const a of admins.rows) {
+          await db.execute({
+            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                  VALUES (?, ?, ?, 'investor', 0, NOW())`,
+            args: [
+              a.cid,
+              `Meeting Requested: ${inv.venture_name || "Venture"}`,
+              `${inv.investor_name || "Investor"} (${inv.organization_name || "Individual"}) requested a meeting with ${inv.venture_name || "a venture"}.`,
+            ],
+          });
+        }
+
+        // Create calendar placeholder event
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        await db.execute({
+          sql: `INSERT INTO v2_events (program_id, team_id, title, description, event_type, start_time, end_time, location, created_by)
+                VALUES (?, NULL, ?, ?, 'investor_meeting', ?, ?, 'TBD', ?)`,
+          args: [
+            venture_id,
+            `Meeting: ${inv.venture_name || "Venture"} — ${inv.investor_name || "Investor"}`,
+            `Meeting requested by ${inv.investor_name || "Investor"} (${inv.organization_name || "Individual"}) for ${inv.venture_name || "venture"}. Pending confirmation.`,
+            nextWeek.toISOString(),
+            nextWeek.toISOString(),
+            user.cid || user.id,
+          ],
+        });
+      } catch (_) {}
+    }
+
+    // If stage is "invested", auto-create a decision record + notify admin
     if (newStage === "invested") {
       const pipelineId = result.rows[0].id;
       await db.execute({
@@ -54,6 +103,34 @@ export async function POST(req) {
               ON CONFLICT (pipeline_id) DO NOTHING`,
         args: [pipelineId, notes || null],
       });
+
+      // Notify admins
+      try {
+        const info = await db.execute({
+          sql: `SELECT c.name as investor_name, ipr.organization_name, p.name as venture_name
+                FROM investor_profiles ipr
+                JOIN contacts c ON ipr.user_id = c.cid
+                LEFT JOIN v2_programs p ON p.id = ?
+                WHERE ipr.id = ?`,
+          args: [venture_id, investorId],
+        });
+        const inv = info.rows[0] || {};
+        const admins = await db.execute({
+          sql: "SELECT cid FROM contacts WHERE role = 'super_admin' AND deleted_at IS NULL",
+          args: [],
+        });
+        for (const a of admins.rows) {
+          await db.execute({
+            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                  VALUES (?, ?, ?, 'investor', 0, NOW())`,
+            args: [
+              a.cid,
+              `Investment Confirmed: ${inv.venture_name || "Venture"}`,
+              `${inv.investor_name || "Investor"} (${inv.organization_name || "Individual"}) has invested in ${inv.venture_name || "a venture"}.`,
+            ],
+          });
+        }
+      } catch (_) {}
     }
 
     return NextResponse.json({ success: true, pipeline: result.rows[0] });
