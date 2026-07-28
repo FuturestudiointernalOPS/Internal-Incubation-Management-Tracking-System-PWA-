@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 
 /**
  * PLATFORM FORM RUNS API — Run creation, submissions, reviews, timeline, assignments
@@ -107,6 +108,26 @@ export async function GET(req) {
       });
     }
 
+    // ─── ACTIVITY FEED ───
+    if (searchParams.get("activity") === "true") {
+      const timeline = await db.execute({
+        sql: `SELECT pst.action, pst.actor_name, pst.created_at,
+              CASE pst.action
+                WHEN 'submitted' THEN 'New submission received'
+                WHEN 'approved' THEN 'Submission approved'
+                WHEN 'rejected' THEN 'Submission rejected'
+                WHEN 'revision_requested' THEN 'Revision requested'
+                WHEN 'launched' THEN 'Form run launched'
+                WHEN 'created' THEN 'Form run created'
+                ELSE pst.action
+              END as details
+              FROM platform_submission_timeline pst
+              ORDER BY pst.created_at DESC LIMIT 20`,
+        args: [],
+      });
+      return NextResponse.json({ success: true, activity: timeline.rows });
+    }
+
     // ─── ASSIGNABLE CONTACTS ───
     if (contacts === "true") {
       const users = await db.execute({ sql: "SELECT cid, name, email, role FROM contacts WHERE deleted = 0 ORDER BY name ASC LIMIT 200" });
@@ -208,6 +229,11 @@ export async function POST(req) {
           args: [JSON.stringify(data || {}), newStatus, newStatus, existing.rows[0].id],
         });
         logTimeline(existing.rows[0].id, newStatus === "draft" ? "draft_saved" : "submitted", session.cid, null);
+        // Fire automation — get run details for context
+        if (newStatus !== "draft") {
+          const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+          onSubmission(result.rows[0], fullRun.rows[0] || { id: parseInt(run_id) }, null, session);
+        }
         return NextResponse.json({ success: true, submission: result.rows[0] });
       } else {
         const result = await db.execute({
@@ -215,6 +241,11 @@ export async function POST(req) {
           args: [parseInt(run_id), session.cid, null, newStatus, JSON.stringify(data || {}), newStatus],
         });
         logTimeline(result.rows[0].id, newStatus === "draft" ? "started" : "submitted", session.cid, null);
+        // Fire automation — get run details for context
+        if (newStatus !== "draft") {
+          const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+          onSubmission(result.rows[0], fullRun.rows[0] || { id: parseInt(run_id) }, null, session);
+        }
         return NextResponse.json({ success: true, submission: result.rows[0] });
       }
     }
@@ -256,6 +287,18 @@ export async function POST(req) {
 
       logTimeline(parseInt(submission_id), decision, session.cid, reviewerName, { comment, internal_note });
 
+      // Fire automation — get run details for context
+      const sub = await db.execute({ sql: "SELECT run_id FROM platform_form_submissions WHERE id = ?", args: [parseInt(submission_id)] });
+      if (sub.rows.length > 0) {
+        const runData = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [sub.rows[0].run_id] });
+        onReview(
+          { id: null, submission_id: parseInt(submission_id), decision, comment, reviewer_name: reviewerName },
+          result.rows[0],
+          runData.rows[0] || null,
+          session
+        );
+      }
+
       return NextResponse.json({ success: true, submission: result.rows[0] });
     }
 
@@ -271,6 +314,8 @@ export async function POST(req) {
         sql: `UPDATE platform_form_runs SET status = 'active', updated_at = NOW() WHERE id = ? RETURNING *`,
         args: [parseInt(id)],
       });
+      // Fire automation
+      onRunLaunched(result.rows[0], session);
       return NextResponse.json({ success: true, run: result.rows[0] });
     }
 
@@ -289,6 +334,9 @@ export async function POST(req) {
       });
 
       const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [parseInt(run_id)] });
+      // Fire automation
+      const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+      onAssignmentAdded({ target_type: target_type || "user", target_id }, fullRun.rows[0] || { id: parseInt(run_id) });
       return NextResponse.json({ success: true, assignments: assignments.rows });
     }
 
@@ -311,6 +359,17 @@ export async function POST(req) {
         return NextResponse.json({ success: true, assignments: assignments.rows });
       }
       return NextResponse.json({ success: true, assignments: [] });
+    }
+
+    // ─── MIGRATION ACTION (super admin only) ───
+    if (action === "migrate") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin"]);
+      if (authError) return authError;
+      const { sql } = body;
+      if (!sql) return NextResponse.json({ success: false, error: "sql required" }, { status: 400 });
+      await db.execute({ sql, args: [] });
+      return NextResponse.json({ success: true, message: "Migration executed" });
     }
 
     // ─── CREATE ACTION ───
@@ -339,6 +398,9 @@ export async function POST(req) {
         });
       }
     }
+
+    // Fire automation
+    onRunCreated(result.rows[0], session);
 
     return NextResponse.json({ success: true, run: result.rows[0] });
   } catch (error) {
