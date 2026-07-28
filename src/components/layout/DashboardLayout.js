@@ -1537,6 +1537,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                                 else router.push("/staff/op-report");
                                 setShowNotifications(false);
                               }
+                              if (n.type === "investor" && n.link) {
+                                router.push(n.link);
+                                setShowNotifications(false);
+                              }
                             }}
                             className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.is_read ? "bg-[var(--brand-orange)]/5" : ""}`}
                           >
