@@ -247,6 +247,7 @@ export default function ProgramManagement() {
           name: groupName,
           description: newGroup.description,
           type: "cohort",
+          program_id: editingProgram?.id || null,
         }),
       });
       const data = await res.json();
