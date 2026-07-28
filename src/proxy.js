@@ -37,6 +37,7 @@ const publicPaths = [
 ];
 
 const publicApiPaths = [
+  "/api/auth/login",
   "/api/auth/session-login",
   "/api/auth/session",
   "/api/auth/activate",
