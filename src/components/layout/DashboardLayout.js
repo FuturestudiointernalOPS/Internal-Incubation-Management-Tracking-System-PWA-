@@ -329,6 +329,17 @@ const NAVIGATION_MATRIX = {
     },
 
     {
+      id: "investors",
+      name: "INVESTORS",
+      icon: Briefcase,
+      subItems: [
+        { id: "investors_manage", name: "MANAGE", href: "/admin/investors" },
+        { id: "investors_review", name: "REVIEW", href: "/admin/investors/review" },
+        { id: "investors_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
+      ],
+    },
+
+    {
       id: "internal_ops",
       name: "Internal Ops",
       icon: ListTodo,
