@@ -204,14 +204,45 @@ export async function evaluateSubmission(submissionId) {
     const evaluation = parseEvaluationResponse(raw, framework);
     if (!evaluation) return null;
 
-    // Store evaluation in submission data
-    const currentData = submission.data || {};
-    const updatedData = { ...currentData, _evaluation: evaluation };
+    // Get framework ID for foreign key
+    let frameworkId = null;
+    try {
+      const fwRow = await db.execute({
+        sql: "SELECT id FROM platform_evaluation_frameworks WHERE form_id = ?",
+        args: [formId],
+      });
+      if (fwRow.rows.length > 0) frameworkId = fwRow.rows[0].id;
+    } catch (_) {}
+
+    // Store evaluation in SEPARATE table (not in submission data)
+    const avgConfidence = evaluation.dimensions.length > 0
+      ? evaluation.dimensions.reduce((s, d) => s + (d.confidence || 0), 0) / evaluation.dimensions.length
+      : null;
 
     await db.execute({
-      sql: "UPDATE platform_form_submissions SET data = ?, updated_at = NOW() WHERE id = ?",
-      args: [JSON.stringify(updatedData), submissionId],
+      sql: `INSERT INTO platform_submission_evaluations
+            (submission_id, framework_id, dimensions, overall_score, ranking, recommendation, confidence, evaluated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      args: [
+        submissionId,
+        frameworkId,
+        JSON.stringify(evaluation.dimensions),
+        evaluation.overall_score,
+        evaluation.ranking,
+        evaluation.recommendation || null,
+        avgConfidence,
+      ],
     });
+
+    // Remove any old inline _evaluation from submission data (cleanup)
+    const currentData = submission.data || {};
+    if (currentData._evaluation) {
+      const { _evaluation, ...cleanData } = currentData;
+      await db.execute({
+        sql: "UPDATE platform_form_submissions SET data = ? WHERE id = ?",
+        args: [JSON.stringify(cleanData), submissionId],
+      });
+    }
 
     // Log timeline
     try {
@@ -227,6 +258,19 @@ export async function evaluateSubmission(submissionId) {
     console.error("[AI Evaluation] Error:", e.message);
     return null;
   }
+}
+
+/**
+ * Get the latest evaluation for a submission.
+ */
+export async function getEvaluation(submissionId) {
+  await initDb();
+  const result = await db.execute({
+    sql: "SELECT * FROM platform_submission_evaluations WHERE submission_id = ? ORDER BY evaluated_at DESC LIMIT 1",
+    args: [submissionId],
+  });
+  if (result.rows.length === 0) return null;
+  return result.rows[0];
 }
 
 /**

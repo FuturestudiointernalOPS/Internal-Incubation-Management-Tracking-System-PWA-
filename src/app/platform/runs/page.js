@@ -136,6 +136,7 @@ export default function FormRunsPage() {
   const [reviewing, setReviewing] = useState(null);
   const [reviewData, setReviewData] = useState({ decision: "approved", comment: "", internal_note: "" });
   const [reviewTimeline, setReviewTimeline] = useState([]);
+  const [evaluation, setEvaluation] = useState(null);  // AI evaluation loaded separately
 
   // Assignment modal
   const [showAssign, setShowAssign] = useState(false);
@@ -265,15 +266,6 @@ export default function FormRunsPage() {
     if (!reviewing) return;
     setSaving(true);
     try {
-      // Save evaluation overrides if present
-      if (reviewing.data?._evaluation?.dimensions) {
-        await fetch("/api/platform/form-runs?action=submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ run_id: reviewing.run_id, data: reviewing.data, status: "submitted" }),
-        });
-      }
-
       const res = await fetch("/api/platform/form-runs?action=review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -295,10 +287,18 @@ export default function FormRunsPage() {
     setReviewData({ decision: "approved", comment: "", internal_note: "" });
     setShowReview(true);
     setReviewTimeline([]);
+    setEvaluation(null);
+    // Load timeline
     try {
       const res = await fetch(`/api/platform/form-runs?timeline=${submission.id}`);
       const data = await res.json();
       if (data.success) setReviewTimeline(data.timeline || []);
+    } catch (_) {}
+    // Load AI evaluation from separate table
+    try {
+      const evalRes = await fetch(`/api/platform/ai/evaluate-submission?submission_id=${submission.id}`);
+      const evalData = await evalRes.json();
+      if (evalData.success && evalData.evaluation) setEvaluation(evalData.evaluation);
     } catch (_) {}
   };
 
@@ -691,12 +691,12 @@ export default function FormRunsPage() {
                   )}
 
                   {/* AI Evaluation Table */}
-                  {reviewing.data._evaluation?.dimensions && (
+                  {evaluation?.dimensions && (
                     <div className="mb-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[8px] font-black uppercase text-purple-400">AI Evaluation</span>
                         <span className="text-[8px] font-bold text-[var(--text-secondary)]">
-                          Overall: {reviewing.data._evaluation.overall_score}% · {reviewing.data._evaluation.ranking}
+                          Overall: {evaluation.overall_score}% · {evaluation.ranking}
                         </span>
                       </div>
                       <div className="rounded-lg border border-purple-500/20 overflow-hidden">
@@ -710,7 +710,7 @@ export default function FormRunsPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[var(--border-primary)]">
-                            {reviewing.data._evaluation.dimensions.map((dim, di) => (
+                            {evaluation.dimensions.map((dim, di) => (
                               <tr key={di} className="text-[9px]">
                                 <td className="px-2 py-1.5">
                                   <span className="font-bold text-[var(--text-primary)]">{dim.name}</span>
@@ -731,10 +731,10 @@ export default function FormRunsPage() {
                                     placeholder={String(dim.ai_score)}
                                     onChange={(e) => {
                                       const val = e.target.value === "" ? null : parseFloat(e.target.value);
-                                      const updated = { ...reviewing.data._evaluation };
+                                      const updated = { ...evaluation };
                                       updated.dimensions[di].human_score = val;
                                       updated.dimensions[di].final_score = val ?? dim.ai_score;
-                                      setReviewing({ ...reviewing, data: { ...reviewing.data, _evaluation: updated } });
+                                      setEvaluation(updated);
                                     }}
                                     className="w-12 px-1 py-0.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
