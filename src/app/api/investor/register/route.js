@@ -105,6 +105,21 @@ export async function POST(req) {
       });
     } catch (_) {}
 
+    // Notify admins
+    try {
+      const admins = await db.execute({
+        sql: "SELECT cid FROM contacts WHERE role IN ('super_admin', 'staff') AND deleted_at IS NULL",
+        args: [],
+      });
+      for (const a of admins.rows) {
+        await db.execute({
+          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
+                VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
+          args: [a.cid, `New Investor: ${organization_name || name}`, `${name} completed the Investor Profile Wizard. Review their qualification.`, "/admin/investors/review"],
+        });
+      }
+    } catch (_) {}
+
     return NextResponse.json({
       success: true,
       message: "Registration submitted for review. You'll be notified once approved.",
