@@ -130,6 +130,7 @@ export async function POST(req) {
         sections: body.sections,
         settings: f.settings,
         publishedAt: new Date().toISOString(),
+        evaluation_framework: body.evaluation_framework || null,
       };
 
       // Save version snapshot

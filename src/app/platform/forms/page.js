@@ -119,8 +119,8 @@ export default function FormsPage() {
       const res = await fetch(`/api/platform/forms?id=${form.id}`);
       const data = await res.json();
       if (data.success) {
-        setSections(data.sections || []);
-        setFields(data.fields || []);
+        setSections((data.sections || []).map(s => ({ ...s, id: String(s.id) })));
+        setFields((data.fields || []).map(f => ({ ...f, section_id: f.section_id ? String(f.section_id) : null })));
       }
     } catch (_) {}
 
@@ -161,10 +161,17 @@ export default function FormsPage() {
     if (!editingForm) return;
     setSaving(true);
     try {
+      let fwData = null;
+      try {
+        const fwRes = await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm.id}`);
+        const fwJson = await fwRes.json();
+        if (fwJson.success && fwJson.framework) fwData = fwJson.framework;
+      } catch (e) {}
+
       const res = await fetch("/api/platform/forms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "publish", id: editingForm.id, fields, sections }),
+        body: JSON.stringify({ action: "publish", id: editingForm.id, fields, sections, evaluation_framework: fwData }),
       });
       const data = await res.json();
       if (data.success) {
@@ -306,8 +313,8 @@ export default function FormsPage() {
           const refresh = await fetch(`/api/platform/forms?id=${editingForm.id}`);
           const fresh = await refresh.json();
           if (fresh.success) {
-            setSections(fresh.sections || []);
-            setFields(fresh.fields || []);
+            setSections((fresh.sections || []).map(s => ({ ...s, id: String(s.id) })));
+            setFields((fresh.fields || []).map(f => ({ ...f, section_id: f.section_id ? String(f.section_id) : null })));
           }
         } catch (_) {}
       } else notify(data.error || "Save failed");
@@ -686,6 +693,9 @@ export default function FormsPage() {
                             setCreateMode("manual");
                             setAiGenText("");
                             fetchForms();
+                            if (data.form) {
+                              openBuilder(data.form);
+                            }
                           } else {
                             notify(data.error || "Generation failed");
                           }
@@ -967,7 +977,28 @@ export default function FormsPage() {
               <Sparkles className="w-4 h-4 text-purple-400" />
               <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">AI Evaluation</h3>
             </div>
-            <button onClick={() => setShowAiEval(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    const res = await fetch("/api/platform/ai/evaluation-config", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ form_id: editingForm.id, framework: aiEvalFramework })
+                    });
+                    if (res.ok) notify("Evaluation framework saved");
+                    else notify("Failed to save framework");
+                  } catch (e) {}
+                  setSaving(false);
+                }}
+                disabled={saving}
+                className="px-3 py-1.5 rounded-lg bg-purple-500 text-white text-[9px] font-black uppercase hover:bg-purple-600 transition-all"
+              >
+                Save Framework
+              </button>
+              <button onClick={() => setShowAiEval(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
+            </div>
           </div>
 
           {aiEvalFramework ? (

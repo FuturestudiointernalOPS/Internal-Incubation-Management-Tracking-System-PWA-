@@ -6,12 +6,13 @@ import { deepseekIntelligence } from "@/lib/deepseek";
 /**
  * POST /api/platform/ai/generate-all
  * Body: { text, collection_id? }
- * 
+ *
  * Analyzes document and generates BOTH form structure and evaluation
- * framework. Creates the form in the database automatically.
- * Returns the created form so the UI can open it in the builder.
+ * framework. Creates the form in the database atomically.
+ * Returns the full created form object so the UI can open it in the builder.
  */
 export async function POST(req) {
+  let formId = null;
   try {
     await initDb();
     console.log("[AI GenerateAll] Request received");
@@ -74,34 +75,55 @@ ${text.substring(0, 12000)}`;
       ];
     }
 
-    // Create the form in DB
+    // ── Step 1: Create the form ───────────────────────────────────────────────
+    console.log("[AI GenerateAll] Creating form...");
     const formRes = await db.execute({
       sql: `INSERT INTO platform_forms (name, description, collection_id, status, visibility, version, tags, owner_id, owner_name, settings, created_by)
             VALUES (?, ?, ?, 'draft', 'internal', 1, ARRAY['ai-generated'], 'system', 'AI', '{}', 'system') RETURNING *`,
       args: [parsed.title, parsed.description || null, collection_id ? parseInt(collection_id) : null],
     });
-    const formId = formRes.rows[0].id;
+    formId = formRes.rows[0].id;
+    const formRecord = formRes.rows[0];
+    console.log(`[AI GenerateAll] ✓ Form created — id=${formId}`);
 
-    // Create sections and fields
-    const allFields = [];
+    // ── Step 2: Create sections and fields ───────────────────────────────────
+    let sectionCount = 0;
+    let fieldCount = 0;
     for (let si = 0; si < parsed.sections.length; si++) {
       const sec = parsed.sections[si];
       const secRes = await db.execute({
         sql: "INSERT INTO platform_form_sections (form_id, title, description, sort_order) VALUES (?, ?, ?, ?) RETURNING id",
         args: [formId, sec.title, sec.description || null, si],
       });
+      const sectionId = secRes.rows[0].id;
+      sectionCount++;
+      console.log(`[AI GenerateAll] ✓ Section "${sec.title}" (id=${sectionId})`);
+
       for (let fi = 0; fi < sec.fields.length; fi++) {
         const f = sec.fields[fi];
         await db.execute({
           sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, placeholder, help_text, required, options, validation, sort_order)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [formId, secRes.rows[0].id, f.field_type, f.label, f.placeholder || null, f.help_text || null, f.required, f.options ? JSON.stringify(f.options) : null, f.validation ? JSON.stringify(f.validation) : null, fi],
+          args: [
+            formId,
+            sectionId,
+            f.field_type,
+            f.label,
+            f.placeholder || null,
+            f.help_text || null,
+            f.required,
+            f.options ? JSON.stringify(f.options) : null,
+            f.validation ? JSON.stringify(f.validation) : null,
+            fi,
+          ],
         });
+        fieldCount++;
       }
-      allFields.push(...sec.fields);
+      console.log(`[AI GenerateAll] ✓ ${sec.fields.length} fields for "${sec.title}"`);
     }
 
-    // Save evaluation framework if generated
+    // ── Step 3: Save evaluation framework if generated ────────────────────────
+    let evalCount = 0;
     if (parsed.evaluation) {
       await db.execute({
         sql: `INSERT INTO platform_evaluation_frameworks (form_id, framework, source_document, created_by, updated_at)
@@ -109,26 +131,31 @@ ${text.substring(0, 12000)}`;
               ON CONFLICT (form_id) DO UPDATE SET framework = EXCLUDED.framework, updated_at = NOW()`,
         args: [formId, JSON.stringify(parsed.evaluation), text.substring(0, 500)],
       });
+      evalCount = parsed.evaluation?.dimensions?.length || 0;
+      console.log(`[AI GenerateAll] ✓ Evaluation framework saved — ${evalCount} dimensions`);
     }
 
-    const sectionCount = parsed.sections.length;
-    const fieldCount = allFields.length;
-    const evalCount = parsed.evaluation?.dimensions?.length || 0;
-
-    console.log(`[AI GenerateAll] Created form ${formId}: ${sectionCount} sections, ${fieldCount} fields, ${evalCount} eval dims`);
+    console.log(`[AI GenerateAll] Complete — form ${formId}: ${sectionCount} sections, ${fieldCount} fields, ${evalCount} eval dims`);
 
     return NextResponse.json({
       success: true,
+      form: formRecord,
       form_id: formId,
       title: parsed.title,
       sections: sectionCount,
       fields: fieldCount,
       evaluation_dimensions: evalCount,
       has_evaluation: !!parsed.evaluation,
-      url: `/platform/forms`,
     });
   } catch (error) {
     console.error("[AI GenerateAll] Error:", error.message);
+    // Clean up orphaned form record if it was created before the error
+    if (formId) {
+      try {
+        await db.execute({ sql: "DELETE FROM platform_forms WHERE id = ?", args: [formId] });
+        console.warn(`[AI GenerateAll] Cleaned up orphaned form ${formId}`);
+      } catch (_) {}
+    }
     return NextResponse.json({ success: false, error: `Generation failed: ${error.message}` }, { status: 500 });
   }
 }
