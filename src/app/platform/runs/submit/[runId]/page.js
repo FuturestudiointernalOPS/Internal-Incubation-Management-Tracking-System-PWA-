@@ -262,22 +262,31 @@ export default function SubmitFormPage() {
         );
 
       case "phone": {
-        // Parse existing value: "+234 90847820" → prefix "+234", number "90847820"
-        const phoneVal = value || "";
-        const prefixMatch = phoneVal.match(/^(\+\d{1,4})\s?(.*)/);
-        const currentPrefix = prefixMatch ? prefixMatch[1] : "";
-        const currentNumber = prefixMatch ? prefixMatch[2] : phoneVal;
-        const selectedCountry = COUNTRY_CODES.find((c) => c.code === currentPrefix);
+        // Value is stored as JSON: { country: "NG", code: "+234", number: "90847820" }
+        // Backward compat: if it's a plain string, treat as legacy number
+        let phoneData = { country: "", code: "", number: "" };
+        const raw = value || "";
+        if (typeof raw === "string" && raw.startsWith("{")) {
+          try { phoneData = JSON.parse(raw); } catch (_) { phoneData = { country: "", code: "", number: raw }; }
+        } else if (typeof raw === "string") {
+          const m = raw.match(/^(\+\d{1,4})\s?(.*)/);
+          phoneData = { country: "", code: m ? m[1] : "", number: m ? m[2] : raw };
+        }
+        const selectedCountry = COUNTRY_CODES.find((c) => c.code === phoneData.code);
+        const updatePhone = (updates) => {
+          const next = { ...phoneData, ...updates };
+          updateField(field.id, JSON.stringify(next));
+        };
         return (
           <div className="flex gap-2">
             <select
-              value={selectedCountry ? currentPrefix : ""}
+              value={phoneData.code}
               onChange={(e) => {
-                const newPrefix = e.target.value;
-                updateField(field.id, newPrefix ? `${newPrefix} ${currentNumber}`.trim() : currentNumber);
+                const cnt = COUNTRY_CODES.find((c) => c.code === e.target.value);
+                updatePhone({ country: cnt?.name || "", code: e.target.value });
               }}
               disabled={isDisabled}
-              className="w-[140px] shrink-0 rounded-xl px-2 py-3 text-[10px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
+              className="w-[150px] shrink-0 rounded-xl px-2 py-3 text-[10px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
             >
               <option value="">No prefix</option>
               {COUNTRY_CODES.map((c) => (
@@ -286,10 +295,10 @@ export default function SubmitFormPage() {
             </select>
             <input
               type="tel"
-              value={currentNumber}
+              value={phoneData.number}
               onChange={(e) => {
                 const num = e.target.value.replace(/[^0-9\s\-()]/g, "");
-                updateField(field.id, currentPrefix ? `${currentPrefix} ${num}`.trim() : num);
+                updatePhone({ number: num });
               }}
               placeholder={field.placeholder || "90 84 78 20"}
               disabled={isDisabled}

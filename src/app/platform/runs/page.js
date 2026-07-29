@@ -680,12 +680,25 @@ export default function FormRunsPage() {
                       ))}
                     </div>
                   )}
-                  {Object.entries(reviewing.data).filter(([k]) => k !== "_scores").map(([key, value]) => (
-                    <div key={key} className="flex items-start gap-2 text-[11px]">
-                      <span className="font-black text-[var(--text-secondary)] uppercase shrink-0">{key}:</span>
-                      <span className="text-[var(--text-primary)] font-bold break-all">{String(value)}</span>
-                    </div>
-                  ))}
+                  {Object.entries(reviewing.data).filter(([k]) => k !== "_scores").map(([key, value]) => {
+                    // Format phone numbers stored as JSON
+                    let display = String(value);
+                    if (typeof value === "string" && value.startsWith("{") && value.includes('"code"')) {
+                      try {
+                        const p = JSON.parse(value);
+                        if (p.code && p.number) {
+                          const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+225", flag: "🇨🇮" }, { code: "+221", flag: "🇸🇳" }, { code: "+228", flag: "🇹🇬" }, { code: "+237", flag: "🇨🇲" }, { code: "+250", flag: "🇷🇼" }, { code: "+256", flag: "🇺🇬" }, { code: "+255", flag: "🇹🇿" }, { code: "+251", flag: "🇪🇹" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+86", flag: "🇨🇳" }, { code: "+971", flag: "🇦🇪" }, { code: "+55", flag: "🇧🇷" }].find(c => c.code === p.code);
+                          display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
+                        }
+                      } catch (_) {}
+                    }
+                    return (
+                      <div key={key} className="flex items-start gap-2 text-[11px]">
+                        <span className="font-black text-[var(--text-secondary)] uppercase shrink-0">{key}:</span>
+                        <span className="text-[var(--text-primary)] font-bold break-all">{display}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
