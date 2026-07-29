@@ -301,6 +301,16 @@ const NAVIGATION_MATRIX = {
     },
 
     {
+      id: "investors",
+      name: "INVESTORS",
+      icon: TrendingUp,
+      subItems: [
+        { id: "investor_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
+        { id: "investor_pipeline", name: "PIPELINE", href: "/admin/investors" },
+      ],
+    },
+
+    {
       id: "ventures",
       name: "VENTURES",
       icon: Rocket,
