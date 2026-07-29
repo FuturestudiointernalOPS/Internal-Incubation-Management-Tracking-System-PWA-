@@ -384,7 +384,12 @@ export default function InvestorDashboard() {
                           <div className="flex items-start justify-between">
                             <button onClick={() => openVentureDetail(v)} className="text-left flex-1">
                               <h4 className="text-sm font-black text-[var(--text-primary)] hover:text-[var(--brand-orange)] transition-colors">{v.name}</h4>
-                              <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{v.industry || "—"}</p>
+                              <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{v.industry || "—"}{v.country ? ` · ${v.country}` : ""}</p>
+                              {v.match_score > 0 && (
+                                <span className="inline-block mt-1 px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-400">
+                                  {v.match_score}% match
+                                </span>
+                              )}
                             </button>
                             <div className="flex items-center gap-1">
                               <button onClick={() => toggleCompare(v)}

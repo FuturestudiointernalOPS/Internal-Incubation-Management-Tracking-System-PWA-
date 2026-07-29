@@ -46,31 +46,83 @@ export async function GET(req) {
       args: [profile.id],
     });
 
-    // 4. Recommendations — ventures matching investor preferences
+    // 4. Intelligent Recommendations with match scoring
     let recommendations = [];
-    if (profile.industries?.length > 0 || profile.countries?.length > 0) {
-      try {
-        const industries = profile.industries || [];
-        const countries = profile.countries || [];
-        let recSql = `SELECT p.id, p.name, p.description, p.status, p.industry, p.country
-                       FROM v2_programs p
-                       WHERE p.status = 'active' AND p.is_archived = 0`;
-        const recArgs = [];
+    try {
+      const industries = profile.industries || [];
+      const countries = profile.countries || [];
+      const stages = profile.startup_stages || [];
+      const ticketMin = profile.ticket_size_min;
+      const ticketMax = profile.ticket_size_max;
 
+      // Fetch all active ventures
+      const allRes = await db.execute({
+        sql: `SELECT p.id, p.name, p.description, p.status, p.industry,
+                     p.country, p.completion_index, p.business_stage,
+                     p.funding_requirement, p.created_at,
+                     (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = p.id) as investor_interest_count
+              FROM v2_programs p
+              WHERE p.status = 'active' AND p.is_archived = 0
+              ORDER BY p.created_at DESC LIMIT 50`,
+        args: [],
+      });
+
+      // Score each venture
+      recommendations = allRes.rows.map(v => {
+        let score = 0;
+        const reasons = [];
+
+        // Industry match (weight: 30)
         if (industries.length > 0) {
-          recSql += ` AND (${industries.map(() => "p.industry ILIKE ?").join(" OR ")})`;
-          industries.forEach(i => recArgs.push(`%${i}%`));
+          const match = industries.some(ind =>
+            (v.industry || "").toLowerCase().includes(ind.toLowerCase())
+          );
+          if (match) { score += 30; reasons.push(`Industry: ${v.industry}`); }
         }
-        if (countries.length > 0) {
-          recSql += ` AND (${countries.map(() => "p.country ILIKE ?").join(" OR ")})`;
-          countries.forEach(c => recArgs.push(`%${c}%`));
-        }
-        recSql += " ORDER BY p.created_at DESC LIMIT 20";
 
-        const recRes = await db.execute({ sql: recSql, args: recArgs });
-        recommendations = recRes.rows;
-      } catch (_) {}
-    }
+        // Country match (weight: 25)
+        if (countries.length > 0) {
+          const match = countries.some(c =>
+            (v.country || "").toUpperCase() === c.toUpperCase()
+          );
+          if (match) { score += 25; reasons.push(`Country: ${v.country}`); }
+        }
+
+        // Stage match (weight: 20)
+        if (stages.length > 0) {
+          const match = stages.some(s =>
+            (v.business_stage || "").toLowerCase().includes(s.toLowerCase())
+          );
+          if (match) { score += 20; reasons.push(`Stage: ${v.business_stage}`); }
+        }
+
+        // Ticket size match (weight: 15)
+        if (ticketMin || ticketMax) {
+          const funding = parseFloat(v.funding_requirement) || 0;
+          if ((!ticketMin || funding >= ticketMin) && (!ticketMax || funding <= ticketMax)) {
+            score += 15;
+            reasons.push(funding > 0 ? `Funding: $${funding.toLocaleString()}` : "Funding: matches range");
+          }
+        }
+
+        // Completion bonus (weight: 10)
+        const completion = parseFloat(v.completion_index) || 0;
+        if (completion >= 80) { score += 10; reasons.push(`Readiness: ${completion}%`); }
+        else if (completion >= 50) { score += 5; reasons.push(`Progress: ${completion}%`); }
+
+        return { ...v, match_score: score, match_reasons: reasons };
+      });
+
+      // Sort by score descending, only include if has preferences or score > 0
+      if (industries.length > 0 || countries.length > 0 || stages.length > 0) {
+        recommendations = recommendations
+          .filter(r => r.match_score > 0)
+          .sort((a, b) => b.match_score - a.match_score);
+      } else {
+        // No preferences: show all but sorted by completion
+        recommendations = recommendations.sort((a, b) => parseFloat(b.completion_index || 0) - parseFloat(a.completion_index || 0));
+      }
+    } catch (_) {}
 
     // 5. Stats
     const statsRes = await db.execute({
