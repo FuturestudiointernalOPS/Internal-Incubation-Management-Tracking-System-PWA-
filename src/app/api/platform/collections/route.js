@@ -188,7 +188,11 @@ export async function PUT(req) {
     for (const [key, value] of Object.entries(updatable)) {
       if (value !== undefined) {
         fields.push(`${key} = ?`);
-        args.push(key === "parent_id" && value ? parseInt(value) : value);
+        if (key === "parent_id") {
+          args.push(value ? parseInt(value) : null);
+        } else {
+          args.push(value);
+        }
       }
     }
     fields.push("updated_at = NOW()");
