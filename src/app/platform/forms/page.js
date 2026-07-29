@@ -861,7 +861,7 @@ export default function FormsPage() {
             <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Add Field</p>
             <button onClick={addSection} className="w-full p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">+ Add Section</button>
             {FIELD_TYPES.map((t) => (
-              <button key={t.value} onClick={() => addField(t.value, null)} className="w-full flex items-center gap-2 p-2 rounded-lg text-left text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all">
+              <button key={t.value} onClick={() => addField(t.value, sections.length > 0 ? sections[sections.length - 1].id : null)} className="w-full flex items-center gap-2 p-2 rounded-lg text-left text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all">
                 <t.icon className="w-3.5 h-3.5" />{t.label}
               </button>
             ))}
