@@ -53,7 +53,7 @@ function MiniCalendar({ value, onChange, onClose }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const DAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -67,7 +67,17 @@ function MiniCalendar({ value, onChange, onClose }) {
     const [h, m] = timeStr.split(":").map(Number);
     d.setHours(h, m, 0, 0);
     onChange(d.toISOString().slice(0, 16));
-    onClose?.();
+    // Do NOT auto-close — let user confirm via the Done button
+  };
+
+  const handleTimeChange = (e) => {
+    setTimeStr(e.target.value);
+    if (value) {
+      const d = new Date(value);
+      const [h, m] = e.target.value.split(":").map(Number);
+      d.setHours(h, m, 0, 0);
+      onChange(d.toISOString().slice(0, 16));
+    }
   };
 
   const isSelected = (day) => {
@@ -77,35 +87,91 @@ function MiniCalendar({ value, onChange, onClose }) {
   };
 
   return (
-    <div className="p-3 rounded-xl bg-secondary border border-[var(--border-primary)] shadow-lg w-64 z-[500]" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center justify-between mb-3">
-        <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="p-1 hover:bg-tertiary rounded"><ChevronDown className="w-3.5 h-3.5 rotate-90 text-[var(--text-secondary)]" /></button>
-        <span className="text-[11px] font-black text-[var(--text-primary)]">{MONTHS[month]} {year}</span>
-        <button onClick={() => setViewDate(new Date(year, month + 1, 1))} className="p-1 hover:bg-tertiary rounded"><ChevronDown className="w-3.5 h-3.5 -rotate-90 text-[var(--text-secondary)]" /></button>
+    <div
+      className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] shadow-2xl w-80 z-[500]"
+      onClick={(e) => e.stopPropagation()}
+      style={{ background: "var(--bg-secondary, #1a1a2e)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}
+    >
+      {/* Month Nav */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all"
+        >
+          <ChevronDown className="w-4 h-4 rotate-90 text-[var(--text-secondary)]" />
+        </button>
+        <span className="text-[13px] font-black text-[var(--text-primary)]">{MONTHS[month]} {year}</span>
+        <button
+          onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all"
+        >
+          <ChevronDown className="w-4 h-4 -rotate-90 text-[var(--text-secondary)]" />
+        </button>
       </div>
-      <div className="grid grid-cols-7 gap-0.5 mb-1">
-        {DAYS.map((d) => <div key={d} className="text-center text-[7px] font-black text-[var(--text-secondary)] py-1">{d}</div>)}
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {DAYS.map((d) => (
+          <div key={d} className="text-center text-[9px] font-black text-[var(--text-secondary)] py-1">{d}</div>
+        ))}
       </div>
-      <div className="grid grid-cols-7 gap-0.5">
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7 gap-1">
         {days.map((day, i) => {
           const past = day && new Date(year, month, day, 23, 59, 59) < today;
           const sel = isSelected(day);
           return (
-            <button key={i} disabled={!day || past} onClick={() => day && selectDay(day)}
-              className={"h-8 rounded-lg text-[10px] font-bold transition-all " + (!day ? "" : sel ? "bg-[var(--brand-orange)] text-black" : past ? "text-[var(--text-secondary)] opacity-30 cursor-not-allowed" : "text-[var(--text-primary)] hover:bg-tertiary")}>
+            <button
+              key={i}
+              type="button"
+              disabled={!day || past}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (day && !past) selectDay(day); }}
+              className={
+                "h-10 w-full rounded-xl text-[11px] font-bold transition-all " +
+                (!day
+                  ? "invisible"
+                  : sel
+                  ? "bg-[var(--brand-orange)] text-black shadow-md"
+                  : past
+                  ? "text-[var(--text-secondary)] opacity-25 cursor-not-allowed"
+                  : "text-[var(--text-primary)] hover:bg-white/10 cursor-pointer")
+              }
+            >
               {day || ""}
             </button>
           );
         })}
       </div>
-      <div className="mt-3 pt-3 border-t border-[var(--border-primary)]">
-        <label className="text-[8px] font-black uppercase text-[var(--text-secondary)] block mb-1">Time</label>
-        <input type="time" value={timeStr} onChange={(e) => { setTimeStr(e.target.value); if (value) { const d = new Date(value); const [h,m] = e.target.value.split(":").map(Number); d.setHours(h,m,0,0); onChange(d.toISOString().slice(0,16)); } }}
-          className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none [color-scheme:dark]" />
+
+      {/* Time picker */}
+      <div className="mt-4 pt-4 border-t border-[var(--border-primary)]">
+        <label className="text-[9px] font-black uppercase text-[var(--text-secondary)] block mb-2">Time</label>
+        <input
+          type="time"
+          value={timeStr}
+          onChange={handleTimeChange}
+          className="w-full px-3 py-2.5 rounded-xl bg-primary border border-[var(--border-primary)] text-[12px] font-bold text-[var(--text-primary)] outline-none [color-scheme:dark]"
+        />
+      </div>
+
+      {/* Selected date summary + Done */}
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+          {value ? new Date(value).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "No date selected"}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 transition-all"
+        >
+          Done
+        </button>
       </div>
     </div>
   );
 }
+
 
 export default function FormRunsPage() {
   const [runs, setRuns] = useState([]);
