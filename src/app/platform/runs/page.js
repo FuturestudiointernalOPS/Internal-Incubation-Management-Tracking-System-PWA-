@@ -194,6 +194,7 @@ export default function FormRunsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createData, setCreateData] = useState({ form_id: "", name: "", description: "", opens_at: "", closes_at: "" });
   const [saving, setSaving] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false); // 'opens' | 'closes' | null
   const [showOpensCal, setShowOpensCal] = useState(false);
   const [showClosesCal, setShowClosesCal] = useState(false);
 
@@ -950,9 +951,26 @@ export default function FormRunsPage() {
       )}
 
       {/* Create modal */}
+      {/* ─── Date Picker Modal (completely outside create modal, no clipping) ─── */}
+      {showDatePicker && (
+        <div className="fixed inset-0 z-[600] bg-black/70 flex items-center justify-center p-6" onClick={() => setShowDatePicker(null)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase text-white/60">Selecting: {showDatePicker === 'opens' ? 'Opens date' : 'Closes date'}</span>
+              <button onClick={() => setShowDatePicker(null)} className="text-white/60 hover:text-white"><X className="w-4 h-4" /></button>
+            </div>
+            <MiniCalendar
+              value={showDatePicker === 'opens' ? createData.opens_at : createData.closes_at}
+              onChange={(d) => setCreateData({ ...createData, [showDatePicker === 'opens' ? 'opens_at' : 'closes_at']: d })}
+              onClose={() => setShowDatePicker(null)}
+            />
+          </div>
+        </div>
+      )}
+
       {showCreate && (
-        <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setShowOpensCal(false); setShowClosesCal(false); }}>
-          <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "90vh", overflowY: "visible" }}>
+        <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setShowDatePicker(null); }}>
+          <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">New Form Run</h3><button onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
             <div className="space-y-4">
               <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Form</label>
@@ -964,49 +982,19 @@ export default function FormRunsPage() {
               <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Run Name</label><input value={createData.name} onChange={(e) => setCreateData({ ...createData, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder="e.g. Bootcamp Sept 2027 Applications" /></div>
               <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Description</label><textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" /></div>
               <div className="grid grid-cols-2 gap-3">
-                {/* Opens picker — fixed position to escape overflow clipping */}
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Opens</label>
-                  <button
-                    id="opens-btn"
-                    onClick={() => { setShowOpensCal(!showOpensCal); setShowClosesCal(false); }}
-                    className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-left flex items-center gap-2 hover:border-[var(--brand-orange)] transition-all"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />
-                    <span className={createData.opens_at ? "text-[var(--text-primary)] text-[9px]" : "text-[var(--text-secondary)] text-[9px]"}>
-                      {createData.opens_at ? new Date(createData.opens_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "Select..."}
-                    </span>
+                  <button onClick={() => setShowDatePicker('opens')} className={`w-full rounded-xl px-3 py-3 text-[10px] font-bold outline-none bg-primary border text-left flex items-center gap-2 transition-all ${createData.opens_at ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]'}`}>
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{createData.opens_at ? new Date(createData.opens_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Set open date...'}</span>
                   </button>
-                  {showOpensCal && (
-                    <>
-                      <div className="fixed inset-0 z-[490]" onClick={() => setShowOpensCal(false)} />
-                      <div className="fixed z-[500]" style={{ top: "50%", left: "calc(50% - 200px)", transform: "translateY(-50%)" }}>
-                        <MiniCalendar value={createData.opens_at} onChange={(d) => setCreateData({ ...createData, opens_at: d })} onClose={() => setShowOpensCal(false)} />
-                      </div>
-                    </>
-                  )}
                 </div>
-                {/* Closes picker — fixed position to escape overflow clipping */}
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Closes</label>
-                  <button
-                    id="closes-btn"
-                    onClick={() => { setShowClosesCal(!showClosesCal); setShowOpensCal(false); }}
-                    className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-left flex items-center gap-2 hover:border-[var(--brand-orange)] transition-all"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />
-                    <span className={createData.closes_at ? "text-[var(--text-primary)] text-[9px]" : "text-[var(--text-secondary)] text-[9px]"}>
-                      {createData.closes_at ? new Date(createData.closes_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "Select..."}
-                    </span>
+                  <button onClick={() => setShowDatePicker('closes')} className={`w-full rounded-xl px-3 py-3 text-[10px] font-bold outline-none bg-primary border text-left flex items-center gap-2 transition-all ${createData.closes_at ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]'}`}>
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{createData.closes_at ? new Date(createData.closes_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Set close date...'}</span>
                   </button>
-                  {showClosesCal && (
-                    <>
-                      <div className="fixed inset-0 z-[490]" onClick={() => setShowClosesCal(false)} />
-                      <div className="fixed z-[500]" style={{ top: "50%", left: "calc(50% + 20px)", transform: "translateY(-50%)" }}>
-                        <MiniCalendar value={createData.closes_at} onChange={(d) => setCreateData({ ...createData, closes_at: d })} onClose={() => setShowClosesCal(false)} />
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
             </div>
