@@ -103,7 +103,7 @@ export default function FormsPage() {
     const formSettings = form.settings || {};
     setScoringConfig(formSettings.scoring && formSettings.scoring.enabled
       ? { ...formSettings.scoring }
-      : { enabled: false, max_per_question: 5, sections: {}, rankings: [{ min: 0, max: 59, label: "Needs Work" }, { min: 60, max: 79, label: "Good" }, { min: 80, max: 100, label: "Excellent" }] }
+      : { enabled: false, max_per_question: 0, sections: {}, rankings: [{ min: 0, max: 59, label: "Needs Work" }, { min: 60, max: 79, label: "Good" }, { min: 80, max: 100, label: "Excellent" }] }
     );
 
     try {
@@ -732,7 +732,7 @@ export default function FormsPage() {
             </label>
             <div className="space-y-1 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Max Per Question</label>
-              <input type="number" min={2} max={10} value={scoringConfig.max_per_question || 5} onChange={(e) => setScoringConfig({ ...scoringConfig, max_per_question: parseInt(e.target.value) || 5 })} className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none" />
+              <input type="number" min={0} value={scoringConfig.max_per_question ?? ""} onChange={(e) => { const v = e.target.value; setScoringConfig({ ...scoringConfig, max_per_question: v === "" ? 0 : parseInt(v) || 0 }); }} className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
             </div>
             <div className="space-y-1 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Total Section Weight</label>
