@@ -3760,12 +3760,17 @@ export async function updateMatchStatus(matchId, status) {
 
 export const DOCUMENT_CATEGORIES = ["pitch_deck", "business_plan", "financial_statements", "cap_table", "legal_documents", "product_roadmap", "market_research", "customer_metrics", "revenue_reports", "technical_documentation", "other"];
 
-export async function listDocuments(ventureId, { category, isPitchDeck, search } = {}) {
-  let sql = "SELECT * FROM venture_documents WHERE venture_id=?";
+export async function listDocuments(ventureId, { category, isPitchDeck, search, visibility } = {}) {
+  let sql = "SELECT id, name as title, name, description, document_type, category, file_name, file_size, file_type, file_url, thumbnail_url, is_pitch_deck, approval_status, created_at, updated_at, venture_id FROM venture_documents WHERE venture_id=? AND is_deleted = false";
   const args = [ventureId];
   if (category) { sql += " AND category=?"; args.push(category); }
   if (isPitchDeck !== undefined) { sql += " AND is_pitch_deck=?"; args.push(isPitchDeck?1:0); }
-  if (search) { sql += " AND (title ILIKE ? OR description ILIKE ?)"; args.push(`%${search}%`, `%${search}%`); }
+  if (search) { sql += " AND (name ILIKE ? OR description ILIKE ?)"; args.push(`%${search}%`, `%${search}%`); }
+  // Restrict visibility based on role (null = show all)
+  if (visibility && Array.isArray(visibility) && visibility.length > 0) {
+    sql += ` AND approval_status IN (${visibility.map(()=>'?').join(',')})`;
+    args.push(...visibility);
+  }
   sql += " ORDER BY created_at DESC";
   return (await db.execute({ sql, args })).rows || [];
 }
@@ -3773,7 +3778,7 @@ export async function listDocuments(ventureId, { category, isPitchDeck, search }
 export async function getDocument(docId) {
   const [d, v] = await Promise.all([
     db.execute({ sql: "SELECT * FROM venture_documents WHERE id=?", args: [docId] }),
-    db.execute({ sql: "SELECT * FROM venture_document_versions WHERE document_id=? ORDER BY version DESC", args: [docId] }),
+    db.execute({ sql: "SELECT * FROM venture_document_versions WHERE document_id=? ORDER BY version_number DESC", args: [docId] }),
   ]);
   if (d.rows.length === 0) return null;
   return { ...d.rows[0], versions: v.rows||[] };
@@ -3783,10 +3788,17 @@ export async function uploadDocument({ ventureId, title, description, documentTy
   const dup = await db.execute({ sql: "SELECT id FROM venture_documents WHERE venture_id=? AND file_name=?", args: [ventureId, fileName] });
   if (dup.rows.length > 0) throw new Error("File already exists. Use update for new version.");
   const id = (await db.execute({
-    sql: `INSERT INTO venture_documents (venture_id, title, description, document_type, category, file_name, file_size, file_type, file_url, thumbnail_url, is_pitch_deck, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [ventureId, title.trim(), description||null, documentType||"other", category||"other", fileName, fileSize||null, fileType||null, fileUrl, thumbnailUrl||null, isPitchDeck?1:0, uploadedBy||"system"],
+    sql: `INSERT INTO venture_documents (venture_id, name, description, document_type, category, file_name, file_size, file_type, file_url, storage_path, thumbnail_url, is_pitch_deck, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    args: [ventureId, title.trim(), description||null, documentType||"other", category||"other", fileName, fileSize||null, fileType||null, fileUrl, fileUrl, thumbnailUrl||null, isPitchDeck?1:0, uploadedBy||"system"],
   })).rows[0]?.id;
-  await db.execute({ sql: `INSERT INTO venture_document_versions (document_id, version, file_name, file_size, file_url, uploaded_by) VALUES (?, 1, ?, ?, ?, ?)`, args: [id, fileName, fileSize||null, fileUrl, uploadedBy||"system"] });
+  // Ensure version table columns exist (schema compatibility)
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version_number INTEGER" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version INTEGER" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_name TEXT" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_size BIGINT" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS change_notes TEXT" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS storage_path TEXT" }); } catch(e){}
+  await db.execute({ sql: `INSERT INTO venture_document_versions (document_id, version_number, version, file_name, file_size, file_url, storage_path, uploaded_by, change_notes) VALUES (?, 1, 1, ?, ?, ?, ?, ?, 'v1')`, args: [id, fileName, fileSize||null, fileUrl, fileUrl, uploadedBy||"system"] });
   return { id };
 }
 
