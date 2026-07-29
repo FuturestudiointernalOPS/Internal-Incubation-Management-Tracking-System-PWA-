@@ -30,6 +30,7 @@ export default function AdminInvestorsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [acting, setActing] = useState(null);
+  const [detail, setDetail] = useState(null);
   const [toast, setToast] = useState(null);
 
   useEffect(() => { fetchInvestors(); }, [statusFilter]);
@@ -139,10 +140,10 @@ export default function AdminInvestorsPage() {
                         <Building2 className="w-5 h-5 text-[var(--brand-orange)]" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-[var(--text-primary)]">
+                        <p className="text-sm font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] cursor-pointer" onClick={() => setDetail(inv)}>
                           {inv.organization_name || inv.name}
                         </p>
-                        <p className="text-xs text-[var(--text-secondary)]">{inv.email}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">{inv.email}{inv.review_notes ? " · Has review notes" : ""}</p>
                       </div>
                       <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${statusColor} bg-opacity-10`}>
                         <StatusIcon className="w-3 h-3" />
@@ -200,6 +201,45 @@ export default function AdminInvestorsPage() {
                 </AppCard>
               );
             })}
+          </div>
+        )}
+
+        {/* Detail Modal */}
+        {detail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDetail(null)} />
+            <div className="relative w-full max-w-lg bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto">
+              <div className="sticky top-0 bg-[var(--surface-1)] flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
+                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{detail.organization_name || detail.name}</h3>
+                <button onClick={() => setDetail(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)]">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    ["Name", detail.name], ["Email", detail.email],
+                    ["Status", detail.approval_status], ["Qualification", detail.qualification_status || "—"],
+                    ["Website", detail.website || "—"], ["LinkedIn", detail.linkedin || "—"],
+                    ["Completion", `${detail.profile_completion || 0}%`],
+                  ].map(([l, v], i) => (
+                    <div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]">
+                      <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{l}</p>
+                      <p className="text-xs font-bold text-[var(--text-primary)] mt-1">{v}</p>
+                    </div>
+                  ))}
+                </div>
+                {detail.biography && <div><p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Biography</p><p className="text-xs text-[var(--text-primary)]">{detail.biography}</p></div>}
+                {detail.investment_experience && <div><p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Experience</p><p className="text-xs text-[var(--text-primary)]">{detail.investment_experience}</p></div>}
+                {detail.review_notes ? (
+                  <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                    <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Review Notes</p>
+                    <p className="text-xs text-[var(--text-primary)]">{detail.review_notes}</p>
+                    {detail.reviewed_by && <p className="text-[10px] text-[var(--text-tertiary)] mt-1">Reviewed by: {detail.reviewed_by}</p>}
+                  </div>
+                ) : (
+                  <p className="text-xs text-[var(--text-tertiary)] text-center py-4">No review notes yet</p>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
