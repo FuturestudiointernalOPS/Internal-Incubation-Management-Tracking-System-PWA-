@@ -358,9 +358,16 @@ export async function POST(req) {
 
       // Build final data with optional scoring
       let finalData = { ...(data || {}) };
+      let shouldEvaluate = false;
       if (newStatus === "submitted") {
         const scores = await calculateSubmissionScores(run_id, finalData);
         if (scores) finalData._scores = scores;
+        // Check if AI evaluation should run
+        try {
+          const { hasEvaluation } = await import("@/lib/platform/ai/evaluate");
+          const runInfo = await db.execute({ sql: "SELECT form_id FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+          if (runInfo.rows.length > 0) shouldEvaluate = await hasEvaluation(runInfo.rows[0].form_id);
+        } catch (_) {}
       }
 
       if (existing.rows.length > 0) {
@@ -374,10 +381,17 @@ export async function POST(req) {
           args: [JSON.stringify(finalData), newStatus, newStatus, existing.rows[0].id],
         });
         logTimeline(existing.rows[0].id, newStatus === "draft" ? "draft_saved" : "submitted", session.cid, null);
-        // Fire automation — get run details for context
+        // Fire automation
         if (newStatus !== "draft") {
           const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
           onSubmission(result.rows[0], fullRun.rows[0] || { id: parseInt(run_id) }, null, session);
+          // Fire-and-forget AI evaluation
+          if (shouldEvaluate) {
+            const subId = result.rows[0].id;
+            Promise.resolve().then(async () => {
+              try { const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate"); await evaluateSubmission(subId); } catch (_) {}
+            });
+          }
         }
         return NextResponse.json({ success: true, submission: result.rows[0] });
       } else {
@@ -386,10 +400,17 @@ export async function POST(req) {
           args: [parseInt(run_id), session.cid, null, newStatus, JSON.stringify(finalData), newStatus],
         });
         logTimeline(result.rows[0].id, newStatus === "draft" ? "started" : "submitted", session.cid, null);
-        // Fire automation — get run details for context
+        // Fire automation
         if (newStatus !== "draft") {
           const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
           onSubmission(result.rows[0], fullRun.rows[0] || { id: parseInt(run_id) }, null, session);
+          // Fire-and-forget AI evaluation
+          if (shouldEvaluate) {
+            const subId = result.rows[0].id;
+            Promise.resolve().then(async () => {
+              try { const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate"); await evaluateSubmission(subId); } catch (_) {}
+            });
+          }
         }
         return NextResponse.json({ success: true, submission: result.rows[0] });
       }
