@@ -265,6 +265,15 @@ export default function FormRunsPage() {
     if (!reviewing) return;
     setSaving(true);
     try {
+      // Save evaluation overrides if present
+      if (reviewing.data?._evaluation?.dimensions) {
+        await fetch("/api/platform/form-runs?action=submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: reviewing.run_id, data: reviewing.data, status: "submitted" }),
+        });
+      }
+
       const res = await fetch("/api/platform/form-runs?action=review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -680,7 +689,70 @@ export default function FormRunsPage() {
                       ))}
                     </div>
                   )}
-                  {Object.entries(reviewing.data).filter(([k]) => k !== "_scores").map(([key, value]) => {
+
+                  {/* AI Evaluation Table */}
+                  {reviewing.data._evaluation?.dimensions && (
+                    <div className="mb-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black uppercase text-purple-400">AI Evaluation</span>
+                        <span className="text-[8px] font-bold text-[var(--text-secondary)]">
+                          Overall: {reviewing.data._evaluation.overall_score}% · {reviewing.data._evaluation.ranking}
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-purple-500/20 overflow-hidden">
+                        <table className="w-full text-left">
+                          <thead className="bg-purple-500/5">
+                            <tr className="text-[7px] font-black uppercase text-[var(--text-secondary)]">
+                              <th className="px-2 py-1.5">Dimension</th>
+                              <th className="px-2 py-1.5">AI</th>
+                              <th className="px-2 py-1.5">You</th>
+                              <th className="px-2 py-1.5">Final</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--border-primary)]">
+                            {reviewing.data._evaluation.dimensions.map((dim, di) => (
+                              <tr key={di} className="text-[9px]">
+                                <td className="px-2 py-1.5">
+                                  <span className="font-bold text-[var(--text-primary)]">{dim.name}</span>
+                                  {dim.ai_reasoning && (
+                                    <p className="text-[7px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dim.ai_reasoning.substring(0, 100)}{dim.ai_reasoning.length > 100 ? "..." : ""}</p>
+                                  )}
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <span className="font-black text-purple-400">{dim.ai_score}</span>
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={10}
+                                    step={0.5}
+                                    value={dim.human_score ?? ""}
+                                    placeholder={String(dim.ai_score)}
+                                    onChange={(e) => {
+                                      const val = e.target.value === "" ? null : parseFloat(e.target.value);
+                                      const updated = { ...reviewing.data._evaluation };
+                                      updated.dimensions[di].human_score = val;
+                                      updated.dimensions[di].final_score = val ?? dim.ai_score;
+                                      setReviewing({ ...reviewing, data: { ...reviewing.data, _evaluation: updated } });
+                                    }}
+                                    className="w-12 px-1 py-0.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <span className={cn("font-black", (dim.final_score ?? dim.ai_score) >= 7 ? "text-emerald-400" : (dim.final_score ?? dim.ai_score) >= 5 ? "text-amber-400" : "text-rose-400")}>
+                                    {dim.final_score ?? dim.ai_score}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {Object.entries(reviewing.data).filter(([k]) => k !== "_scores" && k !== "_evaluation").map(([key, value]) => {
                     // Format phone numbers stored as JSON
                     let display = String(value);
                     if (typeof value === "string" && value.startsWith("{") && value.includes('"code"')) {
