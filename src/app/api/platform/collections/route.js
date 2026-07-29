@@ -80,13 +80,16 @@ export async function GET(req) {
 
     const result = await db.execute({ sql, args });
 
-    // Build tree: root collections + children
+    // Build tree: recursively nest children at any depth
     const all = result.rows;
-    const roots = all.filter((c) => !c.parent_id);
-    const tree = roots.map((root) => ({
-      ...root,
-      children: all.filter((c) => c.parent_id === root.id),
-    }));
+    const buildTree = (parentId) => {
+      const nodes = all.filter((c) => (parentId === null ? !c.parent_id : c.parent_id === parentId));
+      return nodes.map((node) => ({
+        ...node,
+        children: buildTree(node.id),
+      }));
+    };
+    const tree = buildTree(null);
 
     return NextResponse.json({ success: true, collections: all, tree });
   } catch (error) {
