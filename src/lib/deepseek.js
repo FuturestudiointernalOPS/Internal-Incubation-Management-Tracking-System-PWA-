@@ -27,10 +27,12 @@ const DEFAULT_MODEL = "deepseek-chat";
  * @param {string} [modelName] — defaults to "deepseek-chat"
  * @returns {Promise<string>} text response
  */
-async function chat(prompt, modelName = DEFAULT_MODEL) {
+async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096) {
   if (!DEEPSEEK_API_KEY) {
-    throw new Error("[DeepSeek] Client not initialised — missing DEEPSEEK_API_KEY.");
+    throw new Error("[DeepSeek] DEEPSEEK_API_KEY is not set in environment variables.");
   }
+
+  console.log(`[DeepSeek] Sending request — model: ${modelName}, prompt length: ${prompt.length}, max_tokens: ${maxTokens}`);
 
   const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
     method: "POST",
@@ -42,17 +44,20 @@ async function chat(prompt, modelName = DEFAULT_MODEL) {
       model: modelName,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
     }),
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`[DeepSeek] API error (${res.status}): ${err}`);
+    console.error(`[DeepSeek] API error (${res.status}):`, err.substring(0, 500));
+    throw new Error(`DeepSeek API error (${res.status}): ${err.substring(0, 200)}`);
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || "";
+  const content = data.choices?.[0]?.message?.content || "";
+  console.log(`[DeepSeek] Response received — length: ${content.length}`);
+  return content;
 }
 
 /**
