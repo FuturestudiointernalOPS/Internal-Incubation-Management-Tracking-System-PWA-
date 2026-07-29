@@ -951,8 +951,8 @@ export default function FormRunsPage() {
 
       {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setShowOpensCal(false); setShowClosesCal(false); }}>
-          <div className="card w-full max-w-md space-y-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setShowOpensCal(false); setShowClosesCal(false); }}>
+          <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "90vh", overflowY: "visible" }}>
             <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">New Form Run</h3><button onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
             <div className="space-y-4">
               <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Form</label>
@@ -964,14 +964,57 @@ export default function FormRunsPage() {
               <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Run Name</label><input value={createData.name} onChange={(e) => setCreateData({ ...createData, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder="e.g. Bootcamp Sept 2027 Applications" /></div>
               <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Description</label><textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1 relative"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Opens</label><button onClick={() => { setShowOpensCal(!showOpensCal); setShowClosesCal(false); }} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-left flex items-center gap-2 hover:border-[var(--brand-orange)] transition-all"><Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" /><span className={createData.opens_at ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}>{createData.opens_at ? new Date(createData.opens_at).toLocaleString() : "Select date and time..."}</span></button>{showOpensCal && <><div className="fixed inset-0 z-[490]" onClick={() => setShowOpensCal(false)} /><div className="absolute top-full left-0 mt-1 z-[500]"><MiniCalendar value={createData.opens_at} onChange={(d) => setCreateData({ ...createData, opens_at: d })} onClose={() => setShowOpensCal(false)} /></div></>}</div>
-                <div className="space-y-1 relative"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Closes</label><button onClick={() => { setShowClosesCal(!showClosesCal); setShowOpensCal(false); }} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-left flex items-center gap-2 hover:border-[var(--brand-orange)] transition-all"><Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" /><span className={createData.closes_at ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}>{createData.closes_at ? new Date(createData.closes_at).toLocaleString() : "Select date and time..."}</span></button>{showClosesCal && <><div className="fixed inset-0 z-[490]" onClick={() => setShowClosesCal(false)} /><div className="absolute top-full left-0 mt-1 z-[500]"><MiniCalendar value={createData.closes_at} onChange={(d) => setCreateData({ ...createData, closes_at: d })} onClose={() => setShowClosesCal(false)} /></div></>}</div>
+                {/* Opens picker — fixed position to escape overflow clipping */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Opens</label>
+                  <button
+                    id="opens-btn"
+                    onClick={() => { setShowOpensCal(!showOpensCal); setShowClosesCal(false); }}
+                    className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-left flex items-center gap-2 hover:border-[var(--brand-orange)] transition-all"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />
+                    <span className={createData.opens_at ? "text-[var(--text-primary)] text-[9px]" : "text-[var(--text-secondary)] text-[9px]"}>
+                      {createData.opens_at ? new Date(createData.opens_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "Select..."}
+                    </span>
+                  </button>
+                  {showOpensCal && (
+                    <>
+                      <div className="fixed inset-0 z-[490]" onClick={() => setShowOpensCal(false)} />
+                      <div className="fixed z-[500]" style={{ top: "50%", left: "calc(50% - 200px)", transform: "translateY(-50%)" }}>
+                        <MiniCalendar value={createData.opens_at} onChange={(d) => setCreateData({ ...createData, opens_at: d })} onClose={() => setShowOpensCal(false)} />
+                      </div>
+                    </>
+                  )}
+                </div>
+                {/* Closes picker — fixed position to escape overflow clipping */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Closes</label>
+                  <button
+                    id="closes-btn"
+                    onClick={() => { setShowClosesCal(!showClosesCal); setShowOpensCal(false); }}
+                    className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-left flex items-center gap-2 hover:border-[var(--brand-orange)] transition-all"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />
+                    <span className={createData.closes_at ? "text-[var(--text-primary)] text-[9px]" : "text-[var(--text-secondary)] text-[9px]"}>
+                      {createData.closes_at ? new Date(createData.closes_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "Select..."}
+                    </span>
+                  </button>
+                  {showClosesCal && (
+                    <>
+                      <div className="fixed inset-0 z-[490]" onClick={() => setShowClosesCal(false)} />
+                      <div className="fixed z-[500]" style={{ top: "50%", left: "calc(50% + 20px)", transform: "translateY(-50%)" }}>
+                        <MiniCalendar value={createData.closes_at} onChange={(d) => setCreateData({ ...createData, closes_at: d })} onClose={() => setShowClosesCal(false)} />
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">Cancel</button><button onClick={handleCreate} disabled={saving || !createData.form_id || !createData.name.trim()} className="flex-1 btn btn-primary">{saving ? "Creating..." : "Create Run"}</button></div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
