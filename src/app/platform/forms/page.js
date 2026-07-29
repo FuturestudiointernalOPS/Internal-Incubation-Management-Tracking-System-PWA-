@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   FileText, Plus, Search, Loader2, Edit3, Archive, Copy,
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
-  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2,
+  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play,
 } from "lucide-react";
 
 /**
@@ -41,7 +42,8 @@ const FIELD_TYPES = [
 
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
 
-export default function FormsPage() {
+export default function PlatformForms() {
+  const router = useRouter();
   const [forms, setForms] = useState([]);
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -795,7 +797,13 @@ export default function FormsPage() {
             <Eye className="w-3 h-3 inline mr-1.5" />{previewMode ? "Editing" : "Preview"}
           </button>
           <button onClick={saveFields} disabled={saving} className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{saving ? "Saving..." : "Save"}</button>
-          <button onClick={handlePublish} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110">{saving ? "Publishing..." : "Publish"}</button>
+          {editingForm?.status === "published" ? (
+            <button onClick={() => router.push("/platform/runs")} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 shadow-[0_0_15px_rgba(255,102,0,0.3)] border border-[var(--brand-orange)] flex items-center">
+              <Play className="w-3 h-3 inline mr-1.5" /> Launch & Collect
+            </button>
+          ) : (
+            <button onClick={handlePublish} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110">{saving ? "Publishing..." : "Publish"}</button>
+          )}
         </div>
       </div>
 

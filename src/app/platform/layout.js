@@ -17,6 +17,7 @@ import {
   X,
   Blocks,
   Activity,
+  Play,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getActiveModules } from "@/lib/platform/registry";
@@ -34,6 +35,7 @@ const ICON_MAP = {
   BarChart3,
   GitBranch,
   Settings,
+  Play,
 };
 
 export const dynamic = "force-dynamic";
