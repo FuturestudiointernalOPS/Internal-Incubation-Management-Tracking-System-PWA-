@@ -73,6 +73,11 @@ export default function InvestorDashboard() {
   // Comparison
   const [compareList, setCompareList] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
+
+  // Introduction request
+  const [showIntroModal, setShowIntroModal] = useState(false);
+  const [introVenture, setIntroVenture] = useState(null);
+  const [introMessage, setIntroMessage] = useState("");
   const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => { fetchDashboard(); }, []);
@@ -412,11 +417,11 @@ export default function InvestorDashboard() {
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] text-[var(--text-tertiary)]">{v.country || ""}{v.completion_index ? ` · ${Number(v.completion_index).toFixed(0)}%` : ""}</span>
                             <button
-                              onClick={() => addToPipeline(v.id, "interested")}
+                              onClick={() => { setIntroVenture(v); setIntroMessage(""); setShowIntroModal(true); }}
                               disabled={processingId !== null}
                               className="flex items-center gap-1 text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline disabled:opacity-40 disabled:cursor-wait disabled:no-underline"
                             >
-                              {processingId === v.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <>Express Interest <ArrowRight className="w-3 h-3" /></>}
+                              Request Introduction <ArrowRight className="w-3 h-3" />
                             </button>
                           </div>
                         </div>
@@ -535,6 +540,43 @@ export default function InvestorDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* INTRODUCTION REQUEST MODAL */}
+        {showIntroModal && introVenture && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowIntroModal(false)} />
+            <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
+                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Request Introduction</h3>
+                <button onClick={() => setShowIntroModal(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)]"><X className="w-4 h-4"/></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-xs text-[var(--text-secondary)]">
+                  You are requesting an introduction to <b className="text-[var(--text-primary)]">{introVenture.name}</b>.
+                  Future Studio will review your request and coordinate the introduction.
+                </p>
+                <div>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Investment Interest Statement</label>
+                  <textarea value={introMessage} onChange={e => setIntroMessage(e.target.value)}
+                    rows={3} placeholder="Briefly describe why you are interested in this opportunity..."
+                    className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 px-6 pb-5">
+                <button onClick={() => setShowIntroModal(false)} className="px-4 py-2 text-[10px] font-black text-[var(--text-secondary)] uppercase rounded-xl hover:bg-[var(--surface-3)]">Cancel</button>
+                <AppButton variant="primary" icon={Send} loading={processingId !== null} disabled={processingId !== null}
+                  onClick={async () => {
+                    setProcessingId(introVenture.id);
+                    await addToPipeline(introVenture.id, "meeting_requested");
+                    setShowIntroModal(false);
+                    setIntroVenture(null);
+                  }}>
+                  Submit Request
+                </AppButton>
+              </div>
+            </div>
           </div>
         )}
 
