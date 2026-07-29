@@ -7,6 +7,32 @@ import {
   FileText, Clock, User, Info, ChevronDown, ChevronUp, Star, X,
 } from "lucide-react";
 
+const COUNTRY_CODES = [
+  { flag: "🇳🇬", name: "Nigeria", code: "+234" },
+  { flag: "🇧🇯", name: "Benin", code: "+229" },
+  { flag: "🇬🇭", name: "Ghana", code: "+233" },
+  { flag: "🇰🇪", name: "Kenya", code: "+254" },
+  { flag: "🇿🇦", name: "South Africa", code: "+27" },
+  { flag: "🇪🇬", name: "Egypt", code: "+20" },
+  { flag: "🇨🇮", name: "Côte d'Ivoire", code: "+225" },
+  { flag: "🇸🇳", name: "Senegal", code: "+221" },
+  { flag: "🇹🇬", name: "Togo", code: "+228" },
+  { flag: "🇨🇲", name: "Cameroon", code: "+237" },
+  { flag: "🇷🇼", name: "Rwanda", code: "+250" },
+  { flag: "🇺🇬", name: "Uganda", code: "+256" },
+  { flag: "🇹🇿", name: "Tanzania", code: "+255" },
+  { flag: "🇪🇹", name: "Ethiopia", code: "+251" },
+  { flag: "🇫🇷", name: "France", code: "+33" },
+  { flag: "🇬🇧", name: "United Kingdom", code: "+44" },
+  { flag: "🇺🇸", name: "United States", code: "+1" },
+  { flag: "🇨🇦", name: "Canada", code: "+1" },
+  { flag: "🇩🇪", name: "Germany", code: "+49" },
+  { flag: "🇮🇳", name: "India", code: "+91" },
+  { flag: "🇨🇳", name: "China", code: "+86" },
+  { flag: "🇦🇪", name: "UAE", code: "+971" },
+  { flag: "🇧🇷", name: "Brazil", code: "+55" },
+];
+
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 const FIELD_TYPES = {
@@ -235,17 +261,43 @@ export default function SubmitFormPage() {
           />
         );
 
-      case "phone":
+      case "phone": {
+        // Parse existing value: "+234 90847820" → prefix "+234", number "90847820"
+        const phoneVal = value || "";
+        const prefixMatch = phoneVal.match(/^(\+\d{1,4})\s?(.*)/);
+        const currentPrefix = prefixMatch ? prefixMatch[1] : "";
+        const currentNumber = prefixMatch ? prefixMatch[2] : phoneVal;
+        const selectedCountry = COUNTRY_CODES.find((c) => c.code === currentPrefix);
         return (
-          <input
-            type="tel"
-            value={value}
-            onChange={(e) => updateField(field.id, e.target.value)}
-            placeholder={field.placeholder || "+229 00 00 00 00"}
-            disabled={isDisabled}
-            className={inputClass}
-          />
+          <div className="flex gap-2">
+            <select
+              value={selectedCountry ? currentPrefix : ""}
+              onChange={(e) => {
+                const newPrefix = e.target.value;
+                updateField(field.id, newPrefix ? `${newPrefix} ${currentNumber}`.trim() : currentNumber);
+              }}
+              disabled={isDisabled}
+              className="w-[140px] shrink-0 rounded-xl px-2 py-3 text-[10px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
+            >
+              <option value="">No prefix</option>
+              {COUNTRY_CODES.map((c) => (
+                <option key={c.code + c.name} value={c.code}>{c.flag} {c.name} ({c.code})</option>
+              ))}
+            </select>
+            <input
+              type="tel"
+              value={currentNumber}
+              onChange={(e) => {
+                const num = e.target.value.replace(/[^0-9\s\-()]/g, "");
+                updateField(field.id, currentPrefix ? `${currentPrefix} ${num}`.trim() : num);
+              }}
+              placeholder={field.placeholder || "90 84 78 20"}
+              disabled={isDisabled}
+              className={inputClass + " flex-1"}
+            />
+          </div>
         );
+      }
 
       case "date":
         return (
