@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -17,7 +17,6 @@ import {
   X,
   Blocks,
   Activity,
-  Play,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getActiveModules } from "@/lib/platform/registry";
@@ -35,7 +34,6 @@ const ICON_MAP = {
   BarChart3,
   GitBranch,
   Settings,
-  Play,
 };
 
 export const dynamic = "force-dynamic";
@@ -45,16 +43,24 @@ function cn(...classes) {
 }
 
 export default function PlatformLayout({ children }) {
-  const { t, switchLang, lang } = useI18n();
-  const pathname = usePathname();
-  const router = useRouter();
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-primary" />}>
+      <PlatformLayoutInner>{children}</PlatformLayoutInner>
+    </Suspense>
+  );
+}
+
+function PlatformLayoutInner({ children }) {
   const searchParams = useSearchParams();
   const isEmbed = searchParams.get("embed") === "1";
 
-  // Embed mode: render without platform chrome
   if (isEmbed) {
     return <div className="min-h-screen bg-primary">{children}</div>;
   }
+
+  const { t, switchLang, lang } = useI18n();
+  const pathname = usePathname();
+  const router = useRouter();
   const [user, setUser] = useState({ role: "super_admin" });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
