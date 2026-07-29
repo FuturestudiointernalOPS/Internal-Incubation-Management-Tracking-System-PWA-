@@ -76,7 +76,7 @@ export async function recalculateKpiProgress(programId) {
     const completedItems = completedSessions + completedDocs;
     // Weight: equal distribution across all KPIs
     const weight =
-      kpiList.length > 0 ? Math.round((100 / kpiList.length) * 100) / 100 : 0;
+      kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0;
     const progress =
       totalItems > 0
         ? Math.round((completedItems / totalItems) * 100)

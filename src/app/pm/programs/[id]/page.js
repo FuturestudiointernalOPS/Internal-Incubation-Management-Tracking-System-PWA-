@@ -247,6 +247,12 @@ function ProgramWorkspace() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [reviewScore, setReviewScore] = useState("");
+  const [showFollowupFields, setShowFollowupFields] = useState(false);
+  const [followupDate, setFollowupDate] = useState("");
+  const [followupTime, setFollowupTime] = useState("");
+  const [followupDuration, setFollowupDuration] = useState(30);
+  const [followupMeetingLink, setFollowupMeetingLink] = useState("");
+  const [followupNotes, setFollowupNotes] = useState("");
 
   const configNameRef = useRef(null);
   const configDescRef = useRef(null);
@@ -853,8 +859,50 @@ function ProgramWorkspace() {
       if (data.success) {
         notify("Submission graded successfully.");
         setShowReviewModal(false);
+        setShowFollowupFields(false);
+        setFollowupDate("");
+        setFollowupTime("");
         fetchProgramData(true);
       } else notify(data.error || "Failed to grade", "error");
+    } catch (e) {
+      notify("Network error.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleScheduleFollowup = async () => {
+    if (!selectedSubmission) return;
+    if (!followupDate || !followupTime) {
+      notify("Please select a date and time for the follow-up.", "error");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/submissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedSubmission.id,
+          status: "pending_followup",
+          score: parseInt(reviewScore) || 0,
+          feedback: followupNotes || "Follow-up scheduled",
+          followup_date: followupDate,
+          followup_time: followupTime,
+          followup_duration: parseInt(followupDuration) || 30,
+          meeting_link: followupMeetingLink || null,
+          followup_notes: followupNotes || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Follow-up scheduled successfully.");
+        setShowReviewModal(false);
+        setShowFollowupFields(false);
+        setFollowupDate("");
+        setFollowupTime("");
+        fetchProgramData(true);
+      } else notify(data.error || "Failed to schedule follow-up", "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -3711,21 +3759,98 @@ function ProgramWorkspace() {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowReviewModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleReviewSubmission}
-                  disabled={isSaving || reviewScore === ""}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Grading..." : "Approve & Grade"}
-                </button>
-              </div>
+              {!showFollowupFields ? (
+                <>
+                  <button
+                    onClick={() => setShowFollowupFields(true)}
+                    className="w-full py-2.5 rounded-xl border border-dashed border-indigo-400/40 text-[9px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-400/10 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Calendar className="w-3.5 h-3.5" /> Schedule Follow-up
+                  </button>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowReviewModal(false)}
+                      className="flex-1 btn btn-secondary"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleReviewSubmission}
+                      disabled={isSaving || reviewScore === ""}
+                      className="flex-1 btn btn-primary"
+                    >
+                      {isSaving ? "Grading..." : "Approve & Grade"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4 pt-2 border-t border-[var(--border-primary)]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                    <Calendar className="w-3 h-3 inline mr-1" /> Schedule Follow-up Meeting
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Date *</label>
+                      <input type="date" value={followupDate}
+                        onChange={(e) => setFollowupDate(e.target.value)}
+                        className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Time *</label>
+                      <input type="time" value={followupTime}
+                        onChange={(e) => setFollowupTime(e.target.value)}
+                        className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Duration (minutes)</label>
+                    <select value={followupDuration} onChange={(e) => setFollowupDuration(e.target.value)}
+                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    >
+                      <option value="15">15 min</option>
+                      <option value="30">30 min</option>
+                      <option value="45">45 min</option>
+                      <option value="60">60 min</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Meeting Link (optional)</label>
+                    <input type="url" value={followupMeetingLink}
+                      onChange={(e) => setFollowupMeetingLink(e.target.value)}
+                      placeholder="https://meet.google.com/..."
+                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Notes (optional)</label>
+                    <textarea value={followupNotes}
+                      onChange={(e) => setFollowupNotes(e.target.value)}
+                      placeholder="Agenda or talking points..." rows={2}
+                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold resize-none"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => { setShowFollowupFields(false); setFollowupDate(""); setFollowupTime(""); }}
+                      className="flex-1 py-2.5 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                    >
+                      Back
+                    </button>
+                    <button onClick={handleScheduleFollowup}
+                      disabled={isSaving || !followupDate || !followupTime}
+                      className="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                    >
+                      {isSaving ? "Scheduling..." : <><Calendar className="w-3 h-3" /> Confirm Follow-up</>}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

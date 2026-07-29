@@ -54,12 +54,12 @@ export async function POST(req) {
     // Determine version number: find the highest existing version for this participant+deliverable
     let nextVersion = 1;
     try {
-      let verSql = "SELECT MAX(version_number) as max_ver FROM v2_submissions WHERE participant_id = ? AND program_id = ? AND (";
+      let verSql = "SELECT MAX(version_number) as max_ver FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ? AND (";
       let verArgs = [participant_id || null, program_id];
       let conditions = [];
       
       if (finalDeliverableId) {
-        conditions.push("deliverable_id = ?");
+        conditions.push("deliverable_id::text = ?");
         verArgs.push(finalDeliverableId);
       }
       if (finalDocumentId) {
@@ -164,6 +164,8 @@ export async function PATCH(req) {
     }
     // ─────────────────────────────────────────────────────────────────
 
+    const statusLabel = { approved: "Approved", rejected: "Rejected", revision_requested: "Revision Requested", pending: "Pending", pending_followup: "Follow-up Scheduled" }[status] || status;
+
     // 1. Fetch current submission & participant details for notification
     const subRes = await db.execute({
       sql: `
@@ -172,26 +174,33 @@ export async function PATCH(req) {
                   d.title as deliverable_title, prog.assigned_pm_id,
                   prog.name as program_name
            FROM v2_submissions s
-           LEFT JOIN contacts c ON s.participant_id = c.cid
-           LEFT JOIN v2_document_requirements d ON s.deliverable_id = CAST(d.id AS TEXT)
-           LEFT JOIN v2_programs prog ON s.program_id = prog.id
-           WHERE s.id = ?
+           LEFT JOIN contacts c ON s.participant_id::text = c.cid
+           LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
+           LEFT JOIN v2_programs prog ON s.program_id::text = prog.id::text
+           WHERE s.id::text = ?
         `,
       args: [id],
     });
 
     const sub = subRes.rows[0];
 
-    // 2. Update Database with all review fields
+    // 2. Ensure score column exists (migration safety)
+    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT NULL"); } catch (_) {}
+    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()"); } catch (_) {}
+    try { await db.execute("ALTER TABLE v2_followups ADD COLUMN IF NOT EXISTS participant_cid TEXT DEFAULT NULL"); } catch (_) {}
+
+    // 3. Update Database with all review fields
     await db.execute({
       sql: `UPDATE v2_submissions SET
-              status = ?, feedback = ?, review_action = ?,
-              rejection_reason = ?, approved_at = CURRENT_TIMESTAMP,
+              status = ?, feedback = ?, score = ?,
+              review_action = ?, rejection_reason = ?,
+              approved_at = CURRENT_TIMESTAMP,
               updated_at = NOW()
             WHERE id = ?`,
       args: [
         status,
         feedback || null,
+        score || null,
         review_action || null,
         rejection_reason || null,
         id,
@@ -208,14 +217,15 @@ export async function PATCH(req) {
           : new Date(followup_date);
 
         const eventRes = await db.execute({
-          sql: `INSERT INTO v2_events (program_id, title, description, event_type, start_time, end_time, participant_id, created_by)
-                VALUES (?, ?, ?, 'followup', ?, ?, ?, ?) RETURNING id`,
+          sql: `INSERT INTO v2_events (program_id, title, description, event_type, start_time, end_time, location, participant_id, created_by)
+                VALUES (?, ?, ?, 'followup', ?, ?, ?, ?, ?) RETURNING id`,
           args: [
             sub.program_id,
             eventTitle,
             followup_notes || null,
             eventStart.toISOString(),
             new Date(eventStart.getTime() + (followup_duration || 30) * 60000).toISOString(),
+            meeting_link || null,
             sub.participant_id,
             "instructor",
           ],
@@ -223,11 +233,11 @@ export async function PATCH(req) {
 
         // Also create a followup record
         await db.execute({
-          sql: `INSERT INTO v2_followups (program_id, participant_id, submission_id, comment, scheduled_at, duration_minutes, meeting_link, notes, status)
+          sql: `INSERT INTO v2_followups (program_id, participant_cid, submission_id, comment, scheduled_at, duration_minutes, meeting_link, notes, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')`,
           args: [
             sub.program_id,
-            sub.participant_id,
+            sub.participant_cid || sub.participant_id,
             id,
             followup_notes || `Follow-up meeting for ${sub.deliverable_title || "submission"}`,
             eventStart.toISOString(),
@@ -306,31 +316,31 @@ export async function GET(req) {
               d.due_date as deliverable_due_date,
               p.name as participant_name, g.name as group_name
        FROM v2_submissions s
-       LEFT JOIN v2_deliverables d ON s.deliverable_id = CAST(d.id AS TEXT)
-       LEFT JOIN v2_participants p ON s.participant_id = CAST(p.id AS TEXT)
-       LEFT JOIN v2_groups g ON s.group_id = CAST(g.id AS TEXT)
+       LEFT JOIN v2_deliverables d ON s.deliverable_id::text = d.id::text
+       LEFT JOIN v2_participants p ON s.participant_id::text = p.id::text
+       LEFT JOIN v2_groups g ON s.group_id::text = g.id::text
        WHERE 1=1
     `;
     let args = [];
 
     if (participant_id) {
-      sql += " AND s.participant_id = ?";
+      sql += " AND s.participant_id::text = ?";
       args.push(participant_id);
     }
     if (team_id) {
-      sql += " AND s.team_id = ?";
+      sql += " AND s.team_id::text = ?";
       args.push(team_id);
     }
     if (group_id) {
-      sql += " AND s.group_id = ?";
+      sql += " AND s.group_id::text = ?";
       args.push(group_id);
     }
     if (program_id) {
-      sql += " AND s.program_id = ?";
+      sql += " AND s.program_id::text = ?";
       args.push(program_id);
     }
     if (deliverable_id) {
-      sql += " AND s.deliverable_id = ?";
+      sql += " AND s.deliverable_id::text = ?";
       args.push(deliverable_id);
     }
     if (document_id) {
@@ -351,31 +361,31 @@ export async function GET(req) {
                del.due_date as deliverable_due_date,
                p.name as participant_name, g.name as group_name
         FROM v2_submissions s1
-        LEFT JOIN v2_deliverables del ON s1.deliverable_id = del.id
+        LEFT JOIN v2_deliverables del ON s1.deliverable_id::text = del.id::text
         LEFT JOIN v2_document_requirements dr ON s1.document_id = dr.id
-        LEFT JOIN v2_participants p ON s1.participant_id = p.id
-        LEFT JOIN v2_groups g ON s1.group_id = g.id
+        LEFT JOIN v2_participants p ON s1.participant_id::text = p.id::text
+        LEFT JOIN v2_groups g ON s1.group_id::text = g.id::text
         INNER JOIN (
-          SELECT participant_id, COALESCE(deliverable_id, document_id::text) as lookup_id, MAX(version_number) as max_ver
+          SELECT participant_id, COALESCE(deliverable_id::text, document_id::text) as lookup_id, MAX(version_number) as max_ver
           FROM v2_submissions
           WHERE 1=1
       `;
       let innerArgs = [];
       if (participant_id) {
-        sql += " AND participant_id = ?";
+        sql += " AND participant_id::text = ?";
         innerArgs.push(participant_id);
       }
       if (program_id) {
-        sql += " AND program_id = ?";
+        sql += " AND program_id::text = ?";
         innerArgs.push(program_id);
       }
       if (deliverable_id) {
-        sql += " AND (deliverable_id = ? OR document_id = ?)";
+        sql += " AND (deliverable_id::text = ? OR document_id = ?)";
         innerArgs.push(deliverable_id, Number(deliverable_id) || 0);
       }
-      sql += " GROUP BY participant_id, COALESCE(deliverable_id, document_id::text)";
+      sql += " GROUP BY participant_id::text, COALESCE(deliverable_id::text, document_id::text)";
       sql += " ) s2";
-      sql += " ON s1.participant_id = s2.participant_id AND COALESCE(s1.deliverable_id, s1.document_id::text) = s2.lookup_id AND s1.version_number = s2.max_ver";
+      sql += " ON s1.participant_id::text = s2.participant_id AND COALESCE(s1.deliverable_id::text, s1.document_id::text) = s2.lookup_id AND s1.version_number = s2.max_ver";
       args = [...innerArgs];
     }
 
