@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { notifyVentureFounders } from "@/lib/ventures";
 
 const ROLES = ["participant", "staff", "program_manager", "super_admin", "teacher", "developer"];
 // Reviewers stand-in until Track 5's venture_advisors ships. TODO Track 5: scope to actual assigned advisor.
@@ -48,6 +49,8 @@ export async function POST(req, { params }) {
     }
     // Reviews never modify the original document — comment/approve/request-revision only.
     await db.execute({ sql: "INSERT INTO venture_document_reviews (document_id, reviewer_id, comment, decision) VALUES (?,?,?,?)", args: [docId, session.cid, comment || null, decision] });
+    const labels = { approved: 'Document Approved', revision_requested: 'Revision Requested', comment: 'Review Comment Added' };
+    notifyVentureFounders(dbId, labels[decision] || 'Document Reviewed', `A document review has been ${decision === 'approved' ? 'approved' : decision === 'revision_requested' ? 'requested for revision' : 'commented on'}.`);
 
     return NextResponse.json({ success: true });
   } catch (e) {

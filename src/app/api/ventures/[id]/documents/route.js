@@ -5,6 +5,7 @@ import { requireVentureAccess } from "@/lib/ventureAuth";
 import {
   listDocuments, getDocument, uploadDocument, updateDocument, deleteDocument,
   createShareLink, revokeShare, getAccessLogs, getDocumentShares,
+  notifyVentureFounders,
 } from "@/lib/ventures";
 
 const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
@@ -83,6 +84,7 @@ export async function POST(req, { params }) {
         fileUrl: body.file_url, thumbnailUrl: body.thumbnail_url,
         isPitchDeck: body.is_pitch_deck, uploadedBy: session.cid,
       });
+      notifyVentureFounders(dbId, 'Document Uploaded', `${body.title} has been uploaded to the document vault.`);
       return NextResponse.json({ success: true, document_id: result.id });
     }
     if (body.action === "update") {
@@ -100,6 +102,8 @@ export async function POST(req, { params }) {
         return NextResponse.json({ success: false, error: `approval_status must be one of ${STATUSES.join(", ")}` }, { status: 400 });
       }
       await db.execute({ sql: "UPDATE venture_documents SET approval_status = ?, updated_at = NOW() WHERE id = ? AND venture_id = ?", args: [body.approval_status, body.document_id, dbId] });
+      const labels = { approved: 'approved', shared_with_investor: 'shared with investors', pending_review: 'sent for review', private: 'marked private' };
+      notifyVentureFounders(dbId, 'Document Status Updated', `A document has been ${labels[body.approval_status] || body.approval_status}.`);
       return NextResponse.json({ success: true });
     }
     if (body.action === "delete") {

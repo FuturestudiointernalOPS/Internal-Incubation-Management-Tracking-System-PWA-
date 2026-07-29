@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Bell, Clock, History, Briefcase, Target, Lightbulb, TrendingUp, CheckSquare, ListChecks, ChevronDown, ChevronUp, ListTodo, MessageCircle, RotateCcw, AlertTriangle, CalendarDays, Activity, FileText, GraduationCap, Award, Gauge } from "lucide-react";
+import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Bell, Clock, History, Briefcase, Target, Lightbulb, TrendingUp, CheckSquare, ListChecks, ChevronDown, ChevronUp, ListTodo, MessageCircle, RotateCcw, AlertTriangle, CalendarDays, Activity, FileText, GraduationCap, Award, Gauge, UserCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useRouter, useParams } from "next/navigation";
 
-const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks", "standups", "retros", "blockers", "calendar", "progress", "documents", "advisors", "coaching", "kpis"];
+const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "journey", "playbook", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks", "standups", "retros", "blockers", "calendar", "progress", "documents", "advisors", "coaching", "kpis", "investment"];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
 const STATUSES = ["active", "paused", "graduated", "archived"];
 const VISIBILITIES = ["private", "public", "inviteOnly"];
@@ -72,6 +72,13 @@ export default function VentureDetail() {
   const [showPermissions, setShowPermissions] = useState(false);
   const [permissionsDoc, setPermissionsDoc] = useState(null);
   const [permissions, setPermissions] = useState([]);
+  const [journeyStages, setJourneyStages] = useState([]);
+  const [playbookEntries, setPlaybookEntries] = useState([]);
+  const [investmentReadiness, setInvestmentReadiness] = useState(null);
+  const [currentWeekStandup, setCurrentWeekStandup] = useState(true);
+  const [currentWeekRetro, setCurrentWeekRetro] = useState(true);
+  const [currentWeekNum, setCurrentWeekNum] = useState(null);
+  const [currentWeekYear, setCurrentWeekYear] = useState(null);
 
   // Track 5 state
   const [advisors, setAdvisors] = useState([]);
@@ -167,6 +174,9 @@ export default function VentureDetail() {
     if (activeTab === "advisors") fetchAdvisors();
     if (activeTab === "coaching") { fetchCoaching(); fetchAdvisors(); }
     if (activeTab === "kpis") { fetchKpis(); fetchKpiDefinitions(); }
+    if (activeTab === "journey") fetchJourney();
+    if (activeTab === "playbook") fetchPlaybook();
+    if (activeTab === "investment") fetchInvestmentReadiness();
   }, [activeTab, venture, params.id]);
 
   async function loadMembers() {
@@ -215,10 +225,10 @@ export default function VentureDetail() {
     try { const r = await fetch(`/api/ventures/${params.id}/tasks`); const d = await r.json(); if (d.success) setTasks(d.tasks || []); } catch(e){}
   }
   async function fetchStandups() {
-    try { const r = await fetch(`/api/ventures/${params.id}/standups`); const d = await r.json(); if (d.success) setStandups(d.standups || []); } catch(e){}
+    try { const r = await fetch(`/api/ventures/${params.id}/standups`); const d = await r.json(); if (d.success) { setStandups(d.standups || []); setCurrentWeekStandup(d.current_week_submitted !== false); setCurrentWeekNum(d.current_week); setCurrentWeekYear(d.current_year); } } catch(e){}
   }
   async function fetchRetros() {
-    try { const r = await fetch(`/api/ventures/${params.id}/retros`); const d = await r.json(); if (d.success) setRetros(d.retros || []); } catch(e){}
+    try { const r = await fetch(`/api/ventures/${params.id}/retros`); const d = await r.json(); if (d.success) { setRetros(d.retros || []); setCurrentWeekRetro(d.current_week_submitted !== false); setCurrentWeekNum(d.current_week); setCurrentWeekYear(d.current_year); } } catch(e){}
   }
   async function fetchBlockers() {
     try { const r = await fetch(`/api/ventures/${params.id}/blockers`); const d = await r.json(); if (d.success) setBlockers(d.blockers || []); } catch(e){}
@@ -310,6 +320,19 @@ export default function VentureDetail() {
   async function handleSavePermission(docId, role_scope, access_level) {
     await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ role_scope, access_level }) });
     handlePermissions(docId);
+  }
+  async function fetchJourney() {
+    try { const r = await fetch(`/api/ventures/${params.id}/journey`); const d = await r.json(); if (d.success) setJourneyStages(d.stages || []); } catch(e){}
+  }
+  async function fetchPlaybook() {
+    try { const r = await fetch(`/api/ventures/${params.id}/playbook`); const d = await r.json(); if (d.success) setPlaybookEntries(d.playbook || []); } catch(e){}
+  }
+  async function fetchInvestmentReadiness() {
+    try { const r = await fetch(`/api/ventures/${params.id}/investment-readiness`); const d = await r.json(); if (d.success) setInvestmentReadiness(d.investment_readiness); } catch(e){}
+  }
+  async function handleCompleteStage(stageId) {
+    await fetch(`/api/ventures/${params.id}/journey`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ stage_id: stageId, action: 'complete' }) });
+    fetchJourney();
   }
   async function handleUpdateKpi(assignmentId, current_value) {
     await fetch(`/api/ventures/${params.id}/kpis`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: assignmentId, current_value }) });
@@ -729,6 +752,10 @@ export default function VentureDetail() {
                   {progressData ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-lg p-3 border" style={cardStyle}>
+                        <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.profileCompletion')||'Profile Completion'}</p>
+                        <p className="text-xl font-bold mt-1" style={{color:'var(--brand-orange)'}}>{progressData.profile_completion||0}%</p>
+                      </div>
+                      <div className="rounded-lg p-3 border" style={cardStyle}>
                         <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.taskCompletion')}</p>
                         <p className="text-xl font-bold mt-1">{progressData.task_completion||0}%</p>
                       </div>
@@ -827,6 +854,64 @@ export default function VentureDetail() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Journey Tab */}
+        {activeTab === "journey" && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">{t('venture.standardJourney')||'Standard Venture Journey'}</h2>
+            <p className="text-sm" style={{color:'var(--text-secondary)'}}>{t('venture.journeyDesc')||'Complete each stage to progress your venture. Stages unlock as the previous one is approved by your mentor.'}</p>
+            <div className="space-y-2">
+              {journeyStages.map((stage, i) => (
+                <div key={stage.id} className={`rounded-xl p-4 border flex items-center gap-4 ${stage.status === 'locked' ? 'opacity-50' : ''}`} style={cardStyle}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                    stage.status === 'completed' ? 'bg-green-600 text-white' :
+                    stage.status === 'active' ? 'bg-blue-600 text-white' :
+                    'bg-gray-700 text-gray-400'
+                  }`}>
+                    {stage.status === 'completed' ? '✓' : stage.stage_order}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-medium ${stage.status === 'completed' ? 'line-through' : ''}`} style={{color: stage.status === 'completed' ? 'var(--text-secondary)' : 'var(--text-primary)'}}>{stage.name}</p>
+                    {stage.description && <p className="text-xs" style={{color:'var(--text-secondary)'}}>{stage.description}</p>}
+                    {stage.completed_at && <p className="text-xs mt-1" style={{color:'#22c55e'}}>✓ {new Date(stage.completed_at).toLocaleDateString()}</p>}
+                  </div>
+                  {stage.status === 'active' && (
+                    <button onClick={() => handleCompleteStage(stage.id)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-green-600 hover:bg-green-700">
+                      {t('venture.markCompleted')||'Mark Completed'}
+                    </button>
+                  )}
+                  {stage.status === 'locked' && (
+                    <span className="text-xs px-2 py-1 rounded" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.1)'}}>🔒 {t('venture.locked')||'Locked'}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Playbook Tab */}
+        {activeTab === "playbook" && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">{t('venture.facilitatorPlaybook')||'Facilitator Playbook'}</h2>
+            <p className="text-sm" style={{color:'var(--text-secondary)'}}>{t('venture.playbookDesc')||'Standard review guide for each incubation stage.'}</p>
+            <div className="space-y-3">
+              {playbookEntries.map(entry => (
+                <details key={entry.id} className="rounded-xl p-4 border" style={cardStyle}>
+                  <summary className="font-medium cursor-pointer">{entry.stage_order}. {entry.stage_name}</summary>
+                  <div className="mt-3 space-y-2 text-sm">
+                    <div><strong>{t('venture.objective')||'Objective'}:</strong> <span style={{color:'var(--text-secondary)'}}>{entry.objective}</span></div>
+                    <div><strong>{t('venture.expectedOutcome')||'Expected Outcome'}:</strong> <span style={{color:'var(--text-secondary)'}}>{entry.expected_outcome}</span></div>
+                    <div><strong>{t('venture.questions')||'Questions to Ask'}:</strong> <span style={{color:'var(--text-secondary)'}}>{entry.questions}</span></div>
+                    <div><strong>{t('venture.evidence')||'Evidence Required'}:</strong> <span style={{color:'var(--text-secondary)'}}>{entry.evidence}</span></div>
+                    <div><strong>{t('venture.requiredDocuments')||'Required Documents'}:</strong> <span style={{color:'var(--text-secondary)'}}>{entry.documents}</span></div>
+                    <div><strong>{t('venture.commonMistakes')||'Common Mistakes'}:</strong> <span style={{color:'var(--text-secondary)'}}>{entry.mistakes}</span></div>
+                    <div><strong>{t('venture.approvalCriteria')||'Approval Criteria'}:</strong> <span style={{color:'var(--text-secondary)'}}>{entry.approval_criteria}</span></div>
+                  </div>
+                </details>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1009,6 +1094,25 @@ export default function VentureDetail() {
             <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.standups')} ({standups.length})</h2>
               <button onClick={()=>setShowAddStandup(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><MessageCircle size={16}/> {t('venture.addStandup')}</button>
             </div>
+            {!currentWeekStandup && (
+              <div className="rounded-xl p-4 border border-amber-500/30 bg-amber-500/10" style={cardStyle}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-amber-400">{t('venture.missingStandup')||'Weekly Standup Not Submitted'}</p>
+                    <p className="text-xs mt-0.5" style={{color:'var(--text-secondary)'}}>{t('venture.standupReminderDesc')||'Submit your standup for this week (Monday: Weekly Focus, Planned Activities, Expected Deliverables).'}</p>
+                  </div>
+                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026,top_priorities:'',expected_deliverables:'',weekly_priorities:''})}).then(r=>{if(r.status===409)alert('Already exists');});fetchStandups();}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
+                </div>
+              </div>
+            )}
+            {!currentWeekStandup && standups.length > 0 && (
+              <div className="rounded-xl p-3 border border-red-500/20 bg-red-500/5" style={cardStyle}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.missedReportNotify')||'No standup for this week. Notify your mentor about the delay.'}</p>
+                  <button onClick={async()=>{await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({venture_id:params.id,type:'missed_standup',week:currentWeekNum,year:currentWeekYear})});alert('Mentor notified!');}} className="text-xs px-2 py-1 rounded bg-red-600/30 text-red-400 hover:bg-red-600/50">{t('venture.notifyMentor')||'Notify Mentor'}</button>
+                </div>
+              </div>
+            )}
             {standups.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               standups.map(s=>{const now=new Date(s.year,0,1);const linkedTasks=tasks.filter(tk=>{if(!tk.created_at)return false;const d=new Date(tk.created_at);const soy=new Date(d.getFullYear(),0,1);const w=Math.ceil((((d-soy)/86400000)+soy.getDay()+1)/7);return w===s.week_number&&d.getFullYear()===s.year;});return(<div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
                   <p className="font-semibold">Week {s.week_number}, {s.year}</p>
@@ -1026,6 +1130,25 @@ export default function VentureDetail() {
             <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.retros')} ({retros.length})</h2>
               <button onClick={()=>setShowAddRetro(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><RotateCcw size={16}/> {t('venture.addRetro')}</button>
             </div>
+            {!currentWeekRetro && (
+              <div className="rounded-xl p-4 border border-amber-500/30 bg-amber-500/10" style={cardStyle}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-amber-400">{t('venture.missingRetro')||'Weekly Retro Not Submitted'}</p>
+                    <p className="text-xs mt-0.5" style={{color:'var(--text-secondary)'}}>{t('venture.retroReminderDesc')||'Submit your retro for this week (Friday: Progress Summary, Completed Activities, Current Challenges, Support Required, Next Week Focus).'}</p>
+                  </div>
+                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026})}).then(r=>{if(r.status===409)alert('Already exists');});fetchRetros();}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
+                </div>
+              </div>
+            )}
+            {!currentWeekRetro && retros.length > 0 && (
+              <div className="rounded-xl p-3 border border-red-500/20 bg-red-500/5" style={cardStyle}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.missedReportNotify')||'No retro for this week. Notify your mentor about the delay.'}</p>
+                  <button onClick={async()=>{await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({venture_id:params.id,type:'missed_retro',week:currentWeekNum,year:currentWeekYear})});alert('Mentor notified!');}} className="text-xs px-2 py-1 rounded bg-red-600/30 text-red-400 hover:bg-red-600/50">{t('venture.notifyMentor')||'Notify Mentor'}</button>
+                </div>
+              </div>
+            )}
             {retros.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               retros.map(r=>{const linkedTasks=tasks.filter(tk=>tk.status==='done'&&tk.created_at&&(()=>{const d=new Date(tk.created_at);const soy=new Date(d.getFullYear(),0,1);const w=Math.ceil((((d-soy)/86400000)+soy.getDay()+1)/7);return w===r.week_number&&d.getFullYear()===r.year;})());return(<div key={r.id} className="rounded-xl p-4 border" style={cardStyle}>
                   <p className="font-semibold">Week {r.week_number}, {r.year}</p>
@@ -1108,8 +1231,9 @@ export default function VentureDetail() {
         {activeTab === "progress" && (
           <div className="space-y-4">
             {!progressData?(<div className="text-center py-8"><Loader2 className="animate-spin mx-auto" style={{color:'var(--text-secondary)'}} size={24}/></div>):(
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {[
+                  {label:t('venture.profileCompletion'),value:`${progressData.profile_completion||0}%`,icon:UserCheck},
                   {label:t('venture.taskCompletion'),value:`${progressData.task_completion||0}%`,icon:Activity},
                   {label:t('venture.avgMilestoneProgress'),value:`${progressData.avg_milestone_progress||0}%`,icon:CheckSquare},
                   {label:t('venture.standupsCount'),value:progressData.standups_count||0,icon:MessageCircle},
@@ -1202,13 +1326,30 @@ export default function VentureDetail() {
                 <div key={s.id} className="rounded-xl p-4 border" style={cardStyle}>
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-xs" style={{color:'var(--text-secondary)'}}>{s.advisor_name||s.advisor_contact_id} {s.session_date&&`• ${new Date(s.session_date).toLocaleDateString()}`}{s.start_time&&` at ${s.start_time}`}</p>
-                    <button onClick={()=>{setEditingCoaching(s);setShowEditCoaching(true);setCoachingForm({});}} className="text-xs px-2 py-0.5 rounded" style={{color:'var(--brand-orange)',border:'1px solid var(--brand-orange)'}}>{t('venture.edit')}</button>
+                    <div className="flex items-center gap-2">
+                      {s.status && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          s.status==='approved' ? 'bg-green-500/20 text-green-400' :
+                          s.status==='revision_requested' ? 'bg-amber-500/20 text-amber-400' :
+                          s.status==='pending_review' ? 'bg-blue-500/20 text-blue-400' :
+                          'bg-gray-500/20 text-gray-400'
+                        }`}
+                        >{t(`venture.${s.status==='revision_requested'?'requestRevision':s.status}`)||s.status}</span>
+                      )}
+                      <button onClick={()=>{setEditingCoaching(s);setShowEditCoaching(true);setCoachingForm({});}} className="text-xs px-2 py-0.5 rounded" style={{color:'var(--brand-orange)',border:'1px solid var(--brand-orange)'}}>{t('venture.edit')}</button>
+                    </div>
                   </div>
                   {s.location&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>📍 {s.location}</p>}
                   {s.meeting_link&&<p className="text-xs mt-1"><a href={s.meeting_link} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">🔗 {s.meeting_link}</a></p>}
                   {s.notes&&<p className="text-sm mt-1">{s.notes}</p>}
+                  {s.observations&&<p className="text-sm mt-1" style={{color:'var(--text-secondary)'}}>{s.observations}</p>}
                   {s.recommendations&&<p className="text-sm mt-1" style={{color:'var(--brand-orange)'}}>💡 {s.recommendations}</p>}
                   {s.follow_up_date&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>📅 Follow-up: {new Date(s.follow_up_date).toLocaleDateString()}</p>}
+                  <div className="flex gap-2 mt-2">
+                    {s.status!=='approved'&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/coaching?id=${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'approved'})});fetchCoaching();}} className="text-xs px-2 py-1 rounded-lg bg-green-600 text-white hover:bg-green-700">{t('venture.approve')}</button>)}
+                    {s.status!=='revision_requested'&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/coaching?id=${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'revision_requested'})});fetchCoaching();}} className="text-xs px-2 py-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.requestRevision')}</button>)}
+                    {s.status!=='pending_review'&&!s.status&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/coaching?id=${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'pending_review'})});fetchCoaching();}} className="text-xs px-2 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700">{t('venture.pendingReview')}</button>)}
+                  </div>
                 </div>
               ))
             }
@@ -1242,10 +1383,65 @@ export default function VentureDetail() {
                 </div>
               ))
             }
-          </div>
-        )}
+  	        </div>
+  	      )}
 
-        {/* Add Interview Modal */}
+          {/* Investment Readiness Tab */}
+          {activeTab === "investment" && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">{t('venture.investmentReadiness')||'Investment Readiness'}</h2>
+              <p className="text-sm" style={{color:'var(--text-secondary)'}}>{t('venture.investmentDesc')||'Documents required before a venture can be introduced to investors.'}</p>
+              {investmentReadiness ? (
+                <>
+                  <div className={`rounded-xl p-6 border ${investmentReadiness.is_investment_ready ? 'border-green-500/30 bg-green-500/10' : 'border-amber-500/30 bg-amber-500/10'}`} style={cardStyle}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-lg font-bold" style={{color: investmentReadiness.is_investment_ready ? '#22c55e' : '#f59e0b'}}>
+                          {investmentReadiness.is_investment_ready ? (t('venture.investmentReady')||'✅ Investment Ready') : (t('venture.notReady')||'⏳ Not Yet Ready')}
+                        </p>
+                        <p className="text-sm mt-0.5" style={{color:'var(--text-secondary)'}}>
+                          {investmentReadiness.approved_count}/{investmentReadiness.total_required} {t('venture.documentsApproved')||'documents approved'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-3xl font-bold" style={{color: investmentReadiness.is_investment_ready ? '#22c55e' : 'var(--brand-orange)'}}>
+                          {investmentReadiness.readiness_percent}%
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 w-full bg-gray-700 rounded-full h-2">
+                      <div className="h-2 rounded-full transition-all" style={{
+                        width: `${investmentReadiness.readiness_percent}%`,
+                        backgroundColor: investmentReadiness.is_investment_ready ? '#22c55e' : 'var(--brand-orange)'
+                      }}/>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {investmentReadiness.checklist.map(item => (
+                      <div key={item.key} className={`rounded-xl p-4 border flex items-center gap-4 ${item.status === 'approved' ? 'border-green-500/20 bg-green-500/5' : item.status === 'submitted' ? 'border-amber-500/20 bg-amber-500/5' : 'opacity-60'}`} style={cardStyle}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${item.status === 'approved' ? 'bg-green-600/30' : item.status === 'submitted' ? 'bg-amber-600/30' : 'bg-gray-700'}`}>
+                          {item.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{item.label}</p>
+                          <p className="text-xs" style={{color:'var(--text-secondary)'}}>
+                            {item.status === 'approved' ? '✅ Approved' : item.status === 'submitted' ? (item.documents?.length ? `📄 ${item.documents.length} document(s) awaiting approval` : '📝 Submitted') : '❌ Missing'}
+                          </p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${item.status === 'approved' ? 'bg-green-500/20 text-green-400' : item.status === 'submitted' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {item.status === 'approved' ? '✓' : item.status === 'submitted' ? '⏳' : '✗'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8"><Loader2 className="animate-spin mx-auto" style={{color:'var(--text-secondary)'}} size={24}/></div>
+              )}
+            </div>
+          )}
+
+          {/* Add Interview Modal */}
         {showAddInterview && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddInterview(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>

@@ -421,6 +421,27 @@ export async function createVentureNotification({
   });
 }
 
+/** Notify all venture founders about an event */
+export async function notifyVentureFounders(dbId, title, message) {
+  try {
+    const founders = await db.execute({
+      sql: "SELECT contact_id FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
+      args: [dbId],
+    });
+    for (const f of founders.rows || []) {
+      if (f.contact_id) {
+        await createVentureNotification({ recipient_id: f.contact_id, title, message });
+      }
+    }
+    // Also notify the venture venture_id (for super admin overview)
+    const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
+    const vid = v.rows?.[0]?.venture_id;
+    if (vid) {
+      await createVentureNotification({ recipient_id: "sa", title: `[${vid}] ${title}`, message });
+    }
+  } catch (e) { /* non-blocking */ }
+}
+
 /**
  * Send invitation email to a founder.
  */
