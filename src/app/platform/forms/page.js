@@ -983,41 +983,133 @@ export default function FormsPage() {
 
           {aiEvalFramework ? (
             <>
-              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-[10px] font-bold text-emerald-400">Evaluation framework active — {aiEvalFramework.dimensions?.length || 0} dimensions</span>
-              </div>
+              {/* Weight validation */}
+              {(() => {
+                const total = (aiEvalFramework.dimensions || []).reduce((s, d) => s + (parseInt(d.weight) || 0), 0);
+                return total !== 100 ? (
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[9px] font-bold text-amber-400">
+                    ⚠️ Weights total {total}% — must equal 100% before publishing
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[9px] font-bold text-emerald-400">
+                    ✓ Weights total 100% — ready to save
+                  </div>
+                );
+              })()}
+
+              {/* Editable dimensions table */}
               <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
                 <table className="w-full text-left">
                   <thead className="bg-tertiary">
                     <tr className="text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
-                      <th className="px-3 py-2">Dimension</th>
-                      <th className="px-3 py-2">Weight</th>
-                      <th className="px-3 py-2">Criteria</th>
+                      <th className="px-2 py-2">Dimension</th>
+                      <th className="px-2 py-2 w-16">Weight</th>
+                      <th className="px-2 py-2">Criteria</th>
+                      <th className="px-2 py-2 w-10"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border-primary)]">
                     {(aiEvalFramework.dimensions || []).map((d, i) => (
-                      <tr key={i} className="text-[10px] font-bold text-[var(--text-primary)]">
-                        <td className="px-3 py-2">{d.name}</td>
-                        <td className="px-3 py-2">{d.weight}%</td>
-                        <td className="px-3 py-2 text-[var(--text-secondary)]">{(d.criteria || []).join(", ")}</td>
+                      <tr key={i} className="text-[10px]">
+                        <td className="px-2 py-1.5">
+                          <input
+                            value={d.name}
+                            onChange={(e) => {
+                              const dims = [...aiEvalFramework.dimensions];
+                              dims[i] = { ...dims[i], name: e.target.value };
+                              setAiEvalFramework({ ...aiEvalFramework, dimensions: dims });
+                            }}
+                            className="w-full px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={d.weight}
+                            onChange={(e) => {
+                              const dims = [...aiEvalFramework.dimensions];
+                              dims[i] = { ...dims[i], weight: parseInt(e.target.value) || 0 };
+                              setAiEvalFramework({ ...aiEvalFramework, dimensions: dims });
+                            }}
+                            className="w-full px-1 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input
+                            value={(d.criteria || []).join(", ")}
+                            onChange={(e) => {
+                              const dims = [...aiEvalFramework.dimensions];
+                              dims[i] = { ...dims[i], criteria: e.target.value.split(",").map(c => c.trim()).filter(Boolean) };
+                              setAiEvalFramework({ ...aiEvalFramework, dimensions: dims });
+                            }}
+                            className="w-full px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] text-[var(--text-primary)] outline-none"
+                            placeholder="criterion 1, criterion 2"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <button
+                            onClick={() => {
+                              const dims = [...aiEvalFramework.dimensions];
+                              dims.splice(i, 1);
+                              setAiEvalFramework({ ...aiEvalFramework, dimensions: dims });
+                            }}
+                            className="text-rose-500 hover:text-rose-400"
+                          ><X className="w-3 h-3" /></button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <button
-                onClick={async () => {
-                  if (!confirm("Remove evaluation framework?")) return;
-                  await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm?.id}`, { method: "DELETE" });
-                  setAiEvalFramework(null);
-                  notify("Evaluation framework removed");
-                }}
-                className="text-[9px] font-black text-rose-500 hover:text-rose-400 uppercase"
-              >
-                Remove Framework
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setAiEvalFramework({
+                      ...aiEvalFramework,
+                      dimensions: [...(aiEvalFramework.dimensions || []), { name: "New Dimension", weight: 0, criteria: [], ai_prompt: "" }],
+                    });
+                  }}
+                  className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase"
+                >
+                  + Add Dimension
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    const total = (aiEvalFramework.dimensions || []).reduce((s, d) => s + (parseInt(d.weight) || 0), 0);
+                    if (total !== 100) { notify("Weights must total 100%"); return; }
+                    if (!editingForm?.id) { notify("No form selected"); return; }
+                    setAiEvalLoading(true);
+                    try {
+                      const payload = { form_id: Number(editingForm.id), framework: aiEvalFramework, source_document: aiEvalText?.substring(0, 500) || null };
+                      const res = await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+                      if (res.ok) notify("Framework saved");
+                      else { const err = await res.json(); notify(err.error || "Save failed"); }
+                    } catch (_) { notify("Save failed"); }
+                    setAiEvalLoading(false);
+                  }}
+                  disabled={aiEvalLoading}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-purple-500 text-white text-[10px] font-black uppercase hover:bg-purple-600 disabled:opacity-50 transition-all"
+                >
+                  Save Framework
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm("Remove evaluation framework?")) return;
+                    await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm?.id}`, { method: "DELETE" });
+                    setAiEvalFramework(null);
+                    notify("Evaluation framework removed");
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-rose-500 hover:text-rose-400"
+                >
+                  Remove
+                </button>
+              </div>
             </>
           ) : (
             <>
@@ -1040,8 +1132,10 @@ export default function FormsPage() {
                     const data = await res.json();
                     if (data.success && data.framework) {
                       setAiEvalFramework(data.framework);
-                      // Save framework
-                      await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ form_id: editingForm?.id, framework: data.framework, source_document: aiEvalText.substring(0, 500) }) });
+                      // Auto-save framework with safe form_id
+                      if (editingForm?.id) {
+                        await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ form_id: Number(editingForm.id), framework: data.framework, source_document: aiEvalText.substring(0, 500) }) });
+                      }
                       notify(`Framework generated — ${data.framework.dimensions?.length || 0} dimensions`);
                       setAiEvalText("");
                     } else {
