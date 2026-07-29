@@ -10,7 +10,9 @@ export async function POST(req) {
   try {
     await initDb();
     const body = await req.json();
-    const { name, email, password, organization_name, biography, website, linkedin } = body;
+    const { name, email, password, organization_name, biography, website, linkedin,
+            industries, countries, startup_stages, ticket_size_min, ticket_size_max,
+            investment_experience } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -42,15 +44,29 @@ export async function POST(req) {
 
       // Create or update investor profile
       await db.execute({
-        sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status)
-              VALUES (?, ?, ?, ?, ?, 'pending_review')
+        sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status, qualification_status, investment_experience, profile_completion)
+              VALUES (?, ?, ?, ?, ?, 'pending_review', 'pending_review', ?, 100)
               ON CONFLICT (user_id) DO UPDATE
               SET organization_name = EXCLUDED.organization_name, biography = EXCLUDED.biography,
                   website = EXCLUDED.website, linkedin = EXCLUDED.linkedin,
+                  qualification_status = 'pending_review', investment_experience = EXCLUDED.investment_experience,
                   approval_status = CASE WHEN investor_profiles.approval_status = 'rejected' THEN 'pending_review' ELSE investor_profiles.approval_status END,
                   updated_at = NOW()`,
-        args: [user.cid, organization_name || null, biography || null, website || null, linkedin || null],
+        args: [user.cid, organization_name || null, biography || null, website || null, linkedin || null, investment_experience || null],
       });
+
+      // Save preferences
+      if (industries?.length || countries?.length || startup_stages?.length) {
+        const prof = await db.execute({ sql: "SELECT id FROM investor_profiles WHERE user_id = ?", args: [user.cid] });
+        await db.execute({
+          sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (investor_id) DO UPDATE
+                SET industries = EXCLUDED.industries, countries = EXCLUDED.countries, startup_stages = EXCLUDED.startup_stages,
+                    ticket_size_min = EXCLUDED.ticket_size_min, ticket_size_max = EXCLUDED.ticket_size_max`,
+          args: [prof.rows[0]?.id, industries || [], countries || [], startup_stages || [], ticket_size_min || null, ticket_size_max || null],
+        });
+      }
 
       return NextResponse.json({ success: true, message: "Investor registration submitted for review." });
     }
@@ -65,10 +81,20 @@ export async function POST(req) {
     });
 
     await db.execute({
-      sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status)
-            VALUES (?, ?, ?, ?, ?, 'pending_review')`,
-      args: [cid, organization_name || null, biography || null, website || null, linkedin || null],
+      sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status, qualification_status, investment_experience, profile_completion)
+            VALUES (?, ?, ?, ?, ?, 'pending_review', 'pending_review', ?, 100)`,
+      args: [cid, organization_name || null, biography || null, website || null, linkedin || null, investment_experience || null],
     });
+
+    // Save preferences
+    if (industries?.length || countries?.length || startup_stages?.length) {
+      const profile = await db.execute({ sql: "SELECT id FROM investor_profiles WHERE user_id = ?", args: [cid] });
+      await db.execute({
+        sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [profile.rows[0].id, industries || [], countries || [], startup_stages || [], ticket_size_min || null, ticket_size_max || null],
+      });
+    }
 
     // Send confirmation email
     try {

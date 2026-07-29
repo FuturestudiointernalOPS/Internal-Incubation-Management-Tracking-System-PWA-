@@ -130,14 +130,20 @@ export default function InvestorDashboard() {
   };
 
   // Advanced venture search with filters
-  const searchVentures = async () => {
+  const searchVentures = async (overrides = {}) => {
+    const s = overrides.search !== undefined ? overrides.search : search;
+    const ind = overrides.industry !== undefined ? overrides.industry : filterIndustry;
+    const cnt = overrides.country !== undefined ? overrides.country : filterCountry;
+    const stg = overrides.stage !== undefined ? overrides.stage : filterStage;
+    const min = overrides.fundingMin !== undefined ? overrides.fundingMin : filterFundingMin;
+    const max = overrides.fundingMax !== undefined ? overrides.fundingMax : filterFundingMax;
     const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    if (filterIndustry.length) params.set("industry", filterIndustry.join(","));
-    if (filterCountry.length) params.set("country", filterCountry.join(","));
-    if (filterStage.length) params.set("stage", filterStage.join(","));
-    if (filterFundingMin) params.set("funding_min", filterFundingMin);
-    if (filterFundingMax) params.set("funding_max", filterFundingMax);
+    if (s) params.set("search", s);
+    if (ind.length) params.set("industry", ind.join(","));
+    if (cnt.length) params.set("country", cnt.join(","));
+    if (stg.length) params.set("stage", stg.join(","));
+    if (min) params.set("funding_min", min);
+    if (max) params.set("funding_max", max);
     try {
       const res = await fetch(`/api/investor/ventures?${params}`);
       const data = await res.json();
@@ -309,7 +315,7 @@ export default function InvestorDashboard() {
                   <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Industry</label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {INDUSTRY_OPTIONS.map(ind => (
-                      <button key={ind} onClick={() => setFilterIndustry(prev => prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind])}
+                      <button key={ind} onClick={() => { const next = filterIndustry.includes(ind) ? filterIndustry.filter(i => i !== ind) : [...filterIndustry, ind]; setFilterIndustry(next); searchVentures({industry: next}); }}
                         className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
                           filterIndustry.includes(ind) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>{ind}</button>
@@ -320,7 +326,7 @@ export default function InvestorDashboard() {
                   <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Country</label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {COUNTRY_OPTIONS.map(c => (
-                      <button key={c} onClick={() => setFilterCountry(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                      <button key={c} onClick={() => { const next = filterCountry.includes(c) ? filterCountry.filter(x => x !== c) : [...filterCountry, c]; setFilterCountry(next); searchVentures({country: next}); }}
                         className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
                           filterCountry.includes(c) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>{c}</button>
@@ -331,7 +337,7 @@ export default function InvestorDashboard() {
                   <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Stage</label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {STAGE_OPTIONS.map(s => (
-                      <button key={s} onClick={() => setFilterStage(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                      <button key={s} onClick={() => { const next = filterStage.includes(s) ? filterStage.filter(x => x !== s) : [...filterStage, s]; setFilterStage(next); searchVentures({stage: next}); }}
                         className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
                           filterStage.includes(s) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>{s}</button>
@@ -350,7 +356,7 @@ export default function InvestorDashboard() {
                   </div>
                 </div>
                 {(filterIndustry.length > 0 || filterCountry.length > 0 || filterStage.length > 0 || filterFundingMin || filterFundingMax) && (
-                  <button onClick={() => { setFilterIndustry([]); setFilterCountry([]); setFilterStage([]); setFilterFundingMin(""); setFilterFundingMax(""); }}
+                  <button onClick={() => { setFilterIndustry([]); setFilterCountry([]); setFilterStage([]); setFilterFundingMin(""); setFilterFundingMax(""); searchVentures({industry: [], country: [], stage: [], fundingMin: "", fundingMax: ""}); }}
                     className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline">
                     Clear all filters
                   </button>
