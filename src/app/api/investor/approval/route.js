@@ -66,6 +66,14 @@ export async function POST(req) {
       args: [newStatus, profile_id],
     });
 
+    // Save review notes if provided
+    if (reason) {
+      await db.execute({
+        sql: "UPDATE investor_profiles SET review_notes = ?, reviewed_at = NOW(), updated_at = NOW() WHERE id = ?",
+        args: [reason, profile_id],
+      });
+    }
+
     // Get investor with contact info for notification
     const investor = await db.execute({
       sql: `SELECT ip.*, c.name, c.email FROM investor_profiles ip
