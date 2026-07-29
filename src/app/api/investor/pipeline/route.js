@@ -70,8 +70,8 @@ export async function POST(req) {
                   VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
             args: [
               a.cid,
-              `Meeting Requested: ${inv.venture_name || "Venture"}`,
-              `${inv.investor_name || "Investor"} (${inv.organization_name || "Individual"}) requested a meeting with ${inv.venture_name || "a venture"}.`,
+              `Introduction Request: ${inv.venture_name || "Venture"}`,
+              `${inv.investor_name || "Investor"} (${inv.organization_name || "Individual"}) requested an introduction to ${inv.venture_name || "a venture"}.${notes ? ` Message: "${notes.length > 100 ? notes.substring(0, 100) + '...' : notes}"` : ""}`,
               "/admin/investors/overview",
             ],
           });
