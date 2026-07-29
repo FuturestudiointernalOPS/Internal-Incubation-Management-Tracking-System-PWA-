@@ -110,8 +110,22 @@ export default function FormsPage() {
       const res = await fetch(`/api/platform/forms?id=${form.id}`);
       const data = await res.json();
       if (data.success) {
-        setSections(data.sections || []);
-        setFields(data.fields || []);
+        const loadedSections = data.sections || [];
+        const loadedFields = data.fields || [];
+        // Auto-create default section if form has none (new forms start organized)
+        if (loadedSections.length === 0) {
+          const defaultSec = { id: `sec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, title: "Untitled Section", description: "", sort_order: 0 };
+          setSections([defaultSec]);
+          // Assign any existing orphan fields to this section
+          if (loadedFields.length > 0) {
+            setFields(loadedFields.map((f) => (f.section_id ? f : { ...f, section_id: defaultSec.id })));
+          } else {
+            setFields([]);
+          }
+        } else {
+          setSections(loadedSections);
+          setFields(loadedFields);
+        }
       }
     } catch (_) {}
   };
@@ -906,6 +920,8 @@ export default function FormsPage() {
                 {!previewMode ? (
                   <div className="flex items-center gap-2 group">
                     <input value={sec.title} onChange={(e) => updateSection(sIdx, { title: e.target.value })} className="text-sm font-black uppercase text-[var(--text-primary)] bg-transparent outline-none border-b-2 border-transparent focus:border-[var(--brand-orange)]" />
+                    <button onClick={() => { if (sIdx > 0) { const next = [...sections]; [next[sIdx], next[sIdx-1]] = [next[sIdx-1], next[sIdx]]; setSections(next.map((s, i) => ({ ...s, sort_order: i }))); } }} disabled={sIdx === 0} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-20"><ChevronUp className="w-3 h-3" /></button>
+                    <button onClick={() => { if (sIdx < sections.length - 1) { const next = [...sections]; [next[sIdx], next[sIdx+1]] = [next[sIdx+1], next[sIdx]]; setSections(next.map((s, i) => ({ ...s, sort_order: i }))); } }} disabled={sIdx === sections.length - 1} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-20"><ChevronDown className="w-3 h-3" /></button>
                     <button onClick={() => removeSection(sIdx)} className="opacity-0 group-hover:opacity-100 text-rose-500"><Trash2 className="w-3 h-3" /></button>
                   </div>
                 ) : (
@@ -923,16 +939,17 @@ export default function FormsPage() {
               </div>
             ))}
 
-            {/* Orphan Fields (no section) */}
+            {/* Orphan Fields (legacy — should be empty with new architecture) */}
             {orphanFields.length > 0 && (
-              <div className="space-y-3 pt-4 border-t-2 border-dashed border-[var(--border-primary)]">
-                <p className="text-[9px] font-black uppercase text-amber-500 tracking-wider">
-                  Unassigned Fields ({orphanFields.length})
+              <div className="space-y-3 pt-4 border-t-2 border-dashed border-amber-500/30">
+                <p className="text-[9px] font-black uppercase text-amber-500/70 tracking-wider">
+                  Unassigned ({orphanFields.length}) — click field to assign a section
                 </p>
                 <div className="space-y-2">
-                  {orphanFields.map((fld, fIdx) => (
-                    <div key={"orphan-" + fIdx}>{renderFieldPreview(fld, fields.indexOf(fld))}</div>
-                  ))}
+                  {orphanFields.map((fld) => {
+                    const globalIdx = fields.indexOf(fld);
+                    return <div key={"orphan-" + globalIdx}>{renderFieldPreview(fld, globalIdx)}</div>;
+                  })}
                 </div>
               </div>
             )}
