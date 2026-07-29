@@ -74,7 +74,18 @@ export default function CollectionsPage() {
       const data = await res.json();
       if (data.success) {
         setCollections(data.collections || []);
-        setTree(data.tree || []);
+        const t = data.tree || [];
+        setTree(t);
+        // Auto-expand all tree nodes
+        const collectIds = (nodes) => {
+          const ids = [];
+          for (const n of nodes) {
+            ids.push(n.id);
+            if (n.children?.length) ids.push(...collectIds(n.children));
+          }
+          return ids;
+        };
+        setExpandedIds(new Set(collectIds(t)));
       }
     } catch (_) {}
     setLoading(false);
