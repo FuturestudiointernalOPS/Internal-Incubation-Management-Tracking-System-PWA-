@@ -14,7 +14,7 @@ export async function GET(req) {
     if (!id) return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
 
     const run = await db.execute({
-      sql: "SELECT r.*, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ? AND r.status = 'active'",
+      sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ? AND r.status = 'active'",
       args: [parseInt(id)],
     });
     if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
@@ -36,6 +36,7 @@ export async function GET(req) {
       fields: fields.rows,
     });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error("[Public Run] Error:", error.message);
+    return NextResponse.json({ success: false, error: "An error occurred" }, { status: 500 });
   }
 }
