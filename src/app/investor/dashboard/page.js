@@ -5,7 +5,7 @@ import {
   Briefcase, TrendingUp, Star, Eye, BarChart3, Users,
   Building2, Clock, ArrowRight, Loader2, Search, Filter,
   Bookmark, BookmarkCheck, Target, DollarSign, SlidersHorizontal,
-  X, ChevronLeft, ExternalLink, GitCompare, Check,
+  X, ChevronLeft, ExternalLink, GitCompare, Check, Send,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
