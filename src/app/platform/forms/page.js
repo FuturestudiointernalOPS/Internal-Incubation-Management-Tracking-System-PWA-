@@ -159,9 +159,10 @@ export default function FormsPage() {
   };
 
   const addSection = async () => {
+    const tempId = `sec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     setSections((prev) => [
       ...prev,
-      { id: null, title: "New Section", description: "", sort_order: prev.length },
+      { id: tempId, title: "New Section", description: "", sort_order: prev.length },
     ]);
   };
 
@@ -240,7 +241,9 @@ export default function FormsPage() {
     if (!editingForm) return;
     setSaving(true);
     try {
-      const payload = { id: editingForm.id, fields, sections };
+      // Strip temporary client-side IDs so API creates new sections
+      const cleanSections = sections.map((s) => (String(s.id).startsWith("sec-") ? { ...s, id: null } : s));
+      const payload = { id: editingForm.id, fields, sections: cleanSections };
       // Save scoring config in form settings
       if (scoringConfig) {
         payload.settings = { ...(editingForm.settings || {}), scoring: scoringConfig };
@@ -251,8 +254,18 @@ export default function FormsPage() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (data.success) notify("Form saved");
-      else notify(data.error || "Save failed");
+      if (data.success) {
+        notify("Form saved");
+        // Reload to get real DB IDs for new sections/fields
+        try {
+          const refresh = await fetch(`/api/platform/forms?id=${editingForm.id}`);
+          const fresh = await refresh.json();
+          if (fresh.success) {
+            setSections(fresh.sections || []);
+            setFields(fresh.fields || []);
+          }
+        } catch (_) {}
+      } else notify(data.error || "Save failed");
     } catch (_) {}
     setSaving(false);
   };
@@ -844,7 +857,7 @@ export default function FormsPage() {
               <div key={sec.title + Math.random()} className="pt-2 border-t border-[var(--border-primary)]">
                 <p className="text-[7px] font-black uppercase text-[var(--text-secondary)] opacity-50 mb-1">Into: {sec.title}</p>
                 {FIELD_TYPES.slice(0, 6).map((t) => (
-                  <button key={t.value} onClick={() => addField(t.value, sections.indexOf(sec))} className="w-full flex items-center gap-2 p-1.5 rounded text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary">
+                  <button key={t.value} onClick={() => addField(t.value, sec.id)} className="w-full flex items-center gap-2 p-1.5 rounded text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary">
                     <t.icon className="w-3 h-3" />{t.label}
                   </button>
                 ))}
