@@ -412,6 +412,19 @@ export default function FormsPage() {
               </div>
             </div>
             <div className="space-y-1">
+              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Section</label>
+              <select
+                value={fld.section_id || ""}
+                onChange={(e) => updateField(idx, { section_id: e.target.value || null })}
+                className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
+              >
+                <option value="">None (unassigned)</option>
+                {sections.map((s) => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
               <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Placeholder</label>
               <input
                 value={fld.placeholder || ""}
@@ -902,7 +915,10 @@ export default function FormsPage() {
                   <textarea value={sec.description} onChange={(e) => updateSection(sIdx, { description: e.target.value })} className="w-full text-[10px] text-[var(--text-secondary)] bg-transparent outline-none resize-none" rows={1} />
                 )}
                 <div className="space-y-2">
-                  {formFieldsForSection(sections[sIdx]?.id).map((fld, fIdx) => renderFieldPreview(fld, fIdx))}
+                  {formFieldsForSection(sections[sIdx]?.id).map((fld, fIdx) => {
+                    const globalIdx = fields.indexOf(fld);
+                    return renderFieldPreview(fld, globalIdx);
+                  })}
                 </div>
               </div>
             ))}
