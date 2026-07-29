@@ -183,22 +183,27 @@ export default function FormsPage() {
 
   const addField = (fieldType, sectionId) => {
     const typeInfo = FIELD_TYPES.find((t) => t.value === fieldType) || FIELD_TYPES[0];
-    setFields((prev) => [
-      ...prev,
-      {
-        id: null,
-        section_id: sectionId || null,
-        field_type: fieldType,
-        label: typeInfo.label,
-        placeholder: "",
-        help_text: "",
-        required: false,
-        options: ["select", "radio", "checkbox", "multiselect"].includes(fieldType)
-          ? [{ label: "Option 1", value: "option-1" }]
-          : null,
-        sort_order: prev.length,
-      },
-    ]);
+    setFields((prev) => {
+      const newIdx = prev.length;
+      // Auto-select the new field so user can configure it immediately
+      setSelectedField(newIdx);
+      return [
+        ...prev,
+        {
+          id: null,
+          section_id: sectionId || null,
+          field_type: fieldType,
+          label: typeInfo.label,
+          placeholder: "",
+          help_text: "",
+          required: false,
+          options: ["select", "radio", "checkbox", "multiselect"].includes(fieldType)
+            ? [{ label: "Option 1", value: "option-1" }]
+            : null,
+          sort_order: prev.length,
+        },
+      ];
+    });
     setAddingFieldType(null);
   };
 
