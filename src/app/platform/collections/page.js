@@ -56,6 +56,7 @@ export default function CollectionsPage() {
     tags: "",
     category: "",
     color: "#FF6600",
+    status: "active",
   });
 
   // Archive confirmation
@@ -115,7 +116,7 @@ export default function CollectionsPage() {
         notify(editing ? "Collection updated" : "Collection created");
         setShowCreate(false);
         setEditing(null);
-        setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600" });
+        setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600", status: "active" });
         fetchCollections();
       } else {
         notify(data.error || "Failed");
@@ -166,6 +167,7 @@ export default function CollectionsPage() {
       tags: Array.isArray(col.tags) ? col.tags.join(", ") : "",
       category: col.category || "",
       color: col.color || "#FF6600",
+      status: col.status || "active",
     });
     setShowCreate(true);
   };
@@ -251,7 +253,7 @@ export default function CollectionsPage() {
         <button
           onClick={() => {
             setEditing(null);
-            setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600" });
+            setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600", status: "active" });
             setShowCreate(true);
           }}
           className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
@@ -544,6 +546,20 @@ export default function CollectionsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                    Status
+                  </label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
+                  >
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                     Category
