@@ -6,7 +6,7 @@ import {
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
-  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle,
+  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2,
 } from "lucide-react";
 
 /**
@@ -63,9 +63,18 @@ export default function FormsPage() {
   const [showScoring, setShowScoring] = useState(false);
   const [scoringConfig, setScoringConfig] = useState(null);
 
+  // AI Evaluation panel
+  const [showAiEval, setShowAiEval] = useState(false);
+  const [aiEvalFramework, setAiEvalFramework] = useState(null);
+  const [aiEvalText, setAiEvalText] = useState("");
+  const [aiEvalLoading, setAiEvalLoading] = useState(false);
+
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: "", description: "", collection_id: "", visibility: "internal", tags: "" });
+  const [createMode, setCreateMode] = useState("manual"); // "manual" | "ai"
+  const [aiGenText, setAiGenText] = useState("");
+  const [aiGenLoading, setAiGenLoading] = useState(false);
 
   // Archive confirmation
   const [archiveConfirm, setArchiveConfirm] = useState(null);
@@ -112,11 +121,9 @@ export default function FormsPage() {
       if (data.success) {
         const loadedSections = data.sections || [];
         const loadedFields = data.fields || [];
-        // Auto-create default section if form has none (new forms start organized)
         if (loadedSections.length === 0) {
           const defaultSec = { id: `sec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, title: "Untitled Section", description: "", sort_order: 0 };
           setSections([defaultSec]);
-          // Assign any existing orphan fields to this section
           if (loadedFields.length > 0) {
             setFields(loadedFields.map((f) => (f.section_id ? f : { ...f, section_id: defaultSec.id })));
           } else {
@@ -127,6 +134,14 @@ export default function FormsPage() {
           setFields(loadedFields);
         }
       }
+    } catch (_) {}
+
+    // Load AI evaluation framework if exists
+    try {
+      const fwRes = await fetch(`/api/platform/ai/evaluation-config?form_id=${form.id}`);
+      const fwData = await fwRes.json();
+      if (fwData.success && fwData.framework) setAiEvalFramework(fwData.framework);
+      else setAiEvalFramework(null);
     } catch (_) {}
   };
 
@@ -606,24 +621,96 @@ export default function FormsPage() {
 
         {/* Create modal */}
         {showCreate && (
-          <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowCreate(false)}>
+          <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setCreateMode("manual"); setAiGenText(""); }}>
             <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center">
                 <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">New Form</h3>
-                <button onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button>
+                <button onClick={() => { setShowCreate(false); setCreateMode("manual"); setAiGenText(""); }}><X className="w-5 h-5" /></button>
               </div>
-              <div className="space-y-4">
-                <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Name</label><input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder="e.g. Founder Application" /></div>
-                <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Description</label><textarea value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none" placeholder="What is this form for?" /></div>
-                <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Collection</label>
-                  <select value={createForm.collection_id} onChange={(e) => setCreateForm({ ...createForm, collection_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
-                    <option value="">None</option>
-                    {collections.filter((c) => c.status !== "archived" || String(c.id) === createForm.collection_id).map((c) => <option key={c.id} value={c.id}>{c.name}{c.status === "archived" ? " (archived)" : ""}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Tags</label><input value={createForm.tags} onChange={(e) => setCreateForm({ ...createForm, tags: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder="e.g. application, onboarding" /></div>
+
+              {/* Mode Switcher */}
+              <div className="flex gap-2 p-1 rounded-xl bg-tertiary">
+                <button onClick={() => setCreateMode("manual")} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${createMode === "manual" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)]"}`}>Create Manually</button>
+                <button onClick={() => setCreateMode("ai")} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${createMode === "ai" ? "bg-indigo-500 text-white" : "text-[var(--text-secondary)]"}`}>Generate with AI</button>
               </div>
-              <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">Cancel</button><button onClick={handleCreateForm} disabled={saving || !createForm.name.trim()} className="flex-1 btn btn-primary">{saving ? "Creating..." : "Create & Edit"}</button></div>
+
+              {createMode === "manual" ? (
+                <>
+                  <div className="space-y-4">
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Name</label><input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder="e.g. Founder Application" /></div>
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Description</label><textarea value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none" placeholder="What is this form for?" /></div>
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Collection</label>
+                      <select value={createForm.collection_id} onChange={(e) => setCreateForm({ ...createForm, collection_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
+                        <option value="">None</option>
+                        {collections.filter((c) => c.status !== "archived" || String(c.id) === createForm.collection_id).map((c) => <option key={c.id} value={c.id}>{c.name}{c.status === "archived" ? " (archived)" : ""}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Tags</label><input value={createForm.tags} onChange={(e) => setCreateForm({ ...createForm, tags: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder="e.g. application, onboarding" /></div>
+                  </div>
+                  <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">Cancel</button><button onClick={handleCreateForm} disabled={saving || !createForm.name.trim()} className="flex-1 btn btn-primary">{saving ? "Creating..." : "Create & Edit"}</button></div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">Paste your assessment document, concept note, or application guidelines below. AI will generate a complete form with sections, questions, field types, and validation.</p>
+                    <textarea
+                      value={aiGenText}
+                      onChange={(e) => setAiGenText(e.target.value)}
+                      rows={8}
+                      placeholder="Paste your assessment guide, rubric, concept note, or application requirements here..."
+                      className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none"
+                    />
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Collection</label>
+                      <select value={createForm.collection_id} onChange={(e) => setCreateForm({ ...createForm, collection_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
+                        <option value="">None</option>
+                        {collections.filter((c) => c.status !== "archived" || String(c.id) === createForm.collection_id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => { setCreateMode("manual"); setAiGenText(""); }} className="flex-1 btn btn-secondary">Back</button>
+                    <button
+                      onClick={async () => {
+                        if (!aiGenText.trim()) return;
+                        setAiGenLoading(true);
+                        try {
+                          const res = await fetch("/api/platform/ai/generate-form", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiGenText }) });
+                          const data = await res.json();
+                          if (data.success && data.form) {
+                            // Create form with AI-generated structure
+                            const createRes = await fetch("/api/platform/forms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: data.form.title, description: data.form.description, collection_id: createForm.collection_id || null, visibility: "internal", tags: [] }) });
+                            const createData = await createRes.json();
+                            if (createData.success) {
+                              // Save AI-generated sections and fields
+                              const secs = data.form.sections.map((s, i) => ({ title: s.title, description: s.description || "", sort_order: i, fields: s.fields.map((f, j) => ({ ...f, sort_order: j })) }));
+                              const allFields = [];
+                              const allSections = [];
+                              for (const sec of secs) {
+                                const secRes = await fetch(`/api/platform/forms?id=${createData.form.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: createData.form.id, sections: [{ title: sec.title, description: sec.description, sort_order: sec.sort_order }] }) });
+                              }
+                              // Use the save logic with fields and sections
+                              const buildRes = await fetch("/api/platform/forms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: createData.form.id, sections: secs.map(s => ({ title: s.title, description: s.description, sort_order: s.sort_order })), fields: secs.flatMap(s => s.fields.map(f => ({ ...f, section_id: null, sort_order: 0 }))) }) });
+                              notify("AI form generated");
+                              setShowCreate(false);
+                              setCreateMode("manual");
+                              setAiGenText("");
+                              fetchForms();
+                              openBuilder(createData.form);
+                            }
+                          } else {
+                            notify(data.error || "Generation failed");
+                          }
+                        } catch (_) { notify("AI generation failed"); }
+                        setAiGenLoading(false);
+                      }}
+                      disabled={aiGenLoading || !aiGenText.trim()}
+                      className="flex-1 px-4 py-3 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-600 disabled:opacity-50 transition-all"
+                    >
+                      {aiGenLoading ? "Generating..." : "Generate Form"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -699,7 +786,10 @@ export default function FormsPage() {
           <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${editingForm?.status === "published" ? "text-emerald-500 bg-emerald-500/10" : "text-amber-500 bg-amber-500/10"}`}>{editingForm?.status || "draft"}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowScoring(!showScoring)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showScoring ? "bg-indigo-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
+          <button onClick={() => { setShowAiEval(!showAiEval); setShowScoring(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showAiEval ? "bg-purple-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
+            <Sparkles className="w-3 h-3 inline mr-1.5" />AI Eval {aiEvalFramework && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+          </button>
+          <button onClick={() => { setShowScoring(!showScoring); setShowAiEval(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showScoring ? "bg-indigo-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <BarChart3 className="w-3 h-3 inline mr-1.5" />Scoring {scoringConfig?.enabled && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
           <button onClick={() => setPreviewMode(!previewMode)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${previewMode ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
@@ -876,6 +966,96 @@ export default function FormsPage() {
                 })} className="flex items-center gap-1 text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase"><PlusCircle className="w-3 h-3" /> Add Ranking Tier</button>
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* AI Evaluation Panel */}
+      {showAiEval && (
+        <div className="px-6 py-4 bg-secondary border-b border-[var(--border-primary)] space-y-4 shrink-0 max-h-[50vh] overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">AI Evaluation</h3>
+            </div>
+            <button onClick={() => setShowAiEval(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
+          </div>
+
+          {aiEvalFramework ? (
+            <>
+              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-[10px] font-bold text-emerald-400">Evaluation framework active — {aiEvalFramework.dimensions?.length || 0} dimensions</span>
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
+                <table className="w-full text-left">
+                  <thead className="bg-tertiary">
+                    <tr className="text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                      <th className="px-3 py-2">Dimension</th>
+                      <th className="px-3 py-2">Weight</th>
+                      <th className="px-3 py-2">Criteria</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-primary)]">
+                    {(aiEvalFramework.dimensions || []).map((d, i) => (
+                      <tr key={i} className="text-[10px] font-bold text-[var(--text-primary)]">
+                        <td className="px-3 py-2">{d.name}</td>
+                        <td className="px-3 py-2">{d.weight}%</td>
+                        <td className="px-3 py-2 text-[var(--text-secondary)]">{(d.criteria || []).join(", ")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!confirm("Remove evaluation framework?")) return;
+                  await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm?.id}`, { method: "DELETE" });
+                  setAiEvalFramework(null);
+                  notify("Evaluation framework removed");
+                }}
+                className="text-[9px] font-black text-rose-500 hover:text-rose-400 uppercase"
+              >
+                Remove Framework
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+                Upload an evaluation rubric, assessment guide, or selection policy. AI will generate evaluation dimensions, criteria, weights, and evaluation prompts.
+              </p>
+              <textarea
+                value={aiEvalText}
+                onChange={(e) => setAiEvalText(e.target.value)}
+                rows={6}
+                placeholder="Paste your evaluation rubric, assessment guide, or selection criteria here..."
+                className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none"
+              />
+              <button
+                onClick={async () => {
+                  if (!aiEvalText.trim()) return;
+                  setAiEvalLoading(true);
+                  try {
+                    const res = await fetch("/api/platform/ai/generate-framework", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiEvalText }) });
+                    const data = await res.json();
+                    if (data.success && data.framework) {
+                      setAiEvalFramework(data.framework);
+                      // Save framework
+                      await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ form_id: editingForm?.id, framework: data.framework, source_document: aiEvalText.substring(0, 500) }) });
+                      notify(`Framework generated — ${data.framework.dimensions?.length || 0} dimensions`);
+                      setAiEvalText("");
+                    } else {
+                      notify(data.error || "Generation failed");
+                    }
+                  } catch (_) { notify("AI generation failed"); }
+                  setAiEvalLoading(false);
+                }}
+                disabled={aiEvalLoading || !aiEvalText.trim()}
+                className="w-full px-4 py-3 rounded-xl bg-purple-500 text-white text-[10px] font-black uppercase hover:bg-purple-600 disabled:opacity-50 transition-all"
+              >
+                {aiEvalLoading ? "Analyzing..." : "Generate Evaluation Framework"}
+              </button>
+            </>
           )}
         </div>
       )}
