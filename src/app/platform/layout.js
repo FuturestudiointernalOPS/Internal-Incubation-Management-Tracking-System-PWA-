@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -48,6 +48,13 @@ export default function PlatformLayout({ children }) {
   const { t, switchLang, lang } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEmbed = searchParams.get("embed") === "1";
+
+  // Embed mode: render without platform chrome
+  if (isEmbed) {
+    return <div className="min-h-screen bg-primary">{children}</div>;
+  }
   const [user, setUser] = useState({ role: "super_admin" });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
