@@ -6,7 +6,7 @@ import {
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
-  Type, Upload, BarChart3, PlusCircle, MinusCircle,
+  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle,
 } from "lucide-react";
 
 /**
@@ -66,6 +66,9 @@ export default function FormsPage() {
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: "", description: "", collection_id: "", visibility: "internal", tags: "" });
+
+  // Archive confirmation
+  const [archiveConfirm, setArchiveConfirm] = useState(null);
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
@@ -291,8 +294,34 @@ export default function FormsPage() {
   };
 
   const handleArchive = async (id) => {
-    if (!confirm("Archive this form?")) return;
-    try { await fetch(`/api/platform/forms?id=${id}`, { method: "DELETE" }); notify("Archived"); fetchForms(); } catch (_) {}
+    const form = forms.find((f) => f.id === id);
+    if (!form) return;
+    setArchiveConfirm({ id, name: form.name, action: "archive" });
+  };
+
+  const handleUnarchive = async (id) => {
+    const form = forms.find((f) => f.id === id);
+    if (!form) return;
+    setArchiveConfirm({ id, name: form.name, action: "unarchive" });
+  };
+
+  const confirmArchiveAction = async () => {
+    if (!archiveConfirm) return;
+    const { id, action } = archiveConfirm;
+    try {
+      if (action === "archive") {
+        await fetch(`/api/platform/forms?id=${id}`, { method: "DELETE" });
+      } else {
+        await fetch("/api/platform/forms", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status: "draft" }),
+        });
+      }
+      notify(action === "archive" ? "Form archived" : "Form restored");
+      fetchForms();
+    } catch (_) {}
+    setArchiveConfirm(null);
   };
 
   const renderFieldPreview = (fld, idx) => {
@@ -503,7 +532,11 @@ export default function FormsPage() {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
                       <button onClick={() => openBuilder(f)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:bg-tertiary"><Edit3 className="w-3 h-3" /></button>
                       <button onClick={() => handleDuplicate(f)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-blue-500 hover:bg-tertiary"><Copy className="w-3 h-3" /></button>
-                      {f.status !== "archived" && <button onClick={() => handleArchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary"><Archive className="w-3 h-3" /></button>}
+                      {f.status !== "archived" ? (
+                        <button onClick={() => handleArchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title="Archive this form"><Archive className="w-3 h-3" /></button>
+                      ) : (
+                        <button onClick={() => handleUnarchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary" title="Restore this form"><RotateCcw className="w-3 h-3" /></button>
+                      )}
                     </div>
                   </div>
                   <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">{f.name}</h3>
@@ -542,6 +575,57 @@ export default function FormsPage() {
             </div>
           </div>
         )}
+
+
+      {/* Archive Confirmation Modal */}
+      {archiveConfirm && (
+        <div className="fixed inset-0 z-[500] bg-black/50 flex items-center justify-center p-6" onClick={() => setArchiveConfirm(null)}>
+          <div className="card w-full max-w-sm space-y-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">
+                  {archiveConfirm.action === 'archive' ? 'Archive Form' : 'Restore Form'}
+                </h3>
+                <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  {archiveConfirm.action === 'archive'
+                    ? 'Are you sure you want to archive '
+                    : 'Are you sure you want to restore '}
+                  <strong className="text-[var(--text-primary)]">&quot;{archiveConfirm.name}&quot;</strong>?
+                </p>
+              </div>
+            </div>
+            {archiveConfirm.action === 'archive' ? (
+              <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2">
+                <p className="text-[9px] font-bold text-amber-500 uppercase">What happens when you archive:</p>
+                <ul className="text-[9px] text-[var(--text-secondary)] space-y-1 list-disc list-inside">
+                  <li>The form will be hidden from active views</li>
+                  <li>Existing runs using this form continue to work</li>
+                  <li>You can restore it at any time</li>
+                </ul>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
+                <p className="text-[9px] font-bold text-emerald-500 uppercase">What happens when you restore:</p>
+                <ul className="text-[9px] text-[var(--text-secondary)] space-y-1 list-disc list-inside">
+                  <li>The form will return to draft status</li>
+                  <li>It will reappear in the forms list</li>
+                  <li>All previous data and runs remain unchanged</li>
+                </ul>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => setArchiveConfirm(null)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={confirmArchiveAction}
+                className={archiveConfirm.action === 'archive' ? 'flex-1 px-4 py-2.5 rounded-xl bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all' : 'flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-[10px] font-black uppercase hover:bg-emerald-600 transition-all'}>
+                {archiveConfirm.action === 'archive' ? 'Archive' : 'Restore'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     );
   }
