@@ -9,6 +9,7 @@ import {
   ChevronRight,
   MoreHorizontal,
   Archive,
+  RotateCcw,
   Edit3,
   Tag,
   User,
@@ -16,6 +17,7 @@ import {
   Filter,
   X,
   FolderTree,
+  AlertTriangle,
 } from "lucide-react";
 
 /**
@@ -55,6 +57,9 @@ export default function CollectionsPage() {
     category: "",
     color: "#FF6600",
   });
+
+  // Archive confirmation
+  const [archiveConfirm, setArchiveConfirm] = useState(null); // { id, name, action: "archive"|"unarchive" }
 
   const [notification, setNotification] = useState(null);
 
@@ -120,12 +125,35 @@ export default function CollectionsPage() {
   };
 
   const handleArchive = async (id) => {
-    if (!confirm("Archive this collection?")) return;
+    const col = collections.find((c) => c.id === id);
+    if (!col) return;
+    setArchiveConfirm({ id, name: col.name, action: "archive" });
+  };
+
+  const handleUnarchive = async (id) => {
+    const col = collections.find((c) => c.id === id);
+    if (!col) return;
+    setArchiveConfirm({ id, name: col.name, action: "unarchive" });
+  };
+
+  const confirmArchiveAction = async () => {
+    if (!archiveConfirm) return;
+    const { id, action } = archiveConfirm;
+    const newStatus = action === "archive" ? "archived" : "active";
     try {
-      await fetch(`/api/platform/collections?id=${id}`, { method: "DELETE" });
-      notify("Collection archived");
+      if (action === "archive") {
+        await fetch(`/api/platform/collections?id=${id}`, { method: "DELETE" });
+      } else {
+        await fetch("/api/platform/collections", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status: newStatus }),
+        });
+      }
+      notify(action === "archive" ? "Collection archived" : "Collection restored");
       fetchCollections();
     } catch (_) {}
+    setArchiveConfirm(null);
   };
 
   const handleEdit = (col) => {
@@ -185,9 +213,15 @@ export default function CollectionsPage() {
             <button onClick={() => handleEdit(node)} className="p-1 text-[var(--text-secondary)] hover:text-[var(--brand-orange)]">
               <Edit3 className="w-3 h-3" />
             </button>
-            <button onClick={() => handleArchive(node.id)} className="p-1 text-[var(--text-secondary)] hover:text-rose-500">
-              <Archive className="w-3 h-3" />
-            </button>
+            {node.status !== "archived" ? (
+              <button onClick={() => handleArchive(node.id)} className="p-1 text-[var(--text-secondary)] hover:text-rose-500" title="Archive this collection">
+                <Archive className="w-3 h-3" />
+              </button>
+            ) : (
+              <button onClick={() => handleUnarchive(node.id)} className="p-1 text-[var(--text-secondary)] hover:text-emerald-500" title="Restore this collection">
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            )}
           </div>
         </div>
         {hasChildren && isExpanded && node.children.map((child) => renderTreeNode(child, depth + 1))}
@@ -337,12 +371,21 @@ export default function CollectionsPage() {
                       >
                         <Edit3 className="w-3 h-3" />
                       </button>
-                      {col.status !== "archived" && (
+                      {col.status !== "archived" ? (
                         <button
                           onClick={() => handleArchive(col.id)}
                           className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary"
+                          title="Archive this collection"
                         >
                           <Archive className="w-3 h-3" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleUnarchive(col.id)}
+                          className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary"
+                          title="Restore this collection"
+                        >
+                          <RotateCcw className="w-3 h-3" />
                         </button>
                       )}
                     </div>
@@ -542,6 +585,57 @@ export default function CollectionsPage() {
                 className="flex-1 btn btn-primary"
               >
                 {saving ? "Saving..." : editing ? "Update" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Confirmation Modal */}
+      {archiveConfirm && (
+        <div className="fixed inset-0 z-[500] bg-black/50 flex items-center justify-center p-6" onClick={() => setArchiveConfirm(null)}>
+          <div className="card w-full max-w-sm space-y-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">
+                  {archiveConfirm.action === 'archive' ? 'Archive Collection' : 'Restore Collection'}
+                </h3>
+                <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  {archiveConfirm.action === 'archive'
+                    ? 'Are you sure you want to archive '
+                    : 'Are you sure you want to restore '}
+                  <strong className="text-[var(--text-primary)]">&quot;{archiveConfirm.name}&quot;</strong>?
+                </p>
+              </div>
+            </div>
+            {archiveConfirm.action === 'archive' ? (
+              <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2">
+                <p className="text-[9px] font-bold text-amber-500 uppercase">What happens when you archive:</p>
+                <ul className="text-[9px] text-[var(--text-secondary)] space-y-1 list-disc list-inside">
+                  <li>The collection will be hidden from active views</li>
+                  <li>Forms inside this collection remain accessible</li>
+                  <li>You can restore it at any time</li>
+                  <li>It will still appear in &quot;Archived&quot; filter</li>
+                </ul>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
+                <p className="text-[9px] font-bold text-emerald-500 uppercase">What happens when you restore:</p>
+                <ul className="text-[9px] text-[var(--text-secondary)] space-y-1 list-disc list-inside">
+                  <li>The collection will return to active status</li>
+                  <li>It will reappear in the main list and tree view</li>
+                  <li>All linked forms remain unchanged</li>
+                </ul>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => setArchiveConfirm(null)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={confirmArchiveAction}
+                className={archiveConfirm.action === 'archive' ? 'flex-1 px-4 py-2.5 rounded-xl bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all' : 'flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-[10px] font-black uppercase hover:bg-emerald-600 transition-all'}>
+                {archiveConfirm.action === 'archive' ? 'Archive' : 'Restore'}
               </button>
             </div>
           </div>
