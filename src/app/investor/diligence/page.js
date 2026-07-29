@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import {
   ArrowLeft, Loader2, Building2, FileText, Send, Plus,
   MessageSquare, CheckCircle2, Clock, AlertCircle, ClipboardList,
@@ -23,7 +23,7 @@ const REQUEST_CATEGORIES = [
   { id: "market", label: "Market", color: "bg-rose-500/10 text-rose-400" },
 ];
 
-export default function DueDiligencePage() {
+function DueDiligenceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pipelineId = searchParams.get("pipeline_id");
@@ -440,5 +440,13 @@ export default function DueDiligencePage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function DueDiligencePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-primary flex items-center justify-center"><Loader2 className="w-8 h-8 text-[var(--brand-orange)] animate-spin" /></div>}>
+      <DueDiligenceContent />
+    </Suspense>
   );
 }

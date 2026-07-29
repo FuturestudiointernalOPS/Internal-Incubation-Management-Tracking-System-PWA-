@@ -59,7 +59,7 @@ export async function GET(req) {
       const taskSql = `SELECT * FROM tasks
         WHERE user_id = ?
         AND created_week = ? AND created_year = ?
-        AND status NOT IN ('completed', 'archived')
+        AND status NOT IN ('completed', 'archived', 'carried_over')
         ORDER BY CASE priority
           WHEN 'critical' THEN 0 WHEN 'high' THEN 1
           WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4

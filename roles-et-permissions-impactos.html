@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>ImpactOS — Rôles, Permissions & Comptes de Test</title>
+<style>
+  @page { margin: 1.5cm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: #1a1a1a;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 20pt;
+    color: #0a2463;
+    border-bottom: 3px solid #0a2463;
+    padding-bottom: 8px;
+    margin-top: 0;
+  }
+  h2 {
+    font-size: 14pt;
+    color: #0a2463;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+    margin-top: 28px;
+  }
+  h3 {
+    font-size: 11pt;
+    color: #1e3a8a;
+    margin: 16px 0 6px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 9pt;
+  }
+  th, td {
+    border: 1px solid #999;
+    padding: 5px 7px;
+    text-align: left;
+  }
+  th {
+    background: #0a2463;
+    color: #fff;
+    font-weight: 600;
+  }
+  tr:nth-child(even) { background: #f4f6fa; }
+  .badge {
+    display: inline-block;
+    background: #0a2463;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+  .badge-full { background: #059669; }
+  .badge-restricted { background: #d97706; }
+  .badge-none { background: #dc2626; }
+  .compte-box {
+    background: #eef2ff;
+    border-left: 4px solid #0a2463;
+    padding: 12px 16px;
+    margin: 16px 0;
+    border-radius: 4px;
+    font-size: 10pt;
+  }
+  .compte-box strong { color: #0a2463; }
+  .footer {
+    margin-top: 30px;
+    padding-top: 10px;
+    border-top: 1px solid #ccc;
+    font-size: 8pt;
+    color: #666;
+    text-align: center;
+  }
+  .page-break { page-break-before: always; }
+  ul { margin: 4px 0 8px 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .level-table td:first-child { font-weight: 600; width: 90px; }
+  .note { font-size: 9pt; color: #555; font-style: italic; margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<h1>ImpactOS — Future Studio</h1>
+<p style="font-size:11pt;color:#444;margin-top:-6px;">
+  <strong>Rôles, Permissions & Comptes de Test — Environnement de Staging</strong>
+</p>
+
+<!-- ==================== COMPTES DE TEST ==================== -->
+<h2>1. Comptes de Test — Staging</h2>
+<p>Tous les comptes partagent le même mot de passe par défaut.</p>
+
+<div class="compte-box">
+  <strong>🌐 URL Staging :</strong> https://internal-incubation-management-tracking-system-b4frmo7uq.vercel.app<br>
+  <strong>🔑 Mot de passe par défaut :</strong> <code style="font-size:11pt;">ImpactOS2026!</code>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Rôle</th>
+      <th>Nom</th>
+      <th>Email</th>
+      <th>Groupe</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td><strong>Super Admin</strong></td><td>Super Admin</td><td>superadmin@impactos.staging</td><td>FUTURE STUDIO</td></tr>
+    <tr><td>2</td><td><strong>Admin</strong></td><td>Admin</td><td>admin@impactos.staging</td><td>FUTURE STUDIO</td></tr>
+    <tr><td>3</td><td><strong>Staff</strong></td><td>Staff One</td><td>staff1@impactos.staging</td><td>FUTURE STUDIO</td></tr>
+    <tr><td>4</td><td><strong>Staff</strong></td><td>Staff Two</td><td>staff2@impactos.staging</td><td>FUTURE STUDIO</td></tr>
+    <tr><td>5</td><td><strong>Program Manager</strong></td><td>Program Manager</td><td>pm@impactos.staging</td><td>FUTURE STUDIO</td></tr>
+    <tr><td>6</td><td><strong>Teacher / Instructeur</strong></td><td>Teacher</td><td>teacher@impactos.staging</td><td>FUTURE STUDIO</td></tr>
+    <tr><td>7</td><td><strong>Developer</strong></td><td>Developer</td><td>developer@impactos.staging</td><td>FUTURE STUDIO INTERNS</td></tr>
+    <tr><td>8</td><td><strong>Participant</strong></td><td>Participant</td><td>participant@impactos.staging</td><td>FUTURE STUDIO INTERNS</td></tr>
+    <tr><td>9</td><td><strong>Investor</strong></td><td>Investor</td><td>investor@impactos.staging</td><td>FUTURE STUDIO</td></tr>
+    <tr><td>10</td><td><strong>Mentor</strong></td><td>Mentor</td><td>mentor@impactos.staging</td><td>FUTURE STUDIO</td></tr>
+  </tbody>
+</table>
+<p class="note">Le rôle <strong>Intern</strong> existe dans le système mais n'a pas de compte pré-créé. Utilisez le Super Admin pour créer un utilisateur avec le rôle "Intern".</p>
+
+<!-- ==================== MODÈLE DE PERMISSIONS ==================== -->
+<div class="page-break"></div>
+<h2>2. Modèle de Permissions</h2>
+<p>Le système utilise <strong>trois couches</strong> de contrôle d'accès :</p>
+<ol>
+  <li><strong>Matrice de Navigation</strong> — Éléments de menu visibles pour chaque rôle</li>
+  <li><strong>Profils d'Accès</strong> — Capacités (CRUD</strong>) par module</li>
+  <li><strong>Responsabilités</strong> — Filtrage supplémentaire d'éléments de navigation</li>
+</ol>
+
+<h3>Niveaux d'Accès (0–5)</h3>
+<table class="level-table</h3></strong>">
+  <thead><tr><th>Niveau</th><th>Signification</th></tr></thead>
+ </th></th> <tbody>
+    <tr><td>0 — NONE</td><td>A</td>ucun accès</td></tr>
+    <tr><td>1 — VIEW</td><td>Peut voir / consulter</td></tr</td>>
+    <tr><td</td>>2 — CREATE</td><td>Peut créer</td></tr>
+   </td> <tr><td>3 — EDIT</td><td>Peut modifier</td></tr>
+    <tr><td>4 —</td></td> DELETE</td><td></td>Peut supprimer</td></tr>
+    <tr><td>5 — FULL</td><td>T</td>ous</td> les droits ci-dessus</td></tr>
+  </tbody>
+</table>
+
+<h3>Modules de</h3> Permission</h3>
+<table>
+  <thead><tr><th>Module</th><th>Capacités</th></tr></thead</th>>
+  <tbody>
+    <tr><td</th>><strong>Projets (</strong>Projects)</strong></td><td>view, create, edit, delete, archive</td></tr>
+    <tr><td><strong>Program</td></strong>mes (Programs)</strong></td><td>view, create, edit, delete, publish</td></tr>
+    <tr><td><strong>Utilisateurs (Users)</strong></td</td></strong>><td>view, create, edit, suspend, delete, assign_roles</td></tr>
+    <tr><td><strong>R</td></strong>apports (Reports)</strong></td><td>view, create, export, delete</td></tr>
+    <tr><td><strong>Messagerie (Messaging)</strong></td><td>view, send, delete</td></tr</td></strong></td>>
+    <tr><td><strong>Com. Interne (Internal Comms)</strong></td><td>view, create_announcements, moderate</td></tr>
+</strong></td>    <tr><td><strong>Contacts</strong></td><td>view, create, edit</strong></td>, delete, import, export</td></tr>
+    <tr><td><strong>Permissions</strong></td><td>view_matrix, grant, revoke, assign_capabilities, assign_groups, assign_responsibilities, promote_super_admin, remove_super_admin</td></tr>
+</strong></td>    <tr><td><strong>Ingénierie (Engineering)</strong></td><td>view, manage_tasks, manage_errors, manage_developers</strong></td></td></tr>
+    <tr><td><strong>Finance</strong></td><td>view, create, edit, delete, export</td</strong></td>></tr>
+    <tr><td><strong>Paramètres (Settings)</strong></td><td>view, edit</td></tr>
+  </tbody>
+</table>
+
+<!-- ==================== LES 10 RÔLES ==================== -->
+<div class="page-break"></div>
+</strong><h2>3. D</td>étail des 10 Rôles</h2>
+
+<!--</h2> SUPER ADMIN -->
+<h3>3.1 Super Admin</h3>
+<p><span class="badge badge</h3>-full">FULL</span> <strong>Profil d'accès :</strong> Super Admin Default</p>
+<p</strong>><strong>Dashboard :</strong> /admin</strong></p>
+<table>
+  <thead><tr><th>Module</th><th>Niveau</th></tr></thead>
+  <tbody>
+    <tr</th></th>><td>Projets</td><td>FULL (5)</td></tr>
+    <tr</td>><td>Programmes</td></td><td>FULL (5)</td></tr>
+    <tr</td>><td>Utilisateurs</td><td>FULL</td> (5)</td></tr>
+    <tr><td>Rapports</td</td>><td>FULL (</td>5)</td></tr>
+    <tr><td></td></td></td>Messagerie</td><td>FULL (5)</td></tr>
+    <tr><td>Com. Interne</td><td>FULL (5)</td></tr>
+   </td> <tr><td>Contacts</td><td>F</td>ULL (5)</td></tr>
+    <tr</td>><td>Permissions</td><td>FULL (5)</td></tr>
+   </td> <tr><td>Ing</td>énierie</td</td>><td>FULL (5)</td></tr>
+   </td> <tr><td>Finance</td></td><td>FULL (5)</td</td>></tr>
+    <tr</td>><td>Paramètres</td</td>><td>FULL (5)</td></tr>
+  </tbody>
+</table>
+<p><strong>Navigation</td></td> :</strong> Dashboard, Programmes, Internal Ops (Workspace</strong>, Projets, Rapports), Communications (Messages, Annonces, Campagnes, Formulaires, Contacts, Utilisateurs en attente, Importation en masse), Base de connaissances, Intelligence, Finance, Santé, Standups & Rétros, Ingénierie (Dashboard, Permissions, Accès utilisateurs).</p>
+<p style="margin-top:4px;"><span class="badge badge-full">email : superadmin@impactos.staging</span> <span class="badge badge-full">mdp : ImpactOS2026!</span></p>
+
+<!-- ADMIN -->
+<h3>3.2 Admin</h3>
+<p><span class="badge badge-restricted">REST</h3>REINT</span> <strong>Profil d'accès :</strong> Staff Default</p>
+<p</strong>><strong>Dashboard :</strong> /admin</p>
+<table>
+  <thead><tr><th>Module</strong></th></th><th>N</th>iveau</th></tr></thead>
+  <tbody>
+    <tr><td>Projets</td><td>VIEW(1), CREATE</td>(2), EDIT(3)</td></tr>
+    <tr><td></td>Programmes</td><td>VIEW(1)</td></tr>
+    <tr</td></td>><td>Rapports</td><td>VIEW(1), CREATE(2)</td></tr>
+    <tr><td>Messagerie</td><td</td>>VIEW(1), S</td>END(2)</td></tr>
+    <tr><td>Contacts</td</td>><td>VIEW(1)</td></tr>
+  </tbody>
+</table>
+<p</td>><strong>Navigation :</strong> Dashboard, Team Settings, Pro</td>jets, Activity</strong> Logs, Rapports.</p>
+<p><span class="badge badge-restricted">email : admin@impactos.staging</span> <span class="badge badge-restricted">mdp : ImpactOS2026!</span></p>
+
+<!-- STAFF -->
+<h3>3.3 Staff</h3>
+<p><span class="badge badge-restricted">RESTREINT</span></h3> <strong>Profil d'accès :</strong></strong> Staff Default</p>
+<p><strong>Dashboard :</strong></strong> /staff</p>
+<table>
+  <thead><tr><th>Module</th><th>Niveau</th></tr></thead>
+  <tbody>
+    <tr><td>Projets</td><td>VIEW(1), CREATE(2), EDIT(3)</td></tr>
+    <tr><td>Programmes</td><td>VIEW(1)</td</th></th></td></td></td></td>></tr>
+    <tr><td>Rapports</td><td>VIEW(1), CREATE(2)</td></tr>
+    <tr><td>Messagerie</td><td>VIEW(1), SEND(2)</td></tr>
+    <tr><td</td></td></td></td>>Contacts</td><td>VIEW(1)</td></tr>
+  </tbody>
+</table>
+<p><strong>Navigation :</strong> Dashboard, Communication (Messages), Rapports (Rapports internes, Mes</td></strong> projets).</p>
+<p><span class="badge badge-restricted">email : staff1@impactos.staging</span> <span class="badge badge-restricted">mdp : ImpactOS2026!</span><br>
+<span class="badge badge-restricted">email : staff2@impactos.staging</span> <span class="badge badge-restricted">mdp : ImpactOS2026!</span></p>
+
+<!-- PROGRAM MANAGER -->
+<div class="page-break"></div>
+<h3>3.4 Program Manager</h3>
+<p><span class="badge" style="background:#7c3aed;"></h3>MOYEN</span> <strong>Profil d'accès :</strong> Program Manager</p>
+<p><strong>Dashboard :</strong> /pm</p>
+<table>
+  <thead</strong></strong>><tr><th>Module</th><th>Niveau</th></tr></thead>
+  <tbody>
+    <tr><td>Programmes</td><td</th></th>>VIEW(1), CREATE(2), EDIT(3), PUBLISH(4)</td></tr>
+   </td> <tr><td>Projets</td><td>VIEW(1)</td></tr>
+    <tr><td>Rapports</td><td>VIEW(1), CREATE(2), EXPORT(3)</td</td>></tr>
+    <tr><td>Messagerie</td></td></td><td>VIEW(</td>1), SEND(2)</td></tr>
+    <tr><td>Contacts</td></td><td>VIEW(1), CREATE(2</td>)</td></tr>
+  </tbody>
+</table>
+<p><strong>Navigation :</td></strong> Dashboard, Program</td>mes, Communication (Groupes</strong>, Messages), Rapports (Rapports internes, Mes projets).</p>
+<p><span class="badge" style="background:#7c3aed;">email : pm@impactos.staging</span> <span class="badge" style="background:#7c3aed;">mdp : ImpactOS2026!</span></p>
+
+<!-- TEACHER -->
+<h3>3.5 Teacher / Instructeur</h3>
+<p><span class="badge</h3>" style="background:#7c3aed;">MOYEN</span> <strong>Profil d'accès :</strong> Instructor</p>
+<p><strong>Dashboard :</strong> /teacher</p>
+<table>
+  <thead</strong>><tr><th>Module</th><th>N</strong>iveau</th></tr></thead>
+  <tbody>
+    <tr><td></th></th>Programmes</td><td</td>>VIEW(1), EDIT(3)</td></tr>
+    <tr><td>Projets</td><td>VIEW(1)</td></tr>
+    <tr><td>Messagerie</td><td>VIEW(1), SEND</td>(2)</td></tr</td>>
+    <tr><td>Contacts</td><td</td>>VIEW(1)</td></tr>
+  </tbody</td>>
+</table>
+<p><strong>Navigation :</strong</td>> Dashboard, Communication (Groupes, Messages), Programmes (Tous les programmes), Rapports (R</strong>apports internes, Mes projets).</p>
+<p><span class="badge" style="background:#7c3aed;">email : teacher@impactos.staging</span> <span class="badge" style="background:#7c3aed;">mdp : ImpactOS2026!</span></p>
+
+<!-- DEVELOPER -->
+<h3>3.6 Developer</h3>
+<p><span class="badge" style</h3>="background:#0891b2;">TECH</span> <strong>Profil d'accès :</strong></strong> Developer</p>
+<p><strong>Dashboard :</strong> /developer</p>
+<table>
+  <thead><tr><th>Module</th><th>Niveau</th</strong>></tr></thead>
+  <tbody>
+    <tr><td>Projets</td><td>VIEW(1</th></th>), CREATE(2), EDIT(3)</td></tr>
+    <tr><td>Ingénierie</td></td><td>VIEW(</td>1), MANAGE_TASKS(2), MANAGE_ERRORS(</td>1)</td></tr>
+    <tr><td></td>Rapports</td><td>VIEW(1</td>)</td></tr>
+    <tr><td>Messagerie</td><td>VIEW(1), SEND(2)</td></tr</td>>
+  </tbody>
+</table>
+<p><strong>Navigation :</strong> Dashboard</td>, Mes Tâches</td>, Tâches Assignées, Standups & Rétros, Pro</strong>jets, Notifications, Messages.</p>
+<p><span class="badge" style="background:#0891b2;">email : developer@impactos.staging</span> <span class="badge" style="background:#0891b2;">mdp : ImpactOS2026!</span></p>
+
+<!-- INTERN -->
+<h3>3.7 Intern</h3>
+<p><span class="badge" style="background:#</h3>0891b2;">TECH</span> <strong>Profil d'accès :</strong> Developer Intern</p>
+<p><strong>Dashboard :</strong> /developer (même layout que Developer)</p>
+<table>
+</strong>  <thead><tr><th>Module</th</strong>><th>Niveau</th></tr></thead>
+  <tbody>
+    <tr</th>><td>Projets</th></td><td>VIEW(1) uniquement</td></tr>
+    <tr><td>Ingénier</td>ie</td><td>VIEW(1), MANAGE</td>_TASKS(1</td></td>)</td></tr>
+    <tr><td>Messagerie</td><td>VIEW(1), SEND(2)</td></tr>
+  </tbody>
+</table>
+<p><strong>Différence</td> avec Developer :</td></strong> Les Intern</strong>s peuvent seulement <strong>voir</strong></strong> les projets (pas créer/modifier) et ont <strong>manage_tasks(1)</strong> au lieu de (2).</p>
+<p class="note">Aucun compte pré</strong>-créé. Créez un utilisateur via le Super Admin.</p>
+
+<!-- PARTICIPANT -->
+<div class="page-break"></div>
+<h3>3</h3>.8 Participant</h3>
+<p><span class="badge badge-none">LIMITÉ</span> <strong>Profil d'accès :</strong> Participant Default</p>
+<p><strong>Dashboard :</strong</strong></strong>> /participant</p>
+<table>
+  <thead><tr><th>Module</th><th>N</th></th>iveau</th></tr></thead>
+  <tbody>
+    <tr><td>Projets</td><td>VIEW(1)</td></tr>
+    <tr><td>Messagerie</td></td></td></td><td>VIEW(1), SEND(2)</td></tr>
+  </tbody>
+</table>
+<p><strong>Navigation :</strong> Dashboard, Mes Programmes, Devoirs, Ma</td></strong> Progression, Communication (Messages).</p>
+<p><span class="badge badge-none">email : participant@impactos.staging</span> <span class="badge badge-none">mdp : ImpactOS2026!</span></p>
+
+<!-- MENTOR -->
+<h3></h3>3.9 Mentor</h3>
+<p><span class="badge" style="background:#9333ea;">PLACEHOLDER</span> <strong>Profil d'accès :</strong> Mentor</p>
+<p><strong>Dashboard :</strong> Aucun dédié (tom</strong>be sur /</strong>admin par défaut)</p>
+<table>
+  <thead><tr><th>Module</th><th>Niveau</th></tr></thead>
+  <tbody>
+    <tr><td>Programmes</td><td>VIEW(1)</td></tr</th>>
+    <tr><td>Projets</td</th>><td>VIEW(1)</td></tr>
+   </td> <tr><td>Messagerie</td><td></td>VIEW(1), SEND(2)</td></tr>
+  </tbody>
+</td></td></table>
+<p><strong></td>Note :</strong> Pe</td>ut voir la progression des participants</strong> et envoyer des messages. <strong>Aucun tableau de bord ou workflow dédié n'est encore construit.</strong></p>
+<p><span class="badge" style="background:#9333ea;">email : mentor@impactos.staging</span> <span class="badge" style="background:#9333ea;">mdp : ImpactOS2026!</span></p>
+
+<!-- INVESTOR -->
+<h3>3.10 Investor</h3>
+<p><span class="badge" style="background:#9333ea;">PLACEHOLDER</span></h3> <strong>Profil d'accès :</strong> Mentor (même que Mentor)</p>
+<p</strong>><strong>Dashboard :</strong> Aucun dédié (tombe sur /admin par défaut</strong>)</p>
+<table>
+  <thead><tr><th>Module</th><th>Niveau</th></tr</th></th>></thead>
+  <tbody>
+    <tr><td>Programmes</td><td>VIEW(1)</td></tr>
+    <tr><td>Projets</td</td></td></td>><td>VIEW(1)</td></tr>
+    <tr><td>Messagerie</td><td>VIEW(1), SEND(2)</td></tr>
+  </tbody>
+</td></td></td></table>
+<p><strong>Note :</strong> Dispose d'une fonction IA <code>generateInvestorReport()</code> dans les librairies AI (DeepSeek & Gemini) mais <strong></strong></code></strong>aucun tableau de bord ou workflow dédié n'est encore construit.</strong></p>
+<p><span class="badge" style="background:#9333ea;">email : investor@impactos.staging</span> <span class="badge" style="background:#9333ea;">mdp : ImpactOS2026!</span></p>
+
+<!-- ==================== TABLEAU RÉCAPITULATIF ==================== -->
+<div class="page-break"></div>
+<h2>4. Tableau Récapitulatif — Qui Peut Faire Quoi ?</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Action</th>
+      <th>Super Admin</th>
+      <th>Admin</th>
+      <th>Staff</h2></th></th>
+      <th>Prog.</th></th> Mgr</th>
+      <th>Teacher</th</th>>
+      <th>Dev</th>
+      <th</th>>Intern</th>
+      <th>Participant</th></th>
+      <th</th>>Mentor</th>
+      <th>Investor</th>
+   </th> </tr>
+  </thead>
+  <tbody>
+    <tr><td>Cré</th>er des Projets</td><td>✅</td><td>✅</td><td>✅</td</td>><td>❌</td></td><td>❌</td><td>✅</td></td><td></td>❌</td><td>❌</td><td</td>>❌</td</td></td>><td>❌</td</td>></tr>
+    <tr><td>Créer</td> des Programmes</td><td>✅</td><td>❌</td</td>><td>❌</td><td>✅</td><td>❌</td></td><td>❌</td><td></td>❌</td><td>❌</td</td>><td>❌</td</td></td>><td>❌</td></td></td></tr>
+    <tr><td>Gérer</td></td></td> les Utilisateurs</td><td>✅</td><td>❌</td><td>❌</td></td></td><td>❌</td><td></td>❌</td><td>❌</td</td>><td>❌</td</td></td>><td>❌</td><td>❌</td></td></td><td></td>❌</td></tr>
+    <tr><td>Gérer les Permissions</td></td></td><td>✅</td><td>❌</td></td><td>❌</td><td></td>❌</td><td</td>>❌</td</td>><td>❌</td</td></td>><td>❌</td><td>❌</td><td>❌</td><td></td>❌</td></tr>
+    <tr><td>Voir les Rapports</td></td></td></td><td>✅</td></td><td>✅</td><td>✅</td></td><td>✅</td><td>✅</td></td><td>✅</td></td><td>✅</td></td><td></td></td>❌</td><td>❌</td><td</td>>❌</td></tr>
+    <tr</td>><td>Envoyer des Messages</td></td><td>✅</td><td>✅</td></td><td>✅</td><td>✅</td><td>✅</td></td><td>✅</td></td><td>✅</td><td>✅</td></td></td><td>✅</td><td>✅</td></tr>
+   </td></td> <tr><td>V</td></td></td>oir les Contacts</td><td>✅</td</td>><td>✅</td><td>✅</td</td>><td>✅</td><td>✅</td><td>❌</td</td></td>><td>❌</td><td>❌</td><td></td>❌</td><td>❌</td></tr</td></td>>
+    <tr><td</td></td>>Gérer la Finance</td><td>✅</td></td></td><td>❌</td></td></td><td>❌</td><td>❌</td><td</td>>❌</td</td>><td>❌</td</td>><td>❌</td><td>❌</td></td><td>❌</td><td>❌</td></tr</td>>
+    <tr><td>Voir les Programmes</td></td></td><td>✅</td><td>✅</td></td><td>✅</td></td><td>✅</td><td>✅</td></td></td><td></td>❌</td><td></td>❌</td><td</td></td></td></td>>❌</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Mes Tâches</td><td>✅</td></td><td>❌</td><td>❌</td><td>❌</td</td></td></td></td>><td>❌</td><td>✅</td</td></td>><td>✅</td><td>❌</td><td>❌</td><td></td></td>❌</td></tr>
+    <tr><td></td>Dashboard Fonctionnel</td><td</td></td>>✅</td><td>✅</td><td</td></td>>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td</td>>✅</td><td>❌</td><td>❌</td></tr>
+  </tbody</td>>
+</table>
+
+<h</td></td>2>5</td></td>. Rés</td>umé des Profils d'Accès</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Profil d'Accès</th>
+      <th>Assigné À</th></th>
+      <th>Description</th>
+    </tr>
+  </thead</th>>
+  <tbody>
+    <tr><td>Super</th> Admin Default</td><td>super</td>_admin</td><td>Accès complet au système</td> — tous les modules</td>, toutes les capacités</td></tr>
+    <tr><td>Staff Default</td><td>staff, admin</td><td>Accès standard — projets, messagerie, rapp</td>orts</td></tr>
+    <tr><td></td></td>Participant Default</td><td>participant</td><td>Accès participant — programmes</td>, devoirs, messagerie</td</td></td>></tr>
+    <tr><td>Developer</td><td>developer</td><td>Accès ingénierie — tâches, standups, rétros, projets</td></tr>
+    <tr</td></td>><td>Developer Intern</td><td>intern</td></td><td>Accès ingénierie restreint — tâches, standups, rétros</td></td></tr>
+   </td></td> <tr><td>Program Manager</td><td>program_manager</td><td>Gestion de programmes — programmes</td>, participants, rapports</td></td></td></tr>
+    <tr><td>Instructor</td><td>teacher</td><td>Livraison de programmes — program</td></td></td>, notation, communication</td></tr>
+    <tr><td>Mentor</td><td>mentor, investor</td><td>Accès mentor — progression</td> participant, messagerie</td></tr</td>>
+    <tr><td>Project Owner</td</td>><td>(assignable</td>)</td><td>Gestion de projets — projets, tâches, rapports d'équipe</td</td>></tr>
+    <tr><td>Operations Manager</td><td>(assignable)</td><td>Opérations — programmes, finance, CRM, rapp</td>orts</td></tr>
+</td>    <tr><td>Finance Assistant</td><td>(assignable)</td</td>><td>Opérations financières — voir/créer/modifier données financières</td></tr</td>>
+  </tbody>
+</table>
+
+<div class="footer">
+  <p><strong>Impact</strong>OS — Future Studio</strong> | Document généré le ${new Date().toLocaleDateString('fr-FR')} | Environnement de Staging</p>
+  <p>Ce document est destiné aux testeurs beta</p> de l'application ImpactOS.</p>
+</div>
+
+</body>
+</html>

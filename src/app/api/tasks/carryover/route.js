@@ -8,23 +8,46 @@ export const GET = createHandler(async (req) => {
   const week_number = searchParams.get("week");
   const year = searchParams.get("year");
 
-  let sql =
-    "SELECT * FROM tasks WHERE status IN ('carried_over', 'in_progress', 'blocked')";
-  const args = [];
+  // Fetch in_progress and blocked tasks — these always need carryover consideration.
+  // For 'carried_over' tasks: only include them if their cloned copy has NOT been completed
+  // or archived. This prevents completed carried-over tasks from re-appearing each week.
+  let sql = `
+    SELECT * FROM tasks
+    WHERE status IN ('in_progress', 'blocked')
+    UNION
+    SELECT t.* FROM tasks t
+    WHERE t.status = 'carried_over'
+      AND NOT EXISTS (
+        SELECT 1 FROM tasks clone
+        WHERE clone.carried_over_from_task_id = t.id
+          AND clone.status IN ('completed', 'archived')
+      )
+  `;
+  const baseArgs = [];
+
+  // Wrap with user/week/year filters
+  const filterClauses = [];
+  const filterArgs = [];
   if (user_id) {
-    sql += " AND user_id = ?";
-    args.push(user_id);
+    filterClauses.push("user_id = ?");
+    filterArgs.push(user_id);
   }
   if (week_number) {
-    sql += " AND created_week <= ?";
-    args.push(parseInt(week_number));
+    filterClauses.push("created_week <= ?");
+    filterArgs.push(parseInt(week_number));
   }
   if (year) {
-    sql += " AND created_year = ?";
-    args.push(parseInt(year));
+    filterClauses.push("created_year = ?");
+    filterArgs.push(parseInt(year));
   }
-  sql += " ORDER BY created_at DESC";
 
+  if (filterClauses.length > 0) {
+    sql = `SELECT * FROM (${sql}) AS eligible WHERE ${filterClauses.join(" AND ")} ORDER BY created_at DESC`;
+  } else {
+    sql = `SELECT * FROM (${sql}) AS eligible ORDER BY created_at DESC`;
+  }
+
+  const args = [...baseArgs, ...filterArgs];
   const result = await db.execute({ sql, args });
   const tasksWithBlockers = await Promise.all(
     result.rows.map(async (task) => {
@@ -69,7 +92,22 @@ export const POST = createHandler(async (req) => {
   }
   const orig = origRes.rows[0];
 
-  // 2. Clone the task — preserve ALL fields including assigned_to, priority, link
+  // 2. Follow chain forward to find the LATEST clone (not the original)
+  // This prevents repeatedly cloning the same original task each week.
+  let taskToClone = orig;
+  while (true) {
+    const nextRes = await db.execute({
+      sql: "SELECT * FROM tasks WHERE carried_over_from_task_id = ? AND status != 'archived' ORDER BY created_week DESC, id DESC LIMIT 1",
+      args: [taskToClone.id],
+    });
+    if (nextRes.rows.length === 0) break;
+    taskToClone = nextRes.rows[0];
+  }
+  const sourceTask = taskToClone;
+
+  const sourceId = sourceTask.id;
+
+  // 3. Clone the LATEST task in the chain — preserve ALL fields
   const cloneRes = await db.execute({
     sql: `INSERT INTO tasks
       (user_id, user_name, title, description, status, project_id, category,
@@ -78,60 +116,60 @@ export const POST = createHandler(async (req) => {
       VALUES (?, ?, ?, ?, 'in_progress', ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
       RETURNING id`,
     args: [
-      user_id || orig.user_id,
-      user_name || orig.user_name,
-      orig.title,
-      orig.description,
-      orig.project_id,
-      orig.category,
+      user_id || sourceTask.user_id,
+      user_name || sourceTask.user_name,
+      sourceTask.title,
+      sourceTask.description,
+      sourceTask.project_id,
+      sourceTask.category,
       target_week,
       target_year,
-      oldId,
-      orig.start_date,
-      orig.end_date,
-      orig.assigned_to || null,
-      orig.link || null,
-      orig.priority || null,
+      sourceId,  // Link to the LATEST task in chain, not the original
+      sourceTask.start_date,
+      sourceTask.end_date,
+      sourceTask.assigned_to || null,
+      sourceTask.link || null,
+      sourceTask.priority || null,
     ],
   });
   const newId = Number(cloneRes.rows[0]?.id ?? cloneRes.lastInsertRowid);
 
-  // 3. Migrate blockers
+  // 4. Migrate blockers from the LATEST task (not the original)
   await db.execute({
     sql: "UPDATE blockers SET task_id = ? WHERE task_id = ?",
-    args: [newId, oldId],
+    args: [newId, sourceId],
   });
 
-  // 4. Migrate comments
+  // 5. Migrate comments
   try {
     await db.execute({
       sql: "UPDATE v2_task_comments SET task_id = ? WHERE task_id = ?",
-      args: [newId, oldId],
+      args: [newId, sourceId],
     });
   } catch (_) {
     /* table may not exist yet */
   }
 
-  // 5. Migrate resources/attachments
+  // 6. Migrate resources/attachments
   try {
     await db.execute({
       sql: "UPDATE task_resources SET task_id = ? WHERE task_id = ?",
-      args: [newId, oldId],
+      args: [newId, sourceId],
     });
   } catch (_) {
     /* table may not exist yet */
   }
 
-  // 6. Re-parent subtasks
+  // 7. Re-parent subtasks from the LATEST task
   await db.execute({
     sql: "UPDATE tasks SET parent_task_id = ? WHERE parent_task_id = ?",
-    args: [newId, oldId],
+    args: [newId, sourceId],
   });
 
-  // 7. Mark old task as carried_over
+  // 8. Mark the LATEST task as carried_over (not the original)
   await db.execute({
     sql: "UPDATE tasks SET status = 'carried_over', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-    args: [oldId],
+    args: [sourceId],
   });
 
   return NextResponse.json({
