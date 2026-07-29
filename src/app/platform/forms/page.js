@@ -119,20 +119,8 @@ export default function FormsPage() {
       const res = await fetch(`/api/platform/forms?id=${form.id}`);
       const data = await res.json();
       if (data.success) {
-        const loadedSections = data.sections || [];
-        const loadedFields = data.fields || [];
-        if (loadedSections.length === 0) {
-          const defaultSec = { id: `sec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, title: "Untitled Section", description: "", sort_order: 0 };
-          setSections([defaultSec]);
-          if (loadedFields.length > 0) {
-            setFields(loadedFields.map((f) => (f.section_id ? f : { ...f, section_id: defaultSec.id })));
-          } else {
-            setFields([]);
-          }
-        } else {
-          setSections(loadedSections);
-          setFields(loadedFields);
-        }
+        setSections(data.sections || []);
+        setFields(data.fields || []);
       }
     } catch (_) {}
 
@@ -282,7 +270,23 @@ export default function FormsPage() {
     if (!editingForm) return;
     setSaving(true);
     try {
-      // Strip temporary client-side IDs so API creates new sections
+      // Delete sections that were removed by the user
+      const currentSections = sections.filter((s) => s.id && !String(s.id).startsWith("sec-"));
+      try {
+        const existing = await fetch(`/api/platform/forms?id=${editingForm.id}`);
+        const existingData = await existing.json();
+        if (existingData.success && existingData.sections) {
+          const existingIds = existingData.sections.map((s) => s.id);
+          const keptIds = currentSections.map((s) => s.id);
+          for (const existingId of existingIds) {
+            if (!keptIds.includes(existingId)) {
+              await fetch(`/api/platform/forms`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, sections: [{ id: existingId, _delete: true }] }) });
+            }
+          }
+        }
+      } catch (_) {}
+
+      // Strip temp IDs for new sections
       const cleanSections = sections.map((s) => (String(s.id).startsWith("sec-") ? { ...s, id: null } : s));
       const payload = { id: editingForm.id, fields, sections: cleanSections };
       // Save scoring config in form settings

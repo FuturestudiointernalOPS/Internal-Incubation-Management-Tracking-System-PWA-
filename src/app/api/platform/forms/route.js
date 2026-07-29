@@ -200,6 +200,14 @@ export async function PUT(req) {
       // Upsert sections
       if (Array.isArray(sections)) {
         for (const sec of sections) {
+          // Handle deletion: section marked for removal
+          if (sec._delete && sec.id) {
+            await db.execute({
+              sql: "DELETE FROM platform_form_sections WHERE id = ? AND form_id = ?",
+              args: [parseInt(sec.id), parseInt(id)],
+            });
+            continue;
+          }
           if (sec.id) {
             await db.execute({
               sql: "UPDATE platform_form_sections SET title = ?, description = ?, sort_order = ?, settings = ? WHERE id = ? AND form_id = ?",
