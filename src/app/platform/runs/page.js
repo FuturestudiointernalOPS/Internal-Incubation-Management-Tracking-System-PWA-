@@ -189,6 +189,7 @@ export default function FormRunsPage() {
   const [assignments, setAssignments] = useState([]);
   const [subLoading, setSubLoading] = useState(false);
   const [detailTab, setDetailTab] = useState("overview");
+  const [subFilter, setSubFilter] = useState("all"); // "all" | "submitted" | "approved" | "rejected" | "revision_requested" | "draft"
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -263,6 +264,7 @@ export default function FormRunsPage() {
   const openRun = async (run) => {
     setSelectedRun(run);
     setDetailTab("overview");
+    setSubFilter("all");
     setSubLoading(true);
     try {
       const res = await fetch(`/api/platform/form-runs?id=${run.id}`);
@@ -433,6 +435,7 @@ export default function FormRunsPage() {
     const revision = submissions.filter((s) => s.status === "revision_requested").length;
     const drafts = submissions.filter((s) => s.status === "draft").length;
     const overdue = submissions.filter((s) => s.status === "submitted" && selectedRun.closes_at && new Date(s.submitted_at) > new Date(selectedRun.closes_at)).length;
+    const filteredSubmissions = subFilter === "all" ? submissions : submissions.filter((s) => s.status === subFilter);
 
     const tabs = [
       { id: "overview", label: "Overview", icon: BarChart3 },
@@ -486,18 +489,27 @@ export default function FormRunsPage() {
               {/* Stats cards */}
               <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
                 {[
-                  { label: "Total", value: subtotal, icon: Hash, color: "text-[var(--text-primary)]" },
-                  { label: "Submitted", value: submitted, icon: Send, color: "text-blue-500" },
-                  { label: "Approved", value: approved, icon: CheckCircle2, color: "text-emerald-500" },
-                  { label: "Rejected", value: rejected, icon: XCircle, color: "text-rose-500" },
-                  { label: "Revision", value: revision, icon: RotateCcw, color: "text-amber-500" },
-                  { label: "Drafts", value: drafts, icon: FileText, color: "text-slate-500" },
-                  ...(overdue > 0 ? [{ label: "Overdue", value: overdue, icon: AlertTriangle, color: "text-rose-500" }] : []),
+                  { label: "Total", value: subtotal, filter: "all", icon: Hash, color: "text-[var(--text-primary)]" },
+                  { label: "Submitted", value: submitted, filter: "submitted", icon: Send, color: "text-blue-500" },
+                  { label: "Approved", value: approved, filter: "approved", icon: CheckCircle2, color: "text-emerald-500" },
+                  { label: "Rejected", value: rejected, filter: "rejected", icon: XCircle, color: "text-rose-500" },
+                  { label: "Revision", value: revision, filter: "revision_requested", icon: RotateCcw, color: "text-amber-500" },
+                  { label: "Drafts", value: drafts, filter: "draft", icon: FileText, color: "text-slate-500" },
+                  ...(overdue > 0 ? [{ label: "Overdue", value: overdue, filter: "submitted", icon: AlertTriangle, color: "text-rose-500" }] : []),
                 ].map((s) => (
-                  <div key={s.label} className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] text-center">
+                  <button
+                    key={s.label}
+                    onClick={() => setSubFilter(subFilter === s.filter ? "all" : s.filter)}
+                    className={cn(
+                      "p-4 rounded-2xl border text-center transition-all",
+                      subFilter === s.filter
+                        ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]"
+                        : "bg-secondary border-[var(--border-primary)] hover:border-[var(--text-secondary)]"
+                    )}
+                  >
                     <p className={cn("text-2xl font-black", s.color)}>{s.value}</p>
                     <div className="flex items-center justify-center gap-1 mt-0.5"><s.icon className={cn("w-2.5 h-2.5", s.color)} /><p className="text-[9px] font-bold uppercase text-[var(--text-secondary)]">{s.label}</p></div>
-                  </div>
+                  </button>
                 ))}
               </div>
 
@@ -516,7 +528,7 @@ export default function FormRunsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-primary)]">
-                      {submissions.map((s) => {
+                      {filteredSubmissions.map((s) => {
                         const sc = SUB_STATUS[s.status] || SUB_STATUS.draft;
                         const subReviews = reviews.filter((r) => r.submission_id === s.id);
                         const lastReview = subReviews[subReviews.length - 1];
