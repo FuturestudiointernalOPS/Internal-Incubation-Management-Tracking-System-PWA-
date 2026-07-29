@@ -5242,6 +5242,9 @@ export default function ProgramWorkspace() {
             </div>
           </div>
         )}
+        </div>
+      )}
+      </div>
 
       {/* Team Details Modal */}
       {showTeamDetails && selectedTeam && (
