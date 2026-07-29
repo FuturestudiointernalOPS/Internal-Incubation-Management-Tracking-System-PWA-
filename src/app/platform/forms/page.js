@@ -674,29 +674,14 @@ export default function FormsPage() {
                         if (!aiGenText.trim()) return;
                         setAiGenLoading(true);
                         try {
-                          const res = await fetch("/api/platform/ai/generate-form", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiGenText }) });
+                          const res = await fetch("/api/platform/ai/generate-all", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiGenText, collection_id: createForm.collection_id || null }) });
                           const data = await res.json();
-                          if (data.success && data.form) {
-                            // Create form with AI-generated structure
-                            const createRes = await fetch("/api/platform/forms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: data.form.title, description: data.form.description, collection_id: createForm.collection_id || null, visibility: "internal", tags: [] }) });
-                            const createData = await createRes.json();
-                            if (createData.success) {
-                              // Save AI-generated sections and fields
-                              const secs = data.form.sections.map((s, i) => ({ title: s.title, description: s.description || "", sort_order: i, fields: s.fields.map((f, j) => ({ ...f, sort_order: j })) }));
-                              const allFields = [];
-                              const allSections = [];
-                              for (const sec of secs) {
-                                const secRes = await fetch(`/api/platform/forms?id=${createData.form.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: createData.form.id, sections: [{ title: sec.title, description: sec.description, sort_order: sec.sort_order }] }) });
-                              }
-                              // Use the save logic with fields and sections
-                              const buildRes = await fetch("/api/platform/forms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: createData.form.id, sections: secs.map(s => ({ title: s.title, description: s.description, sort_order: s.sort_order })), fields: secs.flatMap(s => s.fields.map(f => ({ ...f, section_id: null, sort_order: 0 }))) }) });
-                              notify("AI form generated");
-                              setShowCreate(false);
-                              setCreateMode("manual");
-                              setAiGenText("");
-                              fetchForms();
-                              openBuilder(createData.form);
-                            }
+                          if (data.success) {
+                            notify(`✓ Form created — ${data.sections} sections, ${data.fields} fields${data.has_evaluation ? `, ${data.evaluation_dimensions} eval dimensions` : ""}`);
+                            setShowCreate(false);
+                            setCreateMode("manual");
+                            setAiGenText("");
+                            fetchForms();
                           } else {
                             notify(data.error || "Generation failed");
                           }
