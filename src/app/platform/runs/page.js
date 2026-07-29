@@ -88,7 +88,7 @@ function MiniCalendar({ value, onChange, onClose }) {
 
   return (
     <div
-      className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] shadow-2xl w-80 z-[500]"
+      className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] shadow-2xl w-96 z-[500]"
       onClick={(e) => e.stopPropagation()}
       style={{ background: "var(--bg-secondary, #1a1a2e)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}
     >
@@ -100,7 +100,7 @@ function MiniCalendar({ value, onChange, onClose }) {
         >
           <ChevronDown className="w-4 h-4 rotate-90 text-[var(--text-secondary)]" />
         </button>
-        <span className="text-[13px] font-black text-[var(--text-primary)]">{MONTHS[month]} {year}</span>
+        <span className="text-[14px] font-black text-[var(--text-primary)]">{MONTHS[month]} {year}</span>
         <button
           onClick={() => setViewDate(new Date(year, month + 1, 1))}
           className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all"
@@ -128,7 +128,7 @@ function MiniCalendar({ value, onChange, onClose }) {
               disabled={!day || past}
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (day && !past) selectDay(day); }}
               className={
-                "h-10 w-full rounded-xl text-[11px] font-bold transition-all " +
+                "h-12 w-full rounded-xl text-[12px] font-bold transition-all " +
                 (!day
                   ? "invisible"
                   : sel
