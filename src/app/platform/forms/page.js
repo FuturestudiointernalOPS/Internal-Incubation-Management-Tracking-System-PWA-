@@ -171,7 +171,14 @@ export default function FormsPage() {
   };
 
   const removeSection = (idx) => {
+    const removedSection = sections[idx];
     setSections((prev) => prev.filter((_, i) => i !== idx));
+    // Orphan fields that belonged to this section
+    if (removedSection?.id) {
+      setFields((prev) => prev.map((f) =>
+        f.section_id === removedSection.id ? { ...f, section_id: null } : f
+      ));
+    }
   };
 
   const addField = (fieldType, sectionId) => {
@@ -891,19 +898,23 @@ export default function FormsPage() {
                 )}
                 <div className="space-y-2">
                   {formFieldsForSection(sections[sIdx]?.id).map((fld, fIdx) => renderFieldPreview(fld, fIdx))}
-                  {/* Orphaned fields linked to this section by index */}
-                  {orphanFields.filter((f) => fields.indexOf(f) >= fields.filter((ff) => !ff.section_id).indexOf(f)).length > 0 && sIdx === sections.length - 1 && orphanFields.map((fld, fIdx) => (
-                    <div key={"orphan-" + fIdx}>{renderFieldPreview(fld, fields.indexOf(fld))}</div>
-                  ))}
                 </div>
               </div>
             ))}
 
-            {/* Orphan fields (no section) */}
-            {sections.length === 0 && orphanFields.map((fld) => {
-              const idx = fields.indexOf(fld);
-              return <div key={idx}>{renderFieldPreview(fld, idx)}</div>;
-            })}
+            {/* Orphan Fields (no section) */}
+            {orphanFields.length > 0 && (
+              <div className="space-y-3 pt-4 border-t-2 border-dashed border-[var(--border-primary)]">
+                <p className="text-[9px] font-black uppercase text-amber-500 tracking-wider">
+                  Unassigned Fields ({orphanFields.length})
+                </p>
+                <div className="space-y-2">
+                  {orphanFields.map((fld, fIdx) => (
+                    <div key={"orphan-" + fIdx}>{renderFieldPreview(fld, fields.indexOf(fld))}</div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {fields.length === 0 && <div className="py-16 text-center"><FileText className="w-12 h-12 mx-auto text-[var(--text-secondary)] opacity-20" /><p className="text-[11px] text-[var(--text-secondary)] mt-3 font-bold">Add fields from the left palette</p><p className="text-[9px] text-[var(--text-secondary)] mt-1 opacity-50">Drag, reorder, and configure each field</p></div>}
           </div>
