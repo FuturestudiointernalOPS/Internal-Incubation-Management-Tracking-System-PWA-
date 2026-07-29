@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -43,21 +43,6 @@ function cn(...classes) {
 }
 
 export default function PlatformLayout({ children }) {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-primary" />}>
-      <PlatformLayoutInner>{children}</PlatformLayoutInner>
-    </Suspense>
-  );
-}
-
-function PlatformLayoutInner({ children }) {
-  const searchParams = useSearchParams();
-  const isEmbed = searchParams.get("embed") === "1";
-
-  if (isEmbed) {
-    return <div className="min-h-screen bg-primary">{children}</div>;
-  }
-
   const { t, switchLang, lang } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
