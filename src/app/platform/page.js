@@ -128,38 +128,36 @@ export default function PlatformDashboard() {
       </div>
 
       {/* Operational Stats */}
-      {operationalStats && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-2">
-            <Activity className="w-4 h-4 text-[var(--brand-orange)]" /> Operational Overview
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {[
-              { label: "Active Runs", value: operationalStats.active_runs ?? 0, icon: FileText, color: "text-emerald-500" },
-              { label: "Total Assigned", value: operationalStats.total_assignments ?? 0, icon: FolderKanban, color: "text-blue-500" },
-              { label: "Submissions", value: operationalStats.total_submissions ?? 0, icon: CheckCircle2, color: "text-indigo-500" },
-              { label: "Pending Review", value: operationalStats.pending_reviews ?? 0, icon: Clock, color: "text-amber-500" },
-              { label: "Approval Rate", value: (operationalStats.approval_rate != null ? Math.round(operationalStats.approval_rate) + "%" : "—"), icon: BarChart3, color: operationalStats.approval_rate > 50 ? "text-emerald-500" : "text-rose-500" },
-              { label: "Overdue", value: operationalStats.overdue ?? 0, icon: Clock, color: (operationalStats.overdue ?? 0) > 0 ? "text-rose-500" : "text-slate-500" },
-            ].map((s) => (
-              <div key={s.label} className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] text-center">
-                <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
-                <div className="flex items-center justify-center gap-1 mt-1">
-                  <s.icon className={cn("w-2.5 h-2.5", s.color)} />
-                  <p className="text-[8px] font-bold uppercase text-[var(--text-secondary)]">{s.label}</p>
-                </div>
+      <div className="space-y-3">
+        <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-2">
+          <Activity className="w-4 h-4 text-[var(--brand-orange)]" /> Operational Overview
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { label: "Active Runs", value: operationalStats?.active_runs ?? 0, icon: FileText, color: "text-emerald-500" },
+            { label: "Total Assigned", value: operationalStats?.total_assignments ?? 0, icon: FolderKanban, color: "text-blue-500" },
+            { label: "Submissions", value: operationalStats?.total_submissions ?? 0, icon: CheckCircle2, color: "text-indigo-500" },
+            { label: "Pending Review", value: operationalStats?.pending_reviews ?? 0, icon: Clock, color: "text-amber-500" },
+            { label: "Approval Rate", value: (operationalStats?.approval_rate != null ? Math.round(operationalStats.approval_rate) + "%" : "—"), icon: BarChart3, color: (operationalStats?.approval_rate || 0) > 50 ? "text-emerald-500" : "text-rose-500" },
+            { label: "Overdue", value: operationalStats?.overdue ?? 0, icon: Clock, color: (operationalStats?.overdue ?? 0) > 0 ? "text-rose-500" : "text-slate-500" },
+          ].map((s) => (
+            <div key={s.label} className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] text-center">
+              <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
+              <div className="flex items-center justify-center gap-1 mt-1">
+                <s.icon className={cn("w-2.5 h-2.5", s.color)} />
+                <p className="text-[8px] font-bold uppercase text-[var(--text-secondary)]">{s.label}</p>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Recent Activity */}
-      {recentActivity.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[var(--brand-orange)]" /> Recent Activity
-          </h2>
+      <div className="space-y-3">
+        <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-2">
+          <Clock className="w-4 h-4 text-[var(--brand-orange)]" /> Recent Activity
+        </h2>
+        {recentActivity.length > 0 ? (
           <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl overflow-hidden">
             {recentActivity.slice(0, 10).map((entry, idx) => (
               <div key={idx} className="flex items-center gap-3 px-5 py-3 border-b border-[var(--border-primary)] last:border-0 text-[11px]">
@@ -175,8 +173,12 @@ export default function PlatformDashboard() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-center">
+            <p className="text-[10px] text-[var(--text-secondary)] font-bold">No activity yet — launch a form run to get started</p>
+          </div>
+        )}
+      </div>
 
       {/* Active modules grid */}
       <div className="space-y-4">
