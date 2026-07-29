@@ -79,7 +79,7 @@ export async function recalculateKpiProgress(programId) {
       kpiList.length > 0 ? Math.round((100 / kpiList.length) * 100) / 100 : 0;
     const progress =
       totalItems > 0
-        ? Math.round((completedItems / totalItems) * 10000) / 100
+        ? Math.round((completedItems / totalItems) * 100)
         : 0;
 
     return {

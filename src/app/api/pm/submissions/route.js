@@ -7,6 +7,10 @@ export const dynamic = "force-dynamic";
 export const GET = createHandler(
   { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
+    // Ensure indexes for performance
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_participant_program ON v2_submissions(participant_id, program_id)"); } catch (_) {}
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_deliverable ON v2_submissions(deliverable_id)"); } catch (_) {}
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_program ON v2_submissions(program_id)"); } catch (_) {}
     const { searchParams } = new URL(req.url);
     const assignedPmId = searchParams.get("assigned_pm_id");
 
