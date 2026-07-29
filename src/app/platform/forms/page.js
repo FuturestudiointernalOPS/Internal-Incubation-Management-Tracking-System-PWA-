@@ -566,7 +566,7 @@ export default function FormsPage() {
                 <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Collection</label>
                   <select value={createForm.collection_id} onChange={(e) => setCreateForm({ ...createForm, collection_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
                     <option value="">None</option>
-                    {collections.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {collections.filter((c) => c.status !== "archived" || String(c.id) === createForm.collection_id).map((c) => <option key={c.id} value={c.id}>{c.name}{c.status === "archived" ? " (archived)" : ""}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Tags</label><input value={createForm.tags} onChange={(e) => setCreateForm({ ...createForm, tags: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder="e.g. application, onboarding" /></div>
