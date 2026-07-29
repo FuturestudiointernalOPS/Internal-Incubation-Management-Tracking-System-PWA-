@@ -152,7 +152,7 @@ export default function ProgramWorkspace() {
   });
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [promoteTarget, setPromoteTarget] = useState(null); // { team, action: 'approve' | 'promote' }
+  const [promoteTarget, setPromoteTarget] = useState(null);
 
   // Load existing attendance when modal opens
   useEffect(() => {
@@ -2181,6 +2181,7 @@ export default function ProgramWorkspace() {
               </div>
             </div>
           )}
+<<<<<<< HEAD
 
           {activeTab === "attendance" && (
             <div className="space-y-6 animate-in">
@@ -5242,9 +5243,6 @@ export default function ProgramWorkspace() {
             </div>
           </div>
         )}
-        </div>
-      )}
-      </div>
 
       {/* Team Details Modal */}
       {showTeamDetails && selectedTeam && (
@@ -5343,7 +5341,7 @@ export default function ProgramWorkspace() {
                     <div>
                       <h3 className="text-lg font-bold">Approve Team</h3>
                       <p className="text-sm text-gray-400">
-                        Approve "{promoteTarget.team.name}" for Venture OS promotion?
+                        Approve &quot;{promoteTarget.team.name}&quot; for Venture OS promotion?
                       </p>
                     </div>
                   </div>
@@ -5394,7 +5392,7 @@ export default function ProgramWorkspace() {
                     <div>
                       <h3 className="text-lg font-bold">Promote to Venture OS</h3>
                       <p className="text-sm text-gray-400">
-                        Promote "{promoteTarget.team.name}" to Venture OS?
+                        Promote &quot;{promoteTarget.team.name}&quot; to Venture OS?
                       </p>
                     </div>
                   </div>
@@ -5437,6 +5435,9 @@ export default function ProgramWorkspace() {
           </div>
         </div>
       )}
+        </div>
+      )}
+      </div>
     </DashboardLayout>
   );
 }
