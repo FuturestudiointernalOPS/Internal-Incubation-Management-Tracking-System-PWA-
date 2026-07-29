@@ -596,6 +596,7 @@ export default function FormRunsPage() {
             const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
             const submitUrl = `${baseUrl}/s/${selectedRun.id}`;
             const embedCode = `<iframe src="${submitUrl}" width="100%" height="600" frameborder="0" style="border-radius:12px;border:1px solid #334155;"></iframe>`;
+            const isActive = selectedRun.status === "active";
             return (
               <div className="space-y-6 max-w-2xl">
                 {/* Direct Link */}
