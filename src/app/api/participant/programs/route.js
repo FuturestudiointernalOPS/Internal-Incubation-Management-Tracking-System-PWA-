@@ -103,12 +103,19 @@ export async function GET(req) {
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ?",
-            args: [cid, pid],
+            sql: `SELECT s.* FROM v2_submissions s
+                  LEFT JOIN v2_participants p ON s.participant_id = p.id
+                  WHERE (s.participant_id::text = ? OR p.email = ? OR p.user_id = ?)
+                  AND s.program_id = ?`,
+            args: [cid, email, cid, pid],
           }),
           db.execute({
-            sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id = ?",
-            args: [cid, pid],
+            sql: `SELECT a.* FROM v2_attendance a
+                  JOIN v2_sessions s ON a.session_id::text = s.id::text
+                  LEFT JOIN v2_participants p ON a.participant_id = p.id
+                  WHERE (a.participant_id::text = ? OR p.email = ? OR p.user_id = ?)
+                  AND s.program_id = ?`,
+            args: [cid, email, cid, pid],
           }),
           db.execute({
             sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
@@ -158,7 +165,7 @@ export async function GET(req) {
       const totalDeliverables = unlockedDeliverables.length || 1;
       const completedDeliverables = unlockedDeliverables.filter((d) =>
         submissions.some(
-          (s) => s.document_id === d.id && s.status === "approved",
+          (s) => (s.deliverable_id || s.document_id) === d.id && s.status === "approved",
         ),
       ).length;
       const percentComplete = Math.round(
@@ -190,7 +197,7 @@ export async function GET(req) {
         });
         let kpiProgress = progressRes.rows || [];
         if (kpiProgress.length === 0) {
-          kpiProgress = await recalculateKpiProgress(pid);
+          kpiProgress = await recalculateKpiProgress(pid, email);
         }
         kpiCompletion =
           kpiProgress.length > 0

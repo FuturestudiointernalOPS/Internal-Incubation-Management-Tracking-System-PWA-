@@ -7,10 +7,11 @@ import db from "@/lib/db";
 
 /**
  * Recalculates and stores KPI progress for a program.
- * Reads sessions + document requirements linked to each KPI,
- * computes progress, and upserts into kpi_progress table.
+ * If participantId is provided, calculates progress for that specific participant
+ * by checking their approved submissions against document requirements.
+ * Otherwise, calculates global progress based on session/doc completion status.
  */
-export async function recalculateKpiProgress(programId) {
+export async function recalculateKpiProgress(programId, participantId) {
   // 1. Fetch KPIs for this program
   const kpiRes = await db.execute({
     sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
@@ -34,6 +35,21 @@ export async function recalculateKpiProgress(programId) {
 
   const sessionList = sessionRes.rows || [];
   const docList = docRes.rows || [];
+
+  // Fetch participant submissions if per-participant progress requested
+  let participantSubmissions = [];
+  if (participantId) {
+    try {
+      const subRes = await db.execute({
+        sql: `SELECT s.* FROM v2_submissions s
+              LEFT JOIN v2_participants p ON s.participant_id = p.id
+              WHERE (s.participant_id::text = ? OR p.email = ? OR p.user_id = ?)
+              AND s.program_id = ? AND s.status = 'approved'`,
+        args: [participantId, participantId, participantId, programId],
+      });
+      participantSubmissions = subRes.rows || [];
+    } catch (_) {}
+  }
 
   // 3. Calculate progress for each KPI
   const progressEntries = kpiList.map((kpi) => {
@@ -70,7 +86,18 @@ export async function recalculateKpiProgress(programId) {
       (s) => s.status === "completed",
     ).length;
     const totalDocs = linkedDocs.length;
-    const completedDocs = linkedDocs.filter((d) => d.is_completed).length;
+    let completedDocs;
+    if (participantId && participantSubmissions.length > 0) {
+      // Per-participant: check if they have approved submissions for linked docs
+      completedDocs = linkedDocs.filter((d) =>
+        participantSubmissions.some(
+          (s) => (s.deliverable_id || s.document_id) === d.id,
+        ),
+      ).length;
+    } else {
+      // Global: check document requirement completion flag
+      completedDocs = linkedDocs.filter((d) => d.is_completed).length;
+    }
 
     const totalItems = totalSessions + totalDocs;
     const completedItems = completedSessions + completedDocs;
@@ -97,8 +124,9 @@ export async function recalculateKpiProgress(programId) {
     };
   });
 
-  // 4. Upsert each entry into kpi_progress table
-  try {
+  // 4. Upsert each entry into kpi_progress table (only for global progress, not per-participant)
+  if (!participantId) {
+    try {
     for (const entry of progressEntries) {
       await db.execute({
         sql: `INSERT INTO kpi_progress (kpi_id, program_id, kpi_name, linked_sessions, completed_sessions, linked_docs, completed_docs, total_items, completed_items, progress, weight, updated_at)
@@ -134,6 +162,7 @@ export async function recalculateKpiProgress(programId) {
     console.warn("kpi_progress write failed:", e.message);
     return [];
   }
+  } // end if (!participantId)
 
   return progressEntries;
 }
