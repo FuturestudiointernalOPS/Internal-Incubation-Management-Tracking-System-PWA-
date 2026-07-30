@@ -323,10 +323,13 @@ function ProgramWorkspace() {
       const payload =
         teamAssignmentMode === "new"
           ? {
-            ...newTeam,
+            name: newTeam.name,
             group_name: detectedGroupName,
             program_id: id,
             member_ids: selectedParticipants,
+            ...(newTeam.handler_name ? { handler_name: newTeam.handler_name } : {}),
+            ...(newTeam.staff_id ? { handler_id: newTeam.staff_id } : {}),
+            ...(newTeam.leader_id ? { leader_id: newTeam.leader_id } : {}),
           }
           : {
             team_id: selectedExistingTeamId,
