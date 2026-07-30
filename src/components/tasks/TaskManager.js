@@ -1172,8 +1172,8 @@ export default function TaskManager({
                 {!readOnly && (
                   <button
                     onClick={() => handleDeleteResource(r.id)}
-                    className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity"
-                    title="Remove URL"
+                    className="text-slate-400 hover:text-rose-400 transition-colors"
+                    title="Remove resource"
                   >
                     <Trash2 className="w-2.5 h-2.5" />
                   </button>
