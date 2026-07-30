@@ -110,7 +110,8 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, id: result.rows[0].id });
   } catch (error) {
-    console.error("[Public Submit] Error:", error.message);
-    return NextResponse.json({ success: false, error: "An error occurred" }, { status: 500 });
+    console.error("[Public Submit] Error:", error.message, error.stack);
+    console.error("[Public Submit] Request body snippet:", JSON.stringify(body || {}).substring(0, 200));
+    return NextResponse.json({ success: false, error: "An error occurred — our team has been notified" }, { status: 500 });
   }
 }
