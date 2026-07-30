@@ -15,13 +15,22 @@ export async function GET(req) {
     
     let run;
     if (slug) {
-      run = await db.execute({
-        sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.public_slug, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.public_slug = ? AND r.status = 'active'",
-        args: [slug],
-      });
+      // Try slug lookup first, fall back if column doesn't exist
+      try {
+        run = await db.execute({
+          sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.public_slug, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.public_slug = ? AND r.status = 'active'",
+          args: [slug],
+        });
+      } catch (_) {
+        // public_slug column may not exist — fall back to ID lookup
+        run = await db.execute({
+          sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ? AND r.status = 'active'",
+          args: [parseInt(slug) || 0],
+        });
+      }
     } else if (id) {
       run = await db.execute({
-        sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.public_slug, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ? AND r.status = 'active'",
+        sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ? AND r.status = 'active'",
         args: [parseInt(id)],
       });
     } else {
