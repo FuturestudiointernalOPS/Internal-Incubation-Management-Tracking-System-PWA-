@@ -349,7 +349,7 @@ export default function VentureDetail() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-xl" style={{ backgroundColor: form.brandColor || "#f60" }}>
-            {venture.name?.charAt(0)?.toUpperCase() || "V"}
+            {venture.name?.charAt(0)?.toUpperCase() || t('venture.defaultInitial')||"V"}
           </div>
           <div>
             <h1 className="text-2xl font-bold">{venture.name}</h1>
@@ -420,7 +420,7 @@ export default function VentureDetail() {
               <div>
                 <label className="block text-sm font-medium mb-1">{t("venture.website")}</label>
                 <input value={form.website} onChange={e => setForm({...form, website: e.target.value})}
-                  className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder="https://" />
+                  className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder={t('venture.websitePlaceholder')||"https://"} />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">{t("venture.socialMedia")}</label>
@@ -474,7 +474,7 @@ export default function VentureDetail() {
                 <label className="block text-sm font-medium mb-1">{t("venture.language")}</label>
                 <select value={form.language} onChange={e => setForm({...form, language: e.target.value})}
                   className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
-                  <option value="en">English</option><option value="fr">Français</option>
+                  <option value="en">{t('venture.language.en')||'English'}</option><option value="fr">{t('venture.language.fr')||'Français'}</option>
                 </select>
               </div>
               <div>
@@ -663,14 +663,14 @@ export default function VentureDetail() {
                     <div key={i} className="mb-4 pb-4 border-b last:border-0 last:mb-0 last:pb-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
                       <p className="font-medium">{fh.contact_name || fh.contact_id}</p>
                       <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                        {t("venture.founders")} {fh.removed_at ? `(removed ${new Date(fh.removed_at).toLocaleDateString()})` : `(${t("venture.statuses.active")})`}
+                        {t("venture.founders")} {fh.removed_at ? `(${t('venture.removed')||'removed'} ${new Date(fh.removed_at).toLocaleDateString()})` : `(${t("venture.statuses.active")})`}
                       </p>
                       {fh.programs?.length > 0 && (
                         <div className="mt-2 space-y-1">
                           <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{t("venture.programs")}:</p>
                           {fh.programs.map((p, j) => (
                             <p key={j} className="text-xs pl-3" style={{ color: "var(--text-secondary)" }}>
-                              • {p.program_name || `Program ${p.program_id}`} {p.joined_at && `(${new Date(p.joined_at).toLocaleDateString()})`}
+                              • {p.program_name || `${t('venture.program')||'Program'} ${p.program_id}`} {p.joined_at && `(${new Date(p.joined_at).toLocaleDateString()})`}
                             </p>
                           ))}
                         </div>
@@ -686,7 +686,7 @@ export default function VentureDetail() {
         {/* Business Model Tab */}
         {activeTab === "businessModel" && (
           <div className="space-y-4">
-            <form onSubmit={async (e) => { e.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(bmData||{})}); alert('Saved'); fetchBm(); }} className="space-y-4">
+            <form onSubmit={async (e) => { e.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(bmData||{})}); alert(t('venture.saved')||'Saved'); fetchBm(); }} className="space-y-4">
               <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {['keyPartners','keyActivities','keyResources','valuePropositions','customerRelationships','channels','customerSegments','costStructure','revenueStreams'].map(f => (
@@ -715,11 +715,11 @@ export default function VentureDetail() {
             <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.discovery')} ({interviews.length})</h2>
               <button onClick={()=>setShowAddInterview(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Lightbulb size={16}/> {t('venture.addInterview')}</button>
             </div>
-            {interviews.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No interviews yet</div>):
+            {interviews.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noInterviews')||'No interviews yet'}</div>):
               interviews.map((iv,i)=>(
                 <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
                   <div className="flex justify-between">
-                    <div><p className="font-medium">{iv.interviewee_name||'Unknown'}</p><p className="text-xs" style={{color:'var(--text-secondary)'}}>{iv.customer_segment} {iv.interview_date&&`• ${new Date(iv.interview_date).toLocaleDateString()}`}</p></div>
+                    <div><p className="font-medium">{iv.interviewee_name||t('venture.unknown')||'Unknown'}</p><p className="text-xs" style={{color:'var(--text-secondary)'}}>{iv.customer_segment} {iv.interview_date&&`• ${new Date(iv.interview_date).toLocaleDateString()}`}</p></div>
                   </div>
                   {iv.notes&&<p className="text-sm mt-2" style={{color:'var(--text-secondary)'}}>{iv.notes}</p>}
                   {iv.insights&&<p className="text-sm mt-1" style={{color:'var(--brand-orange)'}}>💡 {iv.insights}</p>}
@@ -739,10 +739,10 @@ export default function VentureDetail() {
               const items = validations.filter(v=>v.validation_type===type);
               return <div key={type} className="rounded-xl p-4 border" style={cardStyle}>
                 <h3 className="font-semibold capitalize mb-2">{t(`venture.${type}`)}</h3>
-                {items.length===0&&<p className="text-sm" style={{color:'var(--text-secondary)'}}>No entries</p>}
+                {items.length===0&&<p className="text-sm" style={{color:'var(--text-secondary)'}}>{t('venture.noEntries')||'No entries'}</p>}
                 {items.map(v=>(
                   <div key={v.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{borderColor:'rgb(255 255 255 / 0.05)'}}>
-                    <div><p className="text-sm">{v.notes||'—'}</p><p className="text-xs" style={{color:'var(--text-secondary)'}}>{new Date(v.created_at).toLocaleDateString()}</p></div>
+                    <div><p className="text-sm">{v.notes||t('venture.noNotes')||'—'}</p><p className="text-xs" style={{color:'var(--text-secondary)'}}>{new Date(v.created_at).toLocaleDateString()}</p></div>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${v.status==='validated'?'bg-green-500/20 text-green-400':v.status==='invalidated'?'bg-red-500/20 text-red-400':v.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400'}`}>
                       {t(`venture.${v.status||'notStarted'}`)}
                     </span>
@@ -759,7 +759,7 @@ export default function VentureDetail() {
             <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.pmf')} ({assessments.length})</h2>
               <button onClick={()=>setShowAddPmf(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><TrendingUp size={16}/> {t('venture.addAssessment')}</button>
             </div>
-            {assessments.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No assessments yet</div>):
+            {assessments.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noAssessments')||'No assessments yet'}</div>):
               assessments.map((a,i)=>(
                 <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
                   <div className="flex items-center justify-between mb-2">
@@ -781,7 +781,7 @@ export default function VentureDetail() {
             <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.milestones')} ({milestones.length})</h2>
               <button onClick={()=>setShowAddMilestone(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><CheckSquare size={16}/> {t('venture.addMilestone')}</button>
             </div>
-            {milestones.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No milestones yet</div>):
+            {milestones.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noMilestones')||'No milestones yet'}</div>):
               milestones.map(m=>{
                 const plans = actionPlans.filter(p=>p.milestone_id===m.id);
                 return <div key={m.id} className="rounded-xl p-4 border" style={cardStyle}>
@@ -807,7 +807,7 @@ export default function VentureDetail() {
             <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.actionPlans')} ({actionPlans.length})</h2>
               <button onClick={()=>setShowAddAction(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><ListChecks size={16}/> {t('venture.addAction')}</button>
             </div>
-            {actionPlans.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No actions yet</div>):
+            {actionPlans.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noActions')||'No actions yet'}</div>):
               actionPlans.map((p,i)=>(
                 <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
                   <div className="flex items-start justify-between">
@@ -834,7 +834,7 @@ export default function VentureDetail() {
               tasks.map(tk=>(
                 <div key={tk.id} className="rounded-xl p-4 border flex items-center justify-between" style={cardStyle}>
                   <div><p className="font-medium">{tk.title}</p>{tk.assigned_to&&<p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.assignedTo')}: {tk.assigned_to}</p>}</div>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">{tk.status||'open'}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">{tk.status?t(`venture.statuses.${tk.status}`):t('venture.open')||'open'}</span>
                 </div>
               ))
             }
@@ -1182,9 +1182,9 @@ export default function VentureDetail() {
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.upload')}</h2><button onClick={()=>setShowAddDocument(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/documents`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(documentForm)});setShowAddDocument(false);setDocumentForm({});fetchDocuments();}} className="space-y-3">
                 <input placeholder={t('venture.namePlaceholder')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.name||''} onChange={e=>setDocumentForm({...documentForm,name:e.target.value})} required />
-                <input placeholder="https://... (file URL)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.file_url||''} onChange={e=>setDocumentForm({...documentForm,file_url:e.target.value})} required />
+                <input placeholder={t('venture.fileUrlPlaceholder')||'https://... (file URL)'} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.file_url||''} onChange={e=>setDocumentForm({...documentForm,file_url:e.target.value})} required />
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.category||'general'} onChange={e=>setDocumentForm({...documentForm,category:e.target.value})}>
-                  {['business','legal','financial','investment','brand','general'].map(c=><option key={c} value={c}>{c}</option>)}
+                  {['business','legal','financial','investment','brand','general'].map(c=><option key={c} value={c}>{t(`venture.category.${c}`)||c}</option>)}
                 </select>
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>
@@ -1198,7 +1198,7 @@ export default function VentureDetail() {
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAdvisor')}</h2><button onClick={()=>setShowAddAdvisor(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/advisors`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(advisorForm)});const d=await res.json();if(!d.success)alert(d.error);setShowAddAdvisor(false);setAdvisorForm({});fetchAdvisors();}} className="space-y-3">
-                <input placeholder="Advisor contact ID (cid)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={advisorForm.advisor_contact_id||''} onChange={e=>setAdvisorForm({...advisorForm,advisor_contact_id:e.target.value})} required />
+                <input placeholder={t('venture.advisorIdPlaceholder')||'Advisor contact ID (cid)'} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={advisorForm.advisor_contact_id||''} onChange={e=>setAdvisorForm({...advisorForm,advisor_contact_id:e.target.value})} required />
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>
             </div>
@@ -1254,7 +1254,7 @@ export default function VentureDetail() {
                 <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); searchContacts(e.target.value); }}
                   className="w-full px-3 py-2 rounded-lg outline-none border mb-2" style={inputStyle} placeholder={t("venture.searchContacts")} />
               </div>
-              {searching && <p className="text-sm py-2" style={{ color: "var(--text-secondary)" }}>Searching...</p>}
+              {searching && <p className="text-sm py-2" style={{ color: "var(--text-secondary)" }}>{t('venture.searching')||'Searching...'}</p>}
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {searchResults.map(c => (
                   <button key={c.cid} onClick={() => handleAddMember(c.cid)}
@@ -1264,7 +1264,7 @@ export default function VentureDetail() {
                   </button>
                 ))}
                 {searchQuery.length >= 2 && searchResults.length === 0 && !searching && (
-                  <p className="text-sm py-2" style={{ color: "var(--text-secondary)" }}>No contacts found</p>
+                  <p className="text-sm py-2" style={{ color: "var(--text-secondary)" }}>{t('venture.noContactsFound')||'No contacts found'}</p>
                 )}
               </div>
             </div>
