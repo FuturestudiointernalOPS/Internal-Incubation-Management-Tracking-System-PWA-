@@ -197,6 +197,40 @@ export default function TaskManager({
     }
   };
 
+  const handleUploadResourceFile = async (taskId) => {
+    if (!resourceFile) return;
+    setResourceAdding(true);
+    try {
+      const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
+      const upload = await uploadFile("knowledge", path, resourceFile);
+      if (!upload.success) {
+        notify('error', upload.error || "Upload failed");
+        return;
+      }
+      const res = await fetch("/api/tasks/resources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: taskId,
+          name: resourceFile.name,
+          url: upload.url,
+          type: "file",
+          file_name: resourceFile.name,
+          file_size: resourceFile.size,
+        }),
+      });
+      if (res.ok) {
+        if (onTasksChange) onTasksChange();
+        setAddResourceTaskId(null);
+        setResourceFile(null);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResourceAdding(false);
+    }
+  };
+
   const handleDeleteResource = async (resourceId) => {
     if (!window.confirm("Delete this resource link?")) return;
     try {
@@ -879,6 +913,12 @@ export default function TaskManager({
               }
               className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
               autoFocus
+            />
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+              onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
+              className="w-full text-[9px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[8px] file:font-bold file:bg-[var(--brand-orange)] file:text-black"
             />
             <div className="flex gap-1 justify-end">
               <button
