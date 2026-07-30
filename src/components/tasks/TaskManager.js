@@ -27,9 +27,12 @@ import {
   Archive,
   Link as LinkIcon,
   Copy,
+  Paperclip,
+  AlertTriangle,
 } from "lucide-react";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────
+import { uploadFile } from "@/lib/storage";
+import { useI18n } from "@/lib/i18n";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -51,6 +54,20 @@ const STATUS_OPTIONS = [
   { value: "completed", label: "Completed" },
 ];
 
+const PRIORITY_CONFIG = {
+  critical: { label: "Critical", color: "text-red-400", bg: "bg-red-500/10" },
+  high: { label: "High", color: "text-amber-400", bg: "bg-amber-500/10" },
+  medium: { label: "Medium", color: "text-blue-400", bg: "bg-blue-500/10" },
+  low: { label: "Low", color: "text-slate-400", bg: "bg-slate-500/10" },
+};
+
+const PRIORITY_OPTIONS = [
+  { value: "critical", label: "Critical" },
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+];
+
 const CATEGORIES = [
   "Operations",
   "Administration",
@@ -59,6 +76,7 @@ const CATEGORIES = [
   "Logistics",
   "HR",
   "Technology",
+  "Research",
   "Other",
 ];
 
@@ -76,8 +94,18 @@ export default function TaskManager({
   compact = false,
   weekInfo = null, // { week, year } for standup mode
   showCarryOver = true, // show carry-over tasks section
+  readOnly = false, // past-week read-only mode
 }) {
+  const { t } = useI18n();
   const uid = userId;
+
+  // ── Toast notification helper ──
+  const notify = (type, message) => {
+    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message } }));
+  };
+
+  // ── Confirmation dialog state ──
+  const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm } or null
   // Get current logged-in user for permission checks
   const [currentUserId, setCurrentUserId] = useState(null);
   useEffect(() => {
@@ -114,10 +142,15 @@ export default function TaskManager({
   const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
   const [subTaskModal, setSubTaskModal] = useState(null); // { id, project_id, category, title } or null
   const [subTaskInput, setSubTaskInput] = useState("");
+  const [subTaskDescription, setSubTaskDescription] = useState("");
+  const [subTaskPriority, setSubTaskPriority] = useState("medium");
+  const [subTaskAssignedTo, setSubTaskAssignedTo] = useState("");
   const [subTaskStartDate, setSubTaskStartDate] = useState("");
   const [subTaskEndDate, setSubTaskEndDate] = useState("");
   const [subTaskLink, setSubTaskLink] = useState("");
   const [subTaskSuccess, setSubTaskSuccess] = useState("");
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const [editTaskModal, setEditTaskModal] = useState(null); // task object or null
   const [editForm, setEditForm] = useState({
     name: "",
@@ -127,14 +160,33 @@ export default function TaskManager({
     start_date: "",
     due_date: "",
     status: "",
+    assigned_to: "",
+    priority: "medium",
   });
+
+  // ── Comments (Ticket 1.3 / 1.9) ──
+  const [openComments, setOpenComments] = useState(null); // task id or null
+  const [commentsByTask, setCommentsByTask] = useState({});
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
 
   const [addResourceTaskId, setAddResourceTaskId] = useState(null);
   const [resourceForm, setResourceForm] = useState({ name: "", url: "" });
   const [resourceAdding, setResourceAdding] = useState(false);
+  const [resourceFile, setResourceFile] = useState(null);
   const [blockerModal, setBlockerModal] = useState(null); // { taskId, taskTitle } or null
   const [blockerTitle, setBlockerTitle] = useState("");
+  const [blockerDescription, setBlockerDescription] = useState("");
+  const [blockerPriority, setBlockerPriority] = useState("medium");
+  const [blockerRefUrl, setBlockerRefUrl] = useState("");
+  const [blockerNotes, setBlockerNotes] = useState("");
   const [blockerAdding, setBlockerAdding] = useState(false);
+  // ── Blocker Discussions (Ticket 1.9) ──
+  const [openBlockerDiscuss, setOpenBlockerDiscuss] = useState(null); // blocker id or null
+  const [blockerMessages, setBlockerMessages] = useState({});
+  const [newBlockerMsg, setNewBlockerMsg] = useState("");
+  const [postingBlockerMsg, setPostingBlockerMsg] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const projectDropdownRef = useRef(null);
@@ -160,6 +212,7 @@ export default function TaskManager({
     project_id: "",
     category: "",
     assigned_to: "",
+    priority: "medium",
     start_date: "",
     due_date: "",
     start_time: "",
@@ -167,61 +220,68 @@ export default function TaskManager({
     link: "",
   });
 
+  // Auto-populate project_id from prop when in project mode
+  useEffect(() => {
+    if (mode === "project" && projectId && showTaskForm) {
+      setForm((p) => ({ ...p, project_id: String(projectId) }));
+    }
+  }, [mode, projectId, showTaskForm]);
+
   // Sync taskList into local state when it changes
   useEffect(() => {
     setTasks(taskList || []);
   }, [taskList]);
 
-  const handleAddResource = async (taskId) => {
-    if (!resourceForm.url.trim()) return;
+  // Fetch available categories from API
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) setAvailableCategories(d.categories.map((c) => c.name));
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveResource = async (taskId) => {
+    if (!resourceFile && !resourceForm.url.trim()) return;
     setResourceAdding(true);
     try {
+      let finalUrl = resourceForm.url.trim();
+      let finalName = resourceForm.name.trim();
+      let filePayload = {};
+
+      // If a file is selected, upload it first
+      if (resourceFile) {
+        const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
+        const upload = await uploadFile("knowledge", path, resourceFile);
+        if (!upload.success) {
+          alert(upload.error || "Upload failed");
+          setResourceAdding(false);
+          return;
+        }
+        finalUrl = upload.url;
+        finalName = finalName || resourceFile.name;
+        filePayload = {
+          type: "file",
+          file_name: resourceFile.name,
+          file_size: resourceFile.size,
+        };
+      }
+
       const res = await fetch("/api/tasks/resources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           task_id: taskId,
-          name: resourceForm.name,
-          url: resourceForm.url,
+          name: finalName,
+          url: finalUrl,
+          ...filePayload,
         }),
       });
       if (res.ok) {
         if (onTasksChange) onTasksChange();
         setAddResourceTaskId(null);
         setResourceForm({ name: "", url: "" });
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setResourceAdding(false);
-    }
-  };
-
-  const handleUploadResourceFile = async (taskId) => {
-    if (!resourceFile) return;
-    setResourceAdding(true);
-    try {
-      const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
-      const upload = await uploadFile("knowledge", path, resourceFile);
-      if (!upload.success) {
-        notify('error', upload.error || "Upload failed");
-        return;
-      }
-      const res = await fetch("/api/tasks/resources", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: taskId,
-          name: resourceFile.name,
-          url: upload.url,
-          type: "file",
-          file_name: resourceFile.name,
-          file_size: resourceFile.size,
-        }),
-      });
-      if (res.ok) {
-        if (onTasksChange) onTasksChange();
-        setAddResourceTaskId(null);
         setResourceFile(null);
       }
     } catch (e) {
@@ -232,7 +292,12 @@ export default function TaskManager({
   };
 
   const handleDeleteResource = async (resourceId) => {
-    if (!window.confirm("Delete this resource link?")) return;
+    setConfirmAction({
+      message: "Delete this resource link?",
+      onConfirm: () => performDeleteResource(resourceId),
+    });
+  };
+  const performDeleteResource = async (resourceId) => {
     try {
       const res = await fetch(`/api/tasks/resources?id=${resourceId}`, {
         method: "DELETE",
@@ -244,6 +309,79 @@ export default function TaskManager({
       console.error(e);
     }
   };
+
+  // ── Comments (Ticket 1.3 / 1.9) ──
+  const toggleComments = useCallback(
+    async (taskId) => {
+      if (openComments === taskId) {
+        setOpenComments(null);
+        return;
+      }
+      setOpenComments(taskId);
+      if (!commentsByTask[taskId]) {
+        setLoadingComments(true);
+        try {
+          const res = await fetch(`/api/tasks/comments?task_id=${taskId}`);
+          const data = await res.json();
+          if (data.success) {
+            setCommentsByTask((prev) => ({
+              ...prev,
+              [taskId]: data.comments || [],
+            }));
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoadingComments(false);
+        }
+      }
+    },
+    [openComments, commentsByTask],
+  );
+
+  const postComment = useCallback(
+    async (taskId) => {
+      const text = newComment.trim();
+      if (!text) return;
+      setPostingComment(true);
+      try {
+        const res = await fetch("/api/tasks/comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task_id: taskId,
+            sender_id: uid,
+            sender_name: userName || "User",
+            body: text,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setCommentsByTask((prev) => ({
+            ...prev,
+            [taskId]: [
+              ...(prev[taskId] || []),
+              {
+                id: data.id,
+                task_id: taskId,
+                sender_id: uid,
+                sender_name: userName || "User",
+                body: text,
+                created_at: data.created_at || new Date().toISOString(),
+              },
+            ],
+          }));
+          setNewComment("");
+          if (onTasksChange) onTasksChange();
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setPostingComment(false);
+      }
+    },
+    [newComment, uid, userName, onTasksChange],
+  );
 
   // ── API: Add blocker to task ──
   const handleAddBlocker = async () => {
@@ -258,11 +396,19 @@ export default function TaskManager({
           user_id: uid,
           user_name: userName || "User",
           title: blockerTitle.trim(),
+          description: blockerDescription.trim() || null,
+          severity: blockerPriority,
+          reference_url: blockerRefUrl.trim() || null,
+          notes: blockerNotes.trim() || null,
         }),
       });
       if (res.ok) {
         setBlockerModal(null);
         setBlockerTitle("");
+        setBlockerDescription("");
+        setBlockerPriority("medium");
+        setBlockerRefUrl("");
+        setBlockerNotes("");
         if (onTasksChange) onTasksChange();
       }
     } catch (e) {
@@ -289,6 +435,73 @@ export default function TaskManager({
       console.error(e);
     }
   };
+
+  // ── Blocker Discussions (Ticket 1.9) ──
+  const toggleBlockerDiscuss = useCallback(
+    async (blockerId) => {
+      if (openBlockerDiscuss === blockerId) {
+        setOpenBlockerDiscuss(null);
+        return;
+      }
+      setOpenBlockerDiscuss(blockerId);
+      setNewBlockerMsg("");
+      if (!blockerMessages[blockerId]) {
+        try {
+          const res = await fetch(
+            `/api/blockers/discuss?blocker_id=${blockerId}`,
+          );
+          const data = await res.json();
+          if (data.success) {
+            setBlockerMessages((prev) => ({
+              ...prev,
+              [blockerId]: data.messages || [],
+            }));
+          }
+        } catch (_) {}
+      }
+    },
+    [openBlockerDiscuss, blockerMessages],
+  );
+
+  const postBlockerMessage = useCallback(
+    async (blockerId) => {
+      const text = newBlockerMsg.trim();
+      if (!text) return;
+      setPostingBlockerMsg(true);
+      try {
+        const res = await fetch("/api/blockers/discuss", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            blocker_id: blockerId,
+            sender_id: uid,
+            sender_name: userName || "User",
+            body: text,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setBlockerMessages((prev) => ({
+            ...prev,
+            [blockerId]: [
+              ...(prev[blockerId] || []),
+              {
+                id: data.id,
+                sender_id: uid,
+                sender_name: userName || "User",
+                body: text,
+                blocker_id: blockerId,
+                created_at: new Date().toISOString(),
+              },
+            ],
+          }));
+          setNewBlockerMsg("");
+        }
+      } catch (_) {}
+      setPostingBlockerMsg(false);
+    },
+    [newBlockerMsg, uid, userName],
+  );
 
   // ── API: Update task status ──
   const updateStatus = useCallback(
@@ -318,6 +531,10 @@ export default function TaskManager({
         });
         // Re-fetch via callback
         if (onTasksChange) onTasksChange();
+        if (typeof window !== "undefined") {
+          window.__refreshDashboard?.();
+          window.__refreshAdminDashboard?.();
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -336,6 +553,7 @@ export default function TaskManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: taskData.title,
+          description: taskData.description || null,
           project_id: taskData.project_id || null,
           category: taskData.category || null,
           user_id: uid,
@@ -348,6 +566,7 @@ export default function TaskManager({
           end_date: taskData.due_date || null,
           assigned_to: taskData.assigned_to || null,
           link: taskData.link || null,
+          priority: taskData.priority || "medium",
         }),
       });
       return await res.json();
@@ -374,6 +593,7 @@ export default function TaskManager({
       start_date: form.start_date || null,
       due_date: form.due_date || null,
       link: form.link || null,
+      priority: form.priority || "medium",
     });
 
     if (data.success) {
@@ -388,6 +608,12 @@ export default function TaskManager({
       setPendingParentTaskId(null);
       setAddedCount((c) => c + 1);
       if (onTasksChange) onTasksChange();
+      if (typeof window !== "undefined") {
+        window.__refreshDashboard?.();
+        window.__refreshAdminDashboard?.();
+      }
+    } else {
+      alert(data.error || "Failed to create task.");
     }
     setCreating(false);
   }, [form, pendingParentTaskId, createTask, onTasksChange, creating]);
@@ -400,6 +626,8 @@ export default function TaskManager({
       name: "",
       project_id: "",
       category: "",
+      assigned_to: "",
+      priority: "medium",
       start_date: "",
       due_date: "",
       start_time: "",
@@ -427,23 +655,45 @@ export default function TaskManager({
     if (!name || !subTaskModal) return;
     const data = await createTask({
       title: name,
+      description: subTaskDescription || null,
       project_id: subTaskModal.project_id || null,
       category: subTaskModal.category || null,
       parent_task_id: subTaskModal.id,
+      assigned_to: subTaskAssignedTo || null,
+      priority: subTaskPriority || "medium",
       start_date: subTaskStartDate || null,
       due_date: subTaskEndDate || null,
       link: subTaskLink || null,
     });
+
     if (data.success) {
       setSubTaskInput("");
+      setSubTaskDescription("");
+      setSubTaskAssignedTo("");
+      setSubTaskPriority("medium");
       setSubTaskStartDate("");
       setSubTaskEndDate("");
       setSubTaskLink("");
       setSubTaskSuccess("Sub-task added!");
       setTimeout(() => setSubTaskSuccess(""), 2000);
       if (onTasksChange) onTasksChange();
+      if (typeof window !== "undefined") {
+        window.__refreshDashboard?.();
+        window.__refreshAdminDashboard?.();
+      }
     }
-  }, [subTaskInput, subTaskModal, createTask, onTasksChange]);
+  }, [
+    subTaskInput,
+    subTaskDescription,
+    subTaskAssignedTo,
+    subTaskPriority,
+    subTaskModal,
+    subTaskStartDate,
+    subTaskEndDate,
+    subTaskLink,
+    createTask,
+    onTasksChange,
+  ]);
 
   // ── Available projects / categories ──
   const selectedProject = projects.find(
@@ -470,7 +720,10 @@ export default function TaskManager({
     () =>
       tasks.filter(
         (t) =>
-          !["completed", "archived"].includes(t.status) &&
+          (t.carried_over_from_task_id !== null ||
+            t.status === "carried_over" ||
+            t.status === "in_progress" ||
+            t.status === "blocked") &&
           t.created_week !== effectiveWeekInfo?.week &&
           !t.parent_task_id,
       ),
@@ -526,8 +779,9 @@ export default function TaskManager({
                 : ""
           } ${!isSub && task.subtasks?.length > 0 ? "bg-indigo-500/[0.04]" : ""}`}
         >
-          {/* Checkbox — only in project mode for task owner/assignee, never in standup */}
-          {mode !== "standup" &&
+          {/* Checkbox — always available for sub-tasks (independent completion, Ticket 1.3).
+              For parent tasks, hidden in standup mode since the status dropdown covers it. */}
+          {(mode !== "standup" || isSub) &&
             (() => {
               const canCheck =
                 mode === "project"
@@ -552,8 +806,8 @@ export default function TaskManager({
                       task.status === "completed" ? "in_progress" : "completed",
                     )
                   }
-                  disabled={isUpdating}
-                  className={`w-4 h-4 rounded-full border-2 shrink-0 transition-all hover:scale-110 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"} ${isUpdating ? "opacity-50 animate-pulse" : ""}`}
+                  disabled={isUpdating || readOnly}
+                  className={`w-4 h-4 rounded-full border-2 shrink-0 transition-all hover:scale-110 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"} ${isUpdating ? "opacity-50 animate-pulse" : ""} ${readOnly ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   {task.status === "completed" && (
                     <CheckCircle2 className="w-3 h-3 text-white" />
@@ -584,9 +838,21 @@ export default function TaskManager({
               >
                 {task.title}
               </span>
-              <span className="text-[7px] font-black text-indigo-400 uppercase tracking-wider bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0">
-                {task.subtasks.length} sub
-              </span>
+              {(() => {
+                const total = task.subtasks.length;
+                const done = task.subtasks.filter(
+                  (s) => s.status === "completed",
+                ).length;
+                const allDone = done === total;
+                return (
+                  <span
+                    className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${allDone ? "text-emerald-400 bg-emerald-500/10" : "text-indigo-400 bg-indigo-500/10"}`}
+                    title={`${done} of ${total} sub-tasks completed`}
+                  >
+                    {done}/{total} done
+                  </span>
+                );
+              })()}
             </div>
           ) : (
             <span
@@ -598,6 +864,19 @@ export default function TaskManager({
                 </span>
               )}
               {task.title}
+            </span>
+          )}
+
+          {/* Priority badge */}
+          {task.priority && task.priority !== "medium" && (
+            <span
+              className={cn(
+                "text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                PRIORITY_CONFIG[task.priority]?.bg,
+                PRIORITY_CONFIG[task.priority]?.color,
+              )}
+            >
+              {PRIORITY_CONFIG[task.priority]?.label || task.priority}
             </span>
           )}
 
@@ -650,7 +929,8 @@ export default function TaskManager({
             <select
               value={task.status || "pending"}
               onChange={(e) => updateStatus(task.id, e.target.value)}
-              className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full border-0 outline-none cursor-pointer appearance-none shrink-0 ${cfg.bg} ${cfg.color}`}
+              disabled={readOnly}
+              className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full border-0 outline-none appearance-none shrink-0 ${readOnly ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${cfg.bg} ${cfg.color}`}
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value} className="bg-primary">
@@ -686,7 +966,7 @@ export default function TaskManager({
           </button>
 
           {/* Edit button — parent AND sub tasks */}
-          {
+          {!readOnly && (
             <button
               onClick={() => {
                 setEditForm({
@@ -697,6 +977,8 @@ export default function TaskManager({
                   start_date: task.start_date || "",
                   due_date: task.end_date || "",
                   status: task.status || "in_progress",
+                  assigned_to: task.assigned_to || "",
+                  priority: task.priority || "medium",
                 });
                 setEditTaskModal(task);
               }}
@@ -705,135 +987,142 @@ export default function TaskManager({
             >
               <Edit3 className="w-3 h-3" />
             </button>
-          }
+          )}
 
           {/* Archive button — always visible */}
-          <button
-            onClick={async () => {
-              if (
-                !window.confirm(
-                  `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
-                )
-              )
-                return;
-              try {
-                const res = await fetch(`/api/tasks?id=${task.id}`, {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ status: "archived" }),
-                });
-                const data = await res.json();
-                if (data.success) {
-                  if (onTasksChange) onTasksChange();
-                } else {
-                  alert(data.error || "Failed to archive task.");
-                }
-              } catch (e) {
-                alert("Network error while archiving task.");
-              }
-            }}
-            className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
-            title="Archive task"
-          >
-            <Archive className="w-3 h-3" />
-          </button>
-
-          {/* Duplicate button — always visible */}
-          <button
-            onClick={async () => {
-              try {
-                const res = await fetch("/api/tasks/duplicate", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ task_id: task.id }),
-                });
-                const data = await res.json();
-                if (data.success) {
-                  if (onTasksChange) onTasksChange();
-                } else {
-                  alert(data.error || "Failed to duplicate task.");
-                }
-              } catch (e) {
-                alert("Network error while duplicating task.");
-              }
-            }}
-            className="text-slate-500 hover:text-[var(--brand-orange)] transition-all shrink-0"
-            title="Duplicate task"
-          >
-            <Copy className="w-3 h-3" />
-          </button>
-
-          {/* Delete / Archive based on week — parent AND sub tasks */}
-          {(() => {
-            const isPastWeek =
-              effectiveWeekInfo &&
-              (task.created_week !== effectiveWeekInfo.week ||
-                task.created_year !== effectiveWeekInfo.year);
-            if (isPastWeek) {
-              // Past-week tasks can only be archived, not deleted
-              return (
-                <button
-                  onClick={async () => {
-                    if (
-                      !window.confirm(
-                        `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
-                      )
-                    )
-                      return;
+          {!readOnly && (
+            <button
+              onClick={() => {
+                setConfirmAction({
+                  message: `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
+                  onConfirm: async () => {
                     try {
-                      const res = await fetch(`/api/tasks?id=${task.id}`, {
+                      const res = await fetch("/api/tasks", {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ status: "archived" }),
+                        body: JSON.stringify({ id: task.id, status: "archived" }),
                       });
                       const data = await res.json();
                       if (data.success) {
                         if (onTasksChange) onTasksChange();
                       } else {
-                        alert(data.error || "Failed to archive task.");
+                        notify('error', data.error || "Failed to archive task.");
                       }
                     } catch (e) {
-                      alert("Network error while archiving task.");
+                      notify('error', "Network error while archiving task.");
                     }
+                  },
+                });
+              }}
+              className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
+              title="Archive task"
+            >
+              <Archive className="w-3 h-3" />
+            </button>
+          )}
+
+          {/* Duplicate button — always visible */}
+          {!readOnly && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/tasks/duplicate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ task_id: task.id }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    if (onTasksChange) onTasksChange();
+                  } else {
+                    notify('error', data.error || "Failed to duplicate task.");
+                  }
+                } catch (e) {
+                  notify('error', "Network error while duplicating task.");
+                }
+              }}
+              className="text-slate-500 hover:text-[var(--brand-orange)] transition-all shrink-0"
+              title="Duplicate task"
+            >
+              <Copy className="w-3 h-3" />
+            </button>
+          )}
+
+          {/* Delete / Archive based on week — parent AND sub tasks */}
+          {!readOnly &&
+            (() => {
+              const isPastWeek =
+                effectiveWeekInfo &&
+                (task.created_week !== effectiveWeekInfo.week ||
+                  task.created_year !== effectiveWeekInfo.year);
+              if (isPastWeek) {
+                // Past-week tasks can only be archived, not deleted
+                return (
+                  <button
+                    onClick={() => {
+                      setConfirmAction({
+                        message: `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
+                        onConfirm: async () => {
+                          try {
+                            const res = await fetch("/api/tasks", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: task.id, status: "archived" }),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              if (onTasksChange) onTasksChange();
+                            } else {
+                              notify('error', data.error || "Failed to archive task.");
+                            }
+                          } catch (e) {
+                            notify('error', "Network error while archiving task.");
+                          }
+                        },
+                      });
+                    }}
+                    className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
+                    title="Archive task (past week — cannot delete)"
+                  >
+                    <Archive className="w-3 h-3" />
+                  </button>
+                );
+              }
+              return (
+                <button
+                  onClick={() => {
+                    setConfirmAction({
+                      message: `Delete task "${task.title}"?`,
+                      onConfirm: async () => {
+                        try {
+                          const res = await fetch(`/api/tasks?id=${task.id}`, {
+                            method: "DELETE",
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            if (onTasksChange) onTasksChange();
+                          } else {
+                            notify('error',
+                              data.error ||
+                                "Cannot delete this task. It may be locked (older than 12 hours).",
+                            );
+                          }
+                        } catch (e) {
+                          notify('error', "Network error while deleting task.");
+                        }
+                      },
+                    });
                   }}
-                  className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
-                  title="Archive task (past week — cannot delete)"
+                  className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
+                  title="Delete task"
                 >
-                  <Archive className="w-3 h-3" />
+                  <Trash2 className="w-3 h-3" />
                 </button>
               );
-            }
-            return (
-              <button
-                onClick={async () => {
-                  if (!window.confirm(`Delete task "${task.title}"?`)) return;
-                  try {
-                    const res = await fetch(`/api/tasks?id=${task.id}`, {
-                      method: "DELETE",
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                      if (onTasksChange) onTasksChange();
-                    } else {
-                      alert(
-                        data.error ||
-                          "Cannot delete this task. It may be locked (older than 12 hours).",
-                      );
-                    }
-                  } catch (e) {
-                    alert("Network error while deleting task.");
-                  }
-                }}
-                className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
-                title="Delete task"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            );
-          })()}
+            })()}
 
           {/* Move up/down buttons */}
-          {!isSub && (
+          {!readOnly && !isSub && (
             <div className="flex flex-col gap-0.5 shrink-0">
               <button
                 onClick={() => moveTask(task.id, "up")}
@@ -866,26 +1155,32 @@ export default function TaskManager({
                   rel="noopener noreferrer"
                   className="text-[10px] text-[var(--brand-orange)] hover:underline flex items-center gap-1 max-w-[200px] truncate"
                 >
-                  <LinkIcon className="w-2.5 h-2.5 shrink-0" />
+                  {r.type === "file" ? (
+                    <Paperclip className="w-2.5 h-2.5 shrink-0" />
+                  ) : (
+                    <LinkIcon className="w-2.5 h-2.5 shrink-0" />
+                  )}
                   {r.name || r.url}
                 </a>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(r.url);
-                    alert("URL copied!");
+                    notify('info', "URL copied!");
                   }}
                   className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-emerald-400 transition-opacity"
                   title="Copy URL"
                 >
                   <Copy className="w-2.5 h-2.5" />
                 </button>
-                <button
-                  onClick={() => handleDeleteResource(r.id)}
-                  className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity"
-                  title="Remove URL"
-                >
-                  <Trash2 className="w-2.5 h-2.5" />
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => handleDeleteResource(r.id)}
+                    className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity"
+                    title="Remove URL"
+                  >
+                    <Trash2 className="w-2.5 h-2.5" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -928,11 +1223,11 @@ export default function TaskManager({
                 Cancel
               </button>
               <button
-                onClick={() => handleAddResource(task.id)}
-                disabled={!resourceForm.url || resourceAdding}
+                onClick={() => handleSaveResource(task.id)}
+                disabled={(!resourceFile && !resourceForm.url) || resourceAdding}
                 className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase"
               >
-                {resourceAdding ? "Saving" : "Save"}
+                {resourceAdding ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
@@ -942,13 +1237,22 @@ export default function TaskManager({
         <div
           className={`mt-1 flex items-center gap-3 ${isSub ? "ml-10" : "ml-8"}`}
         >
+          {!readOnly && (
+            <button
+              onClick={() => setAddResourceTaskId(task.id)}
+              className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors"
+            >
+              <Plus className="w-2.5 h-2.5" /> Resource
+            </button>
+          )}
           <button
-            onClick={() => setAddResourceTaskId(task.id)}
-            className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors"
+            onClick={() => toggleComments(task.id)}
+            className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-blue-400 transition-colors"
           >
-            <Plus className="w-2.5 h-2.5" /> Resource
+            <MessageSquare className="w-2.5 h-2.5" />
+            Comments{task.commentCount > 0 ? ` (${task.commentCount})` : ""}
           </button>
-          {!isSub && (
+          {!readOnly && !isSub && (
             <button
               onClick={() =>
                 openSubTask(task.id, task.project_id, task.category, task.title)
@@ -959,6 +1263,55 @@ export default function TaskManager({
             </button>
           )}
         </div>
+
+        {/* Comments thread */}
+        {openComments === task.id && (
+          <div
+            className={`mt-1 p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] flex flex-col gap-2 ${isSub ? "ml-10" : "ml-8"} max-w-md`}
+          >
+            {loadingComments ? (
+              <p className="text-[9px] text-slate-500 italic">Loading...</p>
+            ) : (commentsByTask[task.id] || []).length === 0 ? (
+              <p className="text-[9px] text-slate-500 italic">
+                No comments yet.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+                {(commentsByTask[task.id] || []).map((c) => (
+                  <div key={c.id} className="text-[9px]">
+                    <span className="font-black text-[var(--text-primary)]">
+                      {c.sender_name || c.sender_id}:{" "}
+                    </span>
+                    <span className="text-[var(--text-secondary)]">
+                      {c.body}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!readOnly && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") postComment(task.id);
+                  }}
+                  placeholder="Write a comment..."
+                  className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+                />
+                <button
+                  onClick={() => postComment(task.id)}
+                  disabled={!newComment.trim() || postingComment}
+                  className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase disabled:opacity-40"
+                >
+                  Send
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Sub-tasks — always visible under parent */}
         {!isSub && task.subtasks?.length > 0 && (
@@ -1103,17 +1456,24 @@ export default function TaskManager({
                     setForm((p) => ({
                       ...p,
                       category: e.target.value,
-                      project_id: e.target.value ? "" : p.project_id,
+                      // Only clear project_id when no project is already assigned
+                      project_id: (!p.project_id && e.target.value) ? "" : p.project_id,
                     }))
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-purple-400 outline-none appearance-none cursor-pointer"
                 >
                   <option value="">—</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
+                  {availableCategories.length > 0
+                    ? availableCategories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))
+                    : CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
                 </select>
               </div>
             </div>
@@ -1131,31 +1491,54 @@ export default function TaskManager({
             </div>
           )}
 
-          {/* Assignee dropdown (project mode only) */}
-          {mode === "project" && projectMembers.length > 0 && (
+          {/* Assignee + Priority row */}
+          <div className="grid grid-cols-2 gap-2">
+            {mode === "project" && projectMembers.length > 0 && (
+              <div>
+                <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Assign to
+                </label>
+                <select
+                  value={form.assigned_to || ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, assigned_to: e.target.value }))
+                  }
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
+                >
+                  <option value="">Self</option>
+                  {projectMembers.map((m) => (
+                    <option
+                      key={m.member_id || m.user_cid}
+                      value={m.member_id || m.user_cid}
+                    >
+                      {m.name || m.member_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Assign to
+                Priority
               </label>
               <select
-                value={form.assigned_to || ""}
+                value={form.priority || "medium"}
                 onChange={(e) =>
-                  setForm((p) => ({ ...p, assigned_to: e.target.value }))
+                  setForm((p) => ({ ...p, priority: e.target.value }))
                 }
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
+                className={cn(
+                  "w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none appearance-none cursor-pointer",
+                  PRIORITY_CONFIG[form.priority || "medium"]?.color,
+                )}
               >
-                <option value="">Self</option>
-                {projectMembers.map((m) => (
-                  <option
-                    key={m.member_id || m.user_cid}
-                    value={m.member_id || m.user_cid}
-                  >
-                    {m.name || m.member_id}
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
                   </option>
                 ))}
               </select>
             </div>
-          )}
+          </div>
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-2">
@@ -1219,12 +1602,14 @@ export default function TaskManager({
           </div>
         </div>
       ) : (
-        <button
-          onClick={() => setShowTaskForm(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all w-fit"
-        >
-          <Plus className="w-3 h-3" /> New Task
-        </button>
+        !readOnly && (
+          <button
+            onClick={() => setShowTaskForm(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all w-fit"
+          >
+            <Plus className="w-3 h-3" /> New Task
+          </button>
+        )
       )}
 
       {/* ─── SUB-TASK POPUP MODAL ─── */}
@@ -1290,30 +1675,31 @@ export default function TaskManager({
                             : st.status?.replace(/_/g, " ") || "Pending"}
                         </span>
                         <button
-                          onClick={async () => {
-                            if (
-                              !window.confirm(`Delete subtask "${st.title}"?`)
-                            )
-                              return;
-                            try {
-                              const res = await fetch(
-                                `/api/tasks?id=${st.id}`,
-                                {
-                                  method: "DELETE",
-                                },
-                              );
-                              const data = await res.json();
-                              if (data.success) {
-                                if (onTasksChange) onTasksChange();
-                              } else {
-                                alert(
-                                  data.error ||
-                                    "Cannot delete this subtask. It may be older than 12 hours.",
-                                );
-                              }
-                            } catch (e) {
-                              alert("Network error while deleting subtask.");
-                            }
+                          onClick={() => {
+                            setConfirmAction({
+                              message: `Delete subtask "${st.title}"?`,
+                              onConfirm: async () => {
+                                try {
+                                  const res = await fetch(
+                                    `/api/tasks?id=${st.id}`,
+                                    {
+                                      method: "DELETE",
+                                    },
+                                  );
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    if (onTasksChange) onTasksChange();
+                                  } else {
+                                    notify('error',
+                                      data.error ||
+                                        "Cannot delete this subtask. It may be older than 12 hours.",
+                                    );
+                                  }
+                                } catch (e) {
+                                  notify('error', "Network error while deleting subtask.");
+                                }
+                              },
+                            });
                           }}
                           className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
                           title="Delete subtask"
@@ -1343,12 +1729,52 @@ export default function TaskManager({
                 value={subTaskInput}
                 onChange={(e) => setSubTaskInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") addSubTaskFromModal();
+                  if (e.key === "Enter" && !e.shiftKey) addSubTaskFromModal();
                 }}
                 placeholder="Enter sub-task name..."
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
                 autoFocus
               />
+              <textarea
+                value={subTaskDescription}
+                onChange={(e) => setSubTaskDescription(e.target.value)}
+                placeholder="Description (optional)..."
+                rows={2}
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                {projectMembers.length > 0 && (
+                  <select
+                    value={subTaskAssignedTo}
+                    onChange={(e) => setSubTaskAssignedTo(e.target.value)}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="">Assign: Self</option>
+                    {projectMembers.map((m) => (
+                      <option
+                        key={m.member_id || m.user_cid}
+                        value={m.member_id || m.user_cid}
+                      >
+                        {m.name || m.member_id}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <select
+                  value={subTaskPriority}
+                  onChange={(e) => setSubTaskPriority(e.target.value)}
+                  className={cn(
+                    "w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none appearance-none cursor-pointer",
+                    PRIORITY_CONFIG[subTaskPriority]?.color,
+                  )}
+                >
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label} Priority
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="date"
@@ -1434,6 +1860,58 @@ export default function TaskManager({
                 rows={2}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
+
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Priority
+                </label>
+                <select
+                  value={editForm.priority || "medium"}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, priority: e.target.value }))
+                  }
+                  className={cn(
+                    "w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold appearance-none cursor-pointer",
+                    PRIORITY_CONFIG[editForm.priority || "medium"]?.color,
+                  )}
+                >
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assignee dropdown (project mode only) */}
+              {mode === "project" && projectMembers.length > 0 && (
+                <div>
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Assign to
+                  </label>
+                  <select
+                    value={editForm.assigned_to || ""}
+                    onChange={(e) =>
+                      setEditForm((p) => ({
+                        ...p,
+                        assigned_to: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold text-emerald-400"
+                  >
+                    <option value="">Self</option>
+                    {projectMembers.map((m) => (
+                      <option
+                        key={m.member_id || m.user_cid}
+                        value={m.member_id || m.user_cid}
+                      >
+                        {m.name || m.member_id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
@@ -1509,6 +1987,8 @@ export default function TaskManager({
                         description: editForm.description || null,
                         start_date: editForm.start_date || null,
                         end_date: editForm.due_date || null,
+                        assigned_to: editForm.assigned_to || null,
+                        priority: editForm.priority || "medium",
                         user_id: uid,
                       }),
                     });
@@ -1517,10 +1997,10 @@ export default function TaskManager({
                       setEditTaskModal(null);
                       if (onTasksChange) onTasksChange();
                     } else {
-                      alert(data.error || "Failed to save task.");
+                      notify('error', data.error || "Failed to save task.");
                     }
                   } catch (e) {
-                    alert("Network error saving task.");
+                    notify('error', "Network error saving task.");
                     console.error(e);
                   }
                 }}
@@ -1594,17 +2074,99 @@ export default function TaskManager({
                       {activeBlockers.map((b) => (
                         <div
                           key={b.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
+                          className="flex flex-col p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
                         >
-                          <span className="text-[10px] text-rose-400 font-bold">
-                            {b.title}
-                          </span>
-                          <button
-                            onClick={() => handleResolveBlocker(b.id)}
-                            className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
-                          >
-                            Resolve
-                          </button>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-rose-400 font-bold">
+                                {b.title}
+                              </span>
+                              <span className="text-[7px] font-black uppercase text-rose-500/60">
+                                {b.severity || "medium"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => toggleBlockerDiscuss(b.id)}
+                                className="px-2 py-0.5 text-[7px] font-black uppercase bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500 hover:text-white transition-all"
+                              >
+                                Discuss
+                              </button>
+                              {!readOnly && (
+                                <button
+                                  onClick={() => handleResolveBlocker(b.id)}
+                                  className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
+                                >
+                                  Resolve
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {(b.description || b.reference_url || b.notes) && (
+                            <div className="mt-1.5 pt-1.5 border-t border-rose-500/10 space-y-1">
+                              {b.description && (
+                                <p className="text-[9px] text-slate-400">
+                                  {b.description}
+                                </p>
+                              )}
+                              {b.reference_url && (
+                                <a
+                                  href={b.reference_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[8px] text-blue-400 underline break-all"
+                                >
+                                  {b.reference_url}
+                                </a>
+                              )}
+                              {b.notes && (
+                                <p className="text-[8px] text-slate-500 italic">
+                                  {b.notes}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          {/* Discussion thread */}
+                          {openBlockerDiscuss === b.id && (
+                            <div className="mt-2 pt-2 border-t border-rose-500/10 space-y-1.5">
+                              {(blockerMessages[b.id] || []).map((msg) => (
+                                <div key={msg.id} className="text-[9px]">
+                                  <span className="font-black text-[var(--text-primary)]">
+                                    {msg.sender_name || msg.sender_id}:{" "}
+                                  </span>
+                                  <span className="text-[var(--text-secondary)]">
+                                    {msg.body}
+                                  </span>
+                                </div>
+                              ))}
+                              {!readOnly && (
+                                <div className="flex items-center gap-1 pt-1">
+                                  <input
+                                    type="text"
+                                    value={newBlockerMsg}
+                                    onChange={(e) =>
+                                      setNewBlockerMsg(e.target.value)
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter")
+                                        postBlockerMessage(b.id);
+                                    }}
+                                    placeholder="Reply..."
+                                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+                                  />
+                                  <button
+                                    onClick={() => postBlockerMessage(b.id)}
+                                    disabled={
+                                      !newBlockerMsg.trim() || postingBlockerMsg
+                                    }
+                                    className="px-2 py-1 bg-blue-500 text-white rounded text-[8px] font-bold uppercase disabled:opacity-40"
+                                  >
+                                    Send
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1631,25 +2193,113 @@ export default function TaskManager({
             })()}
 
             {/* New blocker input */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={blockerTitle}
-                onChange={(e) => setBlockerTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && blockerTitle.trim())
-                    handleAddBlocker();
-                }}
-                placeholder="Describe the blocker..."
-                className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
-                autoFocus
-              />
+            {!readOnly && (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={blockerTitle}
+                  onChange={(e) => setBlockerTitle(e.target.value)}
+                  placeholder={t("staff.opReport.blockerTitlePlaceholder")}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
+                  autoFocus
+                />
+                <textarea
+                  value={blockerDescription}
+                  onChange={(e) => setBlockerDescription(e.target.value)}
+                  placeholder={t(
+                    "staff.opReport.blockerDescriptionPlaceholder",
+                  )}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50 resize-none"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={blockerPriority}
+                    onChange={(e) => setBlockerPriority(e.target.value)}
+                    className="flex-1 px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
+                  >
+                    <option value="low">
+                      {t("staff.opReport.priorityLow")}
+                    </option>
+                    <option value="medium">
+                      {t("staff.opReport.priorityMedium")}
+                    </option>
+                    <option value="high">
+                      {t("staff.opReport.priorityHigh")}
+                    </option>
+                    <option value="critical">
+                      {t("staff.opReport.priorityCritical")}
+                    </option>
+                  </select>
+                  <input
+                    type="url"
+                    value={blockerRefUrl}
+                    onChange={(e) => setBlockerRefUrl(e.target.value)}
+                    placeholder={t(
+                      "staff.opReport.blockerReferenceUrlPlaceholder",
+                    )}
+                    className="flex-[2] px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50"
+                  />
+                </div>
+                <textarea
+                  value={blockerNotes}
+                  onChange={(e) => setBlockerNotes(e.target.value)}
+                  placeholder={t("staff.opReport.blockerNotesPlaceholder")}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50 resize-none"
+                />
+                <button
+                  onClick={handleAddBlocker}
+                  disabled={!blockerTitle.trim() || blockerAdding}
+                  className="w-full px-4 py-2 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
+                >
+                  {blockerAdding
+                    ? t("staff.opReport.addingBlocker")
+                    : t("staff.opReport.addBlockerButton")}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── CONFIRM DIALOG MODAL ─── */}
+      {confirmAction && (
+        <div
+          className="fixed inset-0 z-[700] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setConfirmAction(null)}
+        >
+          <div
+            className="card w-full max-w-sm space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-tight">
+                  Confirm Action
+                </h3>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                  {confirmAction.message}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
               <button
-                onClick={handleAddBlocker}
-                disabled={!blockerTitle.trim() || blockerAdding}
-                className="px-4 py-2 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
+                onClick={() => {
+                  const cb = confirmAction.onConfirm;
+                  setConfirmAction(null);
+                  cb();
+                }}
+                className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-rose-600 transition-all"
               >
-                {blockerAdding ? "..." : "Add"}
+                Confirm
+              </button>
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-[var(--text-primary)] transition-all"
+              >
+                Cancel
               </button>
             </div>
           </div>
