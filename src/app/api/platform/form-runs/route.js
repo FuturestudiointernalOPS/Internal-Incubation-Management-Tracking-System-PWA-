@@ -132,6 +132,37 @@ export async function GET(req) {
     const timeline = searchParams.get("timeline");
     const contacts = searchParams.get("contacts");
     const mySubmissions = searchParams.get("my_submissions");
+    const submissionId = searchParams.get("submission_id");
+
+    // ─── SINGLE SUBMISSION WITH RUN CONTEXT ───
+    if (submissionId) {
+      const { getSession } = await import("@/lib/auth");
+      const session = await getSession();
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+
+      const sub = await db.execute({
+        sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
+        args: [parseInt(submissionId)],
+      });
+      if (sub.rows.length === 0) return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
+
+      const run = await db.execute({
+        sql: "SELECT * FROM platform_form_runs WHERE id = ?",
+        args: [sub.rows[0].run_id],
+      });
+
+      const reviews = await db.execute({
+        sql: "SELECT * FROM platform_submission_reviews WHERE submission_id = ? ORDER BY created_at DESC",
+        args: [parseInt(submissionId)],
+      });
+
+      return NextResponse.json({
+        success: true,
+        submission: sub.rows[0],
+        run: run.rows[0] || null,
+        reviews: reviews.rows,
+      });
+    }
 
     // ─── MY SUBMISSIONS (any authenticated user) ───
     if (mySubmissions === "true") {
