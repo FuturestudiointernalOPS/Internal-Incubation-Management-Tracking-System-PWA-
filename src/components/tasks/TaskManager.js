@@ -255,7 +255,7 @@ export default function TaskManager({
         const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
         const upload = await uploadFile("knowledge", path, resourceFile);
         if (!upload.success) {
-          alert(upload.error || "Upload failed");
+          notify('error', upload.error || "Upload failed");
           setResourceAdding(false);
           return;
         }
@@ -279,6 +279,7 @@ export default function TaskManager({
         }),
       });
       if (res.ok) {
+        notify('success', 'Resource saved');
         if (onTasksChange) onTasksChange();
         setAddResourceTaskId(null);
         setResourceForm({ name: "", url: "" });
@@ -303,6 +304,7 @@ export default function TaskManager({
         method: "DELETE",
       });
       if (res.ok) {
+        notify('success', 'Resource removed');
         if (onTasksChange) onTasksChange();
       }
     } catch (e) {
