@@ -81,6 +81,18 @@ const REGISTERED_MODULES = [
     future: false,
   },
   {
+    id: "platform-responses",
+    name: "Responses",
+    description: "View and manage all form submissions",
+    icon: "FileText",
+    href: "/platform/responses",
+    enabled: true,
+    visible: true,
+    permissions: ["super_admin"],
+    order: 6,
+    future: false,
+  },
+  {
     id: "platform-settings",
     name: "Settings",
     description: "Platform configuration and governance",
@@ -89,7 +101,7 @@ const REGISTERED_MODULES = [
     enabled: true,
     visible: true,
     permissions: ["super_admin"],
-    order: 5,
+    order: 7,
   },
 ];
 
