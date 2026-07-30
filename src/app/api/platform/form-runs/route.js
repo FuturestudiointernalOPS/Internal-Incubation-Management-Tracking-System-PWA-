@@ -507,9 +507,18 @@ export async function POST(req) {
 
       const { id } = body;
       if (!id) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
+      
+      // Generate public slug if not present (for runs created before slug feature)
+      const existing = await db.execute({ sql: "SELECT public_slug FROM platform_form_runs WHERE id = ?", args: [parseInt(id)] });
+      let slug = existing.rows[0]?.public_slug;
+      if (!slug) {
+        slug = "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        await db.execute({ sql: "UPDATE platform_form_runs SET public_slug = ? WHERE id = ?", args: [slug, parseInt(id)] });
+      }
+      
       const result = await db.execute({
-        sql: `UPDATE platform_form_runs SET status = 'active', updated_at = NOW() WHERE id = ? RETURNING *`,
-        args: [parseInt(id)],
+        sql: `UPDATE platform_form_runs SET status = 'active', public_slug = COALESCE(public_slug, ?), updated_at = NOW() WHERE id = ? RETURNING *`,
+        args: [slug, parseInt(id)],
       });
       // Fire automation
       onRunLaunched(result.rows[0], session);

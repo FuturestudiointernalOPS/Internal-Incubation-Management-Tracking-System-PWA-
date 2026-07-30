@@ -597,60 +597,69 @@ export default function FormRunsPage() {
           {/* ─── SHARE TAB ─── */}
           {detailTab === "share" && (() => {
             const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-            const slug = selectedRun.public_slug || selectedRun.id;
-            const submitUrl = `${baseUrl}/s/${slug}`;
-            const embedCode = `<iframe src="${submitUrl}" width="100%" height="600" frameborder="0" style="border-radius:12px;border:1px solid #334155;"></iframe>`;
+            const slug = selectedRun.public_slug;
+            const submitUrl = slug ? `${baseUrl}/s/${slug}` : null;
+            const embedCode = submitUrl ? `<iframe src="${submitUrl}" width="100%" height="600" frameborder="0" style="border-radius:12px;border:1px solid #334155;"></iframe>` : null;
             const isActive = selectedRun.status === "active";
             return (
               <div className="space-y-6 max-w-2xl">
-                {/* Direct Link */}
-                <div>
-                  <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Direct Link</h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">Share this URL with participants to access the form directly.</p>
-                  <div className="flex gap-2">
-                    <input
-                      readOnly
-                      value={submitUrl}
-                      className="flex-1 rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
-                    />
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(submitUrl); notify("Link copied!"); }}
-                      className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110"
-                    >
-                      Copy
-                    </button>
+                {!slug && (
+                  <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                    <p className="text-[10px] font-bold text-amber-400">This run was created before secure share links. Launch the run to generate a share URL.</p>
                   </div>
-                </div>
+                )}
+                {slug && (
+                  <>
+                    {/* Direct Link */}
+                    <div>
+                      <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Direct Link</h3>
+                      <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">Share this URL with participants to access the form directly. No login required.</p>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={submitUrl}
+                          className="flex-1 rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
+                        />
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(submitUrl); notify("Link copied!"); }}
+                          className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
 
-                {/* Embed Code */}
-                <div>
-                  <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Embed Code</h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">Embed this form on any website. Participants can submit directly from your page.</p>
-                  <div className="flex gap-2">
-                    <textarea
-                      readOnly
-                      rows={3}
-                      value={embedCode}
-                      className="flex-1 rounded-xl px-4 py-3 text-[10px] font-mono outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none"
-                    />
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(embedCode); notify("Embed code copied!"); }}
-                      className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 self-start"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
+                    {/* Embed Code */}
+                    <div>
+                      <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Embed Code</h3>
+                      <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">Embed this form on any website. Participants can submit directly from your page.</p>
+                      <div className="flex gap-2">
+                        <textarea
+                          readOnly
+                          rows={3}
+                          value={embedCode}
+                          className="flex-1 rounded-xl px-4 py-3 text-[10px] font-mono outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none"
+                        />
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(embedCode); notify("Embed code copied!"); }}
+                          className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 self-start"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Preview */}
-                {selectedRun.status === "active" && (
+                {isActive && slug && (
                   <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
                     <p className="text-[9px] font-bold text-emerald-400">✓ This run is active — links are live and accepting submissions.</p>
                   </div>
                 )}
                 {selectedRun.status === "draft" && (
                   <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
-                    <p className="text-[9px] font-bold text-amber-400">⚠️ Launch this run first before sharing links.</p>
+                    <p className="text-[9px] font-bold text-amber-400">⚠️ Launch this run first to generate a shareable link.</p>
                   </div>
                 )}
               </div>
