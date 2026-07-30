@@ -51,15 +51,22 @@ export async function GET(req) {
       let fieldsResult = fields.rows;
 
       // ─── Fallback: read from version snapshot if live tables are empty but form is published ───
+      // Only fall back if the form hasn't been edited since the last publish
       if (sectionsResult.length === 0 && fieldsResult.length === 0 && form.rows[0].status === "published") {
         const version = await db.execute({
-          sql: "SELECT snapshot FROM platform_form_versions WHERE form_id = ? ORDER BY version DESC LIMIT 1",
+          sql: "SELECT snapshot, created_at FROM platform_form_versions WHERE form_id = ? ORDER BY version DESC LIMIT 1",
           args: [parseInt(id)],
         });
+        // Only use snapshot if form hasn't been saved since publish (user intentionally cleared sections)
         if (version.rows.length > 0 && version.rows[0].snapshot) {
-          const snap = version.rows[0].snapshot;
-          sectionsResult = snap.sections || [];
-          fieldsResult = snap.fields || [];
+          const snapshotTime = new Date(version.rows[0].created_at).getTime();
+          const updateTime = form.rows[0].updated_at ? new Date(form.rows[0].updated_at).getTime() : 0;
+          // If form was updated after the snapshot, user intentionally edited — respect their changes
+          if (updateTime <= snapshotTime) {
+            const snap = version.rows[0].snapshot;
+            sectionsResult = snap.sections || [];
+            fieldsResult = snap.fields || [];
+          }
         }
       }
 
