@@ -4327,7 +4327,7 @@ function ProgramWorkspace() {
               </div>
 
               <div className="space-y-3">
-                {participants.map((p) => {
+                {participants.filter(p => p.status !== 'archived').map((p) => {
                   const status = attendanceRecords[p.id] || "present";
                   return (
                     <div
