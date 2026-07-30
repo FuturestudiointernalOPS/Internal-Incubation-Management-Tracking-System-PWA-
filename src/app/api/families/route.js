@@ -53,7 +53,7 @@ export async function POST(req) {
       Math.floor(Math.random() * 1000);
 
     const res = await db.execute({
-      sql: "INSERT INTO families (name, registration_id, program_id, type, description) VALUES (?, ?, ?, ?, ?) RETURNING id",
+      sql: "INSERT INTO families (name, registration_id, program_id, type, description) VALUES (?, ?, ?::uuid, ?, ?) RETURNING id",
       args: [
         name,
         registration_id,
