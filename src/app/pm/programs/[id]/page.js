@@ -1764,7 +1764,7 @@ function ProgramWorkspace() {
                               Attendance
                             </span>
                           </button>
-                          {isAssignedPm && (
+                          {canContribute && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1828,7 +1828,7 @@ function ProgramWorkspace() {
                               </span>
                             </div>
 
-                            <div className="space-y-4 p-5 bg-primary rounded-2xl border border-[var(--border-primary)] shadow-sm">
+                            <div className={`space-y-4 p-5 bg-primary rounded-2xl border border-[var(--border-primary)] shadow-sm ${!canEdit ? "pointer-events-none opacity-60" : ""}`}>
                               {/* Session Title */}
                               <div className="space-y-1">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
@@ -2146,7 +2146,7 @@ function ProgramWorkspace() {
                                   Assessments & Deliverables
                                 </span>
                               </div>
-                              {canContribute && (
+                              {canEdit && (
                                 <button
                                   onClick={() => {
                                     setSelectedSessionId(session.id);
