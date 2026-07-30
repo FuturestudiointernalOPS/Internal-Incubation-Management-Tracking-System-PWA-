@@ -371,7 +371,7 @@ export default function PlatformForms() {
           const fresh = await refresh.json();
           if (fresh.success) {
             setSections((fresh.sections || []).map(s => ({ ...s, id: String(s.id) })));
-            setFields((fresh.fields || []).map(f => ({ ...f, section_id: f.section_id ? String(f.section_id) : null })));
+            setFields((fresh.fields || []).map(f => ({ ...f, _tmpId: genTempId(), section_id: f.section_id ? String(f.section_id) : null })));
           }
         } catch (_) {}
       } else notify(data.error || "Save failed");
