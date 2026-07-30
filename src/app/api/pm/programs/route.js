@@ -465,7 +465,7 @@ export async function PUT(req) {
           sql: "UPDATE families SET program_id = NULL WHERE program_id IS NOT NULL AND program_id::text = ?",
           args: [String(id)],
         });
-      } catch (_) {}
+      } catch (e) { console.warn("[programs] Could not unlink families segments:", e.message); }
 
       // 2. Link the new set of segments
       if (assigned_segments.length > 0) {
@@ -480,7 +480,7 @@ export async function PUT(req) {
                 sql: "UPDATE families SET program_id = ?::uuid WHERE id = ?",
                 args: [String(id), sid],
               });
-            } catch (_) {}
+            } catch (e) { console.warn("[programs] Could not link family by id:", e.message); }
             const fRes = await db.execute({
               sql: "SELECT name FROM families WHERE id = ?",
               args: [sid],
@@ -494,7 +494,7 @@ export async function PUT(req) {
                 sql: "UPDATE families SET program_id = ?::uuid WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
                 args: [String(id), segmentId],
               });
-            } catch (_) {}
+            } catch (e) { console.warn("[programs] Could not link family by name:", e.message); }
             familyName = segmentId;
           }
 
