@@ -35,6 +35,7 @@ import {
   Calendar,
   RefreshCw,
   Bell,
+  Copy,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -1145,6 +1146,39 @@ function ProgramWorkspace() {
                 </div>
               </div>
             </div>
+
+            {/* REGISTRATION LINK */}
+            {families.length > 0 && families[0]?.registration_id && (
+              <div className="card mt-6 border-l-4 border-emerald-500">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1 flex-1">
+                    <p className="text-xs font-black uppercase text-[var(--text-secondary)] tracking-wider">
+                      Registration Link
+                    </p>
+                    <p className="text-[9px] text-emerald-500 font-medium mt-1">
+                      Share this link with participants to register
+                    </p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <code className="text-[10px] font-mono bg-black/30 px-3 py-2 rounded-lg border border-[var(--border-primary)] truncate max-w-[450px] block" style={{ color: "var(--text-primary)" }}>
+                        {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={families[0].registration_id}
+                      </code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            `${window.location.origin}/register-participant?group_id=${families[0].registration_id}`
+                          );
+                          window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
+                        }}
+                        className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+                        title="Copy registration link"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           )}
 
           {activeTab === "participants" && (
