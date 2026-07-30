@@ -1726,6 +1726,24 @@ function ProgramWorkspace() {
                           </div>
                         </div>
 
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedSessionId(
+                                expandedSessionId === session.id
+                                  ? null
+                                  : session.id,
+                              );
+                            }}
+                            title="View session details, deliverables & resources"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${expandedSessionId === session.id ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]" : "bg-transparent border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]/50 hover:text-[var(--text-primary)]"}`}
+                          >
+                            <ChevronRight className={`w-3 h-3 transition-transform ${expandedSessionId === session.id ? "rotate-90" : ""}`} />
+                            {expandedSessionId === session.id ? "Hide Details" : "View Details"}
+                          </button>
+                        </div>
+
                         <div
                           className="flex items-center gap-3"
                           onClick={(e) => e.stopPropagation()}
