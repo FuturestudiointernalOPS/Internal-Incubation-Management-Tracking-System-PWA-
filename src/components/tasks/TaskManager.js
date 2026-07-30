@@ -242,56 +242,46 @@ export default function TaskManager({
       .catch(() => {});
   }, []);
 
-  const handleAddResource = async (taskId) => {
-    if (!resourceForm.url.trim()) return;
+  const handleSaveResource = async (taskId) => {
+    if (!resourceFile && !resourceForm.url.trim()) return;
     setResourceAdding(true);
     try {
+      let finalUrl = resourceForm.url.trim();
+      let finalName = resourceForm.name.trim();
+      let filePayload = {};
+
+      // If a file is selected, upload it first
+      if (resourceFile) {
+        const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
+        const upload = await uploadFile("knowledge", path, resourceFile);
+        if (!upload.success) {
+          alert(upload.error || "Upload failed");
+          setResourceAdding(false);
+          return;
+        }
+        finalUrl = upload.url;
+        finalName = finalName || resourceFile.name;
+        filePayload = {
+          type: "file",
+          file_name: resourceFile.name,
+          file_size: resourceFile.size,
+        };
+      }
+
       const res = await fetch("/api/tasks/resources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           task_id: taskId,
-          name: resourceForm.name,
-          url: resourceForm.url,
+          name: finalName,
+          url: finalUrl,
+          ...filePayload,
         }),
       });
       if (res.ok) {
         if (onTasksChange) onTasksChange();
         setAddResourceTaskId(null);
         setResourceForm({ name: "", url: "" });
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setResourceAdding(false);
-    }
-  };
-
-  const handleUploadResourceFile = async (taskId) => {
-    if (!resourceFile) return;
-    setResourceAdding(true);
-    try {
-      const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
-      const upload = await uploadFile("knowledge", path, resourceFile);
-      if (!upload.success) {
-        notify('error', upload.error || "Upload failed");
-        return;
-      }
-      const res = await fetch("/api/tasks/resources", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: taskId,
-          name: resourceFile.name,
-          url: upload.url,
-          type: "file",
-          file_name: resourceFile.name,
-          file_size: resourceFile.size,
-        }),
-      });
-      if (res.ok) {
-        if (onTasksChange) onTasksChange();
-        setAddResourceTaskId(null);
         setResourceFile(null);
       }
     } catch (e) {
@@ -1233,18 +1223,11 @@ export default function TaskManager({
                 Cancel
               </button>
               <button
-                onClick={() => handleUploadResourceFile(task.id)}
-                disabled={!resourceFile || resourceAdding}
+                onClick={() => handleSaveResource(task.id)}
+                disabled={(!resourceFile && !resourceForm.url) || resourceAdding}
                 className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase"
               >
-                Upload
-              </button>
-              <button
-                onClick={() => handleAddResource(task.id)}
-                disabled={!resourceForm.url || resourceAdding}
-                className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase"
-              >
-                {resourceAdding ? "Saving" : "Save"}
+                {resourceAdding ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
