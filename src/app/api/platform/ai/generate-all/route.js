@@ -36,7 +36,7 @@ Return ONLY valid JSON:
   "evaluation": { "dimensions": [{ "name": "Dim", "weight": 15, "criteria": ["..."], "ai_prompt": "..." }], "rankings": [{"min":90,"max":100,"label":"Outstanding","color":"#10b981"},{"min":80,"max":89,"label":"High Potential","color":"#3b82f6"},{"min":70,"max":79,"label":"Promising","color":"#f59e0b"},{"min":60,"max":69,"label":"Needs Development","color":"#f97316"},{"min":0,"max":59,"label":"Not Yet Ready","color":"#ef4444"}], "global_prompt": "..." }
 }
 
-Rules: First section = profile info. Rating questions = field_type "rating" with 1-5 scale. Textarea for long answers. Weights MUST sum to 100. Omit "evaluation" if this is just a registration form.
+Rules: First section = profile info. Rating questions MUST include options: [{"label":"1 - Strongly Disagree","value":"1"},{"label":"2 - Disagree","value":"2"},{"label":"3 - Neutral","value":"3"},{"label":"4 - Agree","value":"4"},{"label":"5 - Strongly Agree","value":"5"}]. Textarea for long answers. Weights MUST sum to 100. Omit "evaluation" if this is just a registration form.
 
 DOCUMENT:
 ${text.substring(0, 12000)}`;
@@ -58,6 +58,16 @@ ${text.substring(0, 12000)}`;
       for (const f of s.fields) {
         if (!f.field_type) f.field_type = "text";
         if (f.required === undefined) f.required = false;
+        // Ensure rating fields have proper options
+        if (f.field_type === "rating" && (!f.options || !Array.isArray(f.options) || f.options.length === 0)) {
+          f.options = [
+            { label: "1 - Strongly Disagree", value: "1" },
+            { label: "2 - Disagree", value: "2" },
+            { label: "3 - Neutral", value: "3" },
+            { label: "4 - Agree", value: "4" },
+            { label: "5 - Strongly Agree", value: "5" },
+          ];
+        }
       }
     }
 

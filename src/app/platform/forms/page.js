@@ -225,6 +225,8 @@ export default function PlatformForms() {
           required: false,
           options: ["select", "radio", "checkbox", "multiselect"].includes(fieldType)
             ? [{ label: "Option 1", value: "option-1" }]
+            : fieldType === "rating"
+            ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }]
             : null,
           sort_order: prev.length,
         },
