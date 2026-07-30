@@ -96,9 +96,9 @@ export default function PublicSubmitPage() {
     const value = formData[field.id] || "";
     const hasError = errors[field.id];
     const isDisabled = success;
-    const baseInputClass = "w-full rounded-xl px-4 py-3 text-[12px] font-bold outline-none bg-white/5 border text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]";
-    const normalBorder = hasError ? "border-rose-500" : "border-[var(--border-primary)] focus:border-[var(--brand-orange)]";
-    const inputClass = `${baseInputClass} ${normalBorder}`;
+    const baseClass = "w-full rounded-xl px-4 py-3 text-sm font-medium outline-none bg-slate-800 border text-slate-100 placeholder:text-slate-400";
+    const errClass = hasError ? "border-red-500" : "border-slate-600 focus:border-orange-500";
+    const inputClass = `${baseClass} ${errClass}`;
 
     switch (field.field_type) {
       case "textarea":
@@ -113,7 +113,7 @@ export default function PublicSubmitPage() {
         const updatePhone = (updates) => { updateField(field.id, JSON.stringify({ ...phoneData, ...updates })); };
         return (
           <div className="flex gap-2">
-            <select value={phoneData.code} onChange={(e) => { const cnt = COUNTRY_CODES.find(c => c.code === e.target.value); updatePhone({ country: cnt?.name || "", code: e.target.value }); }} disabled={isDisabled} className="w-[150px] shrink-0 rounded-xl px-2 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+            <select value={phoneData.code} onChange={(e) => { const cnt = COUNTRY_CODES.find(c => c.code === e.target.value); updatePhone({ country: cnt?.name || "", code: e.target.value }); }} disabled={isDisabled} className="w-[150px] shrink-0 rounded-xl px-2 py-3 text-sm font-medium outline-none bg-slate-800 border border-slate-600 text-slate-100">
               <option value="">No prefix</option>
               {COUNTRY_CODES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.code})</option>)}
             </select>
@@ -123,7 +123,7 @@ export default function PublicSubmitPage() {
       }
       case "select": case "radio":
         return (
-          <select value={value} onChange={(e) => updateField(field.id, e.target.value)} disabled={isDisabled} className={inputClass}>
+          <select value={value} onChange={(e) => updateField(field.id, e.target.value)} disabled={isDisabled} className={`${inputClass} [&>option]:bg-slate-800 [&>option]:text-slate-100`}>
             <option value="">Select...</option>
             {(field.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -134,7 +134,11 @@ export default function PublicSubmitPage() {
           <div className="flex gap-2 flex-wrap">
             {opts.map(o => (
               <button key={o.value} onClick={() => updateField(field.id, o.value)} disabled={isDisabled}
-                className={`px-4 py-2 rounded-xl text-[11px] font-bold border transition-all ${value === o.value ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]"}`}
+                className={`px-5 py-3 rounded-xl text-sm font-bold border-2 transition-all ${
+                  value === o.value
+                    ? "bg-orange-500 text-white border-orange-500 scale-105 shadow-lg shadow-orange-500/20"
+                    : "bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-400 hover:text-white"
+                }`}
               >{o.label}</button>
             ))}
           </div>
@@ -149,30 +153,30 @@ export default function PublicSubmitPage() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-primary flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" /></div>;
-  if (error) return <div className="min-h-screen bg-primary flex items-center justify-center"><div className="text-center"><AlertTriangle className="w-10 h-10 mx-auto text-rose-500 mb-3" /><p className="text-[var(--text-primary)] font-bold">{error}</p></div></div>;
+  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>;
+  if (error) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="text-center"><AlertTriangle className="w-10 h-10 mx-auto text-red-500 mb-3" /><p className="text-slate-100 font-bold">{error}</p></div></div>;
 
   if (success) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center p-6">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4"><CheckCircle2 className="w-8 h-8 text-emerald-500" /></div>
-          <h1 className="text-xl font-black text-[var(--text-primary)] mb-2">Submission Received</h1>
-          <p className="text-[var(--text-secondary)] text-sm">Thank you! Your response has been recorded.</p>
+          <h1 className="text-xl font-black text-slate-100 mb-2">Submission Received</h1>
+          <p className="text-slate-400 text-sm">Thank you! Your response has been recorded.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-primary">
-      {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">{notification}</div>}
+    <div className="min-h-screen bg-slate-950">
+      {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-orange-500 text-white text-xs font-black uppercase">{notification}</div>}
       <div className="max-w-2xl mx-auto p-6 space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-black uppercase text-[var(--text-primary)]">{form?.name || run?.name}</h1>
-          {form?.description && <p className="text-[12px] text-[var(--text-secondary)] mt-2">{form.description}</p>}
-          {run?.closes_at && <p className="text-[10px] text-[var(--text-secondary)] mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {new Date(run.closes_at).toLocaleDateString()}</p>}
+          <h1 className="text-2xl font-black uppercase text-slate-100">{form?.name || run?.name}</h1>
+          {form?.description && <p className="text-sm text-slate-400 mt-2">{form.description}</p>}
+          {run?.closes_at && <p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {new Date(run.closes_at).toLocaleDateString()}</p>}
         </div>
 
         {/* Sections & Fields */}
@@ -183,19 +187,19 @@ export default function PublicSubmitPage() {
           return (
             <div key={sec.id} className="space-y-3">
               <button onClick={() => setExpandedSections(prev => ({ ...prev, [sec.id]: !prev[sec.id] }))} className="flex items-center gap-2 w-full text-left">
-                {isExpanded ? <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />}
-                <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">{sec.title}</h2>
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                <h2 className="text-base font-black uppercase text-slate-100">{sec.title}</h2>
               </button>
               {isExpanded && (
                 <div className="space-y-4">
                   {sectionFields.map(f => (
                     <div key={f.id} className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-[var(--text-primary)] flex items-center gap-1">
-                        {f.label} {f.required && <span className="text-rose-500">*</span>}
+                      <label className="text-sm font-bold text-slate-200 flex items-center gap-1">
+                        {f.label} {f.required && <span className="text-red-400">*</span>}
                       </label>
-                      {f.help_text && <p className="text-[9px] text-[var(--text-secondary)]">{f.help_text}</p>}
+                      {f.help_text && <p className="text-xs text-slate-500">{f.help_text}</p>}
                       {renderField(f)}
-                      {errors[f.id] && <p className="text-[9px] text-rose-500 font-bold">{errors[f.id]}</p>}
+                      {errors[f.id] && <p className="text-xs text-red-400 font-bold">{errors[f.id]}</p>}
                     </div>
                   ))}
                 </div>
@@ -207,7 +211,7 @@ export default function PublicSubmitPage() {
         {/* Orphan fields */}
         {fields.filter(f => !f.section_id).map(f => (
           <div key={f.id} className="space-y-1.5">
-            <label className="text-[11px] font-bold text-[var(--text-primary)] flex items-center gap-1">{f.label} {f.required && <span className="text-rose-500">*</span>}</label>
+            <label className="text-sm font-bold text-slate-200 flex items-center gap-1">{f.label} {f.required && <span className="text-red-400">*</span>}</label>
             {renderField(f)}
           </div>
         ))}
@@ -215,7 +219,7 @@ export default function PublicSubmitPage() {
         {/* Submit */}
         {!success && run?.status === "active" && (
           <div className="pt-4">
-            <button onClick={handleSubmit} disabled={saving} className="w-full px-6 py-4 rounded-xl bg-[var(--brand-orange)] text-black text-[12px] font-black uppercase hover:brightness-110 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+            <button onClick={handleSubmit} disabled={saving} className="w-full px-6 py-4 rounded-xl bg-orange-500 text-white text-sm font-black uppercase hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
               <Send className="w-4 h-4" /> {saving ? "Submitting..." : "Submit"}
             </button>
           </div>
