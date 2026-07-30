@@ -10,10 +10,14 @@ import db, { initDb } from "@/lib/db";
  * - Deadline enforced
  * - Max 100KB payload
  * - Duplicate detection by email
+ * - IP-based rate limiting: max 5 submissions per IP per run per hour
  */
 export async function POST(req) {
   try {
     await initDb();
+    
+    // Get client IP
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
     
     // Rate limit: check content-length
     const contentLength = parseInt(req.headers.get("content-length") || "0");
@@ -53,6 +57,15 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Submission deadline has passed" }, { status: 400 });
     }
 
+    // IP-based rate limiting: max 5 submissions per IP per run per hour
+    const rateCheck = await db.execute({
+      sql: "SELECT COUNT(*) as c FROM platform_submissions_rate WHERE run_id = ? AND ip = ? AND created_at > NOW() - INTERVAL '1 hour'",
+      args: [parseInt(run_id), ip],
+    });
+    if (parseInt(rateCheck.rows[0]?.c) >= 5) {
+      return NextResponse.json({ success: false, error: "Too many submissions. Please try again later." }, { status: 429 });
+    }
+
     // Find submitter identity from form fields
     let submitterName = "Anonymous";
     let submitterEmail = null;
@@ -77,6 +90,12 @@ export async function POST(req) {
       }
     }
 
+    // Record rate limit entry
+    await db.execute({
+      sql: "INSERT INTO platform_submissions_rate (run_id, ip, created_at) VALUES (?, ?, NOW())",
+      args: [parseInt(run_id), ip],
+    });
+
     // Insert submission
     const result = await db.execute({
       sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, submitted_at)
@@ -86,6 +105,7 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, id: result.rows[0].id });
   } catch (error) {
+    console.error("[Public Submit] Error:", error.message);
     return NextResponse.json({ success: false, error: "An error occurred" }, { status: 500 });
   }
 }
