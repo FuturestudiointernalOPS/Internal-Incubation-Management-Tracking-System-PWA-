@@ -11,12 +11,22 @@ export async function GET(req) {
     await initDb();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
-
-    const run = await db.execute({
-      sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ? AND r.status = 'active'",
-      args: [parseInt(id)],
-    });
+    const slug = searchParams.get("slug");
+    
+    let run;
+    if (slug) {
+      run = await db.execute({
+        sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.public_slug, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.public_slug = ? AND r.status = 'active'",
+        args: [slug],
+      });
+    } else if (id) {
+      run = await db.execute({
+        sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.public_slug, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ? AND r.status = 'active'",
+        args: [parseInt(id)],
+      });
+    } else {
+      return NextResponse.json({ success: false, error: "id or slug required" }, { status: 400 });
+    }
     if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
 
     const sections = await db.execute({

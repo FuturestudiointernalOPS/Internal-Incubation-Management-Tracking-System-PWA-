@@ -22,7 +22,19 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { run_id, data } = body;
+    let { run_id, data, slug } = body;
+    
+    // Resolve slug to ID if provided
+    if (slug && !run_id) {
+      const runBySlug = await db.execute({
+        sql: "SELECT id FROM platform_form_runs WHERE public_slug = ? AND status = 'active'",
+        args: [slug],
+      });
+      if (runBySlug.rows.length === 0) {
+        return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
+      }
+      run_id = runBySlug.rows[0].id;
+    }
     if (!run_id || !data || typeof data !== "object") {
       return NextResponse.json({ success: false, error: "run_id and data required" }, { status: 400 });
     }

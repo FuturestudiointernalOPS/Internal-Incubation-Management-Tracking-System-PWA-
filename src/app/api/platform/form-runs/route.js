@@ -550,9 +550,12 @@ export async function POST(req) {
     const form = await db.execute({ sql: "SELECT version FROM platform_forms WHERE id = ?", args: [parseInt(form_id)] });
     if (form.rows.length === 0) return NextResponse.json({ success: false, error: "Form not found" }, { status: 404 });
 
+    // Generate a random public slug (8-char hex, not guessable)
+    const publicSlug = "r" + Array.from({ length: 10 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+
     const result = await db.execute({
-      sql: `INSERT INTO platform_form_runs (form_id, form_version, name, description, opens_at, closes_at, settings, owner_id, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      args: [parseInt(form_id), form.rows[0].version, name.trim(), description || null, opens_at || null, closes_at || null, JSON.stringify(settings || {}), session.cid || null, session.cid || null],
+      sql: `INSERT INTO platform_form_runs (form_id, form_version, name, description, opens_at, closes_at, settings, owner_id, created_by, public_slug) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      args: [parseInt(form_id), form.rows[0].version, name.trim(), description || null, opens_at || null, closes_at || null, JSON.stringify(settings || {}), session.cid || null, session.cid || null, publicSlug],
     });
 
     // Create assignments

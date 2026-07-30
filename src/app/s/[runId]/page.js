@@ -39,13 +39,13 @@ export default function PublicSubmitPage() {
 
   const loadRun = async () => {
     try {
-      const res = await fetch(`/api/s/public-run?id=${runId}`);
+      const res = await fetch(`/api/s/public-run?slug=${runId}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Run not found");
       setRun(data.run);
       setSections(data.sections || []);
       setFields(data.fields || []);
-      setForm({ name: data.run.form_name, description: data.run.form_description });
+      setForm({ name: data.run.form_name || data.run.name, description: data.run.form_description || data.run.description });
       // Expand all sections by default
       const expanded = {};
       (data.sections || []).forEach(s => { expanded[s.id] = true; });
@@ -79,7 +79,7 @@ export default function PublicSubmitPage() {
       const res = await fetch("/api/s/public-submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: parseInt(runId), data: formData }),
+        body: JSON.stringify({ slug: runId, data: formData }),
       });
       const data = await res.json();
       if (data.success) {
