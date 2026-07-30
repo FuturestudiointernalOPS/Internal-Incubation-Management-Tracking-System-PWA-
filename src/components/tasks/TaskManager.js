@@ -272,7 +272,7 @@ export default function TaskManager({
     setResourceAdding(true);
     try {
       const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
-      const upload = await uploadFile("task-attachments", path, resourceFile);
+      const upload = await uploadFile("knowledge", path, resourceFile);
       if (!upload.success) {
         notify('error', upload.error || "Upload failed");
         return;
@@ -1221,6 +1221,7 @@ export default function TaskManager({
             />
             <input
               type="file"
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
               onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
               className="w-full text-[9px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[8px] file:font-bold file:bg-[var(--brand-orange)] file:text-black"
             />
