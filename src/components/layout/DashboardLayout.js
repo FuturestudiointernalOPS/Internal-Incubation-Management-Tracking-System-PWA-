@@ -397,6 +397,12 @@ const NAVIGATION_MATRIX = {
       href: "/admin/intelligence",
     },
     {
+      id: "reports",
+      name: "REPORTS",
+      icon: FileText,
+      href: "/admin/reports",
+    },
+    {
       id: "finance",
       name: "FINANCE",
       icon: BarChart3,
