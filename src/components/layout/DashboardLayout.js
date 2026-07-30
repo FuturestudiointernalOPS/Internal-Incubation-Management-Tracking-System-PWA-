@@ -37,6 +37,7 @@ import {
   CheckSquare,
   Megaphone,
   HeartPulse,
+  Blocks,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -433,6 +434,12 @@ const NAVIGATION_MATRIX = {
         },
         { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
       ],
+    },
+    {
+      id: "platform",
+      name: "PLATFORM",
+      icon: Blocks,
+      href: "/platform",
     },
     {
       id: "system",
