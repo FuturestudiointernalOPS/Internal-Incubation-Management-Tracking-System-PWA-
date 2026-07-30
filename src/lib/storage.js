@@ -54,7 +54,24 @@ export const uploadFile = async (bucket, path, file) => {
         upsert: true
       })
 
-    if (error) throw error
+    if (error) {
+      // Auto-create bucket if it doesn't exist
+      if (/bucket.*not found|does not exist/i.test(error.message)) {
+        await supabase.storage.createBucket(bucket, { public: true });
+        const retry = await supabase.storage
+          .from(bucket)
+          .upload(path, file, {
+            cacheControl: '3600',
+            upsert: true,
+          });
+        if (retry.error) throw retry.error;
+        const { data: retryUrl } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(path);
+        return { success: true, url: retryUrl.publicUrl, data: retry.data };
+      }
+      throw error;
+    }
 
     // Get Public URL
     const { data: { publicUrl } } = supabase.storage
