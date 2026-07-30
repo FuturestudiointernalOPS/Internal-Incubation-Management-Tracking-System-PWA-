@@ -20,11 +20,18 @@ export async function POST(req) {
       return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
     }
 
-    // Find the group
-    const groupResult = await db.execute({
+    // Find the group in families or v2_groups
+    let groupResult = await db.execute({
       sql: "SELECT CAST(id AS TEXT) as id, name, program_id, registration_id FROM families WHERE registration_id = ? OR CAST(id AS TEXT) = ?",
       args: [group_id, group_id],
     });
+
+    if (groupResult.rows.length === 0) {
+      groupResult = await db.execute({
+        sql: "SELECT CAST(id AS TEXT) as id, name, program_id, registration_id FROM v2_groups WHERE registration_id = ? OR CAST(id AS TEXT) = ?",
+        args: [group_id, group_id],
+      });
+    }
 
     if (groupResult.rows.length === 0) {
       return NextResponse.json({ error: "Group not found." }, { status: 404 });

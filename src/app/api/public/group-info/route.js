@@ -20,7 +20,7 @@ export async function GET(req) {
 
     // Try families table first (by id OR registration_id)
     const result = await db.execute({
-      sql: "SELECT CAST(id AS TEXT) as id, name, program_id FROM families WHERE CAST(id AS TEXT) = ? OR registration_id = ?",
+      sql: "SELECT CAST(id AS TEXT) as id, registration_id, name, program_id FROM families WHERE CAST(id AS TEXT) = ? OR registration_id = ?",
       args: [id, id],
     });
 
@@ -28,11 +28,11 @@ export async function GET(req) {
       group = result.rows[0];
     }
 
-    // Try v2_groups
+    // Try v2_groups (by id OR registration_id)
     if (!group) {
       const v2result = await db.execute({
-        sql: "SELECT CAST(id AS TEXT) as id, name, program_id FROM v2_groups WHERE CAST(id AS TEXT) = ?",
-        args: [id],
+        sql: "SELECT CAST(id AS TEXT) as id, registration_id, name, program_id FROM v2_groups WHERE CAST(id AS TEXT) = ? OR registration_id = ?",
+        args: [id, id],
       });
       if (v2result.rows.length > 0) {
         group = v2result.rows[0];
