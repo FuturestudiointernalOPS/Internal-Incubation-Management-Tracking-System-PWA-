@@ -58,13 +58,16 @@ export async function POST(req) {
     }
 
     // IP-based rate limiting: max 5 submissions per IP per run per hour
-    const rateCheck = await db.execute({
-      sql: "SELECT COUNT(*) as c FROM platform_submissions_rate WHERE run_id = ? AND ip = ? AND created_at > NOW() - INTERVAL '1 hour'",
-      args: [parseInt(run_id), ip],
-    });
-    if (parseInt(rateCheck.rows[0]?.c) >= 5) {
-      return NextResponse.json({ success: false, error: "Too many submissions. Please try again later." }, { status: 429 });
-    }
+    // Gracefully skip if rate table doesn't exist yet
+    try {
+      const rateCheck = await db.execute({
+        sql: "SELECT COUNT(*) as c FROM platform_submissions_rate WHERE run_id = ? AND ip = ? AND created_at > NOW() - INTERVAL '1 hour'",
+        args: [parseInt(run_id), ip],
+      });
+      if (parseInt(rateCheck.rows[0]?.c) >= 5) {
+        return NextResponse.json({ success: false, error: "Too many submissions. Please try again later." }, { status: 429 });
+      }
+    } catch (_) { /* table may not exist yet */ }
 
     // Find submitter identity from form fields
     let submitterName = "Anonymous";
@@ -90,11 +93,13 @@ export async function POST(req) {
       }
     }
 
-    // Record rate limit entry
-    await db.execute({
-      sql: "INSERT INTO platform_submissions_rate (run_id, ip, created_at) VALUES (?, ?, NOW())",
-      args: [parseInt(run_id), ip],
-    });
+    // Record rate limit entry (skip if table doesn't exist)
+    try {
+      await db.execute({
+        sql: "INSERT INTO platform_submissions_rate (run_id, ip, created_at) VALUES (?, ?, NOW())",
+        args: [parseInt(run_id), ip],
+      });
+    } catch (_) {}
 
     // Insert submission
     const result = await db.execute({
