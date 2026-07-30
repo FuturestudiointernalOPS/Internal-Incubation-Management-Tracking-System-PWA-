@@ -129,18 +129,21 @@ export default function PublicSubmitPage() {
           </select>
         );
       case "rating": {
-        const opts = field.options || [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }];
+        const opts = (field.options && field.options.length > 0) ? field.options : [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }];
         return (
-          <div className="flex gap-2 flex-wrap">
-            {opts.map(o => (
-              <button key={o.value} onClick={() => updateField(field.id, o.value)} disabled={isDisabled}
-                className={`px-5 py-3 rounded-xl text-sm font-bold border-2 transition-all ${
-                  value === o.value
-                    ? "bg-orange-500 text-white border-orange-500 scale-105 shadow-lg shadow-orange-500/20"
-                    : "bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-400 hover:text-white"
-                }`}
-              >{o.label}</button>
-            ))}
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500">Select a rating:</p>
+            <div className="flex gap-3 flex-wrap">
+              {opts.map(o => (
+                <button key={o.value} onClick={() => updateField(field.id, o.value)} disabled={isDisabled}
+                  className={`min-w-[56px] px-4 py-3 rounded-xl text-base font-bold border-2 transition-all ${
+                    value === o.value
+                      ? "bg-orange-500 text-white border-orange-500 scale-110 shadow-lg shadow-orange-500/30"
+                      : "bg-slate-700 text-slate-200 border-slate-500 hover:border-orange-400 hover:text-orange-400 hover:bg-slate-600"
+                  }`}
+                >{o.label}</button>
+              ))}
+            </div>
           </div>
         );
       }
