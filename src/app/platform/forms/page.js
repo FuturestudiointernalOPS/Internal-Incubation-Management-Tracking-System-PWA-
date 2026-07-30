@@ -82,6 +82,9 @@ export default function PlatformForms() {
   // Archive confirmation
   const [archiveConfirm, setArchiveConfirm] = useState(null);
 
+  // Re-publish confirmation
+  const [showRepublishConfirm, setShowRepublishConfirm] = useState(false);
+
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
   const fetchForms = useCallback(async () => {
@@ -185,9 +188,10 @@ export default function PlatformForms() {
     setSaving(false);
   };
 
-  const handlePublish = async () => {
+  const handlePublish = async (opts) => {
     if (!editingForm) return;
-    setSaving(true);
+    const skipSave = opts?.skipSave;
+    if (!skipSave) setSaving(true);
     try {
       let fwData = null;
       try {
@@ -204,10 +208,11 @@ export default function PlatformForms() {
       const data = await res.json();
       if (data.success) {
         notify(`Published version ${data.version}`);
+        setEditingForm((prev) => ({ ...prev, status: "published", version: data.version }));
         fetchForms();
       }
     } catch (_) {}
-    setSaving(false);
+    if (!skipSave) setSaving(false);
   };
 
   const addSection = async () => {
@@ -311,9 +316,18 @@ export default function PlatformForms() {
     }));
   };
 
-  const saveFields = async () => {
+  const saveFields = async (skipRepublishPrompt) => {
     if (!editingForm) return;
+    
+    // If form is published and user didn't already choose, show the prompt
+    // skipRepublishPrompt: undefined = show prompt, true = republish, "draft" = save only
+    if (editingForm.status === "published" && skipRepublishPrompt === undefined) {
+      setShowRepublishConfirm(true);
+      return;
+    }
+    
     setSaving(true);
+    const isRepublishing = editingForm.status === "published" && skipRepublishPrompt === true;
     try {
       // Delete sections that were removed by the user
       const currentSections = sections.filter((s) => s.id && !String(s.id).startsWith("tmp-"));
@@ -354,7 +368,7 @@ export default function PlatformForms() {
       });
       const data = await res.json();
       if (data.success) {
-        // Also save scoring config in a separate call (PUT handler branches on fields/sections vs metadata)
+        // Also save scoring config in a separate call
         if (scoringConfig) {
           try {
             await fetch("/api/platform/forms", {
@@ -364,7 +378,15 @@ export default function PlatformForms() {
             });
           } catch (_) {}
         }
-        notify("Form saved");
+        
+        // If republishing, also create a new version snapshot
+        if (isRepublishing) {
+          await handlePublish({ skipSave: true });
+          notify("Form republished — live URL updated");
+        } else {
+          notify("Form saved");
+        }
+        
         // Reload to get real DB IDs for new sections/fields
         try {
           const refresh = await fetch(`/api/platform/forms?id=${editingForm.id}`);
@@ -372,6 +394,7 @@ export default function PlatformForms() {
           if (fresh.success) {
             setSections((fresh.sections || []).map(s => ({ ...s, id: String(s.id) })));
             setFields((fresh.fields || []).map(f => ({ ...f, _tmpId: genTempId(), section_id: f.section_id ? String(f.section_id) : null })));
+            setEditingForm(fresh.form || editingForm);
           }
         } catch (_) {}
       } else notify(data.error || "Save failed");
@@ -852,13 +875,42 @@ export default function PlatformForms() {
           <button onClick={() => setPreviewMode(!previewMode)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${previewMode ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <Eye className="w-3 h-3 inline mr-1.5" />{previewMode ? "Editing" : "Preview"}
           </button>
-          <button onClick={saveFields} disabled={saving} className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{saving ? "Saving..." : "Save"}</button>
+          <button onClick={() => saveFields(false)} disabled={saving} className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{saving ? "Saving..." : "Save"}</button>
           {editingForm?.status === "published" ? (
-            <button onClick={() => router.push("/platform/runs")} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 shadow-[0_0_15px_rgba(255,102,0,0.3)] border border-[var(--brand-orange)] flex items-center">
-              <Play className="w-3 h-3 inline mr-1.5" /> Launch & Collect
-            </button>
+            <>
+              <button onClick={() => saveFields(true)} disabled={saving} className="px-3 py-2 rounded-xl bg-indigo-500 text-white text-[9px] font-black uppercase hover:bg-indigo-600 transition-all">
+                {saving ? "Publishing..." : "Republish"}
+              </button>
+              <button onClick={async () => {
+                // Auto-create a run for this form and navigate to it
+                setSaving(true);
+                try {
+                  const res = await fetch("/api/platform/form-runs", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ form_id: editingForm.id, name: editingForm.name + " Run", description: "Auto-created from form builder" }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    notify("Run created — launching...");
+                    // Launch the run
+                    await fetch("/api/platform/form-runs?action=launch", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: data.run.id }),
+                    });
+                    router.push("/platform/runs");
+                  } else {
+                    router.push("/platform/runs");
+                  }
+                } catch (_) { router.push("/platform/runs"); }
+                setSaving(false);
+              }} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 shadow-[0_0_15px_rgba(255,102,0,0.3)] border border-[var(--brand-orange)] flex items-center">
+                <Play className="w-3 h-3 inline mr-1.5" /> {saving ? "Creating..." : "Launch & Collect"}
+              </button>
+            </>
           ) : (
-            <button onClick={handlePublish} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110">{saving ? "Publishing..." : "Publish"}</button>
+            <button onClick={() => handlePublish()} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110">{saving ? "Publishing..." : "Publish"}</button>
           )}
         </div>
       </div>
@@ -1316,6 +1368,48 @@ export default function PlatformForms() {
           </div>
         </div>
       </div>
+
+      {/* Republish Confirmation Modal */}
+      {showRepublishConfirm && (
+        <div className="fixed inset-0 z-[500] bg-black/50 flex items-center justify-center p-6" onClick={() => setShowRepublishConfirm(false)}>
+          <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-indigo-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">This form is live</h3>
+                <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  <strong className="text-[var(--text-primary)]">&quot;{editingForm?.name}&quot;</strong> is currently published and accepting submissions.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <button
+                onClick={() => { setShowRepublishConfirm(false); saveFields(true); }}
+                className="w-full px-4 py-3 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-3.5 h-3.5" /> Save &amp; Republish — Update the live form
+              </button>
+              <button
+                onClick={() => { setShowRepublishConfirm(false); saveFields("draft"); }}
+                className="w-full px-4 py-3 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+              >
+                Save Draft Only — Don't change the live version
+              </button>
+              <button
+                onClick={() => setShowRepublishConfirm(false)}
+                className="w-full px-4 py-3 text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] uppercase"
+              >
+                Cancel
+              </button>
+            </div>
+            <p className="text-[8px] text-[var(--text-secondary)] text-center opacity-50">
+              Republishing creates a new version snapshot. Existing runs using older versions are unaffected.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
