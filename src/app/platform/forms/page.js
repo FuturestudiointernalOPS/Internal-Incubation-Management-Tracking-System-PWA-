@@ -286,12 +286,25 @@ export default function PlatformForms() {
       try {
         const existing = await fetch(`/api/platform/forms?id=${editingForm.id}`);
         const existingData = await existing.json();
-        if (existingData.success && existingData.sections) {
-          const existingIds = existingData.sections.map((s) => s.id);
-          const keptIds = currentSections.map((s) => s.id);
-          for (const existingId of existingIds) {
-            if (!keptIds.includes(existingId)) {
-              await fetch(`/api/platform/forms`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, sections: [{ id: existingId, _delete: true }] }) });
+        if (existingData.success) {
+          // Delete removed sections
+          if (existingData.sections) {
+            const existingIds = existingData.sections.map((s) => s.id);
+            const keptIds = currentSections.map((s) => s.id);
+            for (const existingId of existingIds) {
+              if (!keptIds.includes(existingId)) {
+                await fetch(`/api/platform/forms`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, sections: [{ id: existingId, _delete: true }] }) });
+              }
+            }
+          }
+          // Delete removed fields
+          if (existingData.fields) {
+            const currentFieldIds = fields.filter((f) => f.id && !String(f.id).startsWith("fld-")).map((f) => f.id);
+            const existingFieldIds = existingData.fields.map((f) => f.id);
+            for (const existingId of existingFieldIds) {
+              if (!currentFieldIds.includes(existingId)) {
+                await fetch(`/api/platform/forms`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, fields: [{ id: existingId, _delete: true }] }) });
+              }
             }
           }
         }

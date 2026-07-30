@@ -226,6 +226,14 @@ export async function PUT(req) {
       // Upsert fields
       if (Array.isArray(fields)) {
         for (const fld of fields) {
+          // Handle deletion: field marked for removal
+          if (fld._delete && fld.id) {
+            await db.execute({
+              sql: "DELETE FROM platform_form_fields WHERE id = ? AND form_id = ?",
+              args: [parseInt(fld.id), parseInt(id)],
+            });
+            continue;
+          }
           if (fld.id) {
             await db.execute({
               sql: `UPDATE platform_form_fields
