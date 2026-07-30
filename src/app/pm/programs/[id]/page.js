@@ -1065,6 +1065,7 @@ function ProgramWorkspace() {
         {/* WORKSPACE CONTENT */}
         <div className="pt-4">
           {activeTab === "overview" && (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="card space-y-4 border-l-4 border-blue-500">
                 <div className="flex justify-between items-start">
@@ -1179,6 +1180,7 @@ function ProgramWorkspace() {
                 </div>
               </div>
             )}
+            </>
           )}
 
           {activeTab === "participants" && (
