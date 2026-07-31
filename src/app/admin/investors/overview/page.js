@@ -64,8 +64,20 @@ export default function AdminInvestorOverview() {
           </div>
           <div className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              {[["Venture",detail.venture_name||"—"],["Investor",detail.investor_name||"—"],["Organization",detail.organization_name||"—"],["Stage",STAGE_LABELS[detail.stage]||detail.stage],["Date",new Date(detail.stage_changed_at).toLocaleDateString()]].map(([l,v],i)=>(<div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]"><p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{l}</p><p className="text-xs font-bold text-[var(--text-primary)] mt-1">{v}</p></div>))}
+              {[["Venture",detail.venture_name||"—"],["Investor",detail.investor_name||"—"],["Organization",detail.organization_name||"—"],["Stage",STAGE_LABELS[detail.stage]||detail.stage],["Email",detail.email||"—"],["Date",new Date(detail.stage_changed_at).toLocaleDateString()]].map(([l,v],i)=>(<div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]"><p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{l}</p><p className="text-xs font-bold text-[var(--text-primary)] mt-1">{v}</p></div>))}
             </div>
+            {/* Investor Profile */}
+            {(detail.industries?.length > 0 || detail.countries?.length > 0 || detail.startup_stages?.length > 0) && (
+              <div className="p-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border-primary)] space-y-2">
+                <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Investor Profile</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {detail.industries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Industries</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(detail.industries||[]).join(", ")}</p></div>}
+                  {detail.countries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Countries</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(detail.countries||[]).join(", ")}</p></div>}
+                  {detail.startup_stages?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Stages</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(detail.startup_stages||[]).join(", ")}</p></div>}
+                  {(detail.ticket_size_min || detail.ticket_size_max) && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Ticket</p><p className="text-[10px] font-bold text-[var(--text-primary)]">${detail.ticket_size_min||"0"}–${detail.ticket_size_max||"∞"}</p></div>}
+                </div>
+              </div>
+            )}
             {detail.notes ? (
               <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
                 <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1 flex items-center gap-1"><MessageSquare className="w-3 h-3"/> Investor Message</p>

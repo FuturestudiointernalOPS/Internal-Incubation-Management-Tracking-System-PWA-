@@ -122,5 +122,17 @@
   "fundingMilestone": "Jalon de financement",
   "ready": "prêt",
   "addPersonalNote": "Ajouter une note personnelle...",
-  "editNote": "Modifier la note"
+  "editNote": "Modifier la note",
+  "requestIntroduction": "Demander une introduction",
+  "openWorkspace": "Ouvrir l'espace",
+  "activeCampaigns": "Campagnes de financement actives",
+  "upcomingMeetings": "Réunions à venir",
+  "interested": "Intéressé",
+  "watching": "En observation",
+  "meetingRequested": "Introduction demandée",
+  "dueDiligence": "Due Diligence",
+  "negotiation": "Négociation",
+  "pipelineEmptyDesc": "Demandez des introductions depuis l'onglet Découvrir.",
+  "newRequest": "Nouvelle demande",
+  "submitRequest": "Soumettre"
 }

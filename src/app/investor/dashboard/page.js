@@ -14,6 +14,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
+import { useI18n } from "@/lib/i18n";
 
 const PIPELINE_STAGES = [
   "interested", "watching", "meeting_requested",
@@ -46,6 +47,7 @@ const STAGE_OPTIONS = ["Pre-Seed","Seed","Series A","Series B","Growth"];
 
 export default function InvestorDashboard() {
   const router = useRouter();
+  const { t } = useI18n();
   const [profile, setProfile] = useState(null);
   const [pipeline, setPipeline] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
@@ -456,8 +458,8 @@ export default function InvestorDashboard() {
             {(ventures.length > 0 ? ventures : recommendations).length === 0 ? (
               <div className="text-center py-16">
                 <Building2 className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
-                <p className="text-sm font-bold text-[var(--text-secondary)]">No ventures found</p>
-                <p className="text-xs text-[var(--text-tertiary)] mt-1">Try adjusting your filters or search terms.</p>
+                <p className="text-sm font-bold text-[var(--text-secondary)]">{t("noVentures")}</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">{t("noVentureDesc")}</p>
               </div>
             ) : (
               <>
@@ -505,13 +507,15 @@ export default function InvestorDashboard() {
                           )}
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] text-[var(--text-tertiary)]">{v.country || ""}{v.completion_index ? ` · ${Number(v.completion_index).toFixed(0)}%` : ""}</span>
-                            <button
-                              onClick={() => { setIntroVenture(v); setIntroMessage(""); setShowIntroModal(true); }}
-                              disabled={processingId !== null}
-                              className="flex items-center gap-1 text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline disabled:opacity-40 disabled:cursor-wait disabled:no-underline"
-                            >
-                              Request Introduction <ArrowRight className="w-3 h-3" />
-                            </button>
+                            {!pipeline.some(p => p.venture_id === v.id) && (
+                              <button
+                                onClick={() => { setIntroVenture(v); setIntroMessage(""); setShowIntroModal(true); }}
+                                disabled={processingId !== null}
+                                className="flex items-center gap-1 text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline disabled:opacity-40 disabled:cursor-wait disabled:no-underline"
+                              >
+                                Request Introduction <ArrowRight className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </AppCard>
@@ -574,7 +578,7 @@ export default function InvestorDashboard() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${STAGE_COLORS[p.stage]}`}>
-                          {STAGE_LABELS[p.stage]}
+                          {STAGE_LABELS[t(p.stage)] || p.stage}
                         </span>
                         {p.stage === "due_diligence" && (
                           <button onClick={() => router.push(`/investor/diligence?pipeline_id=${p.id}`)}

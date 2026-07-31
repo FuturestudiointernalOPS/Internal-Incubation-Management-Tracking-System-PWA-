@@ -122,5 +122,17 @@
   "fundingMilestone": "Funding Milestone",
   "ready": "ready",
   "addPersonalNote": "Add a personal note...",
-  "editNote": "Edit note"
+  "editNote": "Edit note",
+  "requestIntroduction": "Request Introduction",
+  "openWorkspace": "Open Workspace",
+  "activeCampaigns": "Active Fundraising Campaigns",
+  "upcomingMeetings": "Upcoming Meetings",
+  "interested": "Interested",
+  "watching": "Watching",
+  "meetingRequested": "Meeting Requested",
+  "dueDiligence": "Due Diligence",
+  "negotiation": "Negotiation",
+  "pipelineEmptyDesc": "Request introductions from the Discover tab.",
+  "newRequest": "New Request",
+  "submitRequest": "Submit"
 }
