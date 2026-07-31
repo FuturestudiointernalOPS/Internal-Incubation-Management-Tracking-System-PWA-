@@ -34,22 +34,20 @@ export async function POST(req) {
       args: [token, null, expiresAt, maxUses],
     });
 
-    const reqOrigin = req.headers.get("origin") || "";
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      reqOrigin ||
-      (() => {
-        try {
-          return new URL(req.url).origin;
-        } catch {
-          return "";
-        }
-      })() ||
-      "https://internal-incubation-management-tracking-system.vercel.app";
+    const reqOrigin = req.headers.get("origin");
+    let appUrl = reqOrigin && reqOrigin !== "null" ? reqOrigin : process.env.NEXT_PUBLIC_APP_URL || "";
+    if (!appUrl) {
+      try {
+        appUrl = new URL(req.url).origin;
+      } catch {
+        appUrl = "";
+      }
+    }
+    const invitePath = `/register-venture?token=${token}`;
     return NextResponse.json({
       success: true,
       token,
-      link: `${appUrl}/register-venture?token=${token}`,
+      link: appUrl ? `${appUrl}${invitePath}` : invitePath,
       expires_at: expiresAt,
       max_uses: maxUses,
     });

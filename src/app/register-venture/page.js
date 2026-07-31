@@ -23,7 +23,7 @@ function RegisterVentureContent() {
 
   useEffect(() => {
     if (!token) {
-      setError("Missing invitation token. Please use the link you received.");
+      // Public page: the form is visible without a token; submission validates it.
       setValidating(false);
       return;
     }
@@ -82,13 +82,19 @@ function RegisterVentureContent() {
 
         {validating ? (
           <p className="text-center text-sm py-8" style={{ color: "var(--text-secondary)" }}>Validating invitation...</p>
-        ) : error && !tokenValid ? (
+        ) : error && !tokenValid && token ? (
           <div className="text-center py-8">
             <p className="text-sm mb-4" style={{ color: "#ef4444" }}>{error}</p>
             <a href="/login" className="text-sm underline" style={{ color: "var(--brand-orange)" }}>Go to login</a>
           </div>
-        ) : tokenValid ? (
+        ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {!token && (
+              <div className="text-xs px-4 py-3 rounded-lg border" style={{ borderColor: "rgb(255 255 255 / 0.15)", color: "var(--text-secondary)" }}>
+                This form is public — an invitation link is required to actually create the venture. If you have one, append <b>?token=YOUR_TOKEN</b> to this page&apos;s URL.
+              </div>
+            )}
+            {error && token && !tokenValid && <p className="text-sm" style={{ color: "#ef4444" }}>{error}</p>}
             <div>
               <label className="block text-sm font-medium mb-1">Venture Name *</label>
               <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -139,7 +145,7 @@ function RegisterVentureContent() {
               {submitting ? "Creating..." : "Create Venture"}
             </button>
           </form>
-        ) : null}
+        )}
       </div>
     </div>
   );
