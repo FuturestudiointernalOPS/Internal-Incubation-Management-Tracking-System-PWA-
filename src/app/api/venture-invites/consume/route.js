@@ -42,16 +42,39 @@ export async function POST(req) {
     if (!dbId) return NextResponse.json({ success: false, error: "Failed to create venture" }, { status: 500 });
 
     // Add founder as member (founder type)
+    // Resolve the contact by email — create it if the person doesn't have an account yet,
+    // so they can access their venture as soon as they register.
+    let contactCid = null;
     try {
-      await db.execute({
-        sql: `INSERT INTO venture_members (venture_id, contact_id, member_type, role, permissions)
-              SELECT ?, cid, 'founder', 'founder', 'edit' FROM contacts WHERE LOWER(email) = LOWER(?)
-              UNION ALL
-              SELECT ?, 'new', 'founder', 'founder', 'edit' WHERE NOT EXISTS (SELECT 1 FROM contacts WHERE LOWER(email) = LOWER(?))`,
-        args: [dbId, founder_email, dbId, founder_email],
+      const existing = await db.execute({
+        sql: "SELECT cid FROM contacts WHERE LOWER(email) = LOWER(?)",
+        args: [founder_email],
       });
-    } catch (e) {
-      // non-blocking — member creation may fail if contact doesn't exist yet
+      contactCid = existing.rows?.[0]?.cid || null;
+    } catch {}
+    if (!contactCid) {
+      try {
+        const newCid = `USER_${uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12)}`;
+        const ins = await db.execute({
+          sql: `INSERT INTO contacts (cid, name, email, role, status, deleted)
+                VALUES (?, ?, ?, 'participant', 'active', 0) RETURNING cid`,
+          args: [newCid, founder_name.trim(), founder_email.trim()],
+        });
+        contactCid = ins.rows?.[0]?.cid || newCid;
+      } catch (e) {
+        console.warn("Failed to create founder contact:", e.message);
+      }
+    }
+    if (contactCid) {
+      try {
+        await db.execute({
+          sql: `INSERT INTO venture_members (venture_id, contact_id, member_type, role, permissions)
+                VALUES (?, ?, 'founder', 'founder', 'edit') ON CONFLICT DO NOTHING`,
+          args: [dbId, contactCid],
+        });
+      } catch (e) {
+        console.warn("Failed to add founder as member:", e.message);
+      }
     }
 
     // Increment usage

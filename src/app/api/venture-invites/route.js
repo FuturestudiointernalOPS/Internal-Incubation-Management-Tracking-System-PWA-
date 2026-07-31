@@ -34,13 +34,22 @@ export async function POST(req) {
       args: [token, null, expiresAt, maxUses],
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://internal-incubation-management-tracking-system-mxc5b5ai8.vercel.app";
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (() => {
+        try {
+          return new URL(req.url).origin;
+        } catch {
+          return "";
+        }
+      })() ||
+      "https://internal-incubation-management-tracking-system.vercel.app";
     return NextResponse.json({
       success: true,
       token,
       link: `${appUrl}/register-venture?token=${token}`,
       expires_at: expiresAt,
-      max_uses,
+      max_uses: maxUses,
     });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });

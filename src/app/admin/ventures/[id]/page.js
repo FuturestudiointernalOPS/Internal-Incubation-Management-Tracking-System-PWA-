@@ -29,12 +29,14 @@ import {
   Briefcase,
   Crown,
   Ban,
+  BarChart3,
   RefreshCw,
   Trash2,
   Flag,
   Columns,
   BookOpen,
   Star,
+  X,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 

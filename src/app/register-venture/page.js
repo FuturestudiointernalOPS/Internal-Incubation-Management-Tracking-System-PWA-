@@ -111,9 +111,9 @@ function RegisterVentureContent() {
                   className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
                   <option value="idea">Idea</option>
                   <option value="validation">Validation</option>
-                  <option value="mvp">MVP</option>
+                  <option value="early_traction">Early Traction</option>
                   <option value="growth">Growth</option>
-                  <option value="scale">Scale</option>
+                  <option value="scaling">Scaling</option>
                 </select>
               </div>
             </div>
