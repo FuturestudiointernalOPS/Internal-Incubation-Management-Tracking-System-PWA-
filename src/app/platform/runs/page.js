@@ -218,6 +218,9 @@ export default function FormRunsPage() {
   // Timeline for selected submission
   const [selectedSubmission, setSelectedSubmission] = useState(null);
 
+  // Form fields for spreadsheet column view
+  const [runFormFields, setRunFormFields] = useState([]);
+
   // Operational dashboard
   const [dashboardStats, setDashboardStats] = useState(null);
 
@@ -275,6 +278,15 @@ export default function FormRunsPage() {
         setAssignments(data.assignments || []);
         setRunSettings(data.run.settings || {});
       }
+
+      // Fetch form fields for spreadsheet column view
+      try {
+        const formRes = await fetch(`/api/platform/forms?id=${run.form_id}`);
+        const formData = await formRes.json();
+        if (formData.success) {
+          setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)).slice(0, 5));
+        }
+      } catch (_) {}
     } catch (_) {}
     setSubLoading(false);
   };
@@ -369,6 +381,16 @@ export default function FormRunsPage() {
       const evalData = await evalRes.json();
       if (evalData.success && evalData.evaluation) setEvaluation(evalData.evaluation);
     } catch (_) {}
+    // Fetch form fields to map IDs to labels
+    if (selectedRun?.form_id) {
+      try {
+        const formRes = await fetch(`/api/platform/forms?id=${selectedRun.form_id}`);
+        const formData = await formRes.json();
+        if (formData.success) {
+          setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)));
+        }
+      } catch (_) {}
+    }
   };
 
   const handleAssign = async () => {
@@ -441,6 +463,7 @@ export default function FormRunsPage() {
       { id: "overview", label: "Overview", icon: BarChart3 },
       { id: "share", label: "Share", icon: Link2 },
       { id: "assignments", label: `Assignments (${assignments.length})`, icon: Users },
+      { id: "responses", label: "All Responses", icon: FileText, href: "/platform/responses" },
       { id: "settings", label: "Settings", icon: Settings },
     ];
 
@@ -475,9 +498,15 @@ export default function FormRunsPage() {
         {/* Tabs */}
         <div className="flex items-center gap-0 px-6 border-b border-[var(--border-primary)] shrink-0 bg-secondary">
           {tabs.map((t) => (
-            <button key={t.id} onClick={() => setDetailTab(t.id)} className={cn("flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black uppercase border-b-2 transition-colors", detailTab === t.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
-              <t.icon className="w-3 h-3" /> {t.label}
-            </button>
+            t.href ? (
+              <a key={t.id} href={t.href} className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black uppercase border-b-2 transition-colors border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <t.icon className="w-3 h-3" /> {t.label}
+              </a>
+            ) : (
+              <button key={t.id} onClick={() => setDetailTab(t.id)} className={cn("flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black uppercase border-b-2 transition-colors", detailTab === t.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
+                <t.icon className="w-3 h-3" /> {t.label}
+              </button>
+            )
           ))}
         </div>
 
@@ -520,10 +549,14 @@ export default function FormRunsPage() {
                     <thead className="bg-tertiary">
                       <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
                         <th className="px-4 py-3">Submitter</th>
+                        {runFormFields.slice(0, 3).map(f => (
+                          <th key={f.id} className="px-3 py-3 max-w-[120px]" title={f.label}>
+                            <span className="line-clamp-1">{f.label.length > 25 ? f.label.substring(0, 25) + "..." : f.label}</span>
+                          </th>
+                        ))}
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">Score</th>
                         <th className="px-4 py-3">Submitted</th>
-                        <th className="px-4 py-3">Last Review</th>
                         <th className="px-4 py-3">Actions</th>
                       </tr>
                     </thead>
@@ -546,11 +579,26 @@ export default function FormRunsPage() {
                           : overall >= 60 ? "bg-amber-500/10"
                           : "bg-rose-500/10"
                           : "";
+                        
+                        // Helper to get field value from submission data
+                        const fv = (field) => {
+                          const val = subData[field.label] ?? subData[String(field.id)] ?? subData[field.id];
+                          if (val === undefined || val === null || val === "") return "—";
+                          const s = String(val);
+                          if (s.startsWith("{") && s.includes('"code"')) {
+                            try { const p = JSON.parse(s); if (p.code && p.number) return `${p.code} ${p.number}`; } catch (_) {}
+                          }
+                          return s.length > 30 ? s.substring(0, 30) + "..." : s;
+                        };
+                        
                         return (
                           <tr key={s.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.submitter_name || s.submitter_id}</div>
                             </td>
+                            {runFormFields.slice(0, 3).map(f => (
+                              <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-secondary)] max-w-[150px] truncate" title={fv(f)}>{fv(f)}</td>
+                            ))}
                             <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{sc.label}</span></td>
                             <td className="px-4 py-3">
                               {overall != null ? (
@@ -597,60 +645,69 @@ export default function FormRunsPage() {
           {/* ─── SHARE TAB ─── */}
           {detailTab === "share" && (() => {
             const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-            const slug = selectedRun.public_slug || selectedRun.id;
-            const submitUrl = `${baseUrl}/s/${slug}`;
-            const embedCode = `<iframe src="${submitUrl}" width="100%" height="600" frameborder="0" style="border-radius:12px;border:1px solid #334155;"></iframe>`;
+            const slug = selectedRun.public_slug;
+            const submitUrl = slug ? `${baseUrl}/s/${slug}` : null;
+            const embedCode = submitUrl ? `<iframe src="${submitUrl}" width="100%" height="600" frameborder="0" style="border-radius:12px;border:1px solid #334155;"></iframe>` : null;
             const isActive = selectedRun.status === "active";
             return (
               <div className="space-y-6 max-w-2xl">
-                {/* Direct Link */}
-                <div>
-                  <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Direct Link</h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">Share this URL with participants to access the form directly.</p>
-                  <div className="flex gap-2">
-                    <input
-                      readOnly
-                      value={submitUrl}
-                      className="flex-1 rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
-                    />
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(submitUrl); notify("Link copied!"); }}
-                      className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110"
-                    >
-                      Copy
-                    </button>
+                {!slug && (
+                  <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                    <p className="text-[10px] font-bold text-amber-400">This run was created before secure share links. Launch the run to generate a share URL.</p>
                   </div>
-                </div>
+                )}
+                {slug && (
+                  <>
+                    {/* Direct Link */}
+                    <div>
+                      <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Direct Link</h3>
+                      <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">Share this URL with participants to access the form directly. No login required.</p>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={submitUrl}
+                          className="flex-1 rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
+                        />
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(submitUrl); notify("Link copied!"); }}
+                          className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
 
-                {/* Embed Code */}
-                <div>
-                  <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Embed Code</h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">Embed this form on any website. Participants can submit directly from your page.</p>
-                  <div className="flex gap-2">
-                    <textarea
-                      readOnly
-                      rows={3}
-                      value={embedCode}
-                      className="flex-1 rounded-xl px-4 py-3 text-[10px] font-mono outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none"
-                    />
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(embedCode); notify("Embed code copied!"); }}
-                      className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 self-start"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
+                    {/* Embed Code */}
+                    <div>
+                      <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Embed Code</h3>
+                      <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">Embed this form on any website. Participants can submit directly from your page.</p>
+                      <div className="flex gap-2">
+                        <textarea
+                          readOnly
+                          rows={3}
+                          value={embedCode}
+                          className="flex-1 rounded-xl px-4 py-3 text-[10px] font-mono outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none"
+                        />
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(embedCode); notify("Embed code copied!"); }}
+                          className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 self-start"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Preview */}
-                {selectedRun.status === "active" && (
+                {isActive && slug && (
                   <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
                     <p className="text-[9px] font-bold text-emerald-400">✓ This run is active — links are live and accepting submissions.</p>
                   </div>
                 )}
                 {selectedRun.status === "draft" && (
                   <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
-                    <p className="text-[9px] font-bold text-amber-400">⚠️ Launch this run first before sharing links.</p>
+                    <p className="text-[9px] font-bold text-amber-400">⚠️ Launch this run first to generate a shareable link.</p>
                   </div>
                 )}
               </div>
@@ -898,25 +955,63 @@ export default function FormRunsPage() {
                     </div>
                   )}
 
-                  {Object.entries(reviewing.data).filter(([k]) => k !== "_scores" && k !== "_evaluation").map(([key, value]) => {
-                    // Format phone numbers stored as JSON
-                    let display = String(value);
-                    if (typeof value === "string" && value.startsWith("{") && value.includes('"code"')) {
-                      try {
-                        const p = JSON.parse(value);
-                        if (p.code && p.number) {
-                          const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+225", flag: "🇨🇮" }, { code: "+221", flag: "🇸🇳" }, { code: "+228", flag: "🇹🇬" }, { code: "+237", flag: "🇨🇲" }, { code: "+250", flag: "🇷🇼" }, { code: "+256", flag: "🇺🇬" }, { code: "+255", flag: "🇹🇿" }, { code: "+251", flag: "🇪🇹" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+86", flag: "🇨🇳" }, { code: "+971", flag: "🇦🇪" }, { code: "+55", flag: "🇧🇷" }].find(c => c.code === p.code);
-                          display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
+                  {(() => {
+                    // Map submission data keys to field labels using form structure
+                    const subData = reviewing.data || {};
+                    const entries = runFormFields
+                      .filter(f => {
+                        const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+                        return val !== undefined && val !== null && val !== "";
+                      })
+                      .map(f => {
+                        const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+                        let display = String(val);
+                        if (typeof val === "string" && val.startsWith("{") && val.includes('"code"')) {
+                          try {
+                            const p = JSON.parse(val);
+                            if (p.code && p.number) {
+                              const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+225", flag: "🇨🇮" }, { code: "+221", flag: "🇸🇳" }, { code: "+228", flag: "🇹🇬" }, { code: "+237", flag: "🇨🇲" }, { code: "+250", flag: "🇷🇼" }, { code: "+256", flag: "🇺🇬" }, { code: "+255", flag: "🇹🇿" }, { code: "+251", flag: "🇪🇹" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+86", flag: "🇨🇳" }, { code: "+971", flag: "🇦🇪" }, { code: "+55", flag: "🇧🇷" }].find(c => c.code === p.code);
+                              display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
+                            }
+                          } catch (_) {}
                         }
-                      } catch (_) {}
-                    }
+                        return { label: f.label, value: display };
+                      });
+                    
+                    // Fallback: show any unmatched data as raw only if no fields matched
+                    const unmatched = Object.entries(subData)
+                      .filter(([k]) => k !== "_scores" && k !== "_evaluation")
+                      .filter(([k]) => !runFormFields.some(f => String(f.id) === k || f.label === k));
+                    
                     return (
-                      <div key={key} className="flex items-start gap-2 text-[11px]">
-                        <span className="font-black text-[var(--text-secondary)] uppercase shrink-0">{key}:</span>
-                        <span className="text-[var(--text-primary)] font-bold break-all">{display}</span>
-                      </div>
+                      <>
+                        {entries.map(({ label, value }) => (
+                          <div key={label} className="flex items-start gap-2 text-[11px]">
+                            <span className="font-bold text-[var(--text-secondary)] shrink-0 min-w-[120px]">{label}</span>
+                            <span className="text-[var(--text-primary)] font-bold break-all">{value}</span>
+                          </div>
+                        ))}
+                        {unmatched.map(([key, value]) => {
+                          let display = String(value);
+                          if (typeof value === "string" && value.startsWith("{") && value.includes('"code"')) {
+                            try {
+                              const p = JSON.parse(value);
+                              if (p.code && p.number) {
+                                const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+225", flag: "🇨🇮" }, { code: "+221", flag: "🇸🇳" }, { code: "+228", flag: "🇹🇬" }, { code: "+237", flag: "🇨🇲" }, { code: "+250", flag: "🇷🇼" }, { code: "+256", flag: "🇺🇬" }, { code: "+255", flag: "🇹🇿" }, { code: "+251", flag: "🇪🇹" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+86", flag: "🇨🇳" }, { code: "+971", flag: "🇦🇪" }, { code: "+55", flag: "🇧🇷" }].find(c => c.code === p.code);
+                                display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
+                              }
+                            } catch (_) {}
+                          }
+                          return (
+                            <div key={key} className="flex items-start gap-2 text-[11px]">
+                              <span className="font-black text-[var(--text-secondary)] uppercase shrink-0">{key}:</span>
+                              <span className="text-[var(--text-primary)] font-bold break-all">{display}</span>
+                            </div>
+                          );
+                        })}
+                      </>
                     );
-                  })}
+                  })()}
                 </div>
               )}
 
