@@ -6,6 +6,11 @@ import { requireVentureAccess } from "@/lib/ventureAuth";
 const ROLES = ["participant", "staff", "program_manager", "super_admin", "teacher", "developer"];
 const ALLOWED = ["participant", "staff", "program_manager", "super_admin", "teacher"];
 
+async function resolveVentureDbId(ventureId) {
+  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  return r.rows?.[0]?.id || null;
+}
+
 // Live auto-calc for the sources we actually have data for. Anything else
 // falls back to the manually-entered current_value — don't over-build.
 async function autoCalc(ventureId, source) {
@@ -28,6 +33,8 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    const dbId = await resolveVentureDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const r = await db.execute({
       sql: `SELECT a.id, a.venture_id, a.kpi_definition_id, a.target_value, a.current_value, a.updated_at,
@@ -36,14 +43,14 @@ export async function GET(req, { params }) {
             JOIN venture_kpi_definitions d ON d.id = a.kpi_definition_id
             WHERE a.venture_id = ?
             ORDER BY d.name`,
-      args: [id],
+      args: [dbId],
     });
 
     const kpis = [];
     for (const row of r.rows || []) {
       let currentValue = row.current_value;
       if (row.auto_calc_source) {
-        const computed = await autoCalc(id, row.auto_calc_source);
+        const computed = await autoCalc(dbId, row.auto_calc_source);
         if (computed !== null) {
           currentValue = computed;
           await db.execute({ sql: "UPDATE venture_kpi_assignments SET current_value = ?, updated_at = NOW() WHERE id = ?", args: [computed, row.id] });
@@ -66,12 +73,14 @@ export async function POST(req, { params }) {
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    const dbId = await resolveVentureDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const { kpi_definition_id, target_value } = await req.json();
     if (!kpi_definition_id) return NextResponse.json({ success: false, error: "kpi_definition_id required" }, { status: 400 });
 
     try {
-      await db.execute({ sql: "INSERT INTO venture_kpi_assignments (venture_id, kpi_definition_id, target_value) VALUES (?,?,?)", args: [id, kpi_definition_id, target_value ?? null] });
+      await db.execute({ sql: "INSERT INTO venture_kpi_assignments (venture_id, kpi_definition_id, target_value) VALUES (?,?,?)", args: [dbId, kpi_definition_id, target_value ?? null] });
     } catch (e) {
       if (e.message?.includes("UNIQUE") || e.message?.includes("duplicate")) {
         return NextResponse.json({ success: false, error: "KPI already assigned to this venture" }, { status: 409 });

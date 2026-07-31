@@ -5,6 +5,11 @@ import { requireVentureAccess } from "@/lib/ventureAuth";
 
 const ROLES = ["participant", "staff", "program_manager", "super_admin", "teacher", "developer"];
 const PRIVILEGED = ["staff", "program_manager", "super_admin", "developer"];
+
+async function resolveVentureDbId(ventureId) {
+  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  return r.rows?.[0]?.id || null;
+}
 const STATUSES = ["private", "pending_review", "approved", "shared_with_investor"];
 
 export async function PATCH(req, { params }) {
