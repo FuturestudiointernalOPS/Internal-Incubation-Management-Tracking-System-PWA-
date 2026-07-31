@@ -655,7 +655,6 @@ export default function PlatformForms() {
             </button>
           </div>
         </div>
-        </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 max-w-sm">
