@@ -56,9 +56,9 @@ export async function POST(req) {
       try {
         const newCid = `USER_${uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12)}`;
         const ins = await db.execute({
-          sql: `INSERT INTO contacts (cid, name, email, role, status, deleted)
-                VALUES (?, ?, ?, 'participant', 'active', 0) RETURNING cid`,
-          args: [newCid, founder_name.trim(), founder_email.trim()],
+          sql: `INSERT INTO contacts (cid, name, email, password, role, status, deleted)
+                VALUES (?, ?, ?, ?, 'participant', 'active', 0) RETURNING cid`,
+          args: [newCid, founder_name.trim(), founder_email.trim(), "__SETUP_PENDING__"],
         });
         contactCid = ins.rows?.[0]?.cid || newCid;
       } catch (e) {
