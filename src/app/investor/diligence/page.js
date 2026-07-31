@@ -12,6 +12,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
+import { useI18n } from "@/lib/i18n";
 
 const REQUEST_CATEGORIES = [
   { id: "corporate", label: "Corporate", color: "bg-blue-500/10 text-blue-400" },
@@ -25,6 +26,7 @@ function DueDiligenceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pipelineId = searchParams.get("pipeline_id");
+  const { t } = useI18n();
 
   const [workspace, setWorkspace] = useState(null);
   const [requests, setRequests] = useState([]);
@@ -256,7 +258,7 @@ function DueDiligenceContent() {
           <button onClick={() => router.back()} className="p-2 hover:text-[var(--brand-orange)]"><ArrowLeft className="w-5 h-5" /></button>
           <div className="flex-1">
             <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Due Diligence: {pipeline?.venture_name || "Venture"}
+              {t("dueDiligence")}: {pipeline?.venture_name || "Venture"}
             </h1>
             <p className="text-xs text-[var(--text-secondary)]">{pipeline?.industry} · {pipeline?.country} · {pipeline?.business_stage}</p>
           </div>
@@ -339,8 +341,8 @@ function DueDiligenceContent() {
             {activeTab === "requests" && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Information Requests</h3>
-                  <AppButton variant="primary" size="sm" icon={Plus} onClick={() => setShowReqForm(true)}>New Request</AppButton>
+                  <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("requests")}</h3>
+                  <AppButton variant="primary" size="sm" icon={Plus} onClick={() => setShowReqForm(true)}>{t("newRequest")}</AppButton>
                 </div>
 
                 {showReqForm && (
@@ -378,8 +380,8 @@ function DueDiligenceContent() {
                         rows={2} placeholder="Additional details or comments..."
                         className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none" />
                       <div className="flex gap-2 justify-end">
-                        <AppButton variant="secondary" size="sm" onClick={() => setShowReqForm(false)}>Cancel</AppButton>
-                        <AppButton variant="primary" size="sm" icon={Send} onClick={addRequest}>Submit</AppButton>
+                        <AppButton variant="secondary" size="sm" onClick={() => setShowReqForm(false)}>{t("cancel")}</AppButton>
+                        <AppButton variant="primary" size="sm" icon={Send} onClick={addRequest}>{t("submit")}</AppButton>
                       </div>
                     </div>
                   </AppCard>

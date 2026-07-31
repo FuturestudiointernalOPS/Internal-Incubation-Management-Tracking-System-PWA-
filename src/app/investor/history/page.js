@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
+import { useI18n } from "@/lib/i18n";
 
 const DECISION_COLORS = {
   invest: "bg-emerald-500/10 text-emerald-400",
