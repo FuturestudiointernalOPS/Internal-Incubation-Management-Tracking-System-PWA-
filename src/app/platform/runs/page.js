@@ -218,6 +218,9 @@ export default function FormRunsPage() {
   // Timeline for selected submission
   const [selectedSubmission, setSelectedSubmission] = useState(null);
 
+  // Form fields for spreadsheet column view
+  const [runFormFields, setRunFormFields] = useState([]);
+
   // Operational dashboard
   const [dashboardStats, setDashboardStats] = useState(null);
 
@@ -275,6 +278,15 @@ export default function FormRunsPage() {
         setAssignments(data.assignments || []);
         setRunSettings(data.run.settings || {});
       }
+
+      // Fetch form fields for spreadsheet column view
+      try {
+        const formRes = await fetch(`/api/platform/forms?id=${run.form_id}`);
+        const formData = await formRes.json();
+        if (formData.success) {
+          setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)).slice(0, 5));
+        }
+      } catch (_) {}
     } catch (_) {}
     setSubLoading(false);
   };
@@ -527,10 +539,12 @@ export default function FormRunsPage() {
                     <thead className="bg-tertiary">
                       <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
                         <th className="px-4 py-3">Submitter</th>
+                        {runFormFields.map(f => (
+                          <th key={f.id} className="px-3 py-3 whitespace-nowrap">{f.label}</th>
+                        ))}
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">Score</th>
                         <th className="px-4 py-3">Submitted</th>
-                        <th className="px-4 py-3">Last Review</th>
                         <th className="px-4 py-3">Actions</th>
                       </tr>
                     </thead>
@@ -553,11 +567,26 @@ export default function FormRunsPage() {
                           : overall >= 60 ? "bg-amber-500/10"
                           : "bg-rose-500/10"
                           : "";
+                        
+                        // Helper to get field value from submission data
+                        const fv = (field) => {
+                          const val = subData[field.label] ?? subData[String(field.id)] ?? subData[field.id];
+                          if (val === undefined || val === null || val === "") return "—";
+                          const s = String(val);
+                          if (s.startsWith("{") && s.includes('"code"')) {
+                            try { const p = JSON.parse(s); if (p.code && p.number) return `${p.code} ${p.number}`; } catch (_) {}
+                          }
+                          return s.length > 30 ? s.substring(0, 30) + "..." : s;
+                        };
+                        
                         return (
                           <tr key={s.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.submitter_name || s.submitter_id}</div>
                             </td>
+                            {runFormFields.map(f => (
+                              <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-secondary)] max-w-[150px] truncate">{fv(f)}</td>
+                            ))}
                             <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{sc.label}</span></td>
                             <td className="px-4 py-3">
                               {overall != null ? (

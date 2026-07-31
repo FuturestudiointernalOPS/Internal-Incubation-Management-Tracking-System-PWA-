@@ -10,7 +10,7 @@ import {
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
-  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban,
+  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch,
 } from "lucide-react";
 
 /**
@@ -88,6 +88,10 @@ export default function PlatformForms() {
   // Re-publish confirmation
   const [showRepublishConfirm, setShowRepublishConfirm] = useState(false);
 
+  // Workflow config panel
+  const [showWorkflow, setShowWorkflow] = useState(false);
+  const [workflowConfig, setWorkflowConfig] = useState(null);
+
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
   const fetchForms = useCallback(async () => {
@@ -126,6 +130,9 @@ export default function PlatformForms() {
       ? { ...formSettings.scoring }
       : { enabled: false, max_per_question: 0, sections: {}, rankings: [{ min: 0, max: 59, label: "Needs Work" }, { min: 60, max: 79, label: "Good" }, { min: 80, max: 100, label: "Excellent" }] }
     );
+
+    // Load workflow config from form settings
+    setWorkflowConfig(formSettings.workflow || null);
 
     try {
       const res = await fetch(`/api/platform/forms?id=${form.id}`);
@@ -867,8 +874,11 @@ export default function PlatformForms() {
           <button onClick={() => { setShowAiEval(!showAiEval); setShowScoring(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showAiEval ? "bg-purple-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <Sparkles className="w-3 h-3 inline mr-1.5" />AI Eval {aiEvalFramework && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
-          <button onClick={() => { setShowScoring(!showScoring); setShowAiEval(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showScoring ? "bg-indigo-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
+          <button onClick={() => { setShowScoring(!showScoring); setShowAiEval(false); setShowWorkflow(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showScoring ? "bg-indigo-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <BarChart3 className="w-3 h-3 inline mr-1.5" />Scoring {scoringConfig?.enabled && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+          </button>
+          <button onClick={() => { setShowWorkflow(!showWorkflow); setShowAiEval(false); setShowScoring(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showWorkflow ? "bg-amber-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
+            <GitBranch className="w-3 h-3 inline mr-1.5" />Workflow {workflowConfig && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
           <button onClick={() => setPreviewMode(!previewMode)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${previewMode ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <Eye className="w-3 h-3 inline mr-1.5" />{previewMode ? "Editing" : "Preview"}
@@ -1080,6 +1090,113 @@ export default function PlatformForms() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Workflow Configuration Panel */}
+      {showWorkflow && (
+        <div className="px-6 py-4 bg-secondary border-b border-[var(--border-primary)] space-y-4 shrink-0 max-h-[50vh] overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <GitBranch className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Workflow Configuration</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={saving}
+                onClick={async () => {
+                  if (!editingForm) return;
+                  setSaving(true);
+                  try {
+                    await fetch("/api/platform/forms", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: editingForm.id, settings: { ...(editingForm.settings || {}), workflow: workflowConfig } }),
+                    });
+                    notify("Workflow saved");
+                  } catch (_) {}
+                  setSaving(false);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-[9px] font-black uppercase hover:bg-amber-600 transition-all"
+              >
+                Save Workflow
+              </button>
+              <button onClick={() => setShowWorkflow(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+            Customize the decision labels and status names for this form's review workflow. Leave empty to use defaults (Approve / Reject / Request Revision).
+          </p>
+
+          {(() => {
+            const wf = workflowConfig || { decisions: [], statusLabels: {} };
+            const defaults = [
+              { id: "approved", defaultLabel: "Approve", defaultColor: "emerald" },
+              { id: "rejected", defaultLabel: "Reject", defaultColor: "rose" },
+              { id: "revision_requested", defaultLabel: "Request Revision", defaultColor: "amber" },
+            ];
+            const decisions = defaults.map(d => {
+              const existing = (wf.decisions || []).find(x => x.id === d.id);
+              return existing || { id: d.id, label: d.defaultLabel, color: d.defaultColor, icon: "CheckCircle2" };
+            });
+
+            return (
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Decision Buttons</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  {decisions.map((d, i) => (
+                    <div key={d.id} className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">
+                        {d.id === "approved" ? "Positive" : d.id === "rejected" ? "Negative" : "Needs Work"}
+                      </label>
+                      <input
+                        value={d.label}
+                        onChange={e => {
+                          const next = [...decisions];
+                          next[i] = { ...next[i], label: e.target.value };
+                          setWorkflowConfig({ ...wf, decisions: next });
+                        }}
+                        placeholder={d.defaultLabel}
+                        className="w-full px-2 py-1.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-2">Status Labels</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: "submitted", defaultLabel: "Submitted" },
+                    { id: "approved", defaultLabel: "Approved" },
+                    { id: "rejected", defaultLabel: "Rejected" },
+                    { id: "revision_requested", defaultLabel: "Revision" },
+                    { id: "draft", defaultLabel: "Draft" },
+                  ].map(st => {
+                    const val = (wf.statusLabels || {})[st.id] || "";
+                    return (
+                      <div key={st.id} className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                        <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{st.defaultLabel} →</label>
+                        <input
+                          value={val}
+                          onChange={e => setWorkflowConfig({ ...wf, statusLabels: { ...(wf.statusLabels || {}), [st.id]: e.target.value } })}
+                          placeholder={st.defaultLabel}
+                          className="w-full px-2 py-1.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => setWorkflowConfig(null)}
+                  className="text-[9px] font-bold text-rose-500 hover:text-rose-400 uppercase"
+                >
+                  Reset to defaults
+                </button>
+              </div>
+            );
+          })()}
         </div>
       )}
 
