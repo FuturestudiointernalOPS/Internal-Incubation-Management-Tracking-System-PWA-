@@ -1,108 +1,53 @@
+import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/lib/auth";
-import {
-  listMilestones, getMilestone, createMilestone, updateMilestone, deleteMilestone,
-  listDeliverables, getDeliverable, createDeliverable, updateDeliverable, deleteDeliverable,
-  MILESTONE_STATUSES, DELIVERABLE_STATUSES, DELIVERABLE_TYPES,
-} from "@/lib/ventures";
 
-/**
- * GET /api/ventures/[id]/milestones[?project_id=xxx]
- * POST /api/ventures/[id]/milestones — create milestone
- */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { searchParams } = new URL(req.url);
-  const projectId = searchParams.get("project_id");
-  const milestones = await listMilestones(id, projectId);
-  return NextResponse.json({ success: true, milestones });
+  const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+  const ventureDbId = ventureRes.rows?.[0]?.id;
+  if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+  const r = await db.execute({ sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC", args: [ventureDbId] });
+  return NextResponse.json({ success: true, milestones: r.rows || [] });
 });
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
   const body = await req.json();
-  const { title, description, priority, due_date, owner_cid, assigned_members, display_order } = body;
-
+  const { title, description, target_date } = body;
   if (!title?.trim()) return NextResponse.json({ success: false, error: "Milestone title is required." }, { status: 400 });
 
-  try {
-    const result = await createMilestone({
-      ventureId: id, projectId: body.project_id, title, description, priority, dueDate: due_date,
-      ownerCid: owner_cid, assignedMembers: assigned_members, displayOrder: display_order,
-      createdBy: req.session?.cid,
-    });
-    const milestone = await getMilestone(result.id);
-    return NextResponse.json({ success: true, milestone });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 400 });
-  }
-});
+  const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+  const ventureDbId = ventureRes.rows?.[0]?.id;
+  if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-// ─── SINGLE MILESTONE ROUTES ───────────────────────────────────────────────
+  const randomUUID = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3|0x8); return v.toString(16); });
+
+  await db.execute({
+    sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by) VALUES (?, ?, ?, ?, ?, 'not_started', 0, ?)`,
+    args: [randomUUID, ventureDbId, title, description || null, target_date || null, req.session?.cid || null],
+  });
+  return NextResponse.json({ success: true });
+});
 
 export const PATCH = createHandler(async (req, { params }) => {
   const { searchParams } = new URL(req.url);
   const mid = searchParams.get("id");
   if (!mid) return NextResponse.json({ success: false, error: "Milestone ID required." }, { status: 400 });
 
-  const existing = await getMilestone(parseInt(mid));
-  if (!existing) return NextResponse.json({ success: false, error: "Milestone not found." }, { status: 404 });
-
   const body = await req.json();
-  await updateMilestone(parseInt(mid), body);
-  const milestone = await getMilestone(parseInt(mid));
-  return NextResponse.json({ success: true, milestone });
-});
+  const { progress, status, title, description, target_date } = body;
 
-export const DELETE = createHandler(async (req, { params }) => {
-  const { searchParams } = new URL(req.url);
-  const mid = searchParams.get("id");
-  if (!mid) return NextResponse.json({ success: false, error: "Milestone ID required." }, { status: 400 });
+  const updates = ["updated_at = NOW()"];
+  const args = [];
+  if (progress !== undefined) { updates.push("progress = ?"); args.push(progress); }
+  if (status !== undefined) { updates.push("status = ?"); args.push(status); }
+  if (title !== undefined) { updates.push("title = ?"); args.push(title); }
+  if (description !== undefined) { updates.push("description = ?"); args.push(description); }
+  if (target_date !== undefined) { updates.push("target_date = ?"); args.push(target_date); }
 
-  await deleteMilestone(parseInt(mid));
+  if (updates.length === 1) return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
+  args.push(mid);
+  await db.execute({ sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ?`, args });
   return NextResponse.json({ success: true });
-});
-
-// ─── DELIVERABLE SUB-ROUTES (via query params) ─────────────────────────────
-
-export const PUT = createHandler(async (req, { params }) => {
-  const { searchParams } = new URL(req.url);
-  const action = searchParams.get("action");
-  const did = searchParams.get("deliverable_id");
-  const body = await req.json();
-  const session = req.session;
-
-  if (action === "create_deliverable") {
-    const { id } = await params;
-    const { milestone_id, title, description, deliverable_type, due_date, assigned_cid } = body;
-    if (!milestone_id) return NextResponse.json({ success: false, error: "milestone_id required." }, { status: 400 });
-    if (!title?.trim()) return NextResponse.json({ success: false, error: "Deliverable title required." }, { status: 400 });
-
-    const result = await createDeliverable({
-      milestoneId: parseInt(milestone_id), ventureId: id, title, description,
-      deliverableType: deliverable_type, dueDate: due_date, assignedCid: assigned_cid,
-      createdBy: session?.cid,
-    });
-    const del = await getDeliverable(result.id);
-    return NextResponse.json({ success: true, deliverable: del });
-  }
-
-  if (action === "update_deliverable" && did) {
-    await updateDeliverable(parseInt(did), body, session?.cid, session?.name);
-    const del = await getDeliverable(parseInt(did));
-    return NextResponse.json({ success: true, deliverable: del });
-  }
-
-  if (action === "delete_deliverable" && did) {
-    await deleteDeliverable(parseInt(did));
-    return NextResponse.json({ success: true });
-  }
-
-  if (action === "get_deliverables" && did) {
-    const deliverables = await listDeliverables(parseInt(did));
-    return NextResponse.json({ success: true, deliverables });
-  }
-
-  return NextResponse.json({ success: false, error: "Invalid action." }, { status: 400 });
 });

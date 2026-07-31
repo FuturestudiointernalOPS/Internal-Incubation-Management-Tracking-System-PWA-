@@ -6,6 +6,12 @@ import {
   listTaskComments, addTaskComment, deleteTaskComment,
   listTaskAttachments, addTaskAttachment, deleteTaskAttachment,
 } from "@/lib/ventures";
+import db from "@/lib/db";
+
+async function resolveVentureDbId(ventureId) {
+  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  return r.rows?.[0]?.id || null;
+}
 
 /**
  * GET /api/ventures/[id]/tasks?milestone_id=X&status=X&assigned_cid=X
@@ -15,8 +21,10 @@ import {
  */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
+  const dbId = await resolveVentureDbId(id);
+  if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
   const s = new URL(req.url).searchParams;
-  const tasks = await listTasks(id, s.get("milestone_id"), s.get("status"), s.get("assigned_cid"));
+  const tasks = await listTasks(dbId, s.get("milestone_id"), s.get("status"), s.get("assigned_cid"));
 
   // Group by status for Kanban
   const byStatus = {};
@@ -29,14 +37,17 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
+  const dbId = await resolveVentureDbId(id);
+  if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
   const body = await req.json();
   if (!body.title?.trim()) return NextResponse.json({ success: false, error: "Task title is required." }, { status: 400 });
 
   const result = await createTask({
-    ventureId: id, milestoneId: body.milestone_id, title: body.title, description: body.description,
+    ventureId: dbId, milestoneId: body.milestone_id, title: body.title, description: body.description,
     priority: body.priority, dueDate: body.due_date, estimatedHours: body.estimated_hours,
     assignedCid: body.assigned_cid, assignedName: body.assigned_name,
     reporterCid: req.session?.cid, reporterName: req.session?.name, labels: body.labels,
+    parentTaskId: body.parent_task_id,
   });
   const task = await getTask(result.id);
   return NextResponse.json({ success: true, task });

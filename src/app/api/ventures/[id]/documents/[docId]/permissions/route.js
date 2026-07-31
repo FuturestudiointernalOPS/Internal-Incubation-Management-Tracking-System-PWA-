@@ -57,6 +57,7 @@ export async function PATCH(req, { params }) {
     if (!["none", "view", "edit"].includes(access_level)) return NextResponse.json({ success: false, error: "access_level must be none, view, or edit" }, { status: 400 });
 
     if (access_level === "none") {
+      // Remove permission row entirely
       await db.execute({ sql: "DELETE FROM venture_document_permissions WHERE document_id = ? AND role_scope = ?", args: [docId, role_scope] });
     } else {
       await db.execute({

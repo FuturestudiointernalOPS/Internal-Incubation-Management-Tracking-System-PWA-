@@ -6,6 +6,11 @@ import { requireVentureAccess } from "@/lib/ventureAuth";
 const ROLES = ["participant", "staff", "program_manager", "super_admin", "teacher", "developer"];
 const ALLOWED = ["participant", "staff", "program_manager", "super_admin", "teacher"];
 
+async function resolveVentureDbId(ventureId) {
+  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  return r.rows?.[0]?.id || null;
+}
+
 export async function GET(req, { params }) {
   try {
     await initDb();
@@ -15,9 +20,12 @@ export async function GET(req, { params }) {
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
+    const dbId = await resolveVentureDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+
     const r = await db.execute({
       sql: `SELECT * FROM venture_validations WHERE venture_id = ? ORDER BY created_at DESC`,
-      args: [id],
+      args: [dbId],
     });
     return NextResponse.json({ success: true, validations: r.rows || [] });
   } catch (e) {
@@ -34,6 +42,9 @@ export async function POST(req, { params }) {
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
+    const dbId = await resolveVentureDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+
     const { validation_type, status, notes } = await req.json();
     if (!validation_type) {
       return NextResponse.json({ success: false, error: "validation_type is required" }, { status: 400 });
@@ -44,7 +55,7 @@ export async function POST(req, { params }) {
     await db.execute({
       sql: `INSERT INTO venture_validations (venture_id, validation_type, status, notes, created_by)
             VALUES (?, ?, ?, ?, ?)`,
-      args: [id, validation_type, status || "in_progress", notes || null, session.cid],
+      args: [dbId, validation_type, status || "in_progress", notes || null, session.cid],
     });
     return NextResponse.json({ success: true });
   } catch (e) {
@@ -61,6 +72,9 @@ export async function PATCH(req, { params }) {
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
+    const dbId = await resolveVentureDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+
     const body = await req.json();
     const { validation_id, status, notes } = body;
     if (!validation_id) {
@@ -73,7 +87,7 @@ export async function PATCH(req, { params }) {
     if (updates.length <= 1) {
       return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
     }
-    args.push(validation_id, id);
+    args.push(validation_id, dbId);
     await db.execute({
       sql: `UPDATE venture_validations SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
       args: args,
