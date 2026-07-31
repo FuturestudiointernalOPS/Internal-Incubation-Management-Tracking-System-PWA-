@@ -31,6 +31,7 @@ const publicPaths = [
   "/invite",
   "/register-participant",
   "/register-staff",
+  "/register-venture",
   "/s",
   "/_next",
   "/brand",
@@ -48,6 +49,7 @@ const publicApiPaths = [
   "/api/auth/invite-family",
   "/api/contacts",
   "/api/invites",
+  "/api/venture-invites",
   "/api/migrate",
   "/api/s",
 ];
