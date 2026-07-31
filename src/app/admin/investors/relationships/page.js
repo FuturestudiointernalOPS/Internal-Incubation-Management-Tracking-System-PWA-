@@ -46,6 +46,7 @@ export default function AdminRelationshipsPage() {
   const [staffList, setStaffList] = useState([]);
   const [assignField, setAssignField] = useState(null);
   const [assignSearch, setAssignSearch] = useState("");
+  const [expandedIntros, setExpandedIntros] = useState({});
 
   // Meeting form
   const [meetingForm, setMeetingForm] = useState({
@@ -678,20 +679,37 @@ export default function AdminRelationshipsPage() {
                   const alreadyHas = workspaces.some(w => w.venture_id === p.venture_id && w.investor_id === p.investor_id);
                   return (
                     <AppCard key={p.id} padding="md">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-bold text-[var(--text-primary)]">{p.venture_name || "Venture"}</p>
-                          <p className="text-[10px] text-[var(--text-secondary)]">
-                            {p.investor_name || "Investor"}{p.organization_name ? ` · ${p.organization_name}` : ""} · Meeting requested
-                          </p>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-bold text-[var(--text-primary)]">{p.venture_name || "Venture"}</p>
+                            <p className="text-[10px] text-[var(--text-secondary)]">
+                              {p.investor_name || "Investor"}{p.organization_name ? ` · ${p.organization_name}` : ""} · Meeting requested
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setExpandedIntros(prev => ({...prev, [p.id]: !prev[p.id]}))}
+                              className="text-[9px] font-bold text-[var(--brand-orange)] hover:underline">
+                              {expandedIntros[p.id] ? "Hide Profile" : "View Investor Profile"}
+                            </button>
+                            {!alreadyHas ? (
+                              <AppButton variant="primary" size="sm" icon={CheckCircle2}
+                                onClick={() => handleCreateWorkspace(p.id)}>
+                                Approve & Create Workspace
+                              </AppButton>
+                            ) : (
+                              <span className="text-[10px] text-emerald-400 font-bold">Workspace exists</span>
+                            )}
+                          </div>
                         </div>
-                        {!alreadyHas ? (
-                          <AppButton variant="primary" size="sm" icon={CheckCircle2}
-                            onClick={() => handleCreateWorkspace(p.id)}>
-                            Approve & Create Workspace
-                          </AppButton>
-                        ) : (
-                          <span className="text-[10px] text-emerald-400 font-bold">Workspace exists</span>
+                        {expandedIntros[p.id] && (
+                          <div className="p-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border-primary)] grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {p.industries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Industries</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.industries||[]).join(", ")}</p></div>}
+                            {p.countries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Countries</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.countries||[]).join(", ")}</p></div>}
+                            {p.startup_stages?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Stages</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.startup_stages||[]).join(", ")}</p></div>}
+                            {(p.ticket_size_min || p.ticket_size_max) && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Ticket</p><p className="text-[10px] font-bold text-[var(--text-primary)]">${p.ticket_size_min||"0"}–${p.ticket_size_max||"∞"}</p></div>}
+                            {p.email && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Email</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{p.email}</p></div>}
+                          </div>
                         )}
                       </div>
                     </AppCard>

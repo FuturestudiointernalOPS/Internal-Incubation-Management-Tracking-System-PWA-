@@ -240,11 +240,14 @@ export async function GET(req) {
       args = [ventureId];
     } else if (stage && (user.role === "super_admin" || user.role === "staff")) {
       // Admin filtering by stage (e.g., meeting_requested)
-      sql = `SELECT ip.*, p.name as venture_name, ipr.organization_name, c.name as investor_name, c.email
+      sql = `SELECT ip.*, p.name as venture_name, ipr.organization_name, c.name as investor_name, c.email,
+                     ipref.industries, ipref.countries, ipref.startup_stages,
+                     ipref.ticket_size_min, ipref.ticket_size_max
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
              LEFT JOIN investor_profiles ipr ON ip.investor_id = ipr.id
              LEFT JOIN contacts c ON ipr.user_id = c.cid
+             LEFT JOIN investor_preferences ipref ON ipref.investor_id = ipr.id
              WHERE ip.stage = ?
              ORDER BY ip.stage_changed_at DESC`;
       args = [stage];
