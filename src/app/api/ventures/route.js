@@ -10,7 +10,7 @@ import { updateVenture } from "@/lib/ventures";
  * List all ventures with summary counts.
  */
 export const GET = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
+  { roles: ["super_admin", "staff", "program_manager", "participant", "founder", "teacher", "developer"] },
   async (req) => {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
@@ -27,8 +27,8 @@ export const GET = createHandler(
     const contactId = searchParams.get("contact_id");
 
     if (contactId) {
-      sql += " AND v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ?)";
-      args.push(contactId);
+      sql += " AND v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?)";
+      args.push(contactId, contactId);
     }
 
     if (status) {

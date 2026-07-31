@@ -14,6 +14,20 @@ import {
 import { useRouter } from "next/navigation";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 
+// Founders land directly on their venture dashboard after login
+async function getFounderVentureTarget(cid) {
+  try {
+    const res = await fetch(`/api/ventures?contact_id=${encodeURIComponent(cid)}`);
+    const d = await res.json();
+    if (d.success && d.ventures?.length > 0) {
+      return `/participant/ventures/${d.ventures[0].venture_id}`;
+    }
+  } catch (e) {
+    console.error("Failed to resolve founder venture:", e);
+  }
+  return "/participant";
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,8 +58,8 @@ export default function LoginPage() {
         localStorage.setItem("user", JSON.stringify(data.user));
         setSuccess(true);
         // Use full page navigation to ensure the session cookie is sent
-        setTimeout(() => {
-          const target =
+        setTimeout(async () => {
+          let target =
             data.user.role === "super_admin"
               ? "/admin"
               : data.user.role === "program_manager"
@@ -58,11 +72,13 @@ export default function LoginPage() {
                       ? "/developer"
                       : data.user.role === "team"
                         ? "/team/" + data.user.team_id
-                        : data.user.role === "participant"
-                          ? "/participant"
-                          : data.user.role === "finance"
-                            ? "/finance"
-                            : "/participant";
+                        : data.user.role === "founder"
+                          ? await getFounderVentureTarget(data.user.cid)
+                          : data.user.role === "participant"
+                            ? "/participant"
+                            : data.user.role === "finance"
+                              ? "/finance"
+                              : "/participant";
           window.location.href = target;
         }, 800);
       } else {

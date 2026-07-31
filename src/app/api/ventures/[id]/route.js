@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import db, { initDb } from "@/lib/db";
 import {
   getVentureById,
   updateVenture,
@@ -14,9 +15,15 @@ import {
  * Fetch a venture by its venture_id with all related data.
  */
 export const GET = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
+  { roles: ["super_admin", "staff", "program_manager", "participant", "founder", "teacher", "developer"] },
   async (req, { params }) => {
     const { id } = await params;
+
+    const { requireVentureAccess } = await import("@/lib/ventureAuth");
+    const { session } = await requireVentureAccess(id, db);
+    if (!session) {
+      return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+    }
 
     const venture = await getVentureById(id);
 
