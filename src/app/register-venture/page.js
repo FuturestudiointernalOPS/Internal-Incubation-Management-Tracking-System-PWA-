@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import GlobalToast from "@/components/ui/GlobalToast";
 
 function RegisterVentureContent() {
   const router = useRouter();
@@ -16,7 +17,6 @@ function RegisterVentureContent() {
     name: "",
     description: "",
     industry: "",
-    business_stage: "idea",
     founder_name: "",
     founder_email: "",
   });
@@ -52,8 +52,16 @@ function RegisterVentureContent() {
       });
       const d = await res.json();
       if (d.success) {
-        alert("Venture created successfully! You can now log in and access it.");
-        router.push("/login");
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "success",
+              message: "Venture created successfully — you can now log in",
+              duration: 5000,
+            },
+          })
+        );
+        setTimeout(() => router.push("/login"), 2500);
       } else {
         setError(d.error || "Failed to create venture");
         setSubmitting(false);
@@ -71,7 +79,9 @@ function RegisterVentureContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: "#020617", color: "var(--text-primary)" }}>
+    <>
+      <GlobalToast />
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: "#020617", color: "var(--text-primary)" }}>
       <div className="w-full max-w-lg rounded-2xl p-8 border shadow-xl" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)" }}>
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold">🚀 Create Your Venture</h1>
@@ -105,23 +115,10 @@ function RegisterVentureContent() {
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={3} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Industry *</label>
-                <input required value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder="e.g. EdTech" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Business Stage</label>
-                <select value={form.business_stage} onChange={(e) => setForm({ ...form, business_stage: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
-                  <option value="idea">Idea</option>
-                  <option value="validation">Validation</option>
-                  <option value="early_traction">Early Traction</option>
-                  <option value="growth">Growth</option>
-                  <option value="scaling">Scaling</option>
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Industry *</label>
+              <input required value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder="e.g. EdTech" />
             </div>
             <div className="border-t pt-4" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
               <p className="text-sm font-medium mb-3">Founder Information</p>
@@ -147,7 +144,8 @@ function RegisterVentureContent() {
           </form>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
