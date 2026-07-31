@@ -301,16 +301,6 @@ const NAVIGATION_MATRIX = {
     },
 
     {
-      id: "investors",
-      name: "INVESTORS",
-      icon: TrendingUp,
-      subItems: [
-        { id: "investor_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
-        { id: "investor_pipeline", name: "PIPELINE", href: "/admin/investors" },
-      ],
-    },
-
-    {
       id: "ventures",
       name: "VENTURES",
       icon: Rocket,
@@ -333,8 +323,11 @@ const NAVIGATION_MATRIX = {
       icon: Briefcase,
       subItems: [
         { id: "investors_manage", name: "MANAGE", href: "/admin/investors" },
+        { id: "investors_dashboard", name: "DASHBOARD", href: "/admin/investors/dashboard" },
         { id: "investors_review", name: "REVIEW", href: "/admin/investors/review" },
         { id: "investors_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
+        { id: "investors_campaigns", name: "CAMPAIGNS", href: "/admin/investors/campaigns" },
+        { id: "investors_relationships", name: "RELATIONSHIPS", href: "/admin/investors/relationships" },
       ],
     },
 
@@ -1045,8 +1038,8 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   ]);
 
   useEffect(() => {
-    // First load already done by initAuth — skip immediate fetch
-    const id = setTimeout(() => {
+    // Poll every 30s for real-time notifications
+    const id = setInterval(() => {
       fetchNotifications();
       fetchSubmissionCount();
       fetchPendingInvites();
@@ -1054,8 +1047,8 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       fetchAnnouncements();
       fetchUnreadMessageCount();
       fetchPendingUsersCount();
-    }, 15000);
-    return () => clearTimeout(id);
+    }, 30000);
+    return () => clearInterval(id);
   }, [
     fetchNotifications,
     fetchSubmissionCount,
@@ -1137,7 +1130,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                 setNotifications((prev) =>
                   prev.length > 0 ? prev : notifData.notifications || [],
                 );
-                setUnreadCount(notifData.unread_count ?? 0);
+                setUnreadCount((notifData.notifications || []).filter((n) => !n.is_read).length);
               }
             } catch (_) {}
           }

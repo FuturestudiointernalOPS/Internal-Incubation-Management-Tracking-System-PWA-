@@ -6,6 +6,7 @@ import {
   Building2, Clock, ArrowRight, Loader2, Search, Filter,
   Bookmark, BookmarkCheck, Target, DollarSign, SlidersHorizontal,
   X, ChevronLeft, ExternalLink, GitCompare, Check, Send,
+  Megaphone, Calendar,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -49,6 +50,8 @@ export default function InvestorDashboard() {
   const [pipeline, setPipeline] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [relationships, setRelationships] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
@@ -92,6 +95,8 @@ export default function InvestorDashboard() {
         setPipeline(data.pipeline || []);
         setWatchlist(data.watchlist || []);
         setRecommendations(data.recommendations || []);
+        setCampaigns(data.campaigns || []);
+        setRelationships(data.relationships || []);
         setStats(data.stats || {});
       }
     } catch (_) {}
@@ -313,6 +318,84 @@ export default function InvestorDashboard() {
               <AppButton variant="primary" size="sm" icon={Search} onClick={searchVentures}>Search</AppButton>
             </div>
 
+            {/* Active Fundraising Campaigns */}
+            {campaigns.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Megaphone className="w-4 h-4 text-[var(--brand-orange)]" />
+                  <h3 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider">Active Fundraising Campaigns</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {campaigns.map(c => {
+                    const pct = c.target_raise > 0 ? Math.min(100, Math.round((parseFloat(c.current_raised || 0) / parseFloat(c.target_raise)) * 100)) : 0;
+                    return (
+                      <AppCard key={c.id} padding="md" hover onClick={() => openVentureDetail({ id: c.venture_id, name: c.venture_name, industry: c.industry, country: c.country, business_stage: c.business_stage, funding_requirement: c.funding_requirement, completion_index: c.completion_index })}>
+                        <div className="space-y-2 cursor-pointer">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h4 className="text-xs font-black text-[var(--text-primary)]">{c.venture_name || c.name}</h4>
+                              <p className="text-[9px] text-[var(--text-secondary)]">{c.name}{c.industry ? ` · ${c.industry}` : ""}</p>
+                            </div>
+                            <span className="px-2 py-0.5 rounded text-[7px] font-black uppercase bg-emerald-500/10 text-emerald-400">Active</span>
+                          </div>
+                          {c.target_raise > 0 && (
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-[8px]">
+                                <span className="font-bold text-[var(--text-secondary)]">${Number(c.current_raised || 0).toLocaleString()}</span>
+                                <span className="font-black text-[var(--text-primary)]">{pct}% of ${Number(c.target_raise).toLocaleString()}</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-3 text-[8px] text-[var(--text-tertiary)]">
+                            {c.investor_count > 0 && <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5"/>{c.investor_count} interested</span>}
+                            {c.opening_date && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5"/>{new Date(c.opening_date).toLocaleDateString()}</span>}
+                          </div>
+                        </div>
+                      </AppCard>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Upcoming Meetings */}
+            {relationships.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
+                  <h3 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider">Upcoming Meetings</h3>
+                </div>
+                <div className="space-y-2">
+                  {relationships.map(rel => (
+                    <div key={rel.id}>
+                      {rel.next_meetings && Array.isArray(rel.next_meetings) && rel.next_meetings.length > 0 && rel.next_meetings.map(m => (
+                            <AppCard key={m.id} padding="md" className="mb-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 rounded-xl bg-[var(--brand-orange)]/10">
+                                    <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-black text-[var(--text-primary)]">{rel.venture_name} — {m.meeting_type?.replace(/_/g, " ") || "Meeting"}</p>
+                                    <p className="text-[10px] text-[var(--text-secondary)]">
+                                      {m.scheduled_date ? new Date(m.scheduled_date).toLocaleDateString() : "TBD"}
+                                      {m.scheduled_time ? ` at ${m.scheduled_time}` : ""}
+                                      {rel.relationship_manager_name ? ` · ${rel.relationship_manager_name}` : ""}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </AppCard>
+                          ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Advanced filters */}
             {showFilters && (
               <div className="p-4 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl space-y-3">
@@ -383,6 +466,7 @@ export default function InvestorDashboard() {
                   {(ventures.length > 0 ? ventures : recommendations).map(v => {
                     const isWatching = watchlist.some(w => w.venture_id === v.id);
                     const isCompared = compareList.some(c => c.id === v.id);
+                    const activeCampaign = campaigns.find(c => c.venture_id === v.id);
                     return (
                       <AppCard key={v.id} padding="md" hover>
                         <div className="space-y-3">
@@ -390,6 +474,11 @@ export default function InvestorDashboard() {
                             <button onClick={() => openVentureDetail(v)} className="text-left flex-1">
                               <h4 className="text-sm font-black text-[var(--text-primary)] hover:text-[var(--brand-orange)] transition-colors">{v.name}</h4>
                               <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{v.industry || "—"}{v.country ? ` · ${v.country}` : ""}</p>
+                              {activeCampaign && (
+                                <span className="inline-block mt-1 mr-1 px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-400">
+                                  Campaign Active
+                                </span>
+                              )}
                               {v.match_score > 0 && (
                                 <span className="inline-block mt-1 px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-400">
                                   {v.match_score}% match
@@ -519,25 +608,99 @@ export default function InvestorDashboard() {
               <div className="text-center py-16">
                 <Bookmark className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
                 <p className="text-sm font-bold text-[var(--text-secondary)]">No saved ventures</p>
-                <p className="text-xs text-[var(--text-tertiary)] mt-1">Bookmark ventures from the Discover tab.</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">Bookmark ventures from the Discover tab to track their progress.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {watchlist.map(w => (
-                  <AppCard key={w.id} padding="md">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-[var(--text-primary)]">{w.venture_name || w.venture_id}</p>
-                        {w.personal_notes && (
-                          <p className="text-xs text-[var(--text-secondary)] mt-1">{w.personal_notes}</p>
+              <div className="space-y-4">
+                <p className="text-[10px] text-[var(--text-tertiary)]">{watchlist.length} venture{watchlist.length > 1 ? "s" : ""} tracked</p>
+                {watchlist.map(w => {
+                  const campaignPct = w.target_raise > 0 ? Math.min(100, Math.round((parseFloat(w.current_raised || 0) / parseFloat(w.target_raise)) * 100)) : 0;
+                  const readinessPct = Math.round(parseFloat(w.completion_index || 0));
+                  return (
+                    <AppCard key={w.id} padding="md" hover>
+                      <div className="space-y-3">
+                        {/* Header row */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 cursor-pointer" onClick={() => openVentureDetail({ id: w.venture_id, name: w.venture_name, industry: w.industry, country: w.country, business_stage: w.business_stage, description: w.description, funding_requirement: w.funding_requirement, completion_index: w.completion_index, investor_interest_count: w.investor_count })}>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-black text-[var(--text-primary)] hover:text-[var(--brand-orange)] transition-colors">{w.venture_name || w.venture_id}</h4>
+                              {w.campaign_status === "active" && (
+                                <span className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase bg-amber-500/10 text-amber-400">Active</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {w.industry && <span className="text-[10px] text-[var(--text-secondary)]">{w.industry}</span>}
+                              {w.country && <span className="text-[10px] text-[var(--text-tertiary)]">{w.country}</span>}
+                              {w.business_stage && <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-[var(--surface-3)] text-[var(--text-secondary)]">{w.business_stage}</span>}
+                            </div>
+                          </div>
+                          <button onClick={() => toggleWatchlist(w.venture_id)} disabled={processingId !== null}
+                            className="p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-40 shrink-0"
+                            title="Remove from watchlist">
+                            {processingId === w.venture_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+
+                        {/* Stats row */}
+                        <div className="grid grid-cols-3 gap-2">
+                          {/* Readiness */}
+                          <div className="p-2 rounded-lg bg-[var(--surface-2)]">
+                            <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">Readiness</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <div className="flex-1 h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full transition-all ${readinessPct >= 80 ? "bg-emerald-500" : readinessPct >= 50 ? "bg-amber-500" : "bg-slate-400"}`} style={{ width: `${readinessPct}%` }} />
+                              </div>
+                              <span className="text-[9px] font-black text-[var(--text-primary)]">{readinessPct}%</span>
+                            </div>
+                          </div>
+                          {/* Campaign funding */}
+                          <div className="p-2 rounded-lg bg-[var(--surface-2)]">
+                            <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">Funding</p>
+                            {w.campaign_id ? (
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <div className="flex-1 h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
+                                  <div className="h-full bg-[var(--brand-orange)] rounded-full transition-all" style={{ width: `${campaignPct}%` }} />
+                                </div>
+                                <span className="text-[9px] font-black text-[var(--text-primary)]">{campaignPct}%</span>
+                              </div>
+                            ) : (
+                              <p className="text-[9px] text-[var(--text-tertiary)] mt-0.5">—</p>
+                            )}
+                          </div>
+                          {/* Investor interest */}
+                          <div className="p-2 rounded-lg bg-[var(--surface-2)]">
+                            <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">Interest</p>
+                            <p className="text-xs font-bold text-[var(--text-primary)] mt-0.5">{w.investor_count || 0} investors</p>
+                          </div>
+                        </div>
+
+                        {/* Campaign detail if active */}
+                        {w.campaign_id && w.target_raise > 0 && (
+                          <div className="flex items-center justify-between text-[9px] px-2 py-1.5 rounded-lg bg-[var(--surface-2)]">
+                            <span className="text-[var(--text-secondary)]">{w.campaign_name}: <b className="text-[var(--text-primary)]">${Number(w.current_raised || 0).toLocaleString()}</b> / ${Number(w.target_raise).toLocaleString()}</span>
+                            {w.closing_date && <span className="text-[var(--text-tertiary)]">Closes {new Date(w.closing_date).toLocaleDateString()}</span>}
+                          </div>
                         )}
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 pt-1 border-t border-[var(--border-primary)]">
+                          <button onClick={() => openVentureDetail({ id: w.venture_id, name: w.venture_name, industry: w.industry, country: w.country, business_stage: w.business_stage, description: w.description, funding_requirement: w.funding_requirement, completion_index: w.completion_index, investor_interest_count: w.investor_count })}
+                            className="flex items-center gap-1 text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline">
+                            <Eye className="w-3 h-3" /> View
+                          </button>
+                          <button onClick={() => { setIntroVenture({ id: w.venture_id, name: w.venture_name }); setIntroMessage(""); setShowIntroModal(true); }}
+                            className="flex items-center gap-1 text-[9px] font-black text-[var(--text-primary)] uppercase tracking-wider hover:text-[var(--brand-orange)] transition-colors">
+                            <Send className="w-3 h-3" /> Request Intro
+                          </button>
+                          <AppButton variant="secondary" size="sm" disabled={processingId !== null}
+                            onClick={() => addToPipeline(w.venture_id, "interested")}>
+                            Add to Pipeline
+                          </AppButton>
+                        </div>
                       </div>
-                      <AppButton variant="secondary" size="sm" loading={processingId === w.venture_id} disabled={processingId !== null} onClick={() => addToPipeline(w.venture_id, "interested")}>
-                        Add to Pipeline
-                      </AppButton>
-                    </div>
-                  </AppCard>
-                ))}
+                    </AppCard>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -599,6 +762,46 @@ export default function InvestorDashboard() {
                 </div>
               </div>
               <div className="p-6 space-y-6">
+                {/* Campaign detail (if active) */}
+                {(() => {
+                  const c = campaigns.find(cmp => cmp.venture_id === detailVenture.id);
+                  if (!c) return null;
+                  const pct = c.target_raise > 0 ? Math.min(100, Math.round((parseFloat(c.current_raised || 0) / parseFloat(c.target_raise)) * 100)) : 0;
+                  return (
+                    <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Megaphone className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Active Campaign: {c.name}</span>
+                      </div>
+                      {c.target_raise > 0 && (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px]">
+                            <span className="font-bold text-[var(--text-secondary)]">${Number(c.current_raised || 0).toLocaleString()} raised</span>
+                            <span className="font-black text-[var(--text-primary)]">{pct}% of ${Number(c.target_raise).toLocaleString()}</span>
+                          </div>
+                          <div className="w-full h-2.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: "Min Investment", value: c.min_investment ? `$${Number(c.min_investment).toLocaleString()}` : "—" },
+                          { label: "Investors", value: `${c.investor_count || 0} interested` },
+                          { label: "Active DD", value: c.active_dd_count || 0 },
+                        ].map((m, i) => (
+                          <div key={i} className="p-2 rounded-lg bg-[var(--surface-2)] text-center">
+                            <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">{m.label}</p>
+                            <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{m.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      {c.closing_date && (
+                        <p className="text-[9px] text-[var(--text-tertiary)]">Closing: {new Date(c.closing_date).toLocaleDateString()}</p>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div>
                   <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{detailVenture.description || "No description available."}</p>
                 </div>
