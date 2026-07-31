@@ -5,30 +5,19 @@
  * Falls back gracefully when Resend is not configured.
  */
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.dev";
-
-/**
- * Send a transactional email
- * @param {Object} opts
- * @param {string} opts.to - recipient email
- * @param {string} opts.subject
- * @param {string} opts.body - HTML or plain text
- * @param {boolean} [opts.isHtml] - whether body is HTML
- * @param {string} [opts.fromName] - sender display name
- * @returns {{ success: boolean, mock?: boolean, error?: string }}
- */
 export async function sendEmail({ to, subject, body, isHtml, fromName }) {
-  if (!RESEND_API_KEY) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
     console.warn("Mailer: Resend not configured — skipping email to:", to);
     return { success: true, mock: true, note: "Resend not configured" };
   }
 
+  const fromAddr = process.env.RESEND_FROM_EMAIL || "noreply@impactos.dev";
+
   try {
     const { Resend } = await import("resend");
-    const resend = new Resend(RESEND_API_KEY);
-
-    const from = fromName ? `${fromName} <${FROM_EMAIL}>` : FROM_EMAIL;
+    const resend = new Resend(apiKey);
+    const from = fromName ? `${fromName} <${fromAddr}>` : fromAddr;
 
     const { data, error } = await resend.emails.send({
       from,

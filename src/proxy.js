@@ -33,6 +33,7 @@ const publicPaths = [
   "/register-staff",
   "/register-venture",
   "/investor/wizard",
+  "/investor/setup-password",
   "/s",
   "/_next",
   "/brand",
@@ -54,6 +55,7 @@ const publicApiPaths = [
   "/api/migrate",
   "/api/s",
   "/api/investor/register",
+  "/api/investor/setup-password",
 ];
 
 // Soft-auth paths: let client-side handle auth via localStorage fallback.

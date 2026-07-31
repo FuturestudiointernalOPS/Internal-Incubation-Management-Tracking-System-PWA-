@@ -85,10 +85,24 @@ export async function POST(req) {
     if (inv && inv.email) {
       const statusLabels = { approved: "approved", rejected: "rejected", suspended: "suspended" };
       try {
+        let emailBody = `Hello ${inv.name || ""},\n\nYour investor account has been ${statusLabels[newStatus]}${reason ? `.\n\nReason: ${reason}` : "."}`;
+
+        if (newStatus === "approved") {
+          // Get setup token for the investor
+          const contactInfo = await db.execute({
+            sql: "SELECT setup_token FROM contacts WHERE cid = ?",
+            args: [inv.user_id],
+          });
+          const setupToken = contactInfo.rows[0]?.setup_token;
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const setupLink = `${appUrl}/investor/setup-password?token=${setupToken || ""}`;
+          emailBody += `\n\nTo complete your account, set your password here:\n${setupLink}`;
+        }
+
         await sendEmail({
           to: inv.email,
           subject: `Investor Account ${statusLabels[newStatus]}`,
-          body: `Hello ${inv.name || ""},\n\nYour investor account has been ${statusLabels[newStatus]}${reason ? `.\n\nReason: ${reason}` : "."}\n\n${newStatus === "approved" ? "You can now access Investor OS at " + process.env.NEXT_PUBLIC_APP_URL + "/investor/dashboard" : "Please contact Future Studio for more information."}`,
+          body: emailBody,
         });
       } catch (_) {}
 
