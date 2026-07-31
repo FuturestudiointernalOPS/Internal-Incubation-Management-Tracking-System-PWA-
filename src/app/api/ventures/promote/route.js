@@ -241,6 +241,11 @@ export async function POST(req) {
                 ON CONFLICT (venture_id, email) DO NOTHING`,
           args: [ventureId, contact.email || `${fId}@impactos.local`, contact.name || fId, now, now],
         });
+        // Update user contact role to founder
+        await db.execute({
+          sql: "UPDATE contacts SET role = 'founder' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager')",
+          args: [fId],
+        });
       } catch (_) {}
     }
 
@@ -254,6 +259,11 @@ export async function POST(req) {
                 VALUES (?, ?, 'member', ?)
                 ON CONFLICT (venture_id, user_cid) DO NOTHING`,
           args: [ventureId, String(member.contact_id), now],
+        });
+        // Update user contact role to member
+        await db.execute({
+          sql: "UPDATE contacts SET role = 'member' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager', 'founder')",
+          args: [String(member.contact_id)],
         });
       } catch (_) {}
     }
