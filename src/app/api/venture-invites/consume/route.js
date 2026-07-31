@@ -32,10 +32,10 @@ export async function POST(req) {
     // Generate venture ID
     const ventureId = `VNT-${uuidv4().replace(/-/g, "").substring(0, 8).toUpperCase()}`;
 
-    // Create venture
+    // Create venture — pending until a super admin approves it
     const vRes = await db.execute({
       sql: `INSERT INTO ventures (venture_id, name, company_name, description, industry, business_stage, status, visibility)
-            VALUES (?, ?, ?, ?, ?, ?, 'active', 'private') RETURNING id`,
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', 'private') RETURNING id`,
       args: [ventureId, name.trim(), name.trim(), description || null, industry?.trim() || null, business_stage || "idea"],
     });
     const dbId = vRes.rows?.[0]?.id;

@@ -180,6 +180,59 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
 }
 
 /**
+ * Send a venture approval email (venture created via invite link has been approved)
+ */
+export async function sendVentureApprovalEmail({ to, name, ventureName, ventureUrl }) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;">OS</span>
+              </h1>
+              <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
+
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">Your venture has been approved! 🎉</h2>
+              <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
+                Hi <strong style="color: #f8fafc;">${name}</strong>,
+              </p>
+              <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
+                Great news — your venture <strong style="color: #ff6600;">${ventureName}</strong> has been
+                <strong style="color: #f8fafc;">approved</strong> and is now active on Venture OS.
+                You can log in and start building.
+              </p>
+
+              <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+                <tr>
+                  <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
+                    <a href="${ventureUrl || APP_URL + "/login"}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
+                      VIEW YOUR VENTURE
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
+              <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
+                If you have any questions, please contact your administrator.
+              </p>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({ to, subject: `Your venture ${ventureName} has been approved`, html });
+}
+
+/**
  * Internal: sends email via Resend
  */
 async function sendEmail({ to, subject, html }) {

@@ -1,0 +1,99 @@
+import { NextResponse } from "next/server";
+import db, { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
+import { sendVentureApprovalEmail } from "@/lib/email";
+import { logVentureActivity, createVentureNotification } from "@/lib/ventures";
+
+/**
+ * POST /api/ventures/[id]/approve
+ * Super admin approves a pending venture (created via invite link).
+ * Sets status to 'active' and emails the founder(s).
+ */
+export async function POST(req, { params }) {
+  try {
+    await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
+
+    const { id } = await params;
+
+    const vRes = await db.execute({
+      sql: "SELECT * FROM ventures WHERE venture_id = ?",
+      args: [id],
+    });
+    const venture = vRes.rows?.[0];
+    if (!venture) {
+      return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+    }
+    if (venture.status === "active") {
+      return NextResponse.json({ success: false, error: "Venture is already active" }, { status: 400 });
+    }
+
+    await db.execute({
+      sql: "UPDATE ventures SET status = 'active', updated_at = NOW() WHERE venture_id = ?",
+      args: [id],
+    });
+
+    // Log the approval
+    try {
+      await logVentureActivity({
+        venture_id: id,
+        action: "VENTURE_APPROVED",
+        actor_cid: "sa",
+        actor_name: "Super Admin",
+        details: { message: "Venture approved by super admin" },
+      });
+    } catch {}
+
+    // Email every founder recorded for this venture
+    let emailed = 0;
+    try {
+      const founders = await db.execute({
+        sql: `SELECT f.email, f.name
+              FROM venture_founders f
+              WHERE f.venture_id = ? AND f.email IS NOT NULL
+              UNION
+              SELECT c.email, c.name
+              FROM venture_members vm
+              JOIN contacts c ON vm.contact_id = c.cid
+              WHERE vm.venture_id = ? AND vm.member_type = 'founder' AND vm.removed_at IS NULL
+              UNION
+              SELECT c.email, c.name
+              FROM ventures v
+              JOIN contacts c ON v.created_by = c.cid
+              WHERE v.venture_id = ?`,
+        args: [id, id, id],
+      });
+      for (const f of founders.rows || []) {
+        if (!f.email) continue;
+        try {
+          await sendVentureApprovalEmail({
+            to: f.email,
+            name: f.name || "there",
+            ventureName: venture.company_name || venture.name || id,
+            ventureUrl: `${process.env.NEXT_PUBLIC_APP_URL || ""}/admin/ventures/${id}`,
+          });
+          emailed++;
+        } catch (e) {
+          console.warn("Approval email failed for", f.email, ":", e.message);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load founders for approval email:", e.message);
+    }
+
+    // Notify super admin feed
+    try {
+      await createVentureNotification({
+        recipient_id: "sa",
+        title: `[${id}] Venture approved`,
+        message: `${venture.company_name || venture.name} has been approved and is now active.`,
+      });
+    } catch {}
+
+    return NextResponse.json({ success: true, emailed });
+  } catch (e) {
+    console.error("POST /api/ventures/[id]/approve error:", e);
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  }
+}

@@ -68,6 +68,29 @@ export default function VenturesPage() {
   const stageConfig = (stage) => VENTURE_STAGES[stage] || VENTURE_STAGES.idea;
   const statusConfig = (status) => STATUS_CONFIG[status] || STATUS_CONFIG.active;
 
+  const approveVenture = async (venture) => {
+    try {
+      const res = await fetch(`/api/ventures/${venture.venture_id}/approve`, { method: "POST" });
+      const d = await res.json();
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: {
+            type: d.success ? "success" : "error",
+            message: d.success ? "Venture approved — founder notified" : (d.error || "Approval failed"),
+            duration: 4000,
+          },
+        })
+      );
+      if (d.success) fetchVentures();
+    } catch (e) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: "Approval failed", duration: 4000 },
+        })
+      );
+    }
+  };
+
   return (
     <DashboardLayout role="super_admin">
       <div className="space-y-8 pb-20">
@@ -236,7 +259,15 @@ export default function VenturesPage() {
                         <td className="px-5 py-3 text-[11px] text-slate-400 font-medium">
                           {new Date(venture.created_at).toLocaleDateString()}
                         </td>
-                        <td className="px-5 py-3 text-right">
+                        <td className="px-5 py-3 text-right whitespace-nowrap">
+                          {venture.status === "pending" && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); approveVenture(venture); }}
+                              className="mr-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                            >
+                              Approve
+                            </button>
+                          )}
                           <ChevronRight className="w-4 h-4 text-slate-600 inline group-hover:text-[var(--brand-orange)] transition-colors" />
                         </td>
                       </tr>
