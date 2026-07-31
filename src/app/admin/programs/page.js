@@ -21,6 +21,7 @@ import {
   Upload,
   Target,
   Filter,
+  Copy,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -220,6 +221,8 @@ export default function ProgramManagement() {
   const handleArchiveAction = async (id, isArchiving, e) => {
     if (!id) return;
     e.stopPropagation();
+    if (isArchiving && !window.confirm("Are you sure you want to archive this program? This action can be undone by restoring.")) return;
+    if (!isArchiving && !window.confirm("Are you sure you want to restore this program?")) return;
     try {
       const res = await fetch("/api/pm/programs", {
         method: "PUT",
@@ -247,6 +250,7 @@ export default function ProgramManagement() {
           name: groupName,
           description: newGroup.description,
           type: "cohort",
+          program_id: editingProgram?.id || null,
         }),
       });
       const data = await res.json();
@@ -592,7 +596,17 @@ export default function ProgramManagement() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditingProgram(p);
+                                // Formater les dates pour input type="date" (YYYY-MM-DD)
+                                const formatted = { ...p };
+                                if (p.start_date) {
+                                  const d = new Date(p.start_date);
+                                  formatted.start_date = d.toISOString().split('T')[0];
+                                }
+                                if (p.end_date) {
+                                  const d = new Date(p.end_date);
+                                  formatted.end_date = d.toISOString().split('T')[0];
+                                }
+                                setEditingProgram(formatted);
                               }}
                               title={t("admin.edit")}
                               className="p-2 hover:text-[var(--brand-orange)]"
@@ -839,39 +853,70 @@ export default function ProgramManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                    {t?.("admin.participantLimit") || "Participant Limit"}
+                    {t?.("admin.registrationWindowStart") || "Registration Start"}
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    value={editingProgram?.participant_limit || 0}
-                    onChange={(e) =>
-                      setEditingProgram({
-                        ...editingProgram,
-                        participant_limit: parseInt(e.target.value) || 0,
-                      })
-                    }
+                    type="date"
+                    value={(() => {
+                      const rw = editingProgram?.registration_window || "";
+                      const parts = rw.split("|");
+                      return parts[0] || "";
+                    })()}
+                    onChange={(e) => {
+                      const rw = editingProgram?.registration_window || "||||";
+                      const parts = rw.split("|");
+                      parts[0] = e.target.value;
+                      setEditingProgram({ ...editingProgram, registration_window: parts.join("|") });
+                    }}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                    {t?.("admin.registrationWindow") || "Registration Window"}
+                    {t?.("admin.registrationWindowEnd") || "Registration End"}
                   </label>
                   <input
-                    type="text"
-                    value={editingProgram?.registration_window || ""}
-                    onChange={(e) =>
-                      setEditingProgram({
-                        ...editingProgram,
-                        registration_window: e.target.value,
-                      })
-                    }
-                    placeholder="e.g. 2024-01-01 to 2024-02-01"
+                    type="date"
+                    value={(() => {
+                      const rw = editingProgram?.registration_window || "";
+                      const parts = rw.split("|");
+                      return parts[1] || "";
+                    })()}
+                    onChange={(e) => {
+                      const rw = editingProgram?.registration_window || "||||";
+                      const parts = rw.split("|");
+                      parts[1] = e.target.value;
+                      setEditingProgram({ ...editingProgram, registration_window: parts.join("|") });
+                    }}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
               </div>
+
+              {/* Registration Link */}
+              {editingProgram?.assigned_segments && editingProgram.assigned_segments.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    Registration Link
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-[9px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>
+                      {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={editingProgram.assigned_segments[0]}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/register-participant?group_id=${editingProgram.assigned_segments[0]}`);
+                        window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
+                      }}
+                      className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+                      title="Copy registration link"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
@@ -1254,7 +1299,8 @@ export default function ProgramManagement() {
                               title="Click to copy registration link"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigator.clipboard.writeText(`${window.location.origin}/register/${s.id}`);
+                                const regId = s.registration_id || s.id;
+                                navigator.clipboard.writeText(`${window.location.origin}/register-participant?group_id=${regId}`);
                                 window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t?.("admin.copied") || "Registration link copied to clipboard" } }));
                               }}
                             >

@@ -331,6 +331,7 @@ export async function PUT(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "admin",
     ]);
     if (authError) return authError;
     const {
@@ -458,10 +459,13 @@ export async function PUT(req) {
     // Handle Segment/Team Assignments
     if (Array.isArray(assigned_segments)) {
       // 1. Unlink segments currently assigned to this program
-      await db.execute({
-        sql: "UPDATE families SET program_id = NULL WHERE program_id = ?",
-        args: [id],
-      });
+      // Guard: skip if program_id column has legacy non-UUID values
+      try {
+        await db.execute({
+          sql: "UPDATE families SET program_id = NULL WHERE program_id IS NOT NULL AND program_id::text = ?",
+          args: [String(id)],
+        });
+      } catch (e) { console.warn("[programs] Could not unlink families segments:", e.message); }
 
       // 2. Link the new set of segments
       if (assigned_segments.length > 0) {
@@ -471,10 +475,12 @@ export async function PUT(req) {
           let familyName = "";
 
           if (sid !== null) {
-            await db.execute({
-              sql: "UPDATE families SET program_id = ? WHERE id = ?",
-              args: [id, sid],
-            });
+            try {
+              await db.execute({
+                sql: "UPDATE families SET program_id = ?::uuid WHERE id = ?",
+                args: [String(id), sid],
+              });
+            } catch (e) { console.warn("[programs] Could not link family by id:", e.message); }
             const fRes = await db.execute({
               sql: "SELECT name FROM families WHERE id = ?",
               args: [sid],
@@ -483,10 +489,12 @@ export async function PUT(req) {
               familyName = fRes.rows[0].name;
             }
           } else {
-            await db.execute({
-              sql: "UPDATE families SET program_id = ? WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
-              args: [id, segmentId],
-            });
+            try {
+              await db.execute({
+                sql: "UPDATE families SET program_id = ?::uuid WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
+                args: [String(id), segmentId],
+              });
+            } catch (e) { console.warn("[programs] Could not link family by name:", e.message); }
             familyName = segmentId;
           }
 

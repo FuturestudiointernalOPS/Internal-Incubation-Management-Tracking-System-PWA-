@@ -2,26 +2,36 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 
+async function resolveDbId(db, ventureId) {
+  try {
+    const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+    return r.rows?.[0]?.id || ventureId;
+  } catch { return ventureId; }
+}
+
 async function getVentureFounderCount(db, ventureId) {
+  const dbId = await resolveDbId(db, ventureId);
   const r = await db.execute({
     sql: "SELECT COUNT(*) as cnt FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
-    args: [ventureId],
+    args: [dbId],
   });
   return parseInt(r.rows?.[0]?.cnt || 0);
 }
 
 async function isVentureMember(db, ventureId, cid) {
+  const dbId = await resolveDbId(db, ventureId);
   const r = await db.execute({
     sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
-    args: [ventureId, cid],
+    args: [dbId, cid],
   });
   return r.rows?.length > 0;
 }
 
 async function isVentureFounder(db, ventureId, cid) {
+  const dbId = await resolveDbId(db, ventureId);
   const r = await db.execute({
     sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
-    args: [ventureId, cid],
+    args: [dbId, cid],
   });
   return r.rows?.length > 0;
 }
@@ -67,6 +77,9 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     }
 
+    const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+    const dbId = vRes.rows?.[0]?.id || id;
+
     const result = await db.execute({
       sql: `
         SELECT vm.*, c.name as contact_name, c.email as contact_email
@@ -75,7 +88,7 @@ export async function GET(req, { params }) {
         WHERE vm.venture_id = ? AND vm.removed_at IS NULL
         ORDER BY vm.member_type, vm.joined_at DESC
       `,
-      args: [id],
+      args: [dbId],
     });
 
     return NextResponse.json({ success: true, members: result.rows });

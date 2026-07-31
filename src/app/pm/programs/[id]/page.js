@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
@@ -35,6 +35,7 @@ import {
   Calendar,
   RefreshCw,
   Bell,
+  Copy,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -47,7 +48,7 @@ export const dynamic = "force-dynamic";
  * Performance-first, modular data loading, and clean data-first UI.
  */
 
-export default function ProgramWorkspace() {
+function ProgramWorkspace() {
   const { id } = useParams();
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -80,6 +81,7 @@ export default function ProgramWorkspace() {
   const [assignedStaff, setAssignedStaff] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState(null);
   const toggleKpi = (type, kpiId) => {
     if (type === "session") {
       setNewSession((prev) => {
@@ -152,7 +154,7 @@ export default function ProgramWorkspace() {
   });
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [promoteTarget, setPromoteTarget] = useState(null);
+  const [promoteTarget, setPromoteTarget] = useState(null); // { team, action: 'approve' | 'promote' }
 
   // Load existing attendance when modal opens
   useEffect(() => {
@@ -209,6 +211,9 @@ export default function ProgramWorkspace() {
     due_date: "",
     assignee_type: "all",
     assignee_id: "",
+    max_marks: "100",
+    passing_marks: "50",
+    weight: "1",
   });
   const [newPMReport, setNewPMReport] = useState({
     summary: "",
@@ -246,6 +251,12 @@ export default function ProgramWorkspace() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [reviewScore, setReviewScore] = useState("");
+  const [showFollowupFields, setShowFollowupFields] = useState(false);
+  const [followupDate, setFollowupDate] = useState("");
+  const [followupTime, setFollowupTime] = useState("");
+  const [followupDuration, setFollowupDuration] = useState(30);
+  const [followupMeetingLink, setFollowupMeetingLink] = useState("");
+  const [followupNotes, setFollowupNotes] = useState("");
 
   const configNameRef = useRef(null);
   const configDescRef = useRef(null);
@@ -315,10 +326,13 @@ export default function ProgramWorkspace() {
       const payload =
         teamAssignmentMode === "new"
           ? {
-            ...newTeam,
+            name: newTeam.name,
             group_name: detectedGroupName,
             program_id: id,
             member_ids: selectedParticipants,
+            ...(newTeam.handler_name ? { handler_name: newTeam.handler_name } : {}),
+            ...(newTeam.staff_id ? { handler_id: newTeam.staff_id } : {}),
+            ...(newTeam.leader_id ? { leader_id: newTeam.leader_id } : {}),
           }
           : {
             team_id: selectedExistingTeamId,
@@ -447,6 +461,11 @@ export default function ProgramWorkspace() {
 
   const addRequirement = async (shouldClose = true) => {
     if (!newRequirement.title.trim()) return;
+    const maxMarks = parseInt(newRequirement.max_marks, 10) || 100;
+    if (maxMarks > 100) {
+      notify("Maximum marks cannot exceed 100.", "error");
+      return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch("/api/pm/curriculum", {
@@ -463,6 +482,9 @@ export default function ProgramWorkspace() {
           due_date: newRequirement.due_date || null,
           assignee_type: newRequirement.assignee_type || "all",
           assignee_id: newRequirement.assignee_id || "",
+          max_marks: maxMarks,
+          passing_marks: parseInt(newRequirement.passing_marks, 10) || 50,
+          weight: parseFloat(newRequirement.weight) || 1,
         }),
       });
       const data = await res.json();
@@ -477,6 +499,9 @@ export default function ProgramWorkspace() {
           due_date: "",
           assignee_type: "all",
           assignee_id: "",
+          max_marks: "100",
+          passing_marks: "50",
+          weight: "1",
         });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
@@ -852,8 +877,50 @@ export default function ProgramWorkspace() {
       if (data.success) {
         notify("Submission graded successfully.");
         setShowReviewModal(false);
+        setShowFollowupFields(false);
+        setFollowupDate("");
+        setFollowupTime("");
         fetchProgramData(true);
       } else notify(data.error || "Failed to grade", "error");
+    } catch (e) {
+      notify("Network error.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleScheduleFollowup = async () => {
+    if (!selectedSubmission) return;
+    if (!followupDate || !followupTime) {
+      notify("Please select a date and time for the follow-up.", "error");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/submissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedSubmission.id,
+          status: "pending_followup",
+          score: parseInt(reviewScore) || 0,
+          feedback: followupNotes || "Follow-up scheduled",
+          followup_date: followupDate,
+          followup_time: followupTime,
+          followup_duration: parseInt(followupDuration) || 30,
+          meeting_link: followupMeetingLink || null,
+          followup_notes: followupNotes || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Follow-up scheduled successfully.");
+        setShowReviewModal(false);
+        setShowFollowupFields(false);
+        setFollowupDate("");
+        setFollowupTime("");
+        fetchProgramData(true);
+      } else notify(data.error || "Failed to schedule follow-up", "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -1015,6 +1082,7 @@ export default function ProgramWorkspace() {
         {/* WORKSPACE CONTENT */}
         <div className="pt-4">
           {activeTab === "overview" && (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="card space-y-4 border-l-4 border-blue-500">
                 <div className="flex justify-between items-start">
@@ -1096,6 +1164,40 @@ export default function ProgramWorkspace() {
                 </div>
               </div>
             </div>
+
+            {/* REGISTRATION LINK */}
+            {families.length > 0 && families[0]?.registration_id && (
+              <div className="card mt-6 border-l-4 border-emerald-500">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1 flex-1">
+                    <p className="text-xs font-black uppercase text-[var(--text-secondary)] tracking-wider">
+                      Registration Link
+                    </p>
+                    <p className="text-[9px] text-emerald-500 font-medium mt-1">
+                      Share this link with participants to register
+                    </p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <code className="text-[10px] font-mono bg-black/30 px-3 py-2 rounded-lg border border-[var(--border-primary)] truncate max-w-[450px] block" style={{ color: "var(--text-primary)" }}>
+                        {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={families[0].registration_id}
+                      </code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            `${window.location.origin}/register-participant?group_id=${families[0].registration_id}`
+                          );
+                          window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
+                        }}
+                        className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+                        title="Copy registration link"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            </>
           )}
 
           {activeTab === "participants" && (
@@ -1643,6 +1745,24 @@ export default function ProgramWorkspace() {
                           </div>
                         </div>
 
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedSessionId(
+                                expandedSessionId === session.id
+                                  ? null
+                                  : session.id,
+                              );
+                            }}
+                            title="View session details, deliverables & resources"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${expandedSessionId === session.id ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]" : "bg-transparent border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]/50 hover:text-[var(--text-primary)]"}`}
+                          >
+                            <ChevronRight className={`w-3 h-3 transition-transform ${expandedSessionId === session.id ? "rotate-90" : ""}`} />
+                            {expandedSessionId === session.id ? "Hide Details" : "View Details"}
+                          </button>
+                        </div>
+
                         <div
                           className="flex items-center gap-3"
                           onClick={(e) => e.stopPropagation()}
@@ -1661,7 +1781,7 @@ export default function ProgramWorkspace() {
                               Attendance
                             </span>
                           </button>
-                          {isAssignedPm && (
+                          {canContribute && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1725,7 +1845,7 @@ export default function ProgramWorkspace() {
                               </span>
                             </div>
 
-                            <div className="space-y-4 p-5 bg-primary rounded-2xl border border-[var(--border-primary)] shadow-sm">
+                            <div className={`space-y-4 p-5 bg-primary rounded-2xl border border-[var(--border-primary)] shadow-sm ${!canEdit ? "pointer-events-none opacity-60" : ""}`}>
                               {/* Session Title */}
                               <div className="space-y-1">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
@@ -2043,7 +2163,7 @@ export default function ProgramWorkspace() {
                                   Assessments & Deliverables
                                 </span>
                               </div>
-                              {canContribute && (
+                              {canEdit && (
                                 <button
                                   onClick={() => {
                                     setSelectedSessionId(session.id);
@@ -2814,7 +2934,7 @@ export default function ProgramWorkspace() {
                             Strategic Next Steps
                           </p>
                           <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.next_steps || "No data reported."}
+                            {report.planned_adjustments || report.next_steps || "No data reported."}
                           </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-2">
@@ -3674,9 +3794,10 @@ export default function ProgramWorkspace() {
                   {selectedSubmission?.participant_name || "Group Submission"}
                 </p>
                 <a
-                  href={selectedSubmission?.submission_link}
+                  href={selectedSubmission?.file_url || selectedSubmission?.submission_url || selectedSubmission?.submission_link || '#'}
                   target="_blank"
-                  className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2"
+                  rel="noreferrer"
+                  className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2 hover:text-white transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" /> View Source Material
                 </a>
@@ -3709,21 +3830,98 @@ export default function ProgramWorkspace() {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowReviewModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleReviewSubmission}
-                  disabled={isSaving || reviewScore === ""}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Grading..." : "Approve & Grade"}
-                </button>
-              </div>
+              {!showFollowupFields ? (
+                <>
+                  <button
+                    onClick={() => setShowFollowupFields(true)}
+                    className="w-full py-2.5 rounded-xl border border-dashed border-indigo-400/40 text-[9px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-400/10 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Calendar className="w-3.5 h-3.5" /> Schedule Follow-up
+                  </button>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowReviewModal(false)}
+                      className="flex-1 btn btn-secondary"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleReviewSubmission}
+                      disabled={isSaving || reviewScore === ""}
+                      className="flex-1 btn btn-primary"
+                    >
+                      {isSaving ? "Grading..." : "Approve & Grade"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4 pt-2 border-t border-[var(--border-primary)]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                    <Calendar className="w-3 h-3 inline mr-1" /> Schedule Follow-up Meeting
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Date *</label>
+                      <input type="date" value={followupDate}
+                        onChange={(e) => setFollowupDate(e.target.value)}
+                        className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Time *</label>
+                      <input type="time" value={followupTime}
+                        onChange={(e) => setFollowupTime(e.target.value)}
+                        className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Duration (minutes)</label>
+                    <select value={followupDuration} onChange={(e) => setFollowupDuration(e.target.value)}
+                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    >
+                      <option value="15">15 min</option>
+                      <option value="30">30 min</option>
+                      <option value="45">45 min</option>
+                      <option value="60">60 min</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Meeting Link (optional)</label>
+                    <input type="url" value={followupMeetingLink}
+                      onChange={(e) => setFollowupMeetingLink(e.target.value)}
+                      placeholder="https://meet.google.com/..."
+                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Notes (optional)</label>
+                    <textarea value={followupNotes}
+                      onChange={(e) => setFollowupNotes(e.target.value)}
+                      placeholder="Agenda or talking points..." rows={2}
+                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold resize-none"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => { setShowFollowupFields(false); setFollowupDate(""); setFollowupTime(""); }}
+                      className="flex-1 py-2.5 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                    >
+                      Back
+                    </button>
+                    <button onClick={handleScheduleFollowup}
+                      disabled={isSaving || !followupDate || !followupTime}
+                      className="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                    >
+                      {isSaving ? "Scheduling..." : <><Calendar className="w-3 h-3" /> Confirm Follow-up</>}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3988,6 +4186,57 @@ export default function ProgramWorkspace() {
                   </div>
                 </div>
 
+                {/* Assessment Configuration */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
+                      <Target className="w-3 h-3" /> Max Marks
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={newRequirement.max_marks || "100"}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (v > 100) { notify("Maximum marks cannot exceed 100.", "error"); return; }
+                        setNewRequirement((p) => ({ ...p, max_marks: e.target.value }));
+                      }}
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
+                      <CheckCircle2 className="w-3 h-3" /> Passing
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={newRequirement.passing_marks || "50"}
+                      onChange={(e) => setNewRequirement((p) => ({ ...p, passing_marks: e.target.value }))}
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
+                      <Activity className="w-3 h-3" /> Weight
+                    </label>
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="10"
+                      step="0.1"
+                      value={newRequirement.weight || "1"}
+                      onChange={(e) => setNewRequirement((p) => ({ ...p, weight: e.target.value }))}
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label
                     className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
@@ -4148,7 +4397,7 @@ export default function ProgramWorkspace() {
               </div>
 
               <div className="space-y-3">
-                {participants.map((p) => {
+                {participants.filter(p => p.status !== 'archived').map((p) => {
                   const status = attendanceRecords[p.id] || "present";
                   return (
                     <div
@@ -4213,13 +4462,16 @@ export default function ProgramWorkspace() {
                     setIsSaving(true);
                     try {
                       const today = new Date().toISOString().split("T")[0];
-                      const records = participants.map((p) => ({
-                        session_id: selectedSessionForAttendance.id,
-                        program_id: id,
-                        participant_id: p.id,
-                        status: attendanceRecords[p.id] || "present",
-                        date: today,
-                      }));
+                      const records = participants.map((p) => {
+                        const pid = p.user_id || p.cid || p.id;
+                        return {
+                          session_id: selectedSessionForAttendance.id,
+                          program_id: id,
+                          participant_id: pid,
+                          status: attendanceRecords[pid] || "present",
+                          date: today,
+                        };
+                      });
                       const res = await fetch("/api/attendance", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -5340,7 +5592,7 @@ export default function ProgramWorkspace() {
                     <div>
                       <h3 className="text-lg font-bold">Approve Team</h3>
                       <p className="text-sm text-gray-400">
-                        Approve &quot;{promoteTarget.team.name}&quot; for Venture OS promotion?
+                        Approve "{promoteTarget.team.name}" for Venture OS promotion?
                       </p>
                     </div>
                   </div>
@@ -5391,7 +5643,7 @@ export default function ProgramWorkspace() {
                     <div>
                       <h3 className="text-lg font-bold">Promote to Venture OS</h3>
                       <p className="text-sm text-gray-400">
-                        Promote &quot;{promoteTarget.team.name}&quot; to Venture OS?
+                        Promote "{promoteTarget.team.name}" to Venture OS?
                       </p>
                     </div>
                   </div>
@@ -5434,7 +5686,57 @@ export default function ProgramWorkspace() {
           </div>
         </div>
       )}
-      </div>
+
+      {/* CONFIRMATION MODAL */}
+      {confirmTarget && (
+        <div
+          className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-6"
+          onClick={() => setConfirmTarget(null)}
+        >
+          <div
+            className="card w-full max-w-sm space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-rose-500" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-bold">Confirm Action</p>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {confirmTarget.message}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmTarget(null)}
+                className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg text-sm font-bold hover:opacity-80"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  confirmTarget.onConfirm();
+                  setConfirmTarget(null);
+                }}
+                className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-lg text-sm font-bold hover:bg-rose-600"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+        </div>
     </DashboardLayout>
+  );
+}
+
+export default function ProgramWorkspacePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-primary flex items-center justify-center"><div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" /></div>}>
+      <ProgramWorkspace />
+    </Suspense>
   );
 }

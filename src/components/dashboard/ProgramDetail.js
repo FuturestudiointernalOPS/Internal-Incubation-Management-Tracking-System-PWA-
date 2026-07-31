@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
+import SubmissionVersionHistory from "./SubmissionVersionHistory";
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -606,9 +607,9 @@ export default function ProgramDetail({ programId }) {
 
   const tabs = [
     { id: "curriculum", label: t("participant.curriculum"), icon: Layers },
-    { id: "resources", label: "Resources", icon: BookOpen },
+    { id: "assignments", label: "Assignments", icon: FileText },
     { id: "progress", label: "Progress", icon: BarChart3 },
-    { id: "details", label: "Details", icon: FileText },
+    { id: "resources", label: "Resources", icon: BookOpen },
   ];
 
   return (
@@ -757,6 +758,69 @@ export default function ProgramDetail({ programId }) {
                 }
               />
             ))
+          )}
+        </div>
+      )}
+
+      {/* ═══ Tab: Assignments ═══ */}
+      {activeTab === "assignments" && (
+        <div className="space-y-4">
+          {curriculum.weeks.filter(w => !w.locked).map((week) => (
+            <div key={week.number} className="space-y-2">
+              <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
+                Week {week.number}
+              </h3>
+              {week.deliverables.length === 0 ? (
+                <p className="text-[9px] text-[var(--text-tertiary)] italic">No assignments this week</p>
+              ) : (
+                week.deliverables.map((d) => (
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        d.submission?.status === "approved" ? "bg-emerald-500/10" :
+                        d.submission ? "bg-amber-500/10" : "bg-white/5"
+                      }`}>
+                        <FileText className={`w-4 h-4 ${
+                          d.submission?.status === "approved" ? "text-emerald-400" :
+                          d.submission ? "text-amber-400" : "text-[var(--text-tertiary)]"
+                        }`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                          {d.title}
+                        </p>
+                        <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
+                          {d.allowedFormat} {d.dueDate ? `· Due: ${new Date(d.dueDate).toLocaleDateString()}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {d.submission ? (
+                        <StatusBadge status={d.submission.status} />
+                      ) : (
+                        <span className="text-[8px] text-[var(--text-tertiary)] font-bold uppercase">Pending</span>
+                      )}
+                      {d.submission?.score != null && (
+                        <span className="text-[10px] font-black text-[var(--brand-orange)]">
+                          {d.submission.score}/100
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ))}
+          {curriculum.weeks.filter(w => !w.locked).length === 0 && (
+            <div className="text-center py-12">
+              <FileText className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
+              <p className="text-[11px] font-bold text-[var(--text-secondary)]">
+                No assignments available yet
+              </p>
+            </div>
           )}
         </div>
       )}

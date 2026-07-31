@@ -242,56 +242,47 @@ export default function TaskManager({
       .catch(() => {});
   }, []);
 
-  const handleAddResource = async (taskId) => {
-    if (!resourceForm.url.trim()) return;
+  const handleSaveResource = async (taskId) => {
+    if (!resourceFile && !resourceForm.url.trim()) return;
     setResourceAdding(true);
     try {
-      const res = await fetch("/api/tasks/resources", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: taskId,
-          name: resourceForm.name,
-          url: resourceForm.url,
-        }),
-      });
-      if (res.ok) {
-        if (onTasksChange) onTasksChange();
-        setAddResourceTaskId(null);
-        setResourceForm({ name: "", url: "" });
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setResourceAdding(false);
-    }
-  };
+      let finalUrl = resourceForm.url.trim();
+      let finalName = resourceForm.name.trim();
+      let filePayload = {};
 
-  const handleUploadResourceFile = async (taskId) => {
-    if (!resourceFile) return;
-    setResourceAdding(true);
-    try {
-      const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
-      const upload = await uploadFile("task-attachments", path, resourceFile);
-      if (!upload.success) {
-        notify('error', upload.error || "Upload failed");
-        return;
-      }
-      const res = await fetch("/api/tasks/resources", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: taskId,
-          name: resourceFile.name,
-          url: upload.url,
+      // If a file is selected, upload it first
+      if (resourceFile) {
+        const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
+        const upload = await uploadFile("knowledge", path, resourceFile);
+        if (!upload.success) {
+          notify('error', upload.error || "Upload failed");
+          setResourceAdding(false);
+          return;
+        }
+        finalUrl = upload.url;
+        finalName = finalName || resourceFile.name;
+        filePayload = {
           type: "file",
           file_name: resourceFile.name,
           file_size: resourceFile.size,
+        };
+      }
+
+      const res = await fetch("/api/tasks/resources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: taskId,
+          name: finalName,
+          url: finalUrl,
+          ...filePayload,
         }),
       });
       if (res.ok) {
+        notify('success', 'Resource saved');
         if (onTasksChange) onTasksChange();
         setAddResourceTaskId(null);
+        setResourceForm({ name: "", url: "" });
         setResourceFile(null);
       }
     } catch (e) {
@@ -313,6 +304,7 @@ export default function TaskManager({
         method: "DELETE",
       });
       if (res.ok) {
+        notify('success', 'Resource removed');
         if (onTasksChange) onTasksChange();
       }
     } catch (e) {
@@ -1182,8 +1174,8 @@ export default function TaskManager({
                 {!readOnly && (
                   <button
                     onClick={() => handleDeleteResource(r.id)}
-                    className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity"
-                    title="Remove URL"
+                    className="text-slate-400 hover:text-rose-400 transition-colors"
+                    title="Remove resource"
                   >
                     <Trash2 className="w-2.5 h-2.5" />
                   </button>
@@ -1218,6 +1210,7 @@ export default function TaskManager({
             />
             <input
               type="file"
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
               onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
               className="w-full text-[9px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[8px] file:font-bold file:bg-[var(--brand-orange)] file:text-black"
             />
@@ -1229,18 +1222,11 @@ export default function TaskManager({
                 Cancel
               </button>
               <button
-                onClick={() => handleUploadResourceFile(task.id)}
-                disabled={!resourceFile || resourceAdding}
+                onClick={() => handleSaveResource(task.id)}
+                disabled={(!resourceFile && !resourceForm.url) || resourceAdding}
                 className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase"
               >
-                Upload
-              </button>
-              <button
-                onClick={() => handleAddResource(task.id)}
-                disabled={!resourceForm.url || resourceAdding}
-                className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase"
-              >
-                {resourceAdding ? "Saving" : "Save"}
+                {resourceAdding ? "Saving..." : "Save"}
               </button>
             </div>
           </div>

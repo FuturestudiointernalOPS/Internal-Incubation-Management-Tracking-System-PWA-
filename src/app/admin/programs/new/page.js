@@ -60,7 +60,8 @@ export default function NewProgram() {
     program_type: "incubation",
     visibility: "private",
     participant_limit: 0,
-    registration_window: "",
+    registration_window_start: "",
+    registration_window_end: "",
     language: "en",
     assigned_pm_id: "",
     expected_outcomes: "",
@@ -97,12 +98,15 @@ export default function NewProgram() {
   const [newKB, setNewKB] = useState({ title: "", description: "", files: [] });
   const [createdKB, setCreatedKB] = useState(null);
   const [kpisList, setKpisList] = useState([]);
-  const [kpiInput, setKpiInput] = useState({ title: "", target_value: 80 });
+  const [kpiInput, setKpiInput] = useState({ title: "", target_value: 100 });
   const [templates, setTemplates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const [segments, setSegments] = useState([]);
+  const [customProgramTypes, setCustomProgramTypes] = useState([]);
+  const [newTypeInput, setNewTypeInput] = useState("");
+  const [showNewTypeInput, setShowNewTypeInput] = useState(false);
 
   const [selectedAssistants, setSelectedAssistants] = useState([]);
 
@@ -164,6 +168,13 @@ export default function NewProgram() {
       }
     }
     loadAssets();
+    // Charger les types personnalisés depuis la DB
+    fetch("/api/program-types")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.types) setCustomProgramTypes(data.types);
+      })
+      .catch(() => {});
   }, []);
 
   const handleFileUpload = async (e, type = "program") => {
@@ -208,6 +219,19 @@ export default function NewProgram() {
 
   const handleCreateGroupInline = async () => {
     if (!newGroup.name) return notify("error", "Group name is required.");
+    // Vérifier que la date actuelle est dans la fenêtre d'inscription
+    if (program.registration_window_start && program.registration_window_end) {
+      const now = new Date();
+      const start = new Date(program.registration_window_start);
+      const end = new Date(program.registration_window_end);
+      end.setHours(23, 59, 59, 999);
+      if (now < start) {
+        return notify("error", `Registration window opens on ${program.registration_window_start}.`);
+      }
+      if (now > end) {
+        return notify("error", `Registration window closed on ${program.registration_window_end}.`);
+      }
+    }
     setIsDeploying(true);
     try {
       const res = await fetch("/api/families", {
@@ -222,8 +246,8 @@ export default function NewProgram() {
         setSegments((prev) => [...prev, data.group]);
         setIsCreatingGroup(false);
         notify("success", "Group created. Saving program...");
-        // Auto-save program
-        setTimeout(() => handleDeploy({ preventDefault: () => {} }), 300);
+        // Auto-save program with explicit groupId to avoid stale closure
+        setTimeout(() => handleDeploy({ preventDefault: () => {} }, data.group.id), 300);
       }
     } catch (e) {
       notify("error", e.message);
@@ -267,7 +291,7 @@ export default function NewProgram() {
     }));
   };
 
-  const handleDeploy = async (e) => {
+  const handleDeploy = async (e, existingGroupId) => {
     e.preventDefault();
     if (!program.name || !program.assigned_pm_id) {
       notify(
@@ -291,7 +315,7 @@ export default function NewProgram() {
     setIsDeploying(true);
     try {
       // Create contact group first if a group name was provided
-      let groupId = program.assigned_segments?.[0];
+      let groupId = existingGroupId || program.assigned_segments?.[0];
       if (!groupId && newGroup.name?.trim()) {
         const groupRes = await fetch("/api/families", {
           method: "POST",
@@ -328,7 +352,9 @@ export default function NewProgram() {
           program_type: program.program_type || "incubation",
           visibility: program.visibility || "private",
           participant_limit: program.participant_limit || 0,
-          registration_window: program.registration_window || null,
+          registration_window: program.registration_window_start && program.registration_window_end
+            ? `${program.registration_window_start}|${program.registration_window_end}`
+            : null,
           language: program.language || "en",
           start_date: program.start_date,
           end_date: program.end_date,
@@ -337,7 +363,7 @@ export default function NewProgram() {
           assigned_assistant_id: program.assigned_assistant_id || null,
           note_id: program.note_id || null,
           materials: program.materials,
-          assigned_segments: program.assigned_segments,
+          assigned_segments: existingGroupId ? [existingGroupId] : program.assigned_segments,
           kpis: kpisList,
         }),
       });
@@ -533,30 +559,77 @@ export default function NewProgram() {
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
                 {t("admin.programType")}
               </label>
-              <select
-                value={program.program_type || "incubation"}
-                onChange={(e) =>
-                  setProgram({ ...program, program_type: e.target.value })
-                }
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
-              >
-                <option value="incubation">
-                  {t("admin.programTypes.incubation")}
-                </option>
-                <option value="acceleration">
-                  {t("admin.programTypes.acceleration")}
-                </option>
-                <option value="bootcamp">
-                  {t("admin.programTypes.bootcamp")}
-                </option>
-                <option value="workshop">
-                  {t("admin.programTypes.workshop")}
-                </option>
-                <option value="fellowship">
-                  {t("admin.programTypes.fellowship")}
-                </option>
-                <option value="custom">{t("admin.programTypes.custom")}</option>
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={program.program_type || "incubation"}
+                  onChange={(e) =>
+                    setProgram({ ...program, program_type: e.target.value })
+                  }
+                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+                >
+                  <option value="incubation">
+                    {t("admin.programTypes.incubation")}
+                  </option>
+                  <option value="acceleration">
+                    {t("admin.programTypes.acceleration")}
+                  </option>
+                  <option value="bootcamp">
+                    {t("admin.programTypes.bootcamp")}
+                  </option>
+                  <option value="workshop">
+                    {t("admin.programTypes.workshop")}
+                  </option>
+                  <option value="fellowship">
+                    {t("admin.programTypes.fellowship")}
+                  </option>
+                  {customProgramTypes.map((ct, i) => (
+                    <option key={i} value={ct}>
+                      {ct.toUpperCase()}
+                    </option>
+                  ))}
+                  <option value="custom">{t("admin.programTypes.custom")}</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowNewTypeInput(!showNewTypeInput)}
+                  className="px-4 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 rounded-2xl hover:bg-[var(--brand-orange)]/20 transition-all shrink-0"
+                  title="Ajouter un type"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+              {showNewTypeInput && (
+                <div className="flex gap-2 mt-2 animate-in fade-in slide-in-from-top-2">
+                  <input
+                    type="text"
+                    value={newTypeInput}
+                    onChange={(e) => setNewTypeInput(e.target.value)}
+                    placeholder="Nouveau type de programme..."
+                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-3 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!newTypeInput.trim()) return;
+                      const typeKey = newTypeInput.trim().toLowerCase().replace(/\s+/g, '_');
+                      try {
+                        await fetch("/api/program-types", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ type_key: typeKey }),
+                        });
+                      } catch {}
+                      setCustomProgramTypes([...customProgramTypes, typeKey]);
+                      setProgram({ ...program, program_type: typeKey });
+                      setNewTypeInput("");
+                      setShowNewTypeInput(false);
+                    }}
+                    className="px-4 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-emerald-500/20 hover:bg-emerald-500/20"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
@@ -699,18 +772,31 @@ export default function NewProgram() {
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
                 {t("admin.registrationWindow")}
               </label>
-              <input
-                type="text"
-                value={program.registration_window || ""}
-                onChange={(e) =>
-                  setProgram({
-                    ...program,
-                    registration_window: e.target.value,
-                  })
-                }
-                placeholder="e.g. 2024-01-01 to 2024-02-01"
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
-              />
+              <div className="flex gap-3">
+                <input
+                  type="date"
+                  value={program.registration_window_start || ""}
+                  onChange={(e) =>
+                    setProgram({
+                      ...program,
+                      registration_window_start: e.target.value,
+                    })
+                  }
+                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all [color-scheme:dark]"
+                />
+                <span className="flex items-center text-slate-500 text-sm font-bold">→</span>
+                <input
+                  type="date"
+                  value={program.registration_window_end || ""}
+                  onChange={(e) =>
+                    setProgram({
+                      ...program,
+                      registration_window_end: e.target.value,
+                    })
+                  }
+                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all [color-scheme:dark]"
+                />
+              </div>
             </div>
           </div>
 
@@ -1192,14 +1278,26 @@ export default function NewProgram() {
                     type="button"
                     onClick={() => {
                       if (!kpiInput.title.trim()) return;
+                      // Stratégie 100% : le total des KPIs fait toujours 100
+                      // Le dernier KPI existant est divisé par 2, le nouveau prend la valeur courante
+                      const currentValue = kpiInput.target_value || 100;
+                      const nextValue = Math.max(1, Math.floor(currentValue / 2));
+                      const updated = [...kpisList];
+                      if (updated.length > 0) {
+                        const last = updated[updated.length - 1];
+                        updated[updated.length - 1] = {
+                          ...last,
+                          target_value: Math.max(1, Math.floor(last.target_value / 2)),
+                        };
+                      }
                       setKpisList([
-                        ...kpisList,
+                        ...updated,
                         {
                           title: kpiInput.title,
-                          target_value: kpiInput.target_value || 80,
+                          target_value: currentValue,
                         },
                       ]);
-                      setKpiInput({ title: "", target_value: 80 });
+                      setKpiInput({ title: "", target_value: nextValue });
                     }}
                     className="px-6 bg-[var(--brand-orange)] text-black font-bold uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all flex items-center justify-center shrink-0"
                   >
@@ -1223,9 +1321,9 @@ export default function NewProgram() {
                       <div>
                         <p className="text-xs font-bold text-white uppercase tracking-tighter">
                           {kpi.title}
-                        </p>
-                        <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">
-                          Target: {kpi.target_value}%
+                          <span className="text-[var(--brand-orange)] ml-2">
+                            {kpi.target_value}%
+                          </span>
                         </p>
                       </div>
                       <button

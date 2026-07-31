@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Loader2,
   ExternalLink,
+  Link2,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -84,12 +85,58 @@ export default function VenturesPage() {
               Ventures
             </h1>
           </div>
-          <button
-            onClick={() => router.push("/admin/ventures/register")}
-            className="btn btn-primary gap-2"
-          >
-            <Plus className="w-4 h-4" /> Register Startup
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/venture-invites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ max_uses: 1, expires_in_days: 7 }) });
+                  const d = await res.json();
+                  if (d.success) {
+                    const link = `${window.location.origin}/register-venture?token=${d.token}`;
+                    await navigator.clipboard.writeText(link);
+                    window.dispatchEvent(
+                      new CustomEvent("impactos:notify", {
+                        detail: {
+                          type: "success",
+                          message: "Invite link copied to clipboard",
+                          duration: 4000,
+                        },
+                      })
+                    );
+                  } else {
+                    window.dispatchEvent(
+                      new CustomEvent("impactos:notify", {
+                        detail: {
+                          type: "error",
+                          message: d.error || "Failed to generate invite link",
+                          duration: 5000,
+                        },
+                      })
+                    );
+                  }
+                } catch (e) {
+                  window.dispatchEvent(
+                    new CustomEvent("impactos:notify", {
+                      detail: {
+                        type: "error",
+                        message: "Failed to generate invite link",
+                        duration: 5000,
+                      },
+                    })
+                  );
+                }
+              }}
+              className="btn gap-2"
+            >
+              <Link2 className="w-4 h-4" /> Copy Invite Link
+            </button>
+            <button
+              onClick={() => router.push("/admin/ventures/register")}
+              className="btn btn-primary gap-2"
+            >
+              <Plus className="w-4 h-4" /> Register Startup
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}

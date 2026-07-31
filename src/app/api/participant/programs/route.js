@@ -91,31 +91,38 @@ export async function GET(req) {
       const [progRes, sesRes, delRes, subRes, attRes, kpiRes, staffRes] =
         await Promise.all([
           db.execute({
-            sql: "SELECT * FROM v2_programs WHERE id = ?",
+            sql: "SELECT * FROM v2_programs WHERE id::text = ?",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_sessions WHERE program_id = ? ORDER BY week_number ASC, start_at ASC",
+            sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC, start_at ASC",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
+            sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ?",
-            args: [cid, pid],
+            sql: `SELECT s.* FROM v2_submissions s
+                  LEFT JOIN v2_participants p ON s.participant_id::text = p.id::text
+                  WHERE (s.participant_id::text = ? OR p.email = ? OR p.user_id = ?)
+                  AND s.program_id::text = ?`,
+            args: [cid, email, cid, pid],
           }),
           db.execute({
-            sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id = ?",
-            args: [cid, pid],
+            sql: `SELECT a.* FROM v2_attendance a
+                  JOIN v2_sessions s ON a.session_id::text = s.id::text
+                  LEFT JOIN v2_participants p ON a.participant_id::text = p.id::text
+                  WHERE (a.participant_id::text = ? OR p.email = ? OR p.user_id = ?)
+                  AND s.program_id::text = ?`,
+            args: [cid, email, cid, pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
+            sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT ps.*, c.name AS staff_name, c.role AS staff_role FROM v2_program_staff ps LEFT JOIN contacts c ON ps.staff_id = c.cid WHERE ps.program_id = ?",
+            sql: "SELECT ps.*, c.name AS staff_name, c.role AS staff_role FROM v2_program_staff ps LEFT JOIN contacts c ON ps.staff_id::text = c.cid WHERE ps.program_id::text = ?",
             args: [pid],
           }),
         ]);
@@ -158,7 +165,7 @@ export async function GET(req) {
       const totalDeliverables = unlockedDeliverables.length || 1;
       const completedDeliverables = unlockedDeliverables.filter((d) =>
         submissions.some(
-          (s) => s.document_id === d.id && s.status === "approved",
+          (s) => (s.deliverable_id || s.document_id) === d.id && s.status === "approved",
         ),
       ).length;
       const percentComplete = Math.round(
@@ -185,12 +192,12 @@ export async function GET(req) {
       let kpiCompletion = 0;
       try {
         const progressRes = await db.execute({
-          sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+          sql: "SELECT * FROM kpi_progress WHERE program_id::text = ? ORDER BY kpi_id ASC",
           args: [pid],
         });
         let kpiProgress = progressRes.rows || [];
         if (kpiProgress.length === 0) {
-          kpiProgress = await recalculateKpiProgress(pid);
+          kpiProgress = await recalculateKpiProgress(pid, email);
         }
         kpiCompletion =
           kpiProgress.length > 0

@@ -37,6 +37,7 @@ import {
   CheckSquare,
   Megaphone,
   HeartPulse,
+  Blocks,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -400,6 +401,12 @@ const NAVIGATION_MATRIX = {
       href: "/admin/intelligence",
     },
     {
+      id: "reports",
+      name: "REPORTS",
+      icon: FileText,
+      href: "/admin/reports",
+    },
+    {
       id: "finance",
       name: "FINANCE",
       icon: BarChart3,
@@ -437,6 +444,12 @@ const NAVIGATION_MATRIX = {
         },
         { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
       ],
+    },
+    {
+      id: "platform",
+      name: "PLATFORM",
+      icon: Blocks,
+      href: "/platform",
     },
     {
       id: "system",
@@ -652,20 +665,6 @@ const NAVIGATION_MATRIX = {
       name: "MY PROGRAMS",
       icon: Briefcase,
       href: "/participant/dashboard",
-    },
-    {
-      id: "assignments",
-      name: "ASSIGNMENTS",
-      icon: FileText,
-      href: "/participant/assignments",
-    },
-    // rituals — removed from sidebar per product decision
-    // Page still exists at /participant/rituals if needed
-    {
-      id: "progress_hub",
-      name: "MY PROGRESS",
-      icon: TrendingUp,
-      href: "/participant/progress",
     },
     {
       id: "communication",

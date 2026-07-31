@@ -55,6 +55,7 @@ export default function ReportResponses() {
   const [search, setSearch] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("All Programs");
   const [viewingReport, setViewingReport] = useState(null);
+  const [kpis, setKpis] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -70,6 +71,19 @@ export default function ReportResponses() {
 
       if (repData.success) setReports(repData.reports || []);
       if (progData.success) setPrograms(progData.programs || []);
+
+      // Fetch KPIs for each program to resolve KPI names
+      const allKpis = [];
+      for (const prog of (progData.programs || [])) {
+        try {
+          const kpiRes = await fetch(`/api/kpi-progress?program_id=${prog.id}`);
+          const kpiData = await kpiRes.json();
+          if (kpiData.success && kpiData.kpiProgress) {
+            allKpis.push(...kpiData.kpiProgress.map(k => ({ id: k.kpi_id, title: k.kpi_name })));
+          }
+        } catch (_) {}
+      }
+      setKpis(allKpis);
     } catch (e) {
       console.error("Sync Error:", e);
     } finally {
@@ -557,8 +571,18 @@ export default function ReportResponses() {
             {/* ───────── NOTES (fallback from old system) ───────── */}
             <section className="space-y-3">
               <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-slate-500/20 pb-2 print:text-gray-600 print:border-gray-200">
-                Weekly Notes
+                Notes &amp; Reception
               </h5>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <InfoBlock
+                  label="Student Reception"
+                  value={viewingReport.student_reception || "—"}
+                />
+                <InfoBlock
+                  label="Action Taken"
+                  value={viewingReport.action_taken || "—"}
+                />
+              </div>
               <InfoBlock
                 label="Progress Notes"
                 value={viewingReport.progress_notes || "No notes provided."}

@@ -410,16 +410,6 @@ export default function ParticipantDashboardHome() {
               hex: "#A855F7",
             }}
           />
-          <MetricCard
-            label="Ritual Participation"
-            value={0}
-            icon={Zap}
-            color={{
-              bg: "bg-amber-500/10",
-              text: "text-amber-400",
-              hex: "#FBBF24",
-            }}
-          />
         </div>
       </motion.div>
 

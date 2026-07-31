@@ -29,12 +29,12 @@ export async function GET(req) {
       },
       {
         name: "participants_v2",
-        sql: `SELECT CAST(id AS TEXT) as id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source, v2_team_id FROM v2_participants WHERE program_id = ?`,
+        sql: `SELECT CAST(id AS TEXT) as id, user_id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source, v2_team_id FROM v2_participants WHERE program_id = ?`,
         args: [id],
       },
       {
         name: "participants_contacts",
-        sql: `SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'group' as source, v2_team_id FROM contacts WHERE program_id IS NOT NULL AND program_id != '' AND (program_id = ? OR program_id LIKE ? OR UPPER(TRIM(group_name)) IN (SELECT UPPER(TRIM(name)) FROM families WHERE program_id = ?))`,
+        sql: `SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, status, created_at, group_name, 'group' as source, v2_team_id FROM contacts WHERE program_id IS NOT NULL AND program_id != '' AND status != 'archived' AND (program_id = ? OR program_id LIKE ? OR UPPER(TRIM(group_name)) IN (SELECT UPPER(TRIM(name)) FROM families WHERE program_id = ?))`,
         args: [id, `%${id}%`, id],
       },
       {
@@ -83,10 +83,10 @@ export async function GET(req) {
                      COALESCE(c.name, vp.name) as participant_name, 
                      d.title as deliverable_title
               FROM v2_submissions s
-              LEFT JOIN contacts c ON s.participant_id = c.cid OR s.participant_id = CAST(c.id AS TEXT)
-              LEFT JOIN v2_participants vp ON s.participant_id = CAST(vp.id AS TEXT)
-              LEFT JOIN v2_document_requirements d ON s.deliverable_id = CAST(d.id AS TEXT)
-              WHERE s.program_id = ?`,
+              LEFT JOIN contacts c ON s.participant_id::text = c.cid
+              LEFT JOIN v2_participants vp ON s.participant_id::text = vp.id::text
+              LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
+              WHERE s.program_id::text = ?`,
         args: [id],
       },
       {

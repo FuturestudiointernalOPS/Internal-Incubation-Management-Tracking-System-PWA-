@@ -14,7 +14,7 @@ export async function GET(req, { params }) {
     const { id } = await params;
 
     const ventureRes = await db.execute({
-      sql: `SELECT * FROM ventures WHERE id = ?`,
+      sql: `SELECT * FROM ventures WHERE venture_id = ?`,
       args: [id],
     });
 
@@ -23,11 +23,12 @@ export async function GET(req, { params }) {
     }
 
     const venture = ventureRes.rows[0];
+    const dbId = venture.id;
 
     if (session.role === "participant" && venture.visibility !== "public") {
       const memberCheck = await db.execute({
         sql: `SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL`,
-        args: [id, session.cid],
+        args: [dbId, session.cid],
       });
       if (!memberCheck.rows?.length) {
         return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -38,7 +39,7 @@ export async function GET(req, { params }) {
     let program = null;
     if (venture.program_id) {
       const progRes = await db.execute({
-        sql: `SELECT id, name, start_date, end_date, deliverables FROM v2_programs WHERE id = ?::uuid`,
+        sql: `SELECT id, name, start_date, end_date, deliverables FROM v2_programs WHERE id = ?`,
         args: [venture.program_id],
       });
       if (progRes.rows?.[0]) {
@@ -63,7 +64,7 @@ export async function GET(req, { params }) {
         WHERE vm.venture_id = ? AND vm.member_type = 'founder'
         ORDER BY vm.joined_at DESC
       `,
-      args: [id],
+      args: [dbId],
     });
 
     const founderHistory = [];

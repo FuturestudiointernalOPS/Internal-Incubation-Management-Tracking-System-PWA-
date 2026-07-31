@@ -425,6 +425,27 @@ export async function createVentureNotification({
   });
 }
 
+/** Notify all venture founders about an event */
+export async function notifyVentureFounders(dbId, title, message) {
+  try {
+    const founders = await db.execute({
+      sql: "SELECT contact_id FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
+      args: [dbId],
+    });
+    for (const f of founders.rows || []) {
+      if (f.contact_id) {
+        await createVentureNotification({ recipient_id: f.contact_id, title, message });
+      }
+    }
+    // Also notify the venture venture_id (for super admin overview)
+    const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
+    const vid = v.rows?.[0]?.venture_id;
+    if (vid) {
+      await createVentureNotification({ recipient_id: "sa", title: `[${vid}] ${title}`, message });
+    }
+  } catch (e) { /* non-blocking */ }
+}
+
 /**
  * Send invitation email to a founder.
  */
@@ -507,14 +528,22 @@ export async function getVentureById(ventureId) {
  */
 export async function updateVenture(ventureId, updates) {
   const allowedFields = [
+    "name",
     "company_name",
     "registration_number",
+    "mission",
+    "vision",
     "industry",
+    "sector",
     "business_stage",
     "description",
     "website",
     "logo_url",
+    "social_media",
     "status",
+    "visibility",
+    "language",
+    "branding",
   ];
 
   const setClauses = [];
@@ -2191,12 +2220,12 @@ export const TASK_STATUSES = ["backlog", "todo", "in_progress", "review", "done"
 export const TASK_PRIORITIES = ["low", "medium", "high", "critical"];
 
 export async function listTasks(ventureId, milestoneId, status, assignedCid) {
-  let sql = "SELECT * FROM venture_tasks WHERE venture_id = ?";
+  let sql = `SELECT vt.*, pt.title AS parent_title FROM venture_tasks vt LEFT JOIN venture_tasks pt ON vt.parent_task_id = pt.id WHERE vt.venture_id = ?`;
   const args = [ventureId];
-  if (milestoneId) { sql += " AND milestone_id = ?"; args.push(milestoneId); }
-  if (status) { sql += " AND status = ?"; args.push(status); }
-  if (assignedCid) { sql += " AND assigned_cid = ?"; args.push(assignedCid); }
-  sql += " ORDER BY display_order ASC, created_at DESC";
+  if (milestoneId) { sql += " AND vt.milestone_id = ?"; args.push(milestoneId); }
+  if (status) { sql += " AND vt.status = ?"; args.push(status); }
+  if (assignedCid) { sql += " AND vt.assigned_cid = ?"; args.push(assignedCid); }
+  sql += " ORDER BY vt.display_order ASC, vt.created_at DESC";
   const res = await db.execute({ sql, args });
   return (res.rows || []).map((t) => ({
     ...t,
@@ -2214,15 +2243,15 @@ export async function getTask(taskId) {
   return t;
 }
 
-export async function createTask({ ventureId, milestoneId, title, description, priority, dueDate, estimatedHours, assignedCid, assignedName, reporterCid, reporterName, labels, displayOrder }) {
+export async function createTask({ ventureId, milestoneId, title, description, priority, dueDate, estimatedHours, assignedCid, assignedName, reporterCid, reporterName, labels, displayOrder, parentTaskId }) {
   if (!displayOrder) {
     const o = await db.execute({ sql: "SELECT COALESCE(MAX(display_order), 0) + 1 as n FROM venture_tasks WHERE venture_id = ?", args: [ventureId] });
     displayOrder = o.rows[0]?.n || 1;
   }
   const res = await db.execute({
-    sql: `INSERT INTO venture_tasks (venture_id, milestone_id, title, description, priority, due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid, reporter_name, labels, display_order)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?) RETURNING id`,
-    args: [ventureId, milestoneId || null, title.trim(), description?.trim() || null, priority || "medium", dueDate || null, estimatedHours || null, assignedCid || null, assignedName || null, reporterCid || null, reporterName || null, JSON.stringify(labels || []), displayOrder],
+    sql: `INSERT INTO venture_tasks (venture_id, milestone_id, title, description, priority, due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid, reporter_name, labels, display_order, parent_task_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?) RETURNING id`,
+    args: [ventureId, milestoneId || null, title.trim(), description?.trim() || null, priority || "medium", dueDate || null, estimatedHours || null, assignedCid || null, assignedName || null, reporterCid || null, reporterName || null, JSON.stringify(labels || []), displayOrder, parentTaskId || null],
   });
   return { id: res.rows[0]?.id || res.lastInsertRowid };
 }
@@ -3773,12 +3802,17 @@ export async function updateMatchStatus(matchId, status) {
 
 export const DOCUMENT_CATEGORIES = ["pitch_deck", "business_plan", "financial_statements", "cap_table", "legal_documents", "product_roadmap", "market_research", "customer_metrics", "revenue_reports", "technical_documentation", "other"];
 
-export async function listDocuments(ventureId, { category, isPitchDeck, search } = {}) {
-  let sql = "SELECT * FROM venture_documents WHERE venture_id=?";
+export async function listDocuments(ventureId, { category, isPitchDeck, search, visibility } = {}) {
+  let sql = "SELECT id, name as title, name, description, document_type, category, file_name, file_size, file_type, file_url, thumbnail_url, is_pitch_deck, approval_status, created_at, updated_at, venture_id FROM venture_documents WHERE venture_id=? AND is_deleted = false";
   const args = [ventureId];
   if (category) { sql += " AND category=?"; args.push(category); }
   if (isPitchDeck !== undefined) { sql += " AND is_pitch_deck=?"; args.push(isPitchDeck?1:0); }
-  if (search) { sql += " AND (title ILIKE ? OR description ILIKE ?)"; args.push(`%${search}%`, `%${search}%`); }
+  if (search) { sql += " AND (name ILIKE ? OR description ILIKE ?)"; args.push(`%${search}%`, `%${search}%`); }
+  // Restrict visibility based on role (null = show all)
+  if (visibility && Array.isArray(visibility) && visibility.length > 0) {
+    sql += ` AND approval_status IN (${visibility.map(()=>'?').join(',')})`;
+    args.push(...visibility);
+  }
   sql += " ORDER BY created_at DESC";
   return (await db.execute({ sql, args })).rows || [];
 }
@@ -3786,7 +3820,7 @@ export async function listDocuments(ventureId, { category, isPitchDeck, search }
 export async function getDocument(docId) {
   const [d, v] = await Promise.all([
     db.execute({ sql: "SELECT * FROM venture_documents WHERE id=?", args: [docId] }),
-    db.execute({ sql: "SELECT * FROM venture_document_versions WHERE document_id=? ORDER BY version DESC", args: [docId] }),
+    db.execute({ sql: "SELECT * FROM venture_document_versions WHERE document_id=? ORDER BY version_number DESC", args: [docId] }),
   ]);
   if (d.rows.length === 0) return null;
   return { ...d.rows[0], versions: v.rows||[] };
@@ -3796,10 +3830,17 @@ export async function uploadDocument({ ventureId, title, description, documentTy
   const dup = await db.execute({ sql: "SELECT id FROM venture_documents WHERE venture_id=? AND file_name=?", args: [ventureId, fileName] });
   if (dup.rows.length > 0) throw new Error("File already exists. Use update for new version.");
   const id = (await db.execute({
-    sql: `INSERT INTO venture_documents (venture_id, title, description, document_type, category, file_name, file_size, file_type, file_url, thumbnail_url, is_pitch_deck, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [ventureId, title.trim(), description||null, documentType||"other", category||"other", fileName, fileSize||null, fileType||null, fileUrl, thumbnailUrl||null, isPitchDeck?1:0, uploadedBy||"system"],
+    sql: `INSERT INTO venture_documents (venture_id, name, description, document_type, category, file_name, file_size, file_type, file_url, storage_path, thumbnail_url, is_pitch_deck, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    args: [ventureId, title.trim(), description||null, documentType||"other", category||"other", fileName, fileSize||null, fileType||null, fileUrl, fileUrl, thumbnailUrl||null, isPitchDeck?1:0, uploadedBy||"system"],
   })).rows[0]?.id;
-  await db.execute({ sql: `INSERT INTO venture_document_versions (document_id, version, file_name, file_size, file_url, uploaded_by) VALUES (?, 1, ?, ?, ?, ?)`, args: [id, fileName, fileSize||null, fileUrl, uploadedBy||"system"] });
+  // Ensure version table columns exist (schema compatibility)
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version_number INTEGER" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version INTEGER" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_name TEXT" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_size BIGINT" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS change_notes TEXT" }); } catch(e){}
+  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS storage_path TEXT" }); } catch(e){}
+  await db.execute({ sql: `INSERT INTO venture_document_versions (document_id, version_number, version, file_name, file_size, file_url, storage_path, uploaded_by, change_notes) VALUES (?, 1, 1, ?, ?, ?, ?, ?, 'v1')`, args: [id, fileName, fileSize||null, fileUrl, fileUrl, uploadedBy||"system"] });
   return { id };
 }
 

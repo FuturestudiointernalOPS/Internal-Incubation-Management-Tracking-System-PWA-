@@ -13,8 +13,10 @@ export async function GET(req, { params }) {
     const { id, docId } = await params;
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    const dbId = (await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id=?", args: [id] })).rows?.[0]?.id;
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const doc = await db.execute({ sql: "SELECT id FROM venture_documents WHERE id = ? AND venture_id = ?", args: [docId, id] });
+    const doc = await db.execute({ sql: "SELECT id FROM venture_documents WHERE id = ? AND venture_id = ?", args: [docId, dbId] });
     if (!doc.rows?.length) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
     const r = await db.execute({ sql: "SELECT * FROM venture_document_versions WHERE document_id = ? ORDER BY version_number DESC", args: [docId] });
@@ -32,8 +34,10 @@ export async function POST(req, { params }) {
     const { id, docId } = await params;
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    const dbId = (await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id=?", args: [id] })).rows?.[0]?.id;
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const doc = await db.execute({ sql: "SELECT id FROM venture_documents WHERE id = ? AND venture_id = ?", args: [docId, id] });
+    const doc = await db.execute({ sql: "SELECT id FROM venture_documents WHERE id = ? AND venture_id = ?", args: [docId, dbId] });
     if (!doc.rows?.length) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
 
     const { storage_path, file_url, version_notes } = await req.json();

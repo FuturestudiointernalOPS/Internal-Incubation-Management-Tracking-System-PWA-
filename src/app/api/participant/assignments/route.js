@@ -13,6 +13,9 @@ async function getSessionCid() {
 export async function GET(req) {
   try {
     await initDb();
+    // Ensure index exists for performance
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_participant_program ON v2_submissions(participant_id, program_id)"); } catch (_) {}
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_deliverable ON v2_submissions(deliverable_id)"); } catch (_) {}
     const authError = await requireAuth();
     if (authError) return authError;
 

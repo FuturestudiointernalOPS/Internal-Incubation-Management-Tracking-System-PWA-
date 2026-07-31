@@ -3,6 +3,7 @@ import db, { initDb } from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { v4 as uuidv4 } from "uuid";
 import { getSession } from "@/lib/auth";
+import { updateVenture } from "@/lib/ventures";
 
 /**
  * GET /api/ventures
@@ -16,11 +17,7 @@ export const GET = createHandler(
     const search = searchParams.get("search");
 
     let sql = `
-      SELECT v.*,
-        (SELECT COUNT(*) FROM venture_founders vf WHERE vf.venture_id = v.venture_id) as founder_count,
-        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.venture_id) as member_count
-      FROM ventures v
-      WHERE 1=1
+      SELECT v.* FROM ventures v WHERE 1=1
     `;
     const args = [];
 
@@ -73,14 +70,37 @@ export const POST = createHandler(
     const id = result.rows[0]?.id;
     // Add creator as founder
     try {
+      const { getSession } = await import("@/lib/auth");
       const session = await getSession();
-      if (id && session.cid) {
+      if (id && session?.cid) {
         await db.execute({
-          sql: `INSERT INTO venture_members (venture_id, user_cid, role) VALUES (?, ?, 'founder') ON CONFLICT DO NOTHING`,
-          args: [venture_id, session.cid],
+          sql: `INSERT INTO venture_members (venture_id, contact_id, user_cid, role) VALUES (?, ?, ?, 'founder') ON CONFLICT DO NOTHING`,
+          args: [venture_id, session.cid, session.cid],
         });
       }
-    } catch(_) {}
+    } catch(e) {
+      console.warn("Failed to add venture member:", e.message);
+    }
     return NextResponse.json({ success: true, id, venture_id });
+  },
+);
+
+/**
+ * PUT /api/ventures
+ * Update a venture. Expects { id: venture_id, ...fields } in body.
+ */
+export const PUT = createHandler(
+  { roles: ["super_admin"] },
+  async (req) => {
+    const body = await req.json();
+    const { id, ...updates } = body;
+    if (!id) {
+      return NextResponse.json({ success: false, error: "id (venture_id) is required" }, { status: 400 });
+    }
+    // Convert social_media/branding objects to JSON strings for SQLite
+    if (updates.social_media) updates.social_media = JSON.stringify(updates.social_media);
+    if (updates.branding) updates.branding = JSON.stringify(updates.branding);
+    const result = await updateVenture(id, updates);
+    return NextResponse.json({ success: true, ...result });
   },
 );
