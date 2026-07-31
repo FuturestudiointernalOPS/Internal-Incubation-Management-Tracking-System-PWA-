@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Loader2,
   ExternalLink,
+  Link2,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -84,12 +85,33 @@ export default function VenturesPage() {
               Ventures
             </h1>
           </div>
-          <button
-            onClick={() => router.push("/admin/ventures/register")}
-            className="btn btn-primary gap-2"
-          >
-            <Plus className="w-4 h-4" /> Register Startup
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/venture-invites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ max_uses: 1, expires_in_days: 7 }) });
+                  const d = await res.json();
+                  if (d.success) {
+                    await navigator.clipboard.writeText(d.link);
+                    alert("Invite link copied! Send it to anyone to let them create a venture directly.\n\n" + d.link);
+                  } else {
+                    alert(d.error || "Failed to generate invite link");
+                  }
+                } catch (e) {
+                  alert("Failed to generate invite link");
+                }
+              }}
+              className="btn gap-2"
+            >
+              <Link2 className="w-4 h-4" /> Copy Invite Link
+            </button>
+            <button
+              onClick={() => router.push("/admin/ventures/register")}
+              className="btn btn-primary gap-2"
+            >
+              <Plus className="w-4 h-4" /> Register Startup
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}
