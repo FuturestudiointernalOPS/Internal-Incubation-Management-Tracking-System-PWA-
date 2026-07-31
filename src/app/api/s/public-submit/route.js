@@ -28,16 +28,20 @@ export async function POST(req) {
     const body = await req.json();
     let { run_id, data, slug } = body;
     
-    // Resolve slug to ID if provided
+    // Resolve slug to ID if provided (gracefully handle missing column)
     if (slug && !run_id) {
-      const runBySlug = await db.execute({
-        sql: "SELECT id FROM platform_form_runs WHERE public_slug = ? AND status = 'active'",
-        args: [slug],
-      });
-      if (runBySlug.rows.length === 0) {
-        return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
+      try {
+        const runBySlug = await db.execute({
+          sql: "SELECT id FROM platform_form_runs WHERE public_slug = ? AND status = 'active'",
+          args: [slug],
+        });
+        if (runBySlug.rows.length > 0) {
+          run_id = runBySlug.rows[0].id;
+        }
+      } catch (e) {
+        // public_slug column may not exist — fall back to ID lookup
+        console.warn("[Public Submit] public_slug lookup failed:", e.message);
       }
-      run_id = runBySlug.rows[0].id;
     }
     if (!run_id || !data || typeof data !== "object") {
       return NextResponse.json({ success: false, error: "run_id and data required" }, { status: 400 });
@@ -75,9 +79,10 @@ export async function POST(req) {
     if (typeof data === "object") {
       for (const [key, value] of Object.entries(data)) {
         const k = String(key).toLowerCase();
-        const v = String(value);
+        // Skip JSON phone objects — they contain curly braces
+        const v = typeof value === "string" && !value.startsWith("{") ? value : String(value);
         if ((k.includes("name") || k.includes("full")) && submitterName === "Anonymous") submitterName = v.substring(0, 200);
-        if (k.includes("email") && !submitterEmail) submitterEmail = v.substring(0, 200);
+        if (k.includes("email") && !submitterEmail && v.includes("@")) submitterEmail = v.substring(0, 200);
       }
     }
     const submitterId = submitterEmail || "public-" + Date.now();
@@ -110,7 +115,8 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, id: result.rows[0].id });
   } catch (error) {
-    console.error("[Public Submit] Error:", error.message);
-    return NextResponse.json({ success: false, error: "An error occurred" }, { status: 500 });
+    console.error("[Public Submit] Error:", error.message, error.stack);
+    console.error("[Public Submit] Request body snippet:", JSON.stringify(body || {}).substring(0, 200));
+    return NextResponse.json({ success: false, error: "An error occurred — our team has been notified" }, { status: 500 });
   }
 }

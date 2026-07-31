@@ -123,7 +123,7 @@ export default function PublicSubmitPage() {
       }
       case "select": case "radio":
         return (
-          <select value={value} onChange={(e) => updateField(field.id, e.target.value)} disabled={isDisabled} className={`${inputClass} [&>option]:bg-slate-800 [&>option]:text-slate-100`}>
+          <select value={value} onChange={(e) => updateField(field.id, e.target.value)} disabled={isDisabled} className={`${inputClass} [&>option]:bg-slate-800 [&>option]:text-slate-100 appearance-none`}>
             <option value="">Select...</option>
             {(field.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>

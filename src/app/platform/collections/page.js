@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   FolderKanban,
@@ -465,7 +467,7 @@ export default function CollectionsPage() {
           }}
         >
           <div
-            className="card w-full max-w-md space-y-5 max-h-[85vh] overflow-y-auto"
+            className="card w-full max-w-xl space-y-5 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center">
