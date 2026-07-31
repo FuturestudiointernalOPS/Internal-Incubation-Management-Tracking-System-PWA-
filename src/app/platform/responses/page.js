@@ -101,8 +101,8 @@ export default function ResponsesPage() {
   const formName = (formId) => forms.find(f => f.id === formId)?.name || "—";
   const runName = (runId) => runs.find(r => r.id === runId)?.name || "—";
 
-  // Visible form fields for spreadsheet columns (first 8 non-hidden text fields)
-  const visibleFields = formFields.filter(f => !["hidden"].includes(f.field_type)).slice(0, 8);
+  // Visible form fields for spreadsheet columns (first 3 non-hidden)
+  const visibleFields = formFields.filter(f => !["hidden"].includes(f.field_type)).slice(0, 3);
 
   const formatCell = (val) => {
     if (val === undefined || val === null || val === "") return "—";
@@ -110,7 +110,7 @@ export default function ResponsesPage() {
     if (s.startsWith("{") && s.includes('"code"')) {
       try { const p = JSON.parse(s); if (p.code && p.number) return `${p.code} ${p.number}`; } catch (_) {}
     }
-    return s.length > 40 ? s.substring(0, 40) + "..." : s;
+    return s.length > 35 ? s.substring(0, 35) + "..." : s;
   };
 
   const getFieldValue = (submission, field) => {
@@ -181,7 +181,7 @@ export default function ResponsesPage() {
           <div className="flex items-center gap-2 text-[8px] text-[var(--text-secondary)]">
             <Filter className="w-3 h-3" />
             <span>Columns: {visibleFields.map(f => f.label).join(" · ")}</span>
-            {formFields.length > 8 && <span className="opacity-50">+{formFields.length - 8} more</span>}
+            {formFields.length > 3 && <span className="opacity-50">+{formFields.length - 3} more</span>}
           </div>
         )}
       </div>
@@ -207,7 +207,9 @@ export default function ResponsesPage() {
                   <th className="px-3 py-3 sticky left-[40px] bg-secondary z-20">Applicant</th>
                   {/* Dynamic form field columns */}
                   {selectedFormId && visibleFields.map(f => (
-                    <th key={f.id} className="px-3 py-3 whitespace-nowrap">{f.label}</th>
+                    <th key={f.id} className="px-3 py-3 max-w-[130px]" title={f.label}>
+                      <span className="line-clamp-1">{f.label.length > 25 ? f.label.substring(0, 25) + "..." : f.label}</span>
+                    </th>
                   ))}
                   {!selectedFormId && (
                     <>
