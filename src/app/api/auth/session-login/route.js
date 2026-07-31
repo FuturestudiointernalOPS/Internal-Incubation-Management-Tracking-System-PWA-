@@ -163,6 +163,8 @@ export async function POST(req) {
         // handler_id (or v2_programs assistant) silently loses investor-only
         // document visibility restrictions and is treated as a teacher.
         finalRole = "investor";
+      } else if (user.role === "founder") {
+        finalRole = "founder";
       } else if (pmLeadAssignment.rows.length > 0) {
         finalRole = "program_manager";
       } else if (user.role === "program_manager") {

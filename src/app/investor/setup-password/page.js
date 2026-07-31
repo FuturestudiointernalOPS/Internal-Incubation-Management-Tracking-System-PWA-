@@ -1,10 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Lock, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function SetupPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
+        <p className="text-sm text-slate-500">Loading...</p>
+      </div>
+    }>
+      <SetupPasswordContent />
+    </Suspense>
+  );
+}
+
+function SetupPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");

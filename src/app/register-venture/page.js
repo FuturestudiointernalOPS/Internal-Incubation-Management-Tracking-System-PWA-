@@ -19,6 +19,8 @@ function RegisterVentureContent() {
     industry: "",
     founder_name: "",
     founder_email: "",
+    founder_password: "",
+    founder_password_confirm: "",
   });
 
   useEffect(() => {
@@ -42,13 +44,21 @@ function RegisterVentureContent() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setSubmitting(true);
     setError("");
+    if (form.founder_password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    if (form.founder_password !== form.founder_password_confirm) {
+      setError("Passwords do not match");
+      return;
+    }
+    setSubmitting(true);
     try {
       const res = await fetch("/api/venture-invites/consume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, ...form }),
+        body: JSON.stringify({ token, ...form, founder_password_confirm: undefined }),
       });
       const d = await res.json();
       if (d.success) {
@@ -131,6 +141,18 @@ function RegisterVentureContent() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Email *</label>
                   <input required type="email" value={form.founder_email} onChange={(e) => setForm({ ...form, founder_email: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Password *</label>
+                  <input required type="password" minLength={6} value={form.founder_password} onChange={(e) => setForm({ ...form, founder_password: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder="Min. 6 characters" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Confirm Password *</label>
+                  <input required type="password" minLength={6} value={form.founder_password_confirm} onChange={(e) => setForm({ ...form, founder_password_confirm: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} />
                 </div>
               </div>

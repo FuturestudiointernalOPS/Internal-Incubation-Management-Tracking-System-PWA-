@@ -1,18 +1,22 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import bcrypt from "bcryptjs";
 
 // POST /api/venture-invites/consume — external user creates a venture via invite link
 export async function POST(req) {
   try {
     await initDb();
     const body = await req.json();
-    const { token, name, description, industry, business_stage, founder_name, founder_email } = body;
+    const { token, name, description, industry, business_stage, founder_name, founder_email, founder_password } = body;
 
     if (!token) return NextResponse.json({ success: false, error: "Token required" }, { status: 400 });
     if (!name?.trim()) return NextResponse.json({ success: false, error: "Venture name is required" }, { status: 400 });
     if (!founder_name?.trim() || !founder_email?.trim()) {
       return NextResponse.json({ success: false, error: "Founder name and email are required" }, { status: 400 });
+    }
+    if (!founder_password || founder_password.length < 6) {
+      return NextResponse.json({ success: false, error: "Password must be at least 6 characters" }, { status: 400 });
     }
 
     // Validate token
@@ -42,8 +46,9 @@ export async function POST(req) {
     if (!dbId) return NextResponse.json({ success: false, error: "Failed to create venture" }, { status: 500 });
 
     // Add founder as member (founder type)
-    // Resolve the contact by email — create it if the person doesn't have an account yet,
-    // so they can access their venture as soon as they register.
+    // Resolve the contact by email — create it with the founder's password so they
+    // can log in immediately (no email round-trip needed).
+    const hashedPassword = await bcrypt.hash(founder_password, 10);
     let contactCid = null;
     try {
       const existing = await db.execute({
@@ -52,13 +57,23 @@ export async function POST(req) {
       });
       contactCid = existing.rows?.[0]?.cid || null;
     } catch {}
-    if (!contactCid) {
+    if (contactCid) {
+      // Contact already exists (e.g. placeholder from an earlier attempt) — set the real password
+      try {
+        await db.execute({
+          sql: "UPDATE contacts SET password = ?, name = ?, role = 'founder', status = 'active' WHERE cid = ?",
+          args: [hashedPassword, founder_name.trim(), contactCid],
+        });
+      } catch (e) {
+        console.warn("Failed to update founder contact password:", e.message);
+      }
+    } else {
       try {
         const newCid = `USER_${uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12)}`;
         const ins = await db.execute({
           sql: `INSERT INTO contacts (cid, name, email, password, role, status, deleted)
-                VALUES (?, ?, ?, ?, 'participant', 'active', 0) RETURNING cid`,
-          args: [newCid, founder_name.trim(), founder_email.trim(), "__SETUP_PENDING__"],
+                VALUES (?, ?, ?, ?, 'founder', 'active', 0) RETURNING cid`,
+          args: [newCid, founder_name.trim(), founder_email.trim(), hashedPassword],
         });
         contactCid = ins.rows?.[0]?.cid || newCid;
       } catch (e) {

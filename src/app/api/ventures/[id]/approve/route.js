@@ -48,6 +48,7 @@ export async function POST(req, { params }) {
 
     // Email every founder recorded for this venture with a password-setup link
     let emailed = 0;
+    const emailErrors = [];
     try {
       const founders = await db.execute({
         sql: `SELECT f.email, f.name
@@ -97,15 +98,19 @@ export async function POST(req, { params }) {
           } catch (e) {
             console.warn("Setup token creation failed for", f.email, ":", e.message);
           }
-          await sendVentureApprovalEmail({
+          const emailResult = await sendVentureApprovalEmail({
             to: f.email,
             name: f.name || "there",
             ventureName: venture.company_name || venture.name || id,
             setupUrl,
           });
-          emailed++;
+          if (emailResult?.success) {
+            emailed++;
+          } else {
+            emailErrors.push({ to: f.email, error: emailResult?.error?.message || emailResult?.error || emailResult?.note || "unknown" });
+          }
         } catch (e) {
-          console.warn("Approval email failed for", f.email, ":", e.message);
+          emailErrors.push({ to: f.email, error: e.message });
         }
       }
     } catch (e) {
@@ -121,7 +126,7 @@ export async function POST(req, { params }) {
       });
     } catch {}
 
-    return NextResponse.json({ success: true, emailed });
+    return NextResponse.json({ success: true, emailed, email_errors: emailErrors });
   } catch (e) {
     console.error("POST /api/ventures/[id]/approve error:", e);
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });

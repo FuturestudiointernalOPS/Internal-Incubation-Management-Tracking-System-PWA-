@@ -149,6 +149,8 @@ export async function POST(req) {
       finalRole = "developer";
     } else if (user.role === "investor") {
       finalRole = "investor";
+    } else if (user.role === "founder") {
+      finalRole = "founder";
     } else if (pmLeadAssignment.rows.length > 0) {
       finalRole = "program_manager"; // Project Manager (Head)
     } else if (activeTeammateAssignment.rows.length > 0) {
