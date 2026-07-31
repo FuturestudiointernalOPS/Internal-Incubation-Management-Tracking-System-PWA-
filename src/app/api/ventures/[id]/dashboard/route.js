@@ -16,7 +16,7 @@ import {
  */
 export const GET = createHandler(
   async (req, { params }) => {
-    const { id } = params;
+    const { id } = await params;
     const start = Date.now();
 
     // ── Profile Completion ──

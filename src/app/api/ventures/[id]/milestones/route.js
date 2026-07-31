@@ -12,7 +12,7 @@ import {
  * POST /api/ventures/[id]/milestones — create milestone
  */
 export const GET = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get("project_id");
   const milestones = await listMilestones(id, projectId);
@@ -20,7 +20,7 @@ export const GET = createHandler(async (req, { params }) => {
 });
 
 export const POST = createHandler(async (req, { params }) => {
-  const { id } = params;
+  const { id } = await params;
   const body = await req.json();
   const { title, description, priority, due_date, owner_cid, assigned_members, display_order } = body;
 
@@ -74,7 +74,7 @@ export const PUT = createHandler(async (req, { params }) => {
   const session = req.session;
 
   if (action === "create_deliverable") {
-    const { id } = params;
+    const { id } = await params;
     const { milestone_id, title, description, deliverable_type, due_date, assigned_cid } = body;
     if (!milestone_id) return NextResponse.json({ success: false, error: "milestone_id required." }, { status: 400 });
     if (!title?.trim()) return NextResponse.json({ success: false, error: "Deliverable title required." }, { status: 400 });

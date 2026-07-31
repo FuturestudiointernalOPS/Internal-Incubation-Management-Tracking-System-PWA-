@@ -16,7 +16,7 @@ import {
 export const GET = createHandler(
   { roles: ["super_admin", "staff", "program_manager"] },
   async (req, { params }) => {
-    const { id } = params;
+    const { id } = await params;
 
     const venture = await getVentureById(id);
 
@@ -43,7 +43,7 @@ export const GET = createHandler(
 export const PATCH = createHandler(
   { roles: ["super_admin"] },
   async (req, { params }) => {
-    const { id } = params;
+    const { id } = await params;
 
     // Check venture exists
     const existingVenture = await getVentureById(id);

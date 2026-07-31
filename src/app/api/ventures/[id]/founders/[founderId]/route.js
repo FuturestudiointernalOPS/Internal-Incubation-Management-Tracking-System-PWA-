@@ -17,7 +17,7 @@ import {
  */
 export const GET = createHandler(
   async (req, { params }) => {
-    const { id, founderId } = params;
+    const { id, founderId } = await params;
 
     const founder = await getFounderById(parseInt(founderId));
     if (!founder || founder.venture_id !== id) {
@@ -35,7 +35,7 @@ export const GET = createHandler(
  */
 export const PATCH = createHandler(
   async (req, { params }) => {
-    const { id, founderId } = params;
+    const { id, founderId } = await params;
     const session = await getSession();
 
     if (!session) {
@@ -91,7 +91,7 @@ export const PATCH = createHandler(
  */
 export const DELETE = createHandler(
   async (req, { params }) => {
-    const { id, founderId } = params;
+    const { id, founderId } = await params;
     const session = await getSession();
 
     if (!session) {
