@@ -17,6 +17,8 @@ export default function ResponsesPage() {
   const [selectedFormId, setSelectedFormId] = useState("");
   const [formFields, setFormFields] = useState([]);
   const [fieldsLoading, setFieldsLoading] = useState(false);
+  const [visibleFieldIds, setVisibleFieldIds] = useState([]); // user-selected columns
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,11 +60,17 @@ export default function ResponsesPage() {
 
   // Load form fields when a form is selected
   useEffect(() => {
-    if (!selectedFormId) { setFormFields([]); return; }
+    if (!selectedFormId) { setFormFields([]); setVisibleFieldIds([]); return; }
     setFieldsLoading(true);
     fetch(`/api/platform/forms?id=${selectedFormId}`)
       .then(r => r.json())
-      .then(d => { if (d.success) setFormFields(d.fields || []); })
+      .then(d => {
+        if (d.success) {
+          const allFields = (d.fields || []).filter(f => !["hidden"].includes(f.field_type));
+          setFormFields(allFields);
+          setVisibleFieldIds(allFields.slice(0, 3).map(f => String(f.id)));
+        }
+      })
       .catch(() => {})
       .finally(() => setFieldsLoading(false));
   }, [selectedFormId]);
@@ -101,8 +109,15 @@ export default function ResponsesPage() {
   const formName = (formId) => forms.find(f => f.id === formId)?.name || "—";
   const runName = (runId) => runs.find(r => r.id === runId)?.name || "—";
 
-  // Visible form fields for spreadsheet columns (first 3 non-hidden)
-  const visibleFields = formFields.filter(f => !["hidden"].includes(f.field_type)).slice(0, 3);
+  const visibleFields = formFields.filter(f => visibleFieldIds.includes(String(f.id)));
+
+  const toggleField = (fieldId) => {
+    setVisibleFieldIds(prev =>
+      prev.includes(String(fieldId))
+        ? prev.filter(id => id !== String(fieldId))
+        : [...prev, String(fieldId)]
+    );
+  };
 
   const formatCell = (val) => {
     if (val === undefined || val === null || val === "") return "—";
@@ -177,13 +192,37 @@ export default function ResponsesPage() {
         </div>
 
         {/* Column legend when form selected */}
-        {selectedFormId && visibleFields.length > 0 && (
-          <div className="flex items-center gap-2 text-[8px] text-[var(--text-secondary)]">
-            <Filter className="w-3 h-3" />
-            <span>Columns: {visibleFields.map(f => f.label).join(" · ")}</span>
-            {formFields.length > 3 && <span className="opacity-50">+{formFields.length - 3} more</span>}
+        {selectedFormId && formFields.length > 0 && (
+          <div className="flex items-center gap-2 text-[8px] text-[var(--text-secondary)] relative">
+            <button onClick={() => setShowColumnPicker(!showColumnPicker)} className="flex items-center gap-1 px-2 py-1 rounded bg-tertiary border border-[var(--border-primary)] hover:text-[var(--text-primary)]">
+              <Filter className="w-3 h-3" /> Columns ({visibleFields.length}/{formFields.length})
+            </button>
+            {showColumnPicker && (
+              <div className="absolute top-full left-0 mt-1 z-50 w-64 max-h-64 overflow-y-auto rounded-xl bg-secondary border border-[var(--border-primary)] shadow-lg p-2 space-y-1" onClick={e => e.stopPropagation()}>
+                <p className="text-[8px] font-black uppercase text-[var(--text-secondary)] px-2 py-1">Select Columns</p>
+                {formFields.map(f => (
+                  <label key={f.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-tertiary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={visibleFieldIds.includes(String(f.id))}
+                      onChange={() => toggleField(f.id)}
+                      className="w-3 h-3 rounded accent-[var(--brand-orange)]"
+                    />
+                    <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{f.label}</span>
+                    <span className="text-[8px] text-[var(--text-secondary)] ml-auto">{f.field_type}</span>
+                  </label>
+                ))}
+                <div className="flex gap-2 px-2 pt-1 border-t border-[var(--border-primary)]">
+                  <button onClick={() => setVisibleFieldIds(formFields.slice(0, 3).map(f => String(f.id)))} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Reset</button>
+                  <button onClick={() => setVisibleFieldIds(formFields.map(f => String(f.id)))} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Select All</button>
+                  <button onClick={() => setVisibleFieldIds([])} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Clear</button>
+                </div>
+              </div>
+            )}
+            <span>{visibleFields.map(f => f.label).join(" · ") || "No columns selected"}</span>
           </div>
         )}
+        {showColumnPicker && <div className="fixed inset-0 z-40" onClick={() => setShowColumnPicker(false)} />}
       </div>
 
       {/* Spreadsheet Table */}
