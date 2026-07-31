@@ -197,7 +197,16 @@ export async function PATCH(req) {
       "teacher",
     ]);
     if (authError) return authError;
-    const { team_id, member_ids } = await req.json();
+    const { team_id, member_ids, action, is_venture_ready } = await req.json();
+
+    // Support set_venture_ready action (used by venture approval workflow)
+    if (action === "set_venture_ready" && team_id) {
+      await db.execute({
+        sql: "UPDATE v2_teams SET is_venture_ready = ? WHERE id::text = ?",
+        args: [is_venture_ready ? 1 : 0, team_id],
+      });
+      return NextResponse.json({ success: true });
+    }
 
     if (!team_id || !member_ids || !Array.isArray(member_ids)) {
       return NextResponse.json(

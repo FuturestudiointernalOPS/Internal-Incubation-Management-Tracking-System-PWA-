@@ -211,6 +211,9 @@ function ProgramWorkspace() {
     due_date: "",
     assignee_type: "all",
     assignee_id: "",
+    max_marks: "100",
+    passing_marks: "50",
+    weight: "1",
   });
   const [newPMReport, setNewPMReport] = useState({
     summary: "",
@@ -458,6 +461,11 @@ function ProgramWorkspace() {
 
   const addRequirement = async (shouldClose = true) => {
     if (!newRequirement.title.trim()) return;
+    const maxMarks = parseInt(newRequirement.max_marks, 10) || 100;
+    if (maxMarks > 100) {
+      notify("Maximum marks cannot exceed 100.", "error");
+      return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch("/api/pm/curriculum", {
@@ -474,6 +482,9 @@ function ProgramWorkspace() {
           due_date: newRequirement.due_date || null,
           assignee_type: newRequirement.assignee_type || "all",
           assignee_id: newRequirement.assignee_id || "",
+          max_marks: maxMarks,
+          passing_marks: parseInt(newRequirement.passing_marks, 10) || 50,
+          weight: parseFloat(newRequirement.weight) || 1,
         }),
       });
       const data = await res.json();
@@ -488,6 +499,9 @@ function ProgramWorkspace() {
           due_date: "",
           assignee_type: "all",
           assignee_id: "",
+          max_marks: "100",
+          passing_marks: "50",
+          weight: "1",
         });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
@@ -4168,6 +4182,57 @@ function ProgramWorkspace() {
                         border: "1px solid var(--border-primary)",
                         color: "var(--text-primary)",
                       }}
+                    />
+                  </div>
+                </div>
+
+                {/* Assessment Configuration */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
+                      <Target className="w-3 h-3" /> Max Marks
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={newRequirement.max_marks || "100"}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (v > 100) { notify("Maximum marks cannot exceed 100.", "error"); return; }
+                        setNewRequirement((p) => ({ ...p, max_marks: e.target.value }));
+                      }}
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
+                      <CheckCircle2 className="w-3 h-3" /> Passing
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={newRequirement.passing_marks || "50"}
+                      onChange={(e) => setNewRequirement((p) => ({ ...p, passing_marks: e.target.value }))}
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
+                      <Activity className="w-3 h-3" /> Weight
+                    </label>
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="10"
+                      step="0.1"
+                      value={newRequirement.weight || "1"}
+                      onChange={(e) => setNewRequirement((p) => ({ ...p, weight: e.target.value }))}
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                     />
                   </div>
                 </div>

@@ -14,7 +14,7 @@ import db from "@/lib/db";
 export async function recalculateKpiProgress(programId, participantId) {
   // 1. Fetch KPIs for this program
   const kpiRes = await db.execute({
-    sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
+    sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
     args: [programId],
   });
   const kpiList = kpiRes.rows || [];
@@ -24,11 +24,11 @@ export async function recalculateKpiProgress(programId, participantId) {
   // 2. Fetch all sessions and document requirements for this program
   const [sessionRes, docRes] = await Promise.all([
     db.execute({
-      sql: "SELECT * FROM v2_sessions WHERE program_id = ?",
+      sql: "SELECT * FROM v2_sessions WHERE program_id::text = ?",
       args: [programId],
     }),
     db.execute({
-      sql: "SELECT * FROM v2_document_requirements WHERE program_id = ?",
+      sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ?",
       args: [programId],
     }),
   ]);
@@ -42,9 +42,9 @@ export async function recalculateKpiProgress(programId, participantId) {
     try {
       const subRes = await db.execute({
         sql: `SELECT s.* FROM v2_submissions s
-              LEFT JOIN v2_participants p ON s.participant_id = p.id
+              LEFT JOIN v2_participants p ON s.participant_id::text = p.id::text
               WHERE (s.participant_id::text = ? OR p.email = ? OR p.user_id = ?)
-              AND s.program_id = ? AND s.status = 'approved'`,
+              AND s.program_id::text = ? AND s.status = 'approved'`,
         args: [participantId, participantId, participantId, programId],
       });
       participantSubmissions = subRes.rows || [];
@@ -129,19 +129,7 @@ export async function recalculateKpiProgress(programId, participantId) {
     try {
     for (const entry of progressEntries) {
       await db.execute({
-        sql: `INSERT INTO kpi_progress (kpi_id, program_id, kpi_name, linked_sessions, completed_sessions, linked_docs, completed_docs, total_items, completed_items, progress, weight, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-              ON CONFLICT (kpi_id, program_id)
-              DO UPDATE SET
-                linked_sessions = EXCLUDED.linked_sessions,
-                completed_sessions = EXCLUDED.completed_sessions,
-                linked_docs = EXCLUDED.linked_docs,
-                completed_docs = EXCLUDED.completed_docs,
-                total_items = EXCLUDED.total_items,
-                completed_items = EXCLUDED.completed_items,
-                progress = EXCLUDED.progress,
-                weight = EXCLUDED.weight,
-                updated_at = NOW()`,
+        sql: "INSERT INTO kpi_progress (kpi_id, program_id, kpi_name, linked_sessions, completed_sessions, linked_docs, completed_docs, total_items, completed_items, progress, weight, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW()) ON CONFLICT (kpi_id, program_id) DO UPDATE SET linked_sessions = EXCLUDED.linked_sessions, completed_sessions = EXCLUDED.completed_sessions, linked_docs = EXCLUDED.linked_docs, completed_docs = EXCLUDED.completed_docs, total_items = EXCLUDED.total_items, completed_items = EXCLUDED.completed_items, progress = EXCLUDED.progress, weight = EXCLUDED.weight, updated_at = NOW()",
         args: [
           entry.kpi_id,
           entry.program_id,

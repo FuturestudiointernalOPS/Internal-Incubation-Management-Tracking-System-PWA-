@@ -55,7 +55,7 @@ export async function POST(req) {
     let team;
     if (team_id) {
       const teamRes = await db.execute({
-        sql: "SELECT * FROM v2_teams WHERE id = ?",
+        sql: "SELECT * FROM v2_teams WHERE id::text = ?",
         args: [team_id],
       });
       if (teamRes.rows.length === 0) {
@@ -68,13 +68,13 @@ export async function POST(req) {
     } else if (program_id) {
       // Find the first venture-ready team in this program
       const teamRes = await db.execute({
-        sql: "SELECT * FROM v2_teams WHERE program_id = ? AND is_venture_ready = 1 LIMIT 1",
+        sql: "SELECT * FROM v2_teams WHERE program_id::text = ? AND is_venture_ready = 1 LIMIT 1",
         args: [program_id],
       });
       if (teamRes.rows.length === 0) {
         // Fallback: any team in the program
         const fallbackRes = await db.execute({
-          sql: "SELECT * FROM v2_teams WHERE program_id = ? LIMIT 1",
+          sql: "SELECT * FROM v2_teams WHERE program_id::text = ? LIMIT 1",
           args: [program_id],
         });
         if (fallbackRes.rows.length === 0) {
@@ -107,7 +107,7 @@ export async function POST(req) {
 
     // ─── 5. Verify program exists ───
     const progRes = await db.execute({
-      sql: "SELECT * FROM v2_programs WHERE id = ?",
+      sql: "SELECT * FROM v2_programs WHERE id::text = ?",
       args: [team.program_id],
     });
     if (progRes.rows.length === 0) {
@@ -129,8 +129,9 @@ export async function POST(req) {
       );
     }
 
-    // ─── 6. Generate Venture ID ───
-    const ventureId = `VNT-${uuidv4().replace(/-/g, "").substring(0, 8).toUpperCase()}`;
+    // ─── 6. Generate Venture IDs ───
+    const ventureUuid = uuidv4();  // Real UUID for database
+    const ventureId = `VNT-${ventureUuid.replace(/-/g, "").substring(0, 8).toUpperCase()}`;  // Display ID
     const now = new Date().toISOString();
 
     // Use provided company info or derive from team/program names
@@ -157,7 +158,7 @@ export async function POST(req) {
         sql: `INSERT INTO ventures (venture_id, name, company_name, registration_number, industry, business_stage, description, website, logo_url, status, created_by, created_at, updated_at)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
         args: [
-          ventureId, finalCompanyName, finalCompanyName,
+          ventureUuid, finalCompanyName, finalCompanyName,
           registration_number?.trim() || null,
           finalIndustry, finalStage,
           description?.trim() || `Promoted from program: ${program.name}`,
@@ -172,7 +173,7 @@ export async function POST(req) {
           sql: `INSERT INTO ventures (venture_id, name, registration_number, industry, business_stage, description, website, logo_url, status, created_by, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
           args: [
-            ventureId, finalCompanyName,
+            ventureUuid, finalCompanyName,
             registration_number?.trim() || null,
             finalIndustry, finalStage,
             description?.trim() || `Promoted from program: ${program.name}`,
@@ -188,14 +189,16 @@ export async function POST(req) {
     // ─── 8. Update team with venture_id ───
     await db.execute({
       sql: "UPDATE v2_teams SET venture_id = ?, promoted_at = ? WHERE id = ?",
-      args: [ventureId, now, team.id],
+      args: [ventureUuid, now, team.id],
     });
 
-    // ─── 9. Update program with venture_id ───
-    await db.execute({
+    // ─── 9. Update program with venture_id (non-blocking) ───
+    try {
+      await db.execute({
       sql: "UPDATE v2_programs SET venture_id = ? WHERE id = ?",
-      args: [ventureId, program.id],
+      args: [ventureUuid, program.id],
     });
+    } catch (_) {}
 
     // ─── 10. Copy founders ───
     // Find team members via v2_group_members or v2_participants
@@ -212,7 +215,7 @@ export async function POST(req) {
     if (teamMembers.length === 0 && team.program_id) {
       try {
         const partRes = await db.execute({
-          sql: "SELECT user_id as contact_id, name FROM v2_participants WHERE program_id = ?",
+          sql: "SELECT user_id as contact_id, name FROM v2_participants WHERE program_id::text = ?",
           args: [team.program_id],
         });
         teamMembers = partRes.rows || [];
@@ -236,7 +239,7 @@ export async function POST(req) {
           sql: `INSERT INTO venture_founders (venture_id, email, name, title, status, created_at, updated_at)
                 VALUES (?, ?, ?, 'founder', 'active', ?, ?)
                 ON CONFLICT (venture_id, email) DO NOTHING`,
-          args: [ventureId, contact.email || `${fId}@impactos.local`, contact.name || fId, now, now],
+          args: [ventureUuid, contact.email || `${fId}@impactos.local`, contact.name || fId, now, now],
         });
       } catch (_) {}
     }
@@ -249,17 +252,18 @@ export async function POST(req) {
           sql: `INSERT INTO venture_members (venture_id, user_cid, role, joined_at)
                 VALUES (?, ?, 'member', ?)
                 ON CONFLICT (venture_id, user_cid) DO NOTHING`,
-          args: [ventureId, String(member.contact_id), now],
+          args: [ventureUuid, String(member.contact_id), now],
         });
       } catch (_) {}
     }
 
-    // ─── 11. Create activity logs ───
-    await db.execute({
+    // ─── 11. Create activity logs (non-blocking) ───
+    try {
+      await db.execute({
       sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
             VALUES (?, 'PROGRAM_PROMOTED', ?, ?, ?::jsonb, ?)`,
       args: [
-        ventureId,
+        ventureUuid,
         session.cid || "system",
         session.name || "",
         JSON.stringify({
@@ -271,12 +275,14 @@ export async function POST(req) {
         now,
       ],
     });
+    } catch (_) {}
 
-    await db.execute({
+    try {
+      await db.execute({
       sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
             VALUES (?, 'VENTURE_CREATED', ?, ?, ?::jsonb, ?)`,
       args: [
-        ventureId,
+        ventureUuid,
         session.cid || "system",
         session.name || "",
         JSON.stringify({
@@ -287,13 +293,15 @@ export async function POST(req) {
         now,
       ],
     });
+    } catch (_) {}
 
-    // ─── 12. Create venture history record ───
-    await db.execute({
+    // ─── 12. Create venture history record (non-blocking) ───
+    try {
+      await db.execute({
       sql: `INSERT INTO venture_history (venture_id, event_type, description, metadata, created_at)
             VALUES (?, 'PROMOTED', ?, ?::jsonb, ?)`,
       args: [
-        ventureId,
+        ventureUuid,
         `Program-to-Venture promotion from "${program.name}"`,
         JSON.stringify({
           program_id: program.id,
@@ -305,6 +313,7 @@ export async function POST(req) {
         now,
       ],
     });
+    } catch (_) {}
 
     // ─── 13. Send notifications ───
     const notifyRecipients = [team.leader_id, team.handler_id, ...founderIds].filter(Boolean);

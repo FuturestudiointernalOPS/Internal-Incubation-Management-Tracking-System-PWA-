@@ -286,6 +286,42 @@ export async function PATCH(req) {
       }
     }
 
+    // 5. Group Assessment Propagation: if this submission belongs to a team,
+    //    propagate the same score/status to all team members for this deliverable
+    if (sub?.team_id && (score != null || status === "approved")) {
+      try {
+        const propagateSql = `UPDATE v2_submissions SET
+              status = ?, score = ?, feedback = ?,
+              review_action = ?, rejection_reason = ?,
+              approved_at = CURRENT_TIMESTAMP, updated_at = NOW()
+            WHERE team_id::text = ?
+              AND (deliverable_id::text = ? OR document_id::text = ?)
+              AND id::text != ?`;
+        await db.execute({
+          sql: propagateSql,
+          args: [
+            status,
+            score || null,
+            feedback || null,
+            review_action || null,
+            rejection_reason || null,
+            sub.team_id,
+            sub.deliverable_id || String(sub.document_id),
+            sub.document_id != null ? String(sub.document_id) : sub.deliverable_id,
+            id,
+          ],
+        });
+      } catch (_) {}
+    }
+
+    // 6. Recalculate KPI progress if status changed to approved/rejected
+    if ((status === "approved" || status === "rejected") && sub?.program_id) {
+      try {
+        const { recalculateKpiProgress } = await import("@/lib/kpi-progress");
+        await recalculateKpiProgress(sub.program_id);
+      } catch (_) {}
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(

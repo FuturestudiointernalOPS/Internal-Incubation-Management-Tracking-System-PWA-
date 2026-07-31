@@ -20,6 +20,7 @@ export async function GET(req) {
       );
 
     const cid = session.cid;
+    const email = session.email;
 
     const contactRes = await db.execute({
       sql: "SELECT cid, name, email, program_id, group_name FROM contacts WHERE cid = ?",
@@ -62,7 +63,7 @@ export async function GET(req) {
     // Path 4: participant_programs junction table
     try {
       const ppRes = await db.execute({
-        sql: "SELECT program_id FROM participant_programs WHERE participant_id = ?",
+        sql: "SELECT program_id FROM participant_programs WHERE participant_id::text = ?",
         args: [cid],
       });
       ppRes.rows.forEach((r) => {
@@ -108,19 +109,19 @@ export async function GET(req) {
         reflectRes,
       ] = await Promise.all([
         db.execute({
-          sql: "SELECT * FROM v2_programs WHERE id = ?",
+          sql: "SELECT * FROM v2_programs WHERE id::text = ?",
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_sessions WHERE program_id = ? ORDER BY week_number ASC",
+          sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC",
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
+          sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ? ORDER BY created_at DESC",
+          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ? ORDER BY created_at DESC",
           args: [cid, pid],
         }),
         db.execute({
@@ -128,7 +129,7 @@ export async function GET(req) {
           args: [pid, cid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
+          sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
           args: [pid],
         }),
         db.execute({

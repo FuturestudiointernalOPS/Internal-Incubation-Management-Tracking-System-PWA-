@@ -89,27 +89,27 @@ export async function GET(req) {
       const [progRes, sesRes, delRes, subRes, attRes, kpiRes] =
         await Promise.all([
           db.execute({
-            sql: "SELECT * FROM v2_programs WHERE id = ?",
+            sql: "SELECT * FROM v2_programs WHERE id::text = ?",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_sessions WHERE program_id = ? ORDER BY week_number ASC, start_at ASC",
+            sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC, start_at ASC",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
+            sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ?",
+            sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ?",
             args: [cid, pid],
           }),
           db.execute({
-            sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id = ? AND s.program_id = ?",
+            sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id::text = ?",
             args: [cid, pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
+            sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
             args: [pid],
           }),
         ]);
@@ -178,7 +178,7 @@ export async function GET(req) {
       let kpiCompletion = 0;
       try {
         const progressRes = await db.execute({
-          sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+          sql: "SELECT * FROM kpi_progress WHERE program_id::text = ? ORDER BY kpi_id ASC",
           args: [pid],
         });
         let kpiProgress = progressRes.rows || [];
