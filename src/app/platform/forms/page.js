@@ -762,18 +762,23 @@ export default function PlatformForms() {
                           const res = await fetch("/api/platform/ai/generate-all", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: aiGenText, collection_id: createForm.collection_id || null }) });
                           const data = await res.json();
                           if (data.success) {
-                            notify(`✓ Form created — ${data.sections} sections, ${data.fields} fields${data.has_evaluation ? `, ${data.evaluation_dimensions} eval dimensions` : ""}`);
+                            const parts = [];
+                            if (data.sections) parts.push(`${data.sections} sections`);
+                            if (data.fields) parts.push(`${data.fields} questions`);
+                            if (data.evaluation_dimensions) parts.push(`${data.evaluation_dimensions} eval dimensions`);
+                            notify(`✓ AI created "${data.title}" — ${parts.join(", ")}`);
                             setShowCreate(false);
                             setCreateMode("manual");
                             setAiGenText("");
                             fetchForms();
                             if (data.form) {
-                              openBuilder(data.form);
+                              // Brief delay so the notification is visible before builder opens
+                              setTimeout(() => openBuilder(data.form), 400);
                             }
                           } else {
-                            notify(data.error || "Generation failed");
+                            notify(data.error || "Generation failed — try a longer document with more detail");
                           }
-                        } catch (_) { notify("AI generation failed"); }
+                        } catch (_) { notify("AI generation failed — check your connection"); }
                         setAiGenLoading(false);
                       }}
                       disabled={aiGenLoading || !aiGenText.trim()}
