@@ -3286,9 +3286,9 @@ function ProgramWorkspace() {
                 >
                   Cancel
                 </button>
-                <button
+                 <button
                   onClick={deployTeam}
-                  disabled={isSaving || !newTeam.name.trim()}
+                  disabled={isSaving || (teamAssignmentMode === "new" && !newTeam.name.trim()) || (teamAssignmentMode === "existing" && !selectedExistingTeamId)}
                   className="flex-1 btn btn-primary"
                 >
                   {isSaving ? "Initializing..." : "Initialize Group"}
