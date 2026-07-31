@@ -72,9 +72,9 @@ export async function POST(req) {
     const generatedPassword = `FST${randomStr}`;
     const teamId = crypto.randomUUID(); // Use built-in crypto for UUID
 
-    // 1. Create Team Record (name = sub-team, group_name = parent group)
+    // 1. Create Team Record (name = sub-team, group_name = parent group, approved by default)
     const result = await db.execute({
-      sql: "INSERT INTO v2_teams (id, program_id, name, handler_id, handler_name, password, team_username, group_name, leader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
+      sql: "INSERT INTO v2_teams (id, program_id, name, handler_id, handler_name, password, team_username, group_name, leader_id, is_venture_ready) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, true) RETURNING *",
       args: [
         teamId,
         program_id,
