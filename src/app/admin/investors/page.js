@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Users, Building2, CheckCircle2, XCircle, AlertCircle,
-  Search, Loader2, Shield, Clock, Ban, UserCheck,
+  Search, Loader2, Shield, Clock, Ban, UserCheck, Copy, Check, Link,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -32,6 +32,7 @@ export default function AdminInvestorsPage() {
   const [acting, setActing] = useState(null);
   const [detail, setDetail] = useState(null);
   const [toast, setToast] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => { fetchInvestors(); }, [statusFilter]);
 
@@ -71,6 +72,17 @@ export default function AdminInvestorsPage() {
     approved: investors.filter(i => i.approval_status === "approved").length,
   };
 
+  const copyRegistrationLink = () => {
+    const link = `${window.location.origin}/investor/wizard`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setToast({ type: "success", message: "Registration link copied!" });
+      setTimeout(() => setCopied(false), 3000);
+    }).catch(() => {
+      setToast({ type: "error", message: "Failed to copy" });
+    });
+  };
+
   return (
     <DashboardLayout role="super_admin">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
@@ -84,6 +96,10 @@ export default function AdminInvestorsPage() {
               Approve, reject, and manage investor access to Investor OS
             </p>
           </div>
+          <AppButton variant="secondary" size="sm" icon={copied ? Check : Link}
+            onClick={copyRegistrationLink}>
+            {copied ? "Link Copied" : "Copy Registration Link"}
+          </AppButton>
         </div>
 
         {/* FILTERS */}

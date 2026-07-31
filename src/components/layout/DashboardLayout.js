@@ -322,7 +322,7 @@ const NAVIGATION_MATRIX = {
       name: "INVESTORS",
       icon: Briefcase,
       subItems: [
-        { id: "investors_manage", name: "MANAGE", href: "/admin/investors" },
+        { id: "investors_manage", name: "INVESTOR MANAGEMENT", href: "/admin/investors" },
         { id: "investors_dashboard", name: "DASHBOARD", href: "/admin/investors/dashboard" },
         { id: "investors_review", name: "REVIEW", href: "/admin/investors/review" },
         { id: "investors_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
