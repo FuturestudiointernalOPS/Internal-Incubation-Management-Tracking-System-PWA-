@@ -101,11 +101,10 @@ export default function PlatformDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-black uppercase tracking-tight text-[var(--text-primary)]">
-          Platform Dashboard
+          Forms Dashboard
         </h1>
         <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-          Central workspace for platform capabilities — modules automatically
-          register themselves here.
+          Build forms, launch runs, collect and review submissions — all from one workspace.
         </p>
       </div>
 
@@ -183,7 +182,7 @@ export default function PlatformDashboard() {
       {/* Active modules grid */}
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-          Installed Modules
+          Quick Access
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {activeModules.map((mod) => {
