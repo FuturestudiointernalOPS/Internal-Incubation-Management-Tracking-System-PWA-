@@ -17,7 +17,10 @@ export const GET = createHandler(
     const search = searchParams.get("search");
 
     let sql = `
-      SELECT v.* FROM ventures v WHERE 1=1
+      SELECT v.*,
+        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.venture_id AND vm.member_type = 'founder' AND vm.removed_at IS NULL) as founder_count,
+        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.venture_id AND vm.member_type != 'founder' AND vm.removed_at IS NULL) as member_count
+      FROM ventures v WHERE 1=1
     `;
     const args = [];
 

@@ -246,7 +246,7 @@ export default function VentureDetailPage({ params }) {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-8 border-b border-[var(--border-primary)]">
+          <div className="flex gap-1 mt-8 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -254,13 +254,13 @@ export default function VentureDetailPage({ params }) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-5 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border-b-2 ${
+                  className={`px-5 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border-b-2 whitespace-nowrap ${
                     isActive
                       ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
                       : "border-transparent text-slate-500 hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
                   {tab.label}
                 </button>
               );

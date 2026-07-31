@@ -177,63 +177,74 @@ export default function VenturesPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredVentures.map((venture) => {
-              const stage = stageConfig(venture.business_stage);
-              const status = statusConfig(venture.status);
-              const founderCount = venture.founder_count || 0;
-              const memberCount = venture.member_count || 0;
-
-              return (
-                <div
-                  key={venture.id}
-                  onClick={() => router.push(`/admin/ventures/${venture.venture_id}`)}
-                  className="card cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all group"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="p-3 rounded-xl bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
-                      <Rocket className="w-5 h-5" />
-                    </div>
-                    <span
-                      className={`text-[8px] font-black uppercase px-2 py-1 rounded ${status.color} ${status.dot ? "before:content-[''] before:w-1.5 before:h-1.5 before:rounded-full before:inline-block before:mr-1" : ""}`}
-                    >
-                      {status.label}
-                    </span>
-                  </div>
-
-                  <h3 className="text-base font-bold text-[var(--text-primary)] truncate mb-1">
-                    {venture.company_name}
-                  </h3>
-                  <p className="text-[10px] text-slate-500 font-medium mb-3">
-                    {venture.venture_id}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <span className="text-[8px] font-black uppercase px-2 py-1 rounded bg-slate-500/10 text-slate-400">
-                      {venture.industry}
-                    </span>
-                    <span className={`text-[8px] font-black uppercase px-2 py-1 rounded ${stage.color}`}>
-                      {stage.label}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-4 text-[10px] text-slate-500 border-t border-[var(--border-primary)] pt-3">
-                    <div className="flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      <span>{founderCount + memberCount} members</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{new Date(venture.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex justify-end">
-                    <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-[var(--brand-orange)] transition-colors" />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border-primary)] text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                    <th className="text-left px-5 py-3">Venture</th>
+                    <th className="text-left px-5 py-3">Industry</th>
+                    <th className="text-left px-5 py-3">Stage</th>
+                    <th className="text-left px-5 py-3">Status</th>
+                    <th className="text-left px-5 py-3">Members</th>
+                    <th className="text-left px-5 py-3">Created</th>
+                    <th className="px-5 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredVentures.map((venture) => {
+                    const stage = stageConfig(venture.business_stage);
+                    const status = statusConfig(venture.status);
+                    const founderCount = parseInt(venture.founder_count) || 0;
+                    const memberCount = parseInt(venture.member_count) || 0;
+                    return (
+                      <tr
+                        key={venture.id}
+                        onClick={() => router.push(`/admin/ventures/${venture.venture_id}`)}
+                        className="border-b border-[var(--border-primary)]/50 cursor-pointer hover:bg-tertiary/50 transition-all group"
+                      >
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
+                              <Rocket className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-[var(--text-primary)]">{venture.company_name}</p>
+                              <p className="text-[10px] text-slate-500 font-medium">{venture.venture_id}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="text-[9px] font-black uppercase px-2 py-1 rounded bg-slate-500/10 text-slate-400">
+                            {venture.industry}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`text-[9px] font-black uppercase px-2 py-1 rounded ${stage.color}`}>
+                            {stage.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase px-2 py-1 rounded ${status.color}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${status.dot || "bg-current"}`} />
+                            {status.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-[11px] text-slate-400 font-medium">
+                          {founderCount + memberCount} members
+                        </td>
+                        <td className="px-5 py-3 text-[11px] text-slate-400 font-medium">
+                          {new Date(venture.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <ChevronRight className="w-4 h-4 text-slate-600 inline group-hover:text-[var(--brand-orange)] transition-colors" />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

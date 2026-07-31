@@ -26,9 +26,10 @@ export async function GET(req, { params }) {
     const dbId = venture.id;
 
     if (session.role === "participant" && venture.visibility !== "public") {
+      // venture_members stores venture_id as the VNT code (TEXT)
       const memberCheck = await db.execute({
         sql: `SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL`,
-        args: [dbId, session.cid],
+        args: [id, session.cid],
       });
       if (!memberCheck.rows?.length) {
         return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -56,6 +57,7 @@ export async function GET(req, { params }) {
     }
 
     // Founder program history (all founders including removed)
+    // venture_members stores venture_id as the VNT code (TEXT)
     const foundersRes = await db.execute({
       sql: `
         SELECT vm.contact_id, vm.role, vm.joined_at, vm.removed_at, c.name as contact_name
@@ -64,7 +66,7 @@ export async function GET(req, { params }) {
         WHERE vm.venture_id = ? AND vm.member_type = 'founder'
         ORDER BY vm.joined_at DESC
       `,
-      args: [dbId],
+      args: [id],
     });
 
     const founderHistory = [];

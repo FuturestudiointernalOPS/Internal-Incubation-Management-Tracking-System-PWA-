@@ -239,7 +239,7 @@ export async function POST(req) {
           sql: `INSERT INTO venture_founders (venture_id, email, name, title, status, created_at, updated_at)
                 VALUES (?, ?, ?, 'founder', 'active', ?, ?)
                 ON CONFLICT (venture_id, email) DO NOTHING`,
-          args: [ventureUuid, contact.email || `${fId}@impactos.local`, contact.name || fId, now, now],
+          args: [ventureId, contact.email || `${fId}@impactos.local`, contact.name || fId, now, now],
         });
       } catch (_) {}
     }
@@ -248,11 +248,12 @@ export async function POST(req) {
     for (const member of teamMembers) {
       if (uniqueFounders.has(member.contact_id)) continue;
       try {
+        // venture_members stores venture_id as the VNT code (TEXT)
         await db.execute({
           sql: `INSERT INTO venture_members (venture_id, user_cid, role, joined_at)
                 VALUES (?, ?, 'member', ?)
                 ON CONFLICT (venture_id, user_cid) DO NOTHING`,
-          args: [ventureUuid, String(member.contact_id), now],
+          args: [ventureId, String(member.contact_id), now],
         });
       } catch (_) {}
     }

@@ -30,7 +30,8 @@ export async function GET(req, { params }) {
     // Profile completion calculation (UAT weighted)
     const [venture, founders, docs, businessModel, discovery, validations, pmf] = await Promise.all([
       db.execute({ sql: "SELECT name, description, mission, vision, industry, sector, business_stage, website FROM ventures WHERE id = ?", args: [dbId] }),
-      db.execute({ sql: "SELECT COUNT(*) as count FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL", args: [dbId] }),
+      // venture_members stores venture_id as the VNT code (TEXT)
+      db.execute({ sql: "SELECT COUNT(*) as count FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL", args: [id] }),
       db.execute({ sql: "SELECT COUNT(*) as count FROM venture_documents WHERE venture_id = ? AND is_deleted = false", args: [dbId] }),
       db.execute({ sql: "SELECT id FROM venture_business_models WHERE venture_id = ? LIMIT 1", args: [dbId] }),
       db.execute({ sql: "SELECT COUNT(*) as count FROM venture_customer_interviews WHERE venture_id = ?", args: [dbId] }),

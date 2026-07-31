@@ -9,29 +9,42 @@ async function resolveDbId(db, ventureId) {
   } catch { return ventureId; }
 }
 
+// venture_members stores venture_id as the VNT code (TEXT), not the internal UUID.
+// Convert an internal UUID (if passed) back to the VNT code so membership queries match.
+async function resolveVentureCode(db, idOrCode) {
+  if (!idOrCode) return idOrCode;
+  if (typeof idOrCode === "string" && idOrCode.includes("-") && !idOrCode.startsWith("VNT-")) {
+    try {
+      const r = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [idOrCode] });
+      return r.rows?.[0]?.venture_id || idOrCode;
+    } catch { return idOrCode; }
+  }
+  return idOrCode;
+}
+
 async function getVentureFounderCount(db, ventureId) {
-  const dbId = await resolveDbId(db, ventureId);
+  const code = await resolveVentureCode(db, ventureId);
   const r = await db.execute({
     sql: "SELECT COUNT(*) as cnt FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
-    args: [dbId],
+    args: [code],
   });
   return parseInt(r.rows?.[0]?.cnt || 0);
 }
 
 async function isVentureMember(db, ventureId, cid) {
-  const dbId = await resolveDbId(db, ventureId);
+  const code = await resolveVentureCode(db, ventureId);
   const r = await db.execute({
     sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
-    args: [dbId, cid],
+    args: [code, cid],
   });
   return r.rows?.length > 0;
 }
 
 async function isVentureFounder(db, ventureId, cid) {
-  const dbId = await resolveDbId(db, ventureId);
+  const code = await resolveVentureCode(db, ventureId);
   const r = await db.execute({
     sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
-    args: [dbId, cid],
+    args: [code, cid],
   });
   return r.rows?.length > 0;
 }
@@ -78,7 +91,7 @@ export async function GET(req, { params }) {
     }
 
     const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
-    const dbId = vRes.rows?.[0]?.id || id;
+    const code = await resolveVentureCode(db, id);
 
     const result = await db.execute({
       sql: `
@@ -88,7 +101,7 @@ export async function GET(req, { params }) {
         WHERE vm.venture_id = ? AND vm.removed_at IS NULL
         ORDER BY vm.member_type, vm.joined_at DESC
       `,
-      args: [dbId],
+      args: [code],
     });
 
     return NextResponse.json({ success: true, members: result.rows });
