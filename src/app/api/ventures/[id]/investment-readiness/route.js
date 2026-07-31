@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 
-const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 
 const REQUIRED_DOCUMENTS = [
   { key: "pitch_deck", label: "Pitch Deck", icon: "📊" },

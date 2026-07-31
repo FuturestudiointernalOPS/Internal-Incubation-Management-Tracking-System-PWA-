@@ -14,7 +14,9 @@
       "validation": "Validation",
       "mvp": "MVP",
       "growth": "Croissance",
-      "scale": "Passage à l'échelle"
+      "scale": "Passage à l'échelle",
+      "early_traction": "Premiers utilisateurs",
+      "scaling": "Mise à l'échelle"
     },
     "website": "Site web",
     "socialMedia": "Réseaux sociaux",
@@ -23,7 +25,8 @@
       "active": "Actif",
       "paused": "En pause",
       "graduated": "Diplômé",
-      "archived": "Archivé"
+      "archived": "Archivé",
+      "pending": "En attente"
     },
     "visibility": "Visibilité",
     "visibilityOptions": {

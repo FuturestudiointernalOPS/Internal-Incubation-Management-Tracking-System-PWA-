@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { notifyVentureFounders } from "@/lib/ventures";
 
-const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 const PRIVILEGED = ["staff","program_manager","super_admin","developer"];
 
 const STANDARD_STAGES = [

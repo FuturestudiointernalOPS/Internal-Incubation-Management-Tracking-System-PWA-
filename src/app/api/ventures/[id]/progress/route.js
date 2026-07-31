@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 
-const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });

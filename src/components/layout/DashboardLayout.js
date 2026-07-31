@@ -680,6 +680,21 @@ const NAVIGATION_MATRIX = {
     },
   ],
 
+  founder: [
+    {
+      id: "ventures",
+      name: "MY VENTURES",
+      icon: Rocket,
+      href: "/participant/ventures",
+    },
+    {
+      id: "profile",
+      name: "PROFILE",
+      icon: User,
+      href: "/participant/profile",
+    },
+  ],
+
   team: [
     {
       id: "dashboard",

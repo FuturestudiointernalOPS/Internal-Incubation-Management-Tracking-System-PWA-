@@ -359,9 +359,9 @@ export default function VentureDetail() {
         body: JSON.stringify(payload),
       });
       const d = await res.json();
-      alert(d.success ? t("venture.updateSuccess") : (d.error || t("venture.updateError")));
+      notifyMsg(d.success ? t("venture.updateSuccess") : (d.error || t("venture.updateError")));
     } catch (e) {
-      alert(t("venture.updateError"));
+      notifyMsg(t("venture.updateError"));
     } finally { setSaving(false); }
   }
 
@@ -376,9 +376,9 @@ export default function VentureDetail() {
         body: JSON.stringify({ member_id: memberId, role: newRole }),
       });
       const d = await res.json();
-      if (!d.success) alert(d.error);
+      if (!d.success) notifyMsg(d.error);
       else loadMembers();
-    } catch (e) { alert(e.message); }
+    } catch (e) { notifyMsg(e.message); }
   }
 
   async function handleAddMember(contactId) {
@@ -395,9 +395,9 @@ export default function VentureDetail() {
         setSearchResults([]);
         await loadMembers();
       } else {
-        alert(d.error || t("venture.addError"));
+        notifyMsg(d.error || t("venture.addError"));
       }
-    } catch (e) { alert(t("venture.addError")); }
+    } catch (e) { notifyMsg(t("venture.addError")); }
   }
 
   async function handleRemoveMember(memberId) {
@@ -412,9 +412,9 @@ export default function VentureDetail() {
         setRemoveConfirm(null);
         await loadMembers();
       } else {
-        alert(d.error || t("venture.removeError"));
+        notifyMsg(d.error || t("venture.removeError"));
       }
-    } catch (e) { alert(t("venture.removeError")); }
+    } catch (e) { notifyMsg(t("venture.removeError")); }
   }
 
   async function searchContacts(q) {
@@ -433,6 +433,8 @@ export default function VentureDetail() {
 
   function getFounders() { return members.filter(m => m.member_type === "founder"); }
   function getTeam() { return members.filter(m => m.member_type === "team_member"); }
+
+  const notifyMsg = (msg, type = "info") => window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type, message: String(msg || ""), duration: 4000 } }));
 
   const inputStyle = { backgroundColor: "rgb(15 23 42)", borderColor: "rgb(255 255 255 / 0.15)", color: "var(--text-primary)" };
   const cardStyle = { backgroundColor: "rgb(255 255 255 / 0.05)", borderColor: "rgb(255 255 255 / 0.1)" };
@@ -918,7 +920,7 @@ export default function VentureDetail() {
         {/* Business Model Tab */}
         {activeTab === "businessModel" && (
           <div className="space-y-4">
-            <form onSubmit={async (e) => { e.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(bmData||{})}); alert('Saved'); fetchBm(); }} className="space-y-4">
+            <form onSubmit={async (e) => { e.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(bmData||{})}); notifyMsg('Saved'); fetchBm(); }} className="space-y-4">
               <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {['keyPartners','keyActivities','keyResources','valuePropositions','customerRelationships','channels','customerSegments','costStructure','revenueStreams'].map(f => (
@@ -1101,7 +1103,7 @@ export default function VentureDetail() {
                     <p className="text-sm font-medium text-amber-400">{t('venture.missingStandup')||'Weekly Standup Not Submitted'}</p>
                     <p className="text-xs mt-0.5" style={{color:'var(--text-secondary)'}}>{t('venture.standupReminderDesc')||'Submit your standup for this week (Monday: Weekly Focus, Planned Activities, Expected Deliverables).'}</p>
                   </div>
-                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026,top_priorities:'',expected_deliverables:'',weekly_priorities:''})}).then(r=>{if(r.status===409)alert('Already exists');});fetchStandups();}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
+                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026,top_priorities:'',expected_deliverables:'',weekly_priorities:''})}).then(r=>{if(r.status===409)notifyMsg('Already exists');});fetchStandups();}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
                 </div>
               </div>
             )}
@@ -1109,7 +1111,7 @@ export default function VentureDetail() {
               <div className="rounded-xl p-3 border border-red-500/20 bg-red-500/5" style={cardStyle}>
                 <div className="flex items-center justify-between">
                   <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.missedReportNotify')||'No standup for this week. Notify your mentor about the delay.'}</p>
-                  <button onClick={async()=>{await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({venture_id:params.id,type:'missed_standup',week:currentWeekNum,year:currentWeekYear})});alert('Mentor notified!');}} className="text-xs px-2 py-1 rounded bg-red-600/30 text-red-400 hover:bg-red-600/50">{t('venture.notifyMentor')||'Notify Mentor'}</button>
+                  <button onClick={async()=>{await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({venture_id:params.id,type:'missed_standup',week:currentWeekNum,year:currentWeekYear})});notifyMsg('Mentor notified!');}} className="text-xs px-2 py-1 rounded bg-red-600/30 text-red-400 hover:bg-red-600/50">{t('venture.notifyMentor')||'Notify Mentor'}</button>
                 </div>
               </div>
             )}
@@ -1137,7 +1139,7 @@ export default function VentureDetail() {
                     <p className="text-sm font-medium text-amber-400">{t('venture.missingRetro')||'Weekly Retro Not Submitted'}</p>
                     <p className="text-xs mt-0.5" style={{color:'var(--text-secondary)'}}>{t('venture.retroReminderDesc')||'Submit your retro for this week (Friday: Progress Summary, Completed Activities, Current Challenges, Support Required, Next Week Focus).'}</p>
                   </div>
-                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026})}).then(r=>{if(r.status===409)alert('Already exists');});fetchRetros();}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
+                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026})}).then(r=>{if(r.status===409)notifyMsg('Already exists');});fetchRetros();}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
                 </div>
               </div>
             )}
@@ -1145,7 +1147,7 @@ export default function VentureDetail() {
               <div className="rounded-xl p-3 border border-red-500/20 bg-red-500/5" style={cardStyle}>
                 <div className="flex items-center justify-between">
                   <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.missedReportNotify')||'No retro for this week. Notify your mentor about the delay.'}</p>
-                  <button onClick={async()=>{await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({venture_id:params.id,type:'missed_retro',week:currentWeekNum,year:currentWeekYear})});alert('Mentor notified!');}} className="text-xs px-2 py-1 rounded bg-red-600/30 text-red-400 hover:bg-red-600/50">{t('venture.notifyMentor')||'Notify Mentor'}</button>
+                  <button onClick={async()=>{await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({venture_id:params.id,type:'missed_retro',week:currentWeekNum,year:currentWeekYear})});notifyMsg('Mentor notified!');}} className="text-xs px-2 py-1 rounded bg-red-600/30 text-red-400 hover:bg-red-600/50">{t('venture.notifyMentor')||'Notify Mentor'}</button>
                 </div>
               </div>
             )}
@@ -1556,7 +1558,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddStandup(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addStandup')}</h2><button onClick={()=>setShowAddStandup(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,top_priorities:standupForm.top_priorities,expected_deliverables:standupForm.expected_deliverables,weekly_priorities:standupForm.weekly_priorities})});const d=await res.json();if(!d.success){alert(d.error);if(d.error?.includes('already exists'))return;}setShowAddStandup(false);setStandupForm({});fetchStandups();}} className="space-y-3">
+              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,top_priorities:standupForm.top_priorities,expected_deliverables:standupForm.expected_deliverables,weekly_priorities:standupForm.weekly_priorities})});const d=await res.json();if(!d.success){notifyMsg(d.error);if(d.error?.includes('already exists'))return;}setShowAddStandup(false);setStandupForm({});fetchStandups();}} className="space-y-3">
                 <div className="text-sm text-center py-1 rounded-lg" style={{color:'var(--text-secondary)',backgroundColor:'rgb(255 255 255 / 0.05)'}}>Week {week}, {now.getFullYear()}</div>
                 <textarea placeholder={t('venture.topPriorities')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={standupForm.top_priorities||''} onChange={e=>setStandupForm({...standupForm,top_priorities:e.target.value})} />
                 <textarea placeholder={t('venture.expectedDeliverables')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={standupForm.expected_deliverables||''} onChange={e=>setStandupForm({...standupForm,expected_deliverables:e.target.value})} />
@@ -1571,7 +1573,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddRetro(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addRetro')}</h2><button onClick={()=>setShowAddRetro(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,completed_tasks:retroForm.completed_tasks,outstanding_tasks:retroForm.outstanding_tasks,carry_forward_notes:retroForm.carry_forward_notes})});const d=await res.json();if(!d.success){alert(d.error);if(d.error?.includes('already exists'))return;}setShowAddRetro(false);setRetroForm({});fetchRetros();}} className="space-y-3">
+              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,completed_tasks:retroForm.completed_tasks,outstanding_tasks:retroForm.outstanding_tasks,carry_forward_notes:retroForm.carry_forward_notes})});const d=await res.json();if(!d.success){notifyMsg(d.error);if(d.error?.includes('already exists'))return;}setShowAddRetro(false);setRetroForm({});fetchRetros();}} className="space-y-3">
                 <div className="text-sm text-center py-1 rounded-lg" style={{color:'var(--text-secondary)',backgroundColor:'rgb(255 255 255 / 0.05)'}}>Week {week}, {now.getFullYear()}</div>
                 <textarea placeholder={t('venture.completedTasks')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={retroForm.completed_tasks||''} onChange={e=>setRetroForm({...retroForm,completed_tasks:e.target.value})} />
                 <textarea placeholder={t('venture.outstandingTasks')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={retroForm.outstanding_tasks||''} onChange={e=>setRetroForm({...retroForm,outstanding_tasks:e.target.value})} />
@@ -1586,7 +1588,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddBlocker(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addBlocker')}</h2><button onClick={()=>setShowAddBlocker(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/blockers`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(blockerForm)});const d=await res.json();if(!d.success)alert(d.error);setShowAddBlocker(false);setBlockerForm({});fetchBlockers();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/blockers`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(blockerForm)});const d=await res.json();if(!d.success)notifyMsg(d.error);setShowAddBlocker(false);setBlockerForm({});fetchBlockers();}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={blockerForm.venture_retro_id||''} onChange={e=>setBlockerForm({...blockerForm,venture_retro_id:e.target.value})} required>
                   <option value="">{t('venture.selectRetro')}</option>
                   {retros.map(r=><option key={r.id} value={r.id}>{t('venture.week')} {r.week_number}/{r.year}</option>)}
@@ -1609,7 +1611,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddDocument(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.upload')}</h2><button onClick={()=>setShowAddDocument(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const r=await fetch(`/api/ventures/${params.id}/documents`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upload',title:documentForm.name,file_name:documentForm.name+'.pdf',file_url:documentForm.file_url,category:documentForm.category})});const d=await r.json();if(!d.success)alert(d.error||'Upload failed');setShowAddDocument(false);setDocumentForm({});fetchDocuments();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const r=await fetch(`/api/ventures/${params.id}/documents`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upload',title:documentForm.name,file_name:documentForm.name+'.pdf',file_url:documentForm.file_url,category:documentForm.category})});const d=await r.json();if(!d.success)notifyMsg(d.error||'Upload failed');setShowAddDocument(false);setDocumentForm({});fetchDocuments();}} className="space-y-3">
                 <input placeholder="Document name" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.name||''} onChange={e=>setDocumentForm({...documentForm,name:e.target.value})} required />
                 <input placeholder="https://... (file URL)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.file_url||''} onChange={e=>setDocumentForm({...documentForm,file_url:e.target.value})} required />
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.category||'general'} onChange={e=>setDocumentForm({...documentForm,category:e.target.value})}>
@@ -1626,7 +1628,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddAdvisor(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAdvisor')}</h2><button onClick={()=>setShowAddAdvisor(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/advisors`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(advisorForm)});const d=await res.json();if(!d.success)alert(d.error);setShowAddAdvisor(false);setAdvisorForm({});fetchAdvisors();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/advisors`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(advisorForm)});const d=await res.json();if(!d.success)notifyMsg(d.error);setShowAddAdvisor(false);setAdvisorForm({});fetchAdvisors();}} className="space-y-3">
                 <input placeholder="Advisor contact ID (cid)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={advisorForm.advisor_contact_id||''} onChange={e=>setAdvisorForm({...advisorForm,advisor_contact_id:e.target.value})} required />
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>
@@ -1771,7 +1773,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddKpi(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.assignKpi')}</h2><button onClick={()=>setShowAddKpi(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/kpis`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(kpiForm)});const d=await res.json();if(!d.success)alert(d.error);setShowAddKpi(false);setKpiForm({});fetchKpis();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/kpis`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(kpiForm)});const d=await res.json();if(!d.success)notifyMsg(d.error);setShowAddKpi(false);setKpiForm({});fetchKpis();}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiForm.kpi_definition_id||''} onChange={e=>setKpiForm({...kpiForm,kpi_definition_id:e.target.value})} required>
                   <option value="">{t('venture.kpis')}</option>
                   {kpiDefinitions.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}

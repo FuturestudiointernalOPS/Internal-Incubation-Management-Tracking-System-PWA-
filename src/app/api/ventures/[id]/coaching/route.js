@@ -4,8 +4,8 @@ import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { notifyVentureFounders } from "@/lib/ventures";
 
-const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
-const ALLOWED = ["participant","staff","program_manager","super_admin","teacher"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
+const ALLOWED = ["participant","founder","staff","program_manager","super_admin","teacher"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });

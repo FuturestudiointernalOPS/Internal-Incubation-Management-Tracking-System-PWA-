@@ -76,7 +76,7 @@ export async function GET(req, { params }) {
   try {
     await initDb();
     const authError = await requireAuth([
-      "participant", "staff", "program_manager", "super_admin", "teacher", "developer",
+      "participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer",
     ]);
     if (authError) return authError;
 
@@ -115,7 +115,7 @@ export async function POST(req, { params }) {
   try {
     await initDb();
     const authError = await requireAuth([
-      "participant", "staff", "program_manager", "super_admin", "teacher",
+      "participant", "founder", "staff", "program_manager", "super_admin", "teacher",
     ]);
     if (authError) return authError;
 
@@ -180,7 +180,7 @@ export async function PATCH(req, { params }) {
   try {
     await initDb();
     const authError = await requireAuth([
-      "participant", "staff", "program_manager", "super_admin", "teacher",
+      "participant", "founder", "staff", "program_manager", "super_admin", "teacher",
     ]);
     if (authError) return authError;
 

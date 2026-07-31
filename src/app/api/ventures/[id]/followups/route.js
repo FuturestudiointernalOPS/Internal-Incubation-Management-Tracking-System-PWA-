@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 
-const ROLES = ["participant", "staff", "program_manager", "super_admin", "teacher", "developer"];
+const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
 
 // Read-only aggregation — reuses v2_followups (Program OS engine) via its new
 // nullable venture_id column. No parallel meeting/follow-up table.

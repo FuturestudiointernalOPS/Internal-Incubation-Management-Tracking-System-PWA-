@@ -8,7 +8,7 @@ async function resolveVentureDbId(ventureId) {
   return r.rows?.[0]?.id || null;
 }
 
-const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;

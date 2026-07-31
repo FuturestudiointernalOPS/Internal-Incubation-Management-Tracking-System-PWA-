@@ -6,7 +6,7 @@ export async function GET(req) {
   try {
     await initDb();
     const authError = await requireAuth([
-      "participant", "staff", "program_manager", "super_admin", "teacher",
+      "participant", "founder", "staff", "program_manager", "super_admin", "teacher",
     ]);
     if (authError) return authError;
 

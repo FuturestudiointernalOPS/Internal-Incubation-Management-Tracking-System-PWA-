@@ -9,8 +9,8 @@ async function resolveVentureDbId(ventureId) {
   return r.rows?.[0]?.id || null;
 }
 
-const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
-const ALLOWED = ["participant","staff","program_manager","super_admin","teacher"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
+const ALLOWED = ["participant","founder","staff","program_manager","super_admin","teacher"];
 
 function getWeekNumber() {
   const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+3-(d.getDay()+6)%7);

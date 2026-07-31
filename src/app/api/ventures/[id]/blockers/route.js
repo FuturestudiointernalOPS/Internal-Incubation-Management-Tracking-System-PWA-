@@ -8,8 +8,8 @@ async function resolveVentureDbId(ventureId) {
   return r.rows?.[0]?.id || null;
 }
 
-const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
-const ALLOWED = ["participant","staff","program_manager","super_admin","teacher"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
+const ALLOWED = ["participant","founder","staff","program_manager","super_admin","teacher"];
 
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;

@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 
-const ROLES = ["participant", "staff", "program_manager", "super_admin", "teacher", "developer"];
-const ALLOWED = ["participant", "staff", "program_manager", "super_admin", "teacher"];
+const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
+const ALLOWED = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher"];
 
 async function resolveVentureDbId(ventureId) {
   const r = await db.execute({

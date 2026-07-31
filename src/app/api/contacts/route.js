@@ -426,6 +426,7 @@ export async function GET(req) {
       "program_manager",
       "teacher",
       "participant",
+      "founder",
     ]);
     if (authError) return authError;
 
@@ -434,7 +435,7 @@ export async function GET(req) {
     const roleFilter = searchParams.get("role");
 
     let result;
-    if (session.role === "participant") {
+    if (session.role === "participant" || session.role === "founder") {
       result = await db.execute({
         sql: "SELECT * FROM contacts WHERE cid = ?",
         args: [session.cid],

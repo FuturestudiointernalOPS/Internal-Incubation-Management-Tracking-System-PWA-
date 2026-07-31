@@ -8,8 +8,8 @@ import {
   notifyVentureFounders,
 } from "@/lib/ventures";
 
-const ROLES = ["participant","staff","program_manager","super_admin","teacher","developer"];
-const ALLOWED = ["participant","staff","program_manager","super_admin","teacher"];
+const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
+const ALLOWED = ["participant","founder","staff","program_manager","super_admin","teacher"];
 const PRIVILEGED = ["staff","program_manager","super_admin","developer"];
 
 async function resolveVentureDbId(ventureId) {

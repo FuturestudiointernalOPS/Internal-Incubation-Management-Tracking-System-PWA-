@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 
-const ROLES = ["participant", "staff", "program_manager", "super_admin", "teacher", "developer"];
+const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
 
 export async function GET(req, { params }) {
   try {
