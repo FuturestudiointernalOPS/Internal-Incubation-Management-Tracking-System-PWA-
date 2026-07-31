@@ -1,7 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/mailer";
-import crypto from "crypto";
 
 /**
  * POST /api/investor/register
@@ -11,13 +10,13 @@ export async function POST(req) {
   try {
     await initDb();
     const body = await req.json();
-    const { name, email, organization_name, biography, website, linkedin,
+    const { name, email, password, organization_name, biography, website, linkedin,
             industries, countries, startup_stages, ticket_size_min, ticket_size_max,
             investment_experience } = body;
 
-    if (!name || !email) {
+    if (!name || !email || !password) {
       return NextResponse.json(
-        { success: false, error: "Name and email are required." },
+        { success: false, error: "Name, email, and password are required." },
         { status: 400 },
       );
     }
@@ -74,14 +73,11 @@ export async function POST(req) {
 
     // New user — create contact + profile
     const cid = `USR-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    const setupToken = crypto.randomBytes(32).toString("hex");
-    const setupExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const tempPassword = crypto.randomBytes(16).toString("hex");
 
     await db.execute({
-      sql: `INSERT INTO contacts (cid, name, email, password, role, status, group_name, setup_token, setup_token_expires)
-            VALUES (?, ?, ?, ?, 'investor', 'active', 'INVESTOR', ?, ?)`,
-      args: [cid, name, email, tempPassword, setupToken, setupExpires],
+      sql: `INSERT INTO contacts (cid, name, email, password, role, status, group_name)
+            VALUES (?, ?, ?, ?, 'investor', 'active', 'INVESTOR')`,
+      args: [cid, name, email, password],
     });
 
     await db.execute({

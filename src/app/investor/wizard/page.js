@@ -29,6 +29,8 @@ export default function InvestorWizardPage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [orgName, setOrgName] = useState("");
   const [biography, setBiography] = useState("");
   const [website, setWebsite] = useState("");
@@ -42,9 +44,9 @@ export default function InvestorWizardPage() {
   const [priorInvestments, setPriorInvestments] = useState("");
 
   useEffect(() => {
-    const filled = [name && email, orgName, industries.length > 0, investmentExperience].filter(Boolean).length;
+    const filled = [name && email && password, orgName, industries.length > 0, investmentExperience].filter(Boolean).length;
     setCompletion(Math.round((filled / 4) * 100));
-  }, [name, email, orgName, industries, investmentExperience]);
+  }, [name, email, password, orgName, industries, investmentExperience]);
 
   const toggleArray = (arr, setArr, item) => {
     setArr(arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item]);
@@ -53,7 +55,9 @@ export default function InvestorWizardPage() {
   const validateStep = () => {
     setError("");
     if (step === 0) {
-      if (!name || !email) return "Name and email are required.";
+      if (!name || !email || !password) return "Name, email, and password are required.";
+      if (password !== confirmPassword) return "Passwords do not match.";
+      if (password.length < 6) return "Password must be at least 6 characters.";
     }
     if (step === 1 && !orgName) return "Organization name is required.";
     if (step === 2) {
@@ -76,7 +80,7 @@ export default function InvestorWizardPage() {
       const res = await fetch("/api/investor/register", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name, email,
+          name, email, password,
           organization_name: orgName, biography, website, linkedin,
           industries, countries, startup_stages: stages,
           ticket_size_min: ticketMin ? parseInt(ticketMin) : null,
@@ -133,7 +137,10 @@ export default function InvestorWizardPage() {
           {step === 0 && (<div className="space-y-3">
             <div className="relative"><User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Full Name *" className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
             <div className="relative"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email *" className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
-            <p className="text-[10px] text-[var(--text-tertiary)]">You'll set your password after your profile is approved.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="relative"><Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" /><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password *" className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" /></div>
+              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirm *" className="px-4 py-3 bg-[var(--surface-2)] border rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+            </div>
           </div>)}
 
           {step === 1 && (<div className="space-y-3">
