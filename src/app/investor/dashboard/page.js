@@ -251,10 +251,10 @@ export default function InvestorDashboard() {
         {/* STATS */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Pipeline", value: stats.total_pipeline || 0, icon: BarChart3, color: "text-[var(--brand-orange)]" },
-            { label: "Invested", value: stats.invested_count || 0, icon: Target, color: "text-emerald-400" },
-            { label: "Evaluating", value: stats.active_evaluations || 0, icon: Eye, color: "text-purple-400" },
-            { label: "Watchlist", value: stats.watchlist_count || 0, icon: Bookmark, color: "text-blue-400" },
+            { label: t("pipeline"), value: stats.total_pipeline || 0, icon: BarChart3, color: "text-[var(--brand-orange)]" },
+            { label: t("invested"), value: stats.invested_count || 0, icon: Target, color: "text-emerald-400" },
+            { label: t("evaluating"), value: stats.active_evaluations || 0, icon: Eye, color: "text-purple-400" },
+            { label: t("watchlist"), value: stats.watchlist_count || 0, icon: Bookmark, color: "text-blue-400" },
           ].map((s, i) => (
             <AppCard key={i} padding="md">
               <div className="flex items-center gap-3">
@@ -271,9 +271,9 @@ export default function InvestorDashboard() {
         {/* TABS */}
         <div className="flex gap-1 border-b border-[var(--border-primary)]">
           {[
-            { id: "discover", label: "Discover", icon: Search },
-            { id: "pipeline", label: "Pipeline", icon: BarChart3 },
-            { id: "watchlist", label: "Watchlist", icon: Bookmark },
+            { id: "discover", label: t("discover"), icon: Search },
+            { id: "pipeline", label: t("pipeline"), icon: BarChart3 },
+            { id: "watchlist", label: t("watchlist"), icon: Bookmark },
           ].map(tab => (
             <button
               key={tab.id}
@@ -305,7 +305,7 @@ export default function InvestorDashboard() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && searchVentures()}
-                  placeholder="Search ventures by name, industry, or description..."
+                  placeholder={t("searchVentures")}
                   className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60"
                 />
               </div>
@@ -315,9 +315,9 @@ export default function InvestorDashboard() {
                   showFilters ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
-                <SlidersHorizontal className="w-4 h-4" /> Filters
+                <SlidersHorizontal className="w-4 h-4" /> {t("filters")}
               </button>
-              <AppButton variant="primary" size="sm" icon={Search} onClick={searchVentures}>Search</AppButton>
+              <AppButton variant="primary" size="sm" icon={Search} onClick={searchVentures}>{t("search")}</AppButton>
             </div>
 
             {/* Active Fundraising Campaigns */}
@@ -325,7 +325,7 @@ export default function InvestorDashboard() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Megaphone className="w-4 h-4 text-[var(--brand-orange)]" />
-                  <h3 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider">Active Fundraising Campaigns</h3>
+                  <h3 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider">{t("activeCampaigns")}</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {campaigns.map(c => {
@@ -368,7 +368,7 @@ export default function InvestorDashboard() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
-                  <h3 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider">Upcoming Meetings</h3>
+                  <h3 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider">{t("upcomingMeetings")}</h3>
                 </div>
                 <div className="space-y-2">
                   {relationships.map(rel => (
@@ -402,7 +402,7 @@ export default function InvestorDashboard() {
             {showFilters && (
               <div className="p-4 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl space-y-3">
                 <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Industry</label>
+                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("industry")}</label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {INDUSTRY_OPTIONS.map(ind => (
                       <button key={ind} onClick={() => { const next = filterIndustry.includes(ind) ? filterIndustry.filter(i => i !== ind) : [...filterIndustry, ind]; setFilterIndustry(next); searchVentures({industry: next}); }}
@@ -413,7 +413,7 @@ export default function InvestorDashboard() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Country</label>
+                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("country")}</label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {COUNTRY_OPTIONS.map(c => (
                       <button key={c} onClick={() => { const next = filterCountry.includes(c) ? filterCountry.filter(x => x !== c) : [...filterCountry, c]; setFilterCountry(next); searchVentures({country: next}); }}
@@ -424,7 +424,7 @@ export default function InvestorDashboard() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Stage</label>
+                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("stage")}</label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {STAGE_OPTIONS.map(s => (
                       <button key={s} onClick={() => { const next = filterStage.includes(s) ? filterStage.filter(x => x !== s) : [...filterStage, s]; setFilterStage(next); searchVentures({stage: next}); }}
@@ -435,7 +435,7 @@ export default function InvestorDashboard() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Funding (USD)</label>
+                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("fundingRange")}</label>
                   <div className="flex gap-1 mt-1.5">
                     <input value={filterFundingMin} onChange={e => setFilterFundingMin(e.target.value)}
                       type="number" placeholder="Min"
@@ -448,7 +448,7 @@ export default function InvestorDashboard() {
                 {(filterIndustry.length > 0 || filterCountry.length > 0 || filterStage.length > 0 || filterFundingMin || filterFundingMax) && (
                   <button onClick={() => { setFilterIndustry([]); setFilterCountry([]); setFilterStage([]); setFilterFundingMin(""); setFilterFundingMax(""); searchVentures({industry: [], country: [], stage: [], fundingMin: "", fundingMax: ""}); }}
                     className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline">
-                    Clear all filters
+                    {t("clearFilters")}
                   </button>
                 )}
               </div>
