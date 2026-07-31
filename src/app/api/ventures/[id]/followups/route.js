@@ -15,8 +15,10 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+    const dbId = vRes.rows?.[0]?.id || id;
 
-    const r = await db.execute({ sql: "SELECT * FROM v2_followups WHERE venture_id = ? ORDER BY created_at DESC", args: [id] });
+    const r = await db.execute({ sql: "SELECT * FROM v2_followups WHERE venture_id = ? ORDER BY created_at DESC", args: [dbId] });
     return NextResponse.json({ success: true, followups: r.rows || [] });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });

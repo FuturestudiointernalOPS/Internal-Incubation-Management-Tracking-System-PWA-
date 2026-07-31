@@ -23,11 +23,12 @@ export async function GET(req, { params }) {
     }
 
     const venture = ventureRes.rows[0];
+    const dbId = venture.id;
 
     if (session.role === "participant" && venture.visibility !== "public") {
       const memberCheck = await db.execute({
         sql: `SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL`,
-        args: [id, session.cid],
+        args: [dbId, session.cid],
       });
       if (!memberCheck.rows?.length) {
         return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -63,7 +64,7 @@ export async function GET(req, { params }) {
         WHERE vm.venture_id = ? AND vm.member_type = 'founder'
         ORDER BY vm.joined_at DESC
       `,
-      args: [id],
+      args: [dbId],
     });
 
     const founderHistory = [];
