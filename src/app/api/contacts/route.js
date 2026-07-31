@@ -431,6 +431,7 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
+    const roleFilter = searchParams.get("role");
 
     let result;
     if (session.role === "participant") {
@@ -444,10 +445,15 @@ export async function GET(req) {
         "SELECT * FROM contacts WHERE archived_at IS NOT NULL AND deleted_at IS NULL ORDER BY name ASC",
       );
     } else if (session.role === "super_admin") {
-      // Active contacts only (not archived, not soft-deleted)
-      result = await db.execute(
-        "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL ORDER BY name ASC",
-      );
+      let sql = "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL";
+      const args = [];
+      if (roleFilter) {
+        const roles = roleFilter.split(",");
+        sql += " AND (" + roles.map(() => "role = ?").join(" OR ") + ")";
+        args.push(...roles);
+      }
+      sql += " ORDER BY name ASC";
+      result = await db.execute({ sql, args });
     } else {
       // Staff/PM/Teacher: active only
       result = await db.execute(

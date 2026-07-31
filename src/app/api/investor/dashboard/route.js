@@ -36,13 +36,20 @@ export async function GET(req) {
       args: [profile.id],
     });
 
-    // 3. Watchlist
+    // 3. Watchlist — enriched with venture details, campaign, KPIs
     const watchlistRes = await db.execute({
-      sql: `SELECT iw.*, p.name as venture_name, p.status as venture_status
-            FROM investor_watchlist iw
-            LEFT JOIN v2_programs p ON iw.venture_id = p.id
-            WHERE iw.investor_id = ?
-            ORDER BY iw.created_at DESC`,
+      sql: `SELECT iw.*, p.name as venture_name, p.status as venture_status,
+                    p.industry, p.country, p.business_stage, p.completion_index,
+                    p.funding_requirement, p.description,
+                    fc.id as campaign_id, fc.name as campaign_name, fc.status as campaign_status,
+                    fc.target_raise, fc.current_raised, fc.min_investment,
+                    fc.opening_date, fc.closing_date,
+                    (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = iw.venture_id AND stage NOT IN ('declined'))::int as investor_count
+             FROM investor_watchlist iw
+             LEFT JOIN v2_programs p ON iw.venture_id = p.id
+             LEFT JOIN fundraising_campaigns fc ON fc.venture_id = iw.venture_id AND fc.status = 'active'
+             WHERE iw.investor_id = ?
+             ORDER BY iw.created_at DESC`,
       args: [profile.id],
     });
 
@@ -139,12 +146,60 @@ export async function GET(req) {
       args: [profile.id],
     });
 
+    // 6. Active fundraising campaigns
+    let campaigns = [];
+    try {
+      const campaignsRes = await db.execute({
+        sql: `SELECT fc.*, p.name as venture_name, p.industry, p.country, p.business_stage,
+                     p.funding_requirement, p.completion_index,
+                     (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = fc.venture_id AND stage NOT IN ('declined'))::int as investor_count,
+                     (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = fc.venture_id AND stage IN ('due_diligence','negotiation'))::int as active_dd_count
+              FROM fundraising_campaigns fc
+              LEFT JOIN v2_programs p ON fc.venture_id = p.id
+              WHERE fc.status = 'active' AND (fc.visibility = 'public' OR fc.visibility = 'invite_only')
+              ORDER BY fc.created_at DESC LIMIT 20`,
+        args: [],
+      });
+      campaigns = campaignsRes.rows;
+    } catch (_) {}
+
+    // 7. Relationship workspaces & meetings
+    let relationships = [];
+    try {
+      const relRes = await db.execute({
+        sql: `SELECT rw.*, p.name as venture_name, p.industry,
+                     rm.name as relationship_manager_name,
+                     (SELECT COUNT(*) FROM relationship_meetings WHERE workspace_id = rw.id AND status = 'scheduled')::int as upcoming_meetings
+              FROM relationship_workspaces rw
+              LEFT JOIN v2_programs p ON rw.venture_id = p.id
+              LEFT JOIN contacts rm ON rw.relationship_manager_id = rm.cid
+              WHERE rw.investor_id = ? AND rw.status = 'active'
+              ORDER BY rw.updated_at DESC`,
+        args: [profile.id],
+      });
+
+      // Fetch upcoming meetings for each workspace
+      for (const rel of relRes.rows) {
+        const mtgs = await db.execute({
+          sql: `SELECT id, meeting_type, scheduled_date, scheduled_time, status, location
+                FROM relationship_meetings
+                WHERE workspace_id = ? AND status = 'scheduled'
+                ORDER BY scheduled_date ASC LIMIT 3`,
+          args: [rel.id],
+        });
+        rel.next_meetings = mtgs.rows;
+      }
+      relationships = relRes.rows;
+    } catch (_) {}
+
     return NextResponse.json({
       success: true,
       profile,
       pipeline: pipelineRes.rows,
       watchlist: watchlistRes.rows,
       recommendations,
+      campaigns,
+      relationships,
       stats: { ...statsRes.rows[0], watchlist_count: parseInt(watchlistCount.rows[0]?.count || 0) },
     });
   } catch (error) {

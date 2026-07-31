@@ -5,7 +5,7 @@ import { useState, useEffect, Suspense } from "react";
 import {
   ArrowLeft, Loader2, Building2, FileText, Send, Plus,
   MessageSquare, CheckCircle2, Clock, AlertCircle, ClipboardList,
-  Target, Shield, TrendingUp, BarChart3, X, Users, AlertTriangle, Save,
+  Target, Shield, TrendingUp, BarChart3, X, Users, AlertTriangle, Save, Upload,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -14,12 +14,11 @@ import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 
 const REQUEST_CATEGORIES = [
-  { id: "general", label: "General", color: "bg-slate-500/10 text-slate-400" },
+  { id: "corporate", label: "Corporate", color: "bg-blue-500/10 text-blue-400" },
   { id: "financial", label: "Financial", color: "bg-emerald-500/10 text-emerald-400" },
-  { id: "legal", label: "Legal", color: "bg-purple-500/10 text-purple-400" },
-  { id: "product", label: "Product", color: "bg-blue-500/10 text-blue-400" },
-  { id: "team", label: "Team", color: "bg-amber-500/10 text-amber-400" },
-  { id: "market", label: "Market", color: "bg-rose-500/10 text-rose-400" },
+  { id: "commercial", label: "Commercial", color: "bg-amber-500/10 text-amber-400" },
+  { id: "technical", label: "Technical", color: "bg-purple-500/10 text-purple-400" },
+  { id: "legal", label: "Legal", color: "bg-rose-500/10 text-rose-400" },
 ];
 
 function DueDiligenceContent() {
@@ -36,7 +35,7 @@ function DueDiligenceContent() {
   const [activeTab, setActiveTab] = useState("overview");
 
   // New request form
-  const [newReq, setNewReq] = useState({ title: "", description: "", category: "general" });
+  const [newReq, setNewReq] = useState({ title: "", description: "", category: "financial", priority: "medium", due_date: "" });
   const [showReqForm, setShowReqForm] = useState(false);
 
   // New note form
@@ -105,7 +104,7 @@ function DueDiligenceContent() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: "Request submitted" });
-        setNewReq({ title: "", description: "", category: "general" });
+        setNewReq({ title: "", description: "", category: "financial", priority: "medium", due_date: "" });
         setShowReqForm(false);
         fetchData();
       }
@@ -144,6 +143,71 @@ function DueDiligenceContent() {
       });
       setToast({ type: "success", message: "Diligence completed" });
       fetchData();
+    } catch (_) {}
+  };
+
+  const [followupQuestion, setFollowupQuestion] = useState("");
+  const [followupReqId, setFollowupReqId] = useState(null);
+  const [uploadReqId, setUploadReqId] = useState(null);
+  const [ddDocs, setDdDocs] = useState({});
+
+  const handleFileUpload = async (requestId, file) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target.result.split(",")[1];
+      try {
+        const res = await fetch("/api/investor/diligence/documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId, file_name: file.name, file_type: file.type, file_data: base64 }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setToast({ type: "success", message: `"${file.name}" uploaded` });
+          setUploadReqId(null);
+          fetchDdDocs(requestId);
+          fetchData();
+        }
+      } catch (_) {}
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const fetchDdDocs = async (requestId) => {
+    try {
+      const res = await fetch(`/api/investor/diligence/documents?request_id=${requestId}`);
+      const data = await res.json();
+      if (data.success) setDdDocs(prev => ({ ...prev, [requestId]: data.documents }));
+    } catch (_) {}
+  };
+
+  const handleDownload = async (docId) => {
+    try {
+      const res = await fetch(`/api/investor/diligence/documents?id=${docId}&download=true`);
+      const data = await res.json();
+      if (data.success && data.document?.file_data) {
+        const link = document.createElement("a");
+        link.href = `data:${data.document.file_type};base64,${data.document.file_data}`;
+        link.download = data.document.file_name;
+        link.click();
+      }
+    } catch (_) {}
+  };
+
+  const addFollowup = async () => {
+    if (!followupQuestion.trim() || !followupReqId) return;
+    try {
+      const res = await fetch("/api/investor/diligence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pipeline_id: pipelineId, action: "add_followup", request_id: followupReqId, question: followupQuestion }),
+      });
+      if (res.ok) {
+        setToast({ type: "success", message: "Follow-up question submitted" });
+        setFollowupQuestion("");
+        setFollowupReqId(null);
+        fetchData();
+      }
     } catch (_) {}
   };
 
@@ -283,12 +347,10 @@ function DueDiligenceContent() {
                   <AppCard padding="md">
                     <div className="space-y-3">
                       <input value={newReq.title} onChange={e => setNewReq({...newReq, title: e.target.value})}
-                        placeholder="What information do you need?"
+                        placeholder="What information do you need? (e.g. Financial Statements 2024)"
                         className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
-                      <textarea value={newReq.description} onChange={e => setNewReq({...newReq, description: e.target.value})}
-                        rows={2} placeholder="Additional details..."
-                        className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none" />
                       <div className="flex gap-2 flex-wrap">
+                        <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest self-center">Category:</span>
                         {REQUEST_CATEGORIES.map(c => (
                           <button key={c.id} onClick={() => setNewReq({...newReq, category: c.id})}
                             className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase ${newReq.category === c.id ? "bg-[var(--brand-orange)] text-white" : c.color}`}>
@@ -296,6 +358,25 @@ function DueDiligenceContent() {
                           </button>
                         ))}
                       </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Priority</label>
+                          <select value={newReq.priority} onChange={e => setNewReq({...newReq, priority: e.target.value})}
+                            className="w-full mt-0.5 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] outline-none">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Due Date</label>
+                          <input type="date" value={newReq.due_date} onChange={e => setNewReq({...newReq, due_date: e.target.value})}
+                            className="w-full mt-0.5 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] outline-none" />
+                        </div>
+                      </div>
+                      <textarea value={newReq.description} onChange={e => setNewReq({...newReq, description: e.target.value})}
+                        rows={2} placeholder="Additional details or comments..."
+                        className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none" />
                       <div className="flex gap-2 justify-end">
                         <AppButton variant="secondary" size="sm" onClick={() => setShowReqForm(false)}>Cancel</AppButton>
                         <AppButton variant="primary" size="sm" icon={Send} onClick={addRequest}>Submit</AppButton>
@@ -324,6 +405,16 @@ function DueDiligenceContent() {
                                 }`}>{r.status}</span>
                               </div>
                               <p className="text-sm font-bold text-[var(--text-primary)]">{r.title}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {r.priority && (
+                                  <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${
+                                    r.priority === "high" ? "bg-rose-500/10 text-rose-400" : r.priority === "medium" ? "bg-amber-500/10 text-amber-400" : "bg-slate-500/10 text-slate-400"
+                                  }`}>{r.priority}</span>
+                                )}
+                                {r.due_date && (
+                                  <span className="text-[9px] text-[var(--text-tertiary)]">Due: {new Date(r.due_date).toLocaleDateString()}</span>
+                                )}
+                              </div>
                               {r.description && <p className="text-xs text-[var(--text-secondary)] mt-1">{r.description}</p>}
                               {r.response_text && (
                                 <div className="mt-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
@@ -331,6 +422,87 @@ function DueDiligenceContent() {
                                   <p className="text-xs text-[var(--text-secondary)]">{r.response_text}</p>
                                 </div>
                               )}
+                              {/* Follow-up questions */}
+                              {r.follow_up_questions && (() => {
+                                try {
+                                  const fups = typeof r.follow_up_questions === "string" ? JSON.parse(r.follow_up_questions) : r.follow_up_questions;
+                                  if (!Array.isArray(fups) || fups.length === 0) return null;
+                                  return (
+                                    <div className="mt-2 space-y-1.5">
+                                      <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Follow-up Questions</p>
+                                      {fups.map((fq, i) => (
+                                        <div key={i} className="p-2 rounded-lg bg-[var(--surface-2)] text-[10px]">
+                                          <p className="text-[var(--text-primary)] font-bold">Q: {fq.question}</p>
+                                          {fq.response ? (
+                                            <p className="text-emerald-400 mt-1">A: {fq.response}</p>
+                                          ) : (
+                                            <p className="text-amber-400 mt-1 italic">Awaiting response...</p>
+                                          )}
+                                          <p className="text-[8px] text-[var(--text-tertiary)] mt-0.5">{new Date(fq.asked_at).toLocaleDateString()}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                } catch (_) { return null; }
+                              })()}
+                              {/* Add follow-up question (for investor, when docs uploaded) */}
+                              {r.status === "documents_uploaded" || r.status === "verified" ? (
+                                <div className="mt-2">
+                                  {followupReqId === r.id ? (
+                                    <div className="flex gap-2">
+                                      <input value={followupQuestion} onChange={e => setFollowupQuestion(e.target.value)}
+                                        placeholder="Ask a follow-up question..."
+                                        className="flex-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60"
+                                        onKeyDown={e => e.key === "Enter" && addFollowup()} />
+                                      <AppButton variant="primary" size="sm" icon={Send} onClick={addFollowup}>Send</AppButton>
+                                      <AppButton variant="secondary" size="sm" onClick={() => { setFollowupReqId(null); setFollowupQuestion(""); }}>Cancel</AppButton>
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => setFollowupReqId(r.id)}
+                                      className="text-[9px] font-bold text-[var(--brand-orange)] hover:underline">
+                                      + Ask follow-up question
+                                    </button>
+                                  )}
+                                </div>
+                              ) : null}
+                              {/* Documents section */}
+                              <div className="pt-2 border-t border-[var(--border-primary)]">
+                                {(ddDocs[r.id] || []).length > 0 && (
+                                  <div className="space-y-1 mb-2">
+                                    {(ddDocs[r.id] || []).map(doc => (
+                                      <div key={doc.id} className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--surface-2)]">
+                                        <div className="flex items-center gap-2">
+                                          <FileText className="w-3 h-3 text-[var(--text-tertiary)]" />
+                                          <span className="text-[9px] font-bold text-[var(--text-primary)]">{doc.file_name}</span>
+                                          <span className="text-[8px] text-[var(--text-tertiary)]">{doc.file_size ? `${(doc.file_size / 1024).toFixed(1)}KB` : ""}</span>
+                                        </div>
+                                        <button onClick={() => handleDownload(doc.id)}
+                                          className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline">Download</button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {r.status !== "completed" && r.status !== "closed" && (
+                                  uploadReqId === r.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <input type="file" id={`inv-dd-upload-${r.id}`}
+                                        onChange={e => { if (e.target.files[0]) handleFileUpload(r.id, e.target.files[0]); }}
+                                        className="hidden" />
+                                      <label htmlFor={`inv-dd-upload-${r.id}`}
+                                        className="px-3 py-1.5 rounded-lg bg-[var(--surface-2)] text-[9px] font-bold text-[var(--text-secondary)] cursor-pointer hover:text-[var(--text-primary)]">
+                                        Choose file...
+                                      </label>
+                                      <button onClick={() => setUploadReqId(null)}
+                                        className="text-[9px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">Cancel</button>
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => { setUploadReqId(r.id); fetchDdDocs(r.id); }}
+                                      className="flex items-center gap-1 text-[9px] font-bold text-[var(--brand-orange)] hover:underline">
+                                      <Upload className="w-3 h-3" /> Upload Document
+                                    </button>
+                                  )
+                                )}
+                              </div>
                             </div>
                             <div className="flex gap-2 shrink-0">
                               {r.status === "pending" && (

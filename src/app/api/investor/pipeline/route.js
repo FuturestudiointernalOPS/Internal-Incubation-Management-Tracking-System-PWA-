@@ -11,7 +11,7 @@ export async function POST(req) {
 
     const session = await getSession();
     const user = session;
-    const { venture_id, stage, notes } = await req.json();
+    const { venture_id, stage, notes, amount } = await req.json();
 
     if (!venture_id) {
       return NextResponse.json({ success: false, error: "venture_id required" }, { status: 400 });
@@ -95,20 +95,57 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // If stage is "invested", auto-create a decision record + notify admin
+    // If stage is "invested", auto-create decision, update campaign, portfolio
     if (newStage === "invested") {
       const pipelineId = result.rows[0].id;
-      await db.execute({
-        sql: `INSERT INTO investment_decisions (pipeline_id, decision_type, decision_date, decision_notes)
-              VALUES (?, 'invest', CURRENT_DATE, ?)
-              ON CONFLICT (pipeline_id) DO NOTHING`,
-        args: [pipelineId, notes || null],
+      const investedAmount = parseFloat(amount || notes) || 0;
+
+      const decisionRes = await db.execute({
+        sql: `INSERT INTO investment_decisions (pipeline_id, decision_type, decision_date, investment_amount, decision_notes)
+              VALUES (?, 'invest', CURRENT_DATE, ?, ?)
+              ON CONFLICT (pipeline_id) DO NOTHING
+              RETURNING *`,
+        args: [pipelineId, investedAmount > 0 ? investedAmount : null, notes || null],
       });
 
-      // Notify admins
+      // Update fundraising campaign current_raised
+      if (investedAmount > 0) {
+        try {
+          await db.execute({
+            sql: `UPDATE fundraising_campaigns
+                  SET current_raised = COALESCE(current_raised, 0) + ?,
+                      status = CASE WHEN COALESCE(current_raised, 0) + ? >= target_raise THEN 'closed' ELSE status END,
+                      updated_at = NOW()
+                  WHERE venture_id = ? AND status = 'active'`,
+            args: [investedAmount, investedAmount, venture_id],
+          });
+        } catch (_) {}
+      }
+
+      // Timeline entry in relationship workspace
+      try {
+        const relWs = await db.execute({
+          sql: "SELECT id FROM relationship_workspaces WHERE pipeline_id = ?",
+          args: [pipelineId],
+        });
+        if (relWs.rows.length > 0) {
+          await db.execute({
+            sql: `INSERT INTO relationship_timeline (workspace_id, event_type, description)
+                  VALUES (?, 'investment_committed', ?)`,
+            args: [relWs.rows[0].id, `Investment committed${investedAmount > 0 ? ' — $' + investedAmount.toLocaleString() : ''}`],
+          });
+          // Update workspace stage
+          await db.execute({
+            sql: "UPDATE relationship_workspaces SET current_stage = 'active_investment', updated_at = NOW() WHERE id = ?",
+            args: [relWs.rows[0].id],
+          });
+        }
+      } catch (_) {}
+
+      // Notify everyone
       try {
         const info = await db.execute({
-          sql: `SELECT c.name as investor_name, ipr.organization_name, p.name as venture_name
+          sql: `SELECT c.name as investor_name, c.email, ipr.organization_name, p.name as venture_name, ipr.user_id
                 FROM investor_profiles ipr
                 JOIN contacts c ON ipr.user_id = c.cid
                 LEFT JOIN v2_programs p ON p.id = ?
@@ -116,8 +153,10 @@ export async function POST(req) {
           args: [venture_id, investorId],
         });
         const inv = info.rows[0] || {};
+
+        // Notify admins
         const admins = await db.execute({
-          sql: "SELECT cid FROM contacts WHERE role = 'super_admin' AND deleted_at IS NULL",
+          sql: "SELECT cid FROM contacts WHERE role IN ('super_admin','staff') AND deleted_at IS NULL",
           args: [],
         });
         for (const a of admins.rows) {
@@ -127,10 +166,47 @@ export async function POST(req) {
             args: [
               a.cid,
               `Investment Confirmed: ${inv.venture_name || "Venture"}`,
-              `${inv.investor_name || "Investor"} (${inv.organization_name || "Individual"}) has invested in ${inv.venture_name || "a venture"}.`,
+              `${inv.investor_name || "Investor"} (${inv.organization_name || "Individual"}) has invested${investedAmount > 0 ? ' $' + investedAmount.toLocaleString() : ''} in ${inv.venture_name || "a venture"}.`,
               "/admin/investors/overview",
             ],
           });
+        }
+
+        // Notify investor
+        if (inv.user_id) {
+          await db.execute({
+            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
+                  VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
+            args: [
+              inv.user_id,
+              `Investment Confirmed: ${inv.venture_name || "Venture"}`,
+              `Your investment${investedAmount > 0 ? ' of $' + investedAmount.toLocaleString() : ''} in ${inv.venture_name || "the venture"} has been recorded. Welcome to your portfolio!`,
+              "/investor/portfolio",
+            ],
+          });
+        }
+
+        // Notify RM and IM
+        const relWs = await db.execute({
+          sql: "SELECT relationship_manager_id, investment_manager_id FROM relationship_workspaces WHERE pipeline_id = ?",
+          args: [pipelineId],
+        });
+        if (relWs.rows.length > 0) {
+          const rw = relWs.rows[0];
+          for (const cid of [rw.relationship_manager_id, rw.investment_manager_id]) {
+            if (cid) {
+              await db.execute({
+                sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
+                      VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
+                args: [
+                  cid,
+                  `Investment Confirmed: ${inv.venture_name || "Venture"}`,
+                  `${inv.investor_name || "Investor"} has completed their investment in ${inv.venture_name || "a venture"}${investedAmount > 0 ? ' ($' + investedAmount.toLocaleString() + ')' : ''}.`,
+                  "/admin/investors/relationships",
+                ],
+              });
+            }
+          }
         }
       } catch (_) {}
     }
@@ -150,6 +226,7 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const ventureId = searchParams.get("venture_id");
+    const stage = searchParams.get("stage");
 
     const session = await getSession();
     const user = session;
@@ -161,6 +238,16 @@ export async function GET(req) {
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
              WHERE ip.venture_id = ?`;
       args = [ventureId];
+    } else if (stage && (user.role === "super_admin" || user.role === "staff")) {
+      // Admin filtering by stage (e.g., meeting_requested)
+      sql = `SELECT ip.*, p.name as venture_name, ipr.organization_name, c.name as investor_name, c.email
+             FROM investment_pipeline ip
+             LEFT JOIN v2_programs p ON ip.venture_id = p.id
+             LEFT JOIN investor_profiles ipr ON ip.investor_id = ipr.id
+             LEFT JOIN contacts c ON ipr.user_id = c.cid
+             WHERE ip.stage = ?
+             ORDER BY ip.stage_changed_at DESC`;
+      args = [stage];
     } else {
       const profile = await db.execute({
         sql: "SELECT id FROM investor_profiles WHERE user_id = ?",
