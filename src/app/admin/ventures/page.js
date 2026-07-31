@@ -181,8 +181,8 @@ export default function VenturesPage() {
             {filteredVentures.map((venture) => {
               const stage = stageConfig(venture.business_stage);
               const status = statusConfig(venture.status);
-              const founderCount = venture.founder_count || 0;
-              const memberCount = venture.member_count || 0;
+              const founderCount = parseInt(venture.founder_count) || 0;
+              const memberCount = parseInt(venture.member_count) || 0;
 
               return (
                 <div

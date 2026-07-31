@@ -67,13 +67,25 @@ export async function POST(req) {
     }
     if (contactCid) {
       try {
+        // venture_members stores venture_id as the VNT code (TEXT), not the internal UUID
         await db.execute({
           sql: `INSERT INTO venture_members (venture_id, contact_id, member_type, role, permissions)
                 VALUES (?, ?, 'founder', 'founder', 'edit') ON CONFLICT DO NOTHING`,
-          args: [dbId, contactCid],
+          args: [ventureId, contactCid],
         });
       } catch (e) {
         console.warn("Failed to add founder as member:", e.message);
+      }
+      try {
+        // Also record the founder in venture_founders so the Founder Management UI shows them
+        await db.execute({
+          sql: `INSERT INTO venture_founders (venture_id, email, name, role, is_owner, status)
+                VALUES (?, ?, ?, 'founder', TRUE, 'active')
+                ON CONFLICT DO NOTHING`,
+          args: [ventureId, founder_email.trim(), founder_name.trim()],
+        });
+      } catch (e) {
+        console.warn("Failed to add founder to venture_founders:", e.message);
       }
     }
 

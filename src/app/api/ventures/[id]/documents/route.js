@@ -17,13 +17,25 @@ async function resolveVentureDbId(ventureId) {
   return r.rows?.[0]?.id || null;
 }
 
+// venture_members stores venture_id as the VNT code (TEXT) — resolve the code from a UUID if needed
+async function resolveVentureCode(idOrCode) {
+  if (!idOrCode || (typeof idOrCode === "string" && !idOrCode.startsWith("VNT-") && idOrCode.includes("-"))) {
+    try {
+      const r = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [idOrCode] });
+      return r.rows?.[0]?.venture_id || idOrCode;
+    } catch { return idOrCode; }
+  }
+  return idOrCode;
+}
+
 // Returns which approval_statuses a user is allowed to see
 async function getVisibilityStatuses(dbId, session) {
   // Super admins, staff, program managers, developers see everything
   if (PRIVILEGED.includes(session.role)) return null;
   // Founders see everything
   if (session.cid) {
-    const founder = await db.execute({ sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1", args: [dbId, session.cid] });
+    const code = await resolveVentureCode(dbId);
+    const founder = await db.execute({ sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1", args: [code, session.cid] });
     if (founder.rows?.length) return null;
   }
   // Investors only see shared documents
@@ -94,7 +106,8 @@ export async function POST(req, { params }) {
     if (body.action === "transition") {
       // Check: only founders/privileged can transition
       if (!PRIVILEGED.includes(session.role)) {
-        const founder = await db.execute({ sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1", args: [dbId, session.cid] });
+        const code = await resolveVentureCode(dbId);
+        const founder = await db.execute({ sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1", args: [code, session.cid] });
         if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can transition document status." }, { status: 403 });
       }
       const STATUSES = ["private", "pending_review", "approved", "shared_with_investor"];

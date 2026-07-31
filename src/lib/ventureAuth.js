@@ -24,15 +24,18 @@ export async function requireVentureAccess(ventureId, db) {
   }
 
   if (session.cid) {
-    // Resolve the internal UUID if the venture_members table stores it
-    let dbId = ventureId;
+    // venture_members stores venture_id as the VNT code (TEXT). Convert an
+    // internal UUID (if passed) back to the code so the membership check matches.
+    let code = ventureId;
     try {
-      const v = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
-      if (v.rows?.[0]?.id) dbId = v.rows[0].id;
+      if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
+        const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [ventureId] });
+        if (v.rows?.[0]?.venture_id) code = v.rows[0].venture_id;
+      }
     } catch {}
     const r = await db.execute({
       sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
-      args: [dbId, session.cid],
+      args: [code, session.cid],
     });
     if (r.rows?.length > 0) {
       return { ventureId, session };

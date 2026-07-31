@@ -11,6 +11,17 @@ async function resolveVentureDbId(ventureId) {
   return r.rows?.[0]?.id || null;
 }
 
+// venture_members stores venture_id as the VNT code (TEXT) — resolve the code from a UUID if needed
+async function resolveVentureCode(idOrCode) {
+  if (!idOrCode || (typeof idOrCode === "string" && !idOrCode.startsWith("VNT-") && idOrCode.includes("-"))) {
+    try {
+      const r = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [idOrCode] });
+      return r.rows?.[0]?.venture_id || idOrCode;
+    } catch { return idOrCode; }
+  }
+  return idOrCode;
+}
+
 export async function GET(req, { params }) {
   try {
     await initDb();
@@ -48,7 +59,8 @@ export async function PATCH(req, { params }) {
 
     // Only founders (or privileged staff roles) may edit permissions.
     if (!PRIVILEGED.includes(session.role)) {
-      const founder = await db.execute({ sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1", args: [dbId, session.cid] });
+      const code = await resolveVentureCode(dbId);
+      const founder = await db.execute({ sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1", args: [code, session.cid] });
       if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can manage document permissions." }, { status: 403 });
     }
 
