@@ -92,13 +92,38 @@ export default function VenturesPage() {
                   const res = await fetch("/api/venture-invites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ max_uses: 1, expires_in_days: 7 }) });
                   const d = await res.json();
                   if (d.success) {
-                    await navigator.clipboard.writeText(d.link);
-                    alert("Invite link copied! Send it to anyone to let them create a venture directly.\n\n" + d.link);
+                    const link = `${window.location.origin}/register-venture?token=${d.token}`;
+                    await navigator.clipboard.writeText(link);
+                    window.dispatchEvent(
+                      new CustomEvent("impactos:notify", {
+                        detail: {
+                          type: "success",
+                          message: "Invite link copied to clipboard",
+                          duration: 4000,
+                        },
+                      })
+                    );
                   } else {
-                    alert(d.error || "Failed to generate invite link");
+                    window.dispatchEvent(
+                      new CustomEvent("impactos:notify", {
+                        detail: {
+                          type: "error",
+                          message: d.error || "Failed to generate invite link",
+                          duration: 5000,
+                        },
+                      })
+                    );
                   }
                 } catch (e) {
-                  alert("Failed to generate invite link");
+                  window.dispatchEvent(
+                    new CustomEvent("impactos:notify", {
+                      detail: {
+                        type: "error",
+                        message: "Failed to generate invite link",
+                        duration: 5000,
+                      },
+                    })
+                  );
                 }
               }}
               className="btn gap-2"

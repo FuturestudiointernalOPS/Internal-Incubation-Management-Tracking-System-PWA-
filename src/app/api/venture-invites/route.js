@@ -34,8 +34,10 @@ export async function POST(req) {
       args: [token, null, expiresAt, maxUses],
     });
 
+    const reqOrigin = req.headers.get("origin") || "";
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
+      reqOrigin ||
       (() => {
         try {
           return new URL(req.url).origin;
