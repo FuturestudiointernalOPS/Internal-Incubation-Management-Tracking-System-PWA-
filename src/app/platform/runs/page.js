@@ -381,6 +381,16 @@ export default function FormRunsPage() {
       const evalData = await evalRes.json();
       if (evalData.success && evalData.evaluation) setEvaluation(evalData.evaluation);
     } catch (_) {}
+    // Fetch form fields to map IDs to labels
+    if (selectedRun?.form_id) {
+      try {
+        const formRes = await fetch(`/api/platform/forms?id=${selectedRun.form_id}`);
+        const formData = await formRes.json();
+        if (formData.success) {
+          setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)));
+        }
+      } catch (_) {}
+    }
   };
 
   const handleAssign = async () => {
@@ -539,8 +549,10 @@ export default function FormRunsPage() {
                     <thead className="bg-tertiary">
                       <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
                         <th className="px-4 py-3">Submitter</th>
-                        {runFormFields.map(f => (
-                          <th key={f.id} className="px-3 py-3 whitespace-nowrap">{f.label}</th>
+                        {runFormFields.slice(0, 3).map(f => (
+                          <th key={f.id} className="px-3 py-3 max-w-[120px]" title={f.label}>
+                            <span className="line-clamp-1">{f.label.length > 25 ? f.label.substring(0, 25) + "..." : f.label}</span>
+                          </th>
                         ))}
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">Score</th>
@@ -584,8 +596,8 @@ export default function FormRunsPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.submitter_name || s.submitter_id}</div>
                             </td>
-                            {runFormFields.map(f => (
-                              <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-secondary)] max-w-[150px] truncate">{fv(f)}</td>
+                            {runFormFields.slice(0, 3).map(f => (
+                              <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-secondary)] max-w-[150px] truncate" title={fv(f)}>{fv(f)}</td>
                             ))}
                             <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{sc.label}</span></td>
                             <td className="px-4 py-3">
@@ -943,25 +955,63 @@ export default function FormRunsPage() {
                     </div>
                   )}
 
-                  {Object.entries(reviewing.data).filter(([k]) => k !== "_scores" && k !== "_evaluation").map(([key, value]) => {
-                    // Format phone numbers stored as JSON
-                    let display = String(value);
-                    if (typeof value === "string" && value.startsWith("{") && value.includes('"code"')) {
-                      try {
-                        const p = JSON.parse(value);
-                        if (p.code && p.number) {
-                          const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+225", flag: "🇨🇮" }, { code: "+221", flag: "🇸🇳" }, { code: "+228", flag: "🇹🇬" }, { code: "+237", flag: "🇨🇲" }, { code: "+250", flag: "🇷🇼" }, { code: "+256", flag: "🇺🇬" }, { code: "+255", flag: "🇹🇿" }, { code: "+251", flag: "🇪🇹" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+86", flag: "🇨🇳" }, { code: "+971", flag: "🇦🇪" }, { code: "+55", flag: "🇧🇷" }].find(c => c.code === p.code);
-                          display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
+                  {(() => {
+                    // Map submission data keys to field labels using form structure
+                    const subData = reviewing.data || {};
+                    const entries = runFormFields
+                      .filter(f => {
+                        const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+                        return val !== undefined && val !== null && val !== "";
+                      })
+                      .map(f => {
+                        const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+                        let display = String(val);
+                        if (typeof val === "string" && val.startsWith("{") && val.includes('"code"')) {
+                          try {
+                            const p = JSON.parse(val);
+                            if (p.code && p.number) {
+                              const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+225", flag: "🇨🇮" }, { code: "+221", flag: "🇸🇳" }, { code: "+228", flag: "🇹🇬" }, { code: "+237", flag: "🇨🇲" }, { code: "+250", flag: "🇷🇼" }, { code: "+256", flag: "🇺🇬" }, { code: "+255", flag: "🇹🇿" }, { code: "+251", flag: "🇪🇹" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+86", flag: "🇨🇳" }, { code: "+971", flag: "🇦🇪" }, { code: "+55", flag: "🇧🇷" }].find(c => c.code === p.code);
+                              display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
+                            }
+                          } catch (_) {}
                         }
-                      } catch (_) {}
-                    }
+                        return { label: f.label, value: display };
+                      });
+                    
+                    // Fallback: show any unmatched data as raw only if no fields matched
+                    const unmatched = Object.entries(subData)
+                      .filter(([k]) => k !== "_scores" && k !== "_evaluation")
+                      .filter(([k]) => !runFormFields.some(f => String(f.id) === k || f.label === k));
+                    
                     return (
-                      <div key={key} className="flex items-start gap-2 text-[11px]">
-                        <span className="font-black text-[var(--text-secondary)] uppercase shrink-0">{key}:</span>
-                        <span className="text-[var(--text-primary)] font-bold break-all">{display}</span>
-                      </div>
+                      <>
+                        {entries.map(({ label, value }) => (
+                          <div key={label} className="flex items-start gap-2 text-[11px]">
+                            <span className="font-bold text-[var(--text-secondary)] shrink-0 min-w-[120px]">{label}</span>
+                            <span className="text-[var(--text-primary)] font-bold break-all">{value}</span>
+                          </div>
+                        ))}
+                        {unmatched.map(([key, value]) => {
+                          let display = String(value);
+                          if (typeof value === "string" && value.startsWith("{") && value.includes('"code"')) {
+                            try {
+                              const p = JSON.parse(value);
+                              if (p.code && p.number) {
+                                const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+225", flag: "🇨🇮" }, { code: "+221", flag: "🇸🇳" }, { code: "+228", flag: "🇹🇬" }, { code: "+237", flag: "🇨🇲" }, { code: "+250", flag: "🇷🇼" }, { code: "+256", flag: "🇺🇬" }, { code: "+255", flag: "🇹🇿" }, { code: "+251", flag: "🇪🇹" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+86", flag: "🇨🇳" }, { code: "+971", flag: "🇦🇪" }, { code: "+55", flag: "🇧🇷" }].find(c => c.code === p.code);
+                                display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
+                              }
+                            } catch (_) {}
+                          }
+                          return (
+                            <div key={key} className="flex items-start gap-2 text-[11px]">
+                              <span className="font-black text-[var(--text-secondary)] uppercase shrink-0">{key}:</span>
+                              <span className="text-[var(--text-primary)] font-bold break-all">{display}</span>
+                            </div>
+                          );
+                        })}
+                      </>
                     );
-                  })}
+                  })()}
                 </div>
               )}
 
