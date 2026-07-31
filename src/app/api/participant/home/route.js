@@ -148,10 +148,9 @@ export async function GET(req) {
         unlockedSessions.length > 0
           ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
           : 1;
-
       const totalDeliverables = unlockedDeliverables.length || 1;
       const completedDeliverables = unlockedDeliverables.filter((d) => {
-        const sub = submissions.find((s) => s.document_id === d.id);
+        const sub = submissions.find((s) => String(s.deliverable_id || s.document_id) === String(d.id));
         return sub && sub.status === "approved";
       }).length;
       const programCompletion = Math.round(

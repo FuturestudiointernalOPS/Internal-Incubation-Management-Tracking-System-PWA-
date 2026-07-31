@@ -29,7 +29,7 @@ export async function GET(req) {
       },
       {
         name: "participants_v2",
-        sql: `SELECT CAST(id AS TEXT) as id, user_id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source, v2_team_id FROM v2_participants WHERE program_id = ?`,
+        sql: `SELECT CAST(id AS TEXT) as id, user_id, program_id, name, email, phone, screening_status, status, created_at, 'MANUAL' as group_name, 'manual' as source, v2_team_id FROM v2_participants WHERE program_id = ? AND (status IS NULL OR status != 'archived')`,
         args: [id],
       },
       {

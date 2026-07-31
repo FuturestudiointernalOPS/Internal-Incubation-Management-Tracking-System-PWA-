@@ -1208,7 +1208,7 @@ function ProgramWorkspace() {
                   onClick={() => setActiveSubTab("individuals")}
                   className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "individuals" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
                 >
-                  Individuals ({participants.length})
+                  Individuals ({participants.filter(p => p.status !== 'archived').length})
                 </button>
                 <button
                   onClick={() => setActiveSubTab("groups")}
@@ -1238,7 +1238,7 @@ function ProgramWorkspace() {
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
-                          setSelectedParticipants(participants.map((p) => p.id))
+                          setSelectedParticipants(participants.filter(p => p.status !== 'archived').map((p) => p.id))
                         }
                         className="text-[9px] font-black uppercase text-blue-500 hover:underline"
                       >
@@ -1285,7 +1285,7 @@ function ProgramWorkspace() {
                         </tr>
                       </thead>
                       <tbody>
-                        {participants.map((p) => {
+                        {participants.filter(p => p.status !== 'archived').map((p) => {
                           const isSelected = selectedParticipants.includes(
                             p.id,
                           );

@@ -91,7 +91,7 @@ export async function recalculateKpiProgress(programId, participantId) {
       // Per-participant: check if they have approved submissions for linked docs
       completedDocs = linkedDocs.filter((d) =>
         participantSubmissions.some(
-          (s) => (s.deliverable_id || s.document_id) === d.id,
+          (s) => String(s.deliverable_id || s.document_id) === String(d.id),
         ),
       ).length;
     } else {
