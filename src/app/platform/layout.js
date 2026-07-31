@@ -80,7 +80,7 @@ export default function PlatformLayout({ children }) {
           </div>
           {!collapsed && (
             <span className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-              Platform
+              Forms
             </span>
           )}
         </div>

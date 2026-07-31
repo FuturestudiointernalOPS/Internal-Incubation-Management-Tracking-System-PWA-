@@ -4,12 +4,13 @@ export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import NextLink from "next/link";
 import {
   FileText, Plus, Search, Loader2, Edit3, Archive, Copy,
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
-  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play,
+  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban,
 } from "lucide-react";
 
 /**
@@ -643,11 +644,17 @@ export default function PlatformForms() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">Forms</h1>
-            <p className="text-[10px] text-[var(--text-secondary)] mt-1">Design configurable forms — every form belongs to a Collection.</p>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-1">Design configurable forms with AI evaluation, scoring, and review.</p>
           </div>
-          <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
-            <Plus className="w-3.5 h-3.5" /> New Form
-          </button>
+          <div className="flex items-center gap-2">
+            <NextLink href="/platform/collections" className="flex items-center gap-2 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-xl text-[10px] font-black uppercase hover:text-[var(--text-primary)] transition-all">
+              <FolderKanban className="w-3.5 h-3.5" /> Collections
+            </Link>
+            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
+              <Plus className="w-3.5 h-3.5" /> New Form
+            </button>
+          </div>
+        </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">

@@ -441,6 +441,7 @@ export default function FormRunsPage() {
       { id: "overview", label: "Overview", icon: BarChart3 },
       { id: "share", label: "Share", icon: Link2 },
       { id: "assignments", label: `Assignments (${assignments.length})`, icon: Users },
+      { id: "responses", label: "All Responses", icon: FileText, href: "/platform/responses" },
       { id: "settings", label: "Settings", icon: Settings },
     ];
 
@@ -475,9 +476,15 @@ export default function FormRunsPage() {
         {/* Tabs */}
         <div className="flex items-center gap-0 px-6 border-b border-[var(--border-primary)] shrink-0 bg-secondary">
           {tabs.map((t) => (
-            <button key={t.id} onClick={() => setDetailTab(t.id)} className={cn("flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black uppercase border-b-2 transition-colors", detailTab === t.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
-              <t.icon className="w-3 h-3" /> {t.label}
-            </button>
+            t.href ? (
+              <a key={t.id} href={t.href} className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black uppercase border-b-2 transition-colors border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <t.icon className="w-3 h-3" /> {t.label}
+              </a>
+            ) : (
+              <button key={t.id} onClick={() => setDetailTab(t.id)} className={cn("flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black uppercase border-b-2 transition-colors", detailTab === t.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
+                <t.icon className="w-3 h-3" /> {t.label}
+              </button>
+            )
           ))}
         </div>
 
