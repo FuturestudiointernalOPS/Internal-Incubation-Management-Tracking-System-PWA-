@@ -135,11 +135,21 @@ export default function ReviewPage() {
             )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {["Full Name", "Email", "Startup Name", "Startup Industry", "Stage of Business", "Country", "Phone Number", "Team Size"].map(k => {
-              const v = subData[k];
-              if (!v) return null;
-              return <div key={k}><p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{k}</p><p className="text-sm font-bold text-[var(--text-primary)] mt-0.5">{formatVal(v)}</p></div>;
-            })}
+            {/* Derive summary from first section's fields — use actual form structure, not hardcoded keys */}
+            {(() => {
+              const firstSection = sections[0];
+              const summaryFields = firstSection
+                ? fields.filter(f => String(f.section_id) === String(firstSection.id)).slice(0, 6)
+                : fields.slice(0, 6);
+              return summaryFields.map(f => {
+                const val = subData[f.label] ?? subData[String(f.id)];
+                if (val === undefined || val === null || val === "") return null;
+                return <div key={f.id}><p className="text-[9px] font-black uppercase text-[var(--text-secondary)] truncate">{f.label}</p><p className="text-sm font-bold text-[var(--text-primary)] mt-0.5">{formatVal(val)}</p></div>;
+              });
+            })()}
+            {submission?.submitter_name && submission.submitter_name !== "Anonymous" && (
+              <div><p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Submitter</p><p className="text-sm font-bold text-[var(--text-primary)] mt-0.5">{submission.submitter_name}</p></div>
+            )}
             <div><p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Submitted</p><p className="text-sm font-bold text-[var(--text-primary)] mt-0.5">{submission?.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "—"}</p></div>
           </div>
         </div>
@@ -158,7 +168,8 @@ export default function ReviewPage() {
                     <table className="w-full text-left">
                       <tbody className="divide-y divide-[var(--border-primary)]">
                         {secFields.map(f => {
-                          const val = subData[f.label] ?? subData[f.id];
+                          // Match by label first, then by field ID (submission data may use either)
+                          const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
                           if (val === undefined || val === null || val === "") return null;
                           return (
                             <tr key={f.id} className="hover:bg-tertiary/30 transition-colors">
