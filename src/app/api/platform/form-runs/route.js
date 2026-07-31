@@ -468,15 +468,9 @@ export async function POST(req) {
         args: [parseInt(submission_id), session.cid, reviewerName, decision, comment || null, internal_note || null],
       });
 
-      // Update submission status
-      const statusMap = {
-        approved: "approved",
-        rejected: "rejected",
-        revision_requested: "revision_requested",
-        escalated: "submitted",      // keep as submitted, escalated is a review action
-        reassigned: "submitted",     // keep as submitted, reassign is a review action
-      };
-      const newStatus = statusMap[decision] || decision;
+      // Update submission status — map workflow decision to core platform state
+      const CORE_STATES = ["approved", "rejected", "revision_requested", "submitted", "draft"];
+      const newStatus = CORE_STATES.includes(decision) ? decision : "approved";
       const result = await db.execute({
         sql: `UPDATE platform_form_submissions SET status = ?, updated_at = NOW() WHERE id = ? RETURNING *`,
         args: [newStatus, parseInt(submission_id)],

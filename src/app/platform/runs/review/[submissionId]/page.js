@@ -3,12 +3,30 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Loader2, User, FileText, BarChart3, CheckCircle2,
+  ArrowLeft, Loader2, User, FileText, CheckCircle2,
   XCircle, RotateCcw, Clock, AlertTriangle, History, Sparkles,
-  ChevronDown, ChevronUp, Send, RefreshCw, Eye, Star, ExternalLink
+  ChevronDown, ChevronUp, RefreshCw, ExternalLink
 } from "lucide-react";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+// ─── DEFAULT WORKFLOW (fallback when no config) ───
+const DEFAULT_WORKFLOW = {
+  decisions: [
+    { id: "approved", label: "Approve", icon: "CheckCircle2", color: "emerald" },
+    { id: "rejected", label: "Reject", icon: "XCircle", color: "rose" },
+    { id: "revision_requested", label: "Request Revision", icon: "RotateCcw", color: "amber" },
+  ],
+  statusLabels: {
+    draft: "Draft",
+    submitted: "Submitted",
+    approved: "Approved",
+    rejected: "Rejected",
+    revision_requested: "Revision",
+  },
+};
+
+const ICON_MAP = { CheckCircle2, XCircle, RotateCcw };
 
 export default function ReviewPage() {
   const params = useParams();
@@ -32,6 +50,9 @@ export default function ReviewPage() {
   const [expandedDims, setExpandedDims] = useState({});
   const [showHistory, setShowHistory] = useState(false);
 
+  // Workflow config — derived from form settings, falls back to defaults
+  const [workflow, setWorkflow] = useState(DEFAULT_WORKFLOW);
+
   const notify = (msg) => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
 
   const load = useCallback(async () => {
@@ -51,6 +72,12 @@ export default function ReviewPage() {
         setForm(formData.form);
         setSections(formData.sections || []);
         setFields(formData.fields || []);
+
+        // Load workflow config from form settings
+        const formSettings = formData.form?.settings || {};
+        if (formSettings.workflow) {
+          setWorkflow({ ...DEFAULT_WORKFLOW, ...formSettings.workflow });
+        }
       }
 
       const tlRes = await fetch(`/api/platform/form-runs?timeline=${submissionId}`);
@@ -99,8 +126,10 @@ export default function ReviewPage() {
 
   const subData = submission?.data || {};
   const scores = subData._scores;
-  const subStatus = { draft: "Draft", submitted: "Submitted", approved: "Approved", rejected: "Rejected", revision_requested: "Revision" }[submission?.status] || "Unknown";
-  const subColor = { draft: "text-slate-500", submitted: "text-blue-500", approved: "text-emerald-500", rejected: "text-rose-500", revision_requested: "text-amber-500" }[submission?.status] || "";
+  const statusLabel = workflow.statusLabels[submission?.status] || submission?.status || "Unknown";
+  const statusColor = { draft: "text-slate-500", submitted: "text-blue-500", approved: "text-emerald-500", rejected: "text-rose-500", revision_requested: "text-amber-500" }[submission?.status] || "";
+
+  const decisionMeta = workflow.decisions.find(d => d.id === reviewData.decision) || workflow.decisions[0];
 
   return (
     <div className="min-h-screen bg-primary">
@@ -111,7 +140,7 @@ export default function ReviewPage() {
         <button onClick={() => router.back()} className="text-xs font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><ArrowLeft className="w-3 h-3 inline mr-1" /> Back</button>
         <span className="text-[var(--text-secondary)] opacity-30">|</span>
         <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">{submission?.submitter_name || "Review"}</h2>
-        <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", subColor)}>{subStatus}</span>
+        <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", statusColor)}>{statusLabel}</span>
         <div className="flex-1" />
         <button onClick={handleReRunAI} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-purple-500/20">
           <RefreshCw className={cn("w-3 h-3", saving && "animate-spin")} /> Re-run AI
@@ -135,14 +164,13 @@ export default function ReviewPage() {
             )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Derive summary from first section's fields — use actual form structure, not hardcoded keys */}
             {(() => {
               const firstSection = sections[0];
               const summaryFields = firstSection
                 ? fields.filter(f => String(f.section_id) === String(firstSection.id)).slice(0, 6)
                 : fields.slice(0, 6);
               return summaryFields.map(f => {
-                const val = subData[f.label] ?? subData[String(f.id)];
+                const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
                 if (val === undefined || val === null || val === "") return null;
                 return <div key={f.id}><p className="text-[9px] font-black uppercase text-[var(--text-secondary)] truncate">{f.label}</p><p className="text-sm font-bold text-[var(--text-primary)] mt-0.5">{formatVal(val)}</p></div>;
               });
@@ -168,7 +196,6 @@ export default function ReviewPage() {
                     <table className="w-full text-left">
                       <tbody className="divide-y divide-[var(--border-primary)]">
                         {secFields.map(f => {
-                          // Match by label first, then by field ID (submission data may use either)
                           const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
                           if (val === undefined || val === null || val === "") return null;
                           return (
@@ -196,8 +223,6 @@ export default function ReviewPage() {
                 <span>{evaluation.recommendation?.substring(0, 80)}{(evaluation.recommendation?.length || 0) > 80 ? "..." : ""}</span>
               </div>
             </div>
-
-            {/* Dimensions Table */}
             <div className="overflow-hidden rounded-xl border border-[var(--border-primary)]">
               <table className="w-full text-left">
                 <thead>
@@ -254,26 +279,26 @@ export default function ReviewPage() {
           </div>
         )}
 
-        {/* ── FINAL DECISION ── */}
+        {/* ── FINAL DECISION (workflow-driven) ── */}
         <div className="card p-6">
           <h3 className="text-base font-black uppercase text-[var(--text-primary)] flex items-center gap-2 mb-4 pb-3 border-b border-[var(--border-primary)]"><CheckCircle2 className="w-4 h-4 text-[var(--brand-orange)]" /> Decision</h3>
 
-          {/* Decision buttons */}
-          <div className="flex gap-3 mb-4">
-            {[
-              { id: "approved", label: "Approve", icon: CheckCircle2, color: "emerald" },
-              { id: "rejected", label: "Reject", icon: XCircle, color: "rose" },
-              { id: "revision_requested", label: "Request Revision", icon: RotateCcw, color: "amber" },
-            ].map(d => (
-              <button key={d.id} onClick={() => setReviewData({ ...reviewData, decision: d.id })}
-                className={cn("flex-1 py-3 rounded-xl text-[10px] font-black uppercase border-2 transition-all flex items-center justify-center gap-1.5",
-                  reviewData.decision === d.id
-                    ? `bg-${d.color}-500/10 border-${d.color}-500 text-${d.color}-400`
-                    : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]"
-                )}>
-                <d.icon className="w-3.5 h-3.5" /> {d.label}
-              </button>
-            ))}
+          {/* Decision buttons — driven by workflow config */}
+          <div className="flex gap-3 mb-4 flex-wrap">
+            {workflow.decisions.map(d => {
+              const Icon = ICON_MAP[d.icon] || CheckCircle2;
+              const isActive = reviewData.decision === d.id;
+              return (
+                <button key={d.id} onClick={() => setReviewData({ ...reviewData, decision: d.id })}
+                  className={cn("flex-1 min-w-[120px] py-3 rounded-xl text-[10px] font-black uppercase border-2 transition-all flex items-center justify-center gap-1.5",
+                    isActive
+                      ? `bg-${d.color}-500/10 border-${d.color}-500 text-${d.color}-400`
+                      : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]"
+                  )}>
+                  <Icon className="w-3.5 h-3.5" /> {d.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Comments */}
@@ -283,7 +308,7 @@ export default function ReviewPage() {
           </div>
 
           <button onClick={handleReview} disabled={saving} className="w-full py-3 rounded-xl bg-[var(--brand-orange)] text-black text-xs font-black uppercase hover:brightness-110 disabled:opacity-50">
-            {saving ? "Saving..." : "Submit Review"}
+            {saving ? "Saving..." : `Submit Review — ${decisionMeta.label}`}
           </button>
         </div>
 
@@ -317,7 +342,8 @@ export default function ReviewPage() {
               <div key={idx} className="flex items-start gap-3">
                 <div className={cn("w-2 h-2 mt-1 rounded-full shrink-0",
                   entry.action === "submitted" ? "bg-blue-500" : entry.action === "approved" ? "bg-emerald-500" :
-                  entry.action === "rejected" ? "bg-rose-500" : entry.action === "ai_evaluated" ? "bg-purple-500" : "bg-[var(--brand-orange)]"
+                  entry.action === "rejected" ? "bg-rose-500" : entry.action === "ai_evaluated" ? "bg-purple-500" :
+                  entry.action === "revision_requested" ? "bg-amber-500" : "bg-[var(--brand-orange)]"
                 )} />
                 <div>
                   <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{entry.action}</p>
