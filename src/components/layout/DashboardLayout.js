@@ -323,7 +323,7 @@ const NAVIGATION_MATRIX = {
       name: "INVESTORS",
       icon: Briefcase,
       subItems: [
-        { id: "investors_manage", name: "MANAGE", href: "/admin/investors" },
+        { id: "investors_manage", name: "INVESTOR MANAGEMENT", href: "/admin/investors" },
         { id: "investors_dashboard", name: "DASHBOARD", href: "/admin/investors/dashboard" },
         { id: "investors_review", name: "REVIEW", href: "/admin/investors/review" },
         { id: "investors_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
@@ -665,20 +665,6 @@ const NAVIGATION_MATRIX = {
       name: "MY PROGRAMS",
       icon: Briefcase,
       href: "/participant/dashboard",
-    },
-    {
-      id: "assignments",
-      name: "ASSIGNMENTS",
-      icon: FileText,
-      href: "/participant/assignments",
-    },
-    // rituals — removed from sidebar per product decision
-    // Page still exists at /participant/rituals if needed
-    {
-      id: "progress_hub",
-      name: "MY PROGRESS",
-      icon: TrendingUp,
-      href: "/participant/progress",
     },
     {
       id: "communication",

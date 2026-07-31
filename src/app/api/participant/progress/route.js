@@ -231,7 +231,7 @@ export async function GET(req) {
         });
         let kpiProgress = progressRes.rows || [];
         if (kpiProgress.length === 0) {
-          kpiProgress = await recalculateKpiProgress(pid);
+          kpiProgress = await recalculateKpiProgress(pid, cid);
         }
         totalKpis = kpiProgress.length;
         targetMetKpis = kpiProgress.filter(

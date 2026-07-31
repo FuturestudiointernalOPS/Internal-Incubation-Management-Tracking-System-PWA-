@@ -6,12 +6,6 @@ import {
   generateVentureId,
   validateCompanyInfo,
   checkDuplicates,
-  createVenture,
-  createFounder,
-  logVentureActivity,
-  addVentureHistory,
-  createVentureNotification,
-  sendFounderInvitation,
   ensureVentureSchema,
 } from "@/lib/ventures";
 
@@ -20,20 +14,8 @@ import {
  *
  * Enhancement 1.1 — Workflow B: Direct Startup Registration
  *
- * Registers a startup directly into Venture OS without going through Program OS.
- * Flow:
- *   1. Verify Super Admin permission
- *   2. Validate company information
- *   3. Check for duplicates
- *   4. Generate Venture ID
- *   5. Create Venture
- *   6. Create Founder
- *   7. Generate invitation
- *   8. Send invitation email
- *   9. Initialize Startup Profile Wizard
- *  10. Create activity logs
- *  11. Create notifications
- *  12. Redirect to Venture Dashboard
+ * All DB operations wrapped in a transaction to prevent orphan ventures
+ * when any step fails (e.g. missing column, constraint violation).
  */
 export const POST = createHandler(
   { roles: ["super_admin"] },
@@ -91,127 +73,106 @@ export const POST = createHandler(
       );
     }
 
-    // ── Step 4: Generate Venture ID ──
+    // ── Steps 4-11: Everything in a single transaction ──
     const ventureId = generateVentureId();
-
-    // ── Step 5: Create Venture ──
-    await createVenture({
-      venture_id: ventureId,
-      company_name,
-      registration_number,
-      industry,
-      business_stage,
-      description,
-      website,
-      logo_url,
-      created_by: req.session?.cid || "system",
-    });
-
-    // ── Step 6: Create Founder with invitation token ──
     const invitationToken = uuidv4();
+    const actorCid = req.session?.cid || "system";
+    const actorName = req.session?.name || "System";
 
-    await createFounder({
-      venture_id: ventureId,
-      email: founder_email,
-      name: founder_name,
-      phone: founder_phone,
-      title: founder_title,
-      invitation_token: invitationToken,
-    });
+    try {
+      await db.transaction(async (query) => {
+        // Step 5: Create Venture
+        const name = company_name.trim();
+        await query(
+          `INSERT INTO ventures (venture_id, name, company_name, registration_number, industry, business_stage, description, website, logo_url, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [ventureId, name, name, registration_number||null, industry, business_stage, description||null, website||null, logo_url||null, actorCid]
+        );
 
-    // ── Step 7: Initialize Startup Profile Wizard ──
-    await addVentureHistory({
-      venture_id: ventureId,
-      event_type: "PROFILE_WIZARD_INIT",
-      description: "Startup Profile Wizard initialized",
-      metadata: {
-        step: 1,
-        total_steps: 5,
-        step_name: "Company Information",
-        completed: true,
-      },
-    });
+        // Step 6: Create Founder with invitation token
+        await query(
+          `INSERT INTO venture_founders (venture_id, email, name, phone, title, invitation_token, invitation_sent_at, status)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), 'pending')`,
+          [ventureId, founder_email.trim().toLowerCase(), founder_name.trim(), founder_phone||null, founder_title||null, invitationToken]
+        );
 
-    await addVentureHistory({
-      venture_id: ventureId,
-      event_type: "VENTURE_REGISTERED",
-      description: `Startup "${company_name}" registered directly into Venture OS`,
-      metadata: {
-        registration_method: "direct",
-        industry,
-        business_stage,
-      },
-    });
+        // Step 7: Initialize Startup Profile Wizard
+        await query(
+          `INSERT INTO venture_history (venture_id, event_type, description, metadata)
+           VALUES ($1, 'PROFILE_WIZARD_INIT', 'Startup Profile Wizard initialized', $2::jsonb)`,
+          [ventureId, JSON.stringify({ step: 1, total_steps: 5, step_name: "Company Information", completed: true })]
+        );
 
-    // ── Step 8: Create activity logs ──
-    await logVentureActivity({
-      venture_id: ventureId,
-      action: "VENTURE_CREATED",
-      actor_cid: req.session?.cid || "system",
-      actor_name: req.session?.name || "System",
-      details: {
-        company_name,
-        industry,
-        business_stage,
-        registration_method: "direct",
-      },
-    });
+        await query(
+          `INSERT INTO venture_history (venture_id, event_type, description, metadata)
+           VALUES ($1, 'VENTURE_REGISTERED', $2, $3::jsonb)`,
+          [ventureId, `Startup "${name}" registered directly into Venture OS`, JSON.stringify({ registration_method: "direct", industry, business_stage })]
+        );
 
-    await logVentureActivity({
-      venture_id: ventureId,
-      action: "FOUNDER_INVITED",
-      actor_cid: req.session?.cid || "system",
-      actor_name: req.session?.name || "System",
-      details: {
-        founder_email,
-        founder_name,
-        invitation_token: invitationToken,
-      },
-    });
+        // Step 8: Create activity logs
+        await query(
+          `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details)
+           VALUES ($1, 'VENTURE_CREATED', $2, $3, $4::jsonb)`,
+          [ventureId, actorCid, actorName, JSON.stringify({ company_name: name, industry, business_stage, registration_method: "direct" })]
+        );
 
-    // ── Step 9: Send invitation email ──
-    const emailResult = await sendFounderInvitation({
-      email: founder_email,
-      name: founder_name,
-      venture_name: company_name,
-      token: invitationToken,
-    });
+        await query(
+          `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details)
+           VALUES ($1, 'FOUNDER_INVITED', $2, $3, $4::jsonb)`,
+          [ventureId, actorCid, actorName, JSON.stringify({ founder_email: founder_email.trim().toLowerCase(), founder_name: founder_name.trim(), invitation_token: invitationToken })]
+        );
+      });
 
-    // ── Step 10: Create notifications ──
-    await createVentureNotification({
-      recipient_id: "sa",
-      title: "Startup Created",
-      message: `Startup "${company_name}" (${ventureId}) has been registered in Venture OS.`,
-      type: "venture",
-    });
+      // ── Steps 9-11: Outside transaction (email + notifications can fail independently) ──
+      const { sendFounderInvitation, createVentureNotification } = await import("@/lib/ventures");
 
-    await createVentureNotification({
-      recipient_id: "sa",
-      title: "Founder Invitation Sent",
-      message: `Invitation sent to ${founder_name} (${founder_email}) for venture "${company_name}".`,
-      type: "venture",
-    });
-
-    // ── Step 11: Return success with venture data ──
-    return NextResponse.json({
-      success: true,
-      venture: {
-        venture_id: ventureId,
-        company_name: company_name.trim(),
-        industry,
-        business_stage,
-        status: "active",
-      },
-      founder: {
-        email: founder_email.trim().toLowerCase(),
-        name: founder_name.trim(),
-        status: "pending",
-      },
-      invitation: {
+      const emailResult = await sendFounderInvitation({
+        email: founder_email,
+        name: founder_name,
+        venture_name: company_name,
         token: invitationToken,
-        email_sent: emailResult.success,
-      },
-      redirect: `/admin/ventures/${ventureId}`,
-    });
+      }).catch(() => ({ success: false }));
+
+      await createVentureNotification({
+        recipient_id: "sa",
+        title: "Startup Created",
+        message: `Startup "${company_name}" (${ventureId}) has been registered in Venture OS.`,
+        type: "venture",
+      }).catch(() => {});
+
+      await createVentureNotification({
+        recipient_id: "sa",
+        title: "Founder Invitation Sent",
+        message: `Invitation sent to ${founder_name} (${founder_email}) for venture "${company_name}".`,
+        type: "venture",
+      }).catch(() => {});
+
+      return NextResponse.json({
+        success: true,
+        venture: {
+          venture_id: ventureId,
+          company_name: company_name.trim(),
+          industry,
+          business_stage,
+          status: "active",
+        },
+        founder: {
+          email: founder_email.trim().toLowerCase(),
+          name: founder_name.trim(),
+          status: "pending",
+        },
+        invitation: {
+          token: invitationToken,
+          email_sent: emailResult.success,
+        },
+        redirect: `/admin/ventures/${ventureId}`,
+      });
+    } catch (error) {
+      console.error("Registration transaction failed:", error.message);
+      return NextResponse.json(
+        { success: false, error: `Registration failed: ${error.message}` },
+        { status: 500 },
+      );
+    }
   },
 );

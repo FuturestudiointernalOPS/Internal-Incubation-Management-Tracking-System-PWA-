@@ -36,7 +36,7 @@ export const POST = createHandler(
       const result = await transferOwnership({
         ventureId: id,
         currentOwnerId: permission.founderId,
-        newOwnerId: parseInt(new_owner_id),
+        newOwnerId: new_owner_id,
         transferredByFounderId: permission.founderId,
       });
 

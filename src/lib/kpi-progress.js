@@ -148,7 +148,6 @@ export async function recalculateKpiProgress(programId, participantId) {
   } catch (e) {
     // kpi_progress schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 11
     console.warn("kpi_progress write failed:", e.message);
-    return [];
   }
   } // end if (!participantId)
 

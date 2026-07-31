@@ -81,7 +81,7 @@ export async function GET(req, { params }) {
     }
 
     const progRes = await db.execute({
-      sql: "SELECT * FROM v2_programs WHERE id = ?",
+      sql: "SELECT * FROM v2_programs WHERE id::text = ?",
       args: [programId],
     });
     if (progRes.rows.length === 0) {
@@ -95,23 +95,23 @@ export async function GET(req, { params }) {
     const [sesRes, delRes, subRes, attRes, kpiRes, staffRes, folRes, knowRes] =
       await Promise.all([
         db.execute({
-          sql: "SELECT * FROM v2_sessions WHERE program_id = ? ORDER BY week_number ASC, start_at ASC",
+          sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC, start_at ASC",
           args: [programId],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
+          sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
           args: [programId],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ? ORDER BY created_at DESC",
+          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ? ORDER BY created_at DESC",
           args: [cid, programId],
         }),
         db.execute({
-          sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id = ? ORDER BY a.created_at ASC",
+          sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id::text = ? ORDER BY a.created_at ASC",
           args: [cid, programId],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
+          sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
           args: [programId],
         }),
         db.execute({
@@ -333,12 +333,12 @@ export async function GET(req, { params }) {
     let kpiCompletion = 0;
     try {
       const progressRes = await db.execute({
-        sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+        sql: "SELECT * FROM kpi_progress WHERE program_id::text = ? ORDER BY kpi_id ASC",
         args: [programId],
       });
       kpiProgress = progressRes.rows || [];
       if (kpiProgress.length === 0) {
-        kpiProgress = await recalculateKpiProgress(programId);
+        kpiProgress = await recalculateKpiProgress(programId, cid);
       }
       kpiCompletion =
         kpiProgress.length > 0
