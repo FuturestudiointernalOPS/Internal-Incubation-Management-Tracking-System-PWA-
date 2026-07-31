@@ -180,9 +180,12 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
 }
 
 /**
- * Send a venture approval email (venture created via invite link has been approved)
+ * Send a venture approval email (venture created via invite link has been approved).
+ * Includes a setup link so the founder can set their password and access the dashboard.
  */
-export async function sendVentureApprovalEmail({ to, name, ventureName, ventureUrl }) {
+export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl }) {
+  const ctaUrl = setupUrl || `${APP_URL}/login`;
+  const ctaLabel = setupUrl ? "SET YOUR PASSWORD" : "LOG IN";
   const html = `
     <!DOCTYPE html>
     <html>
@@ -204,18 +207,29 @@ export async function sendVentureApprovalEmail({ to, name, ventureName, ventureU
               <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
                 Great news — your venture <strong style="color: #ff6600;">${ventureName}</strong> has been
                 <strong style="color: #f8fafc;">approved</strong> and is now active on Venture OS.
-                You can log in and start building.
+                ${setupUrl ? "Set your password below to access your dashboard." : "You can log in and start building."}
               </p>
 
               <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
                 <tr>
                   <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
-                    <a href="${ventureUrl || APP_URL + "/login"}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
-                      VIEW YOUR VENTURE
+                    <a href="${ctaUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
+                      ${ctaLabel}
                     </a>
                   </td>
                 </tr>
               </table>
+
+              ${setupUrl ? `
+              <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
+                This link expires in <strong style="color: #f8fafc;">48 hours</strong>.
+              </p>
+              <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
+                If the button doesn't work, copy and paste this URL into your browser:
+              </p>
+              <p style="color: #ff6600; font-size: 11px; word-break: break-all; margin: 0 0 24px;">
+                ${ctaUrl}
+              </p>` : ""}
 
               <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
               <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">

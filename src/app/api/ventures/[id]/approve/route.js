@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { v4 as uuidv4 } from "uuid";
 import { sendVentureApprovalEmail } from "@/lib/email";
 import { logVentureActivity, createVentureNotification } from "@/lib/ventures";
 
@@ -45,7 +46,7 @@ export async function POST(req, { params }) {
       });
     } catch {}
 
-    // Email every founder recorded for this venture
+    // Email every founder recorded for this venture with a password-setup link
     let emailed = 0;
     try {
       const founders = await db.execute({
@@ -64,14 +65,43 @@ export async function POST(req, { params }) {
               WHERE v.venture_id = ?`,
         args: [id, id, id],
       });
+      const appBase =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        (() => {
+          try {
+            return new URL(req.url).origin;
+          } catch {
+            return "";
+          }
+        })();
       for (const f of founders.rows || []) {
         if (!f.email) continue;
         try {
+          // Create a password-setup token so the founder can set their password
+          // and access their dashboard (reuses the /activate flow).
+          let setupUrl = null;
+          try {
+            const contact = await db.execute({
+              sql: "SELECT cid FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0",
+              args: [f.email],
+            });
+            if (contact.rows?.[0]?.cid) {
+              const token = uuidv4();
+              await db.execute({
+                sql: `INSERT INTO password_setup_tokens (token, contact_cid, user_email, role, token_type, expires_at)
+                      VALUES (?, ?, ?, 'founder', 'venture_approval', NOW() + INTERVAL '48 hours')`,
+                args: [token, contact.rows[0].cid, f.email],
+              });
+              setupUrl = `${appBase}/activate?token=${token}`;
+            }
+          } catch (e) {
+            console.warn("Setup token creation failed for", f.email, ":", e.message);
+          }
           await sendVentureApprovalEmail({
             to: f.email,
             name: f.name || "there",
             ventureName: venture.company_name || venture.name || id,
-            ventureUrl: `${process.env.NEXT_PUBLIC_APP_URL || ""}/admin/ventures/${id}`,
+            setupUrl,
           });
           emailed++;
         } catch (e) {
