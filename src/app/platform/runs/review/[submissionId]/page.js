@@ -91,7 +91,20 @@ export default function ReviewPage() {
   const handleReview = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/platform/form-runs?action=review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ submission_id: parseInt(submissionId), ...reviewData }) });
+      // Build dimension overrides from evaluation state
+      const dimensionOverrides = evaluation?.dimensions
+        ?.filter(d => d.human_score != null)
+        .map(d => ({ name: d.name, human_score: d.human_score, human_comment: d.human_comment || "", final_score: d.final_score })) || [];
+
+      const res = await fetch("/api/platform/form-runs?action=review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submission_id: parseInt(submissionId),
+          ...reviewData,
+          dimension_overrides: dimensionOverrides,
+        }),
+      });
       const data = await res.json();
       if (data.success) { notify("Review submitted"); load(); }
       else notify(data.error || "Failed");
@@ -159,7 +172,11 @@ export default function ReviewPage() {
               <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">
                 {(() => {
                   const firstSec = sectionsWithFields[0];
-                  const nameField = firstSec?.fields.find(f => f.label?.toLowerCase().includes("name"));
+                  // Find personal name field: contains "name" but not "startup"/"business"/"company"/"project"/"team"
+                  const nameField = firstSec?.fields.find(f => {
+                    const l = (f.label || "").toLowerCase();
+                    return l.includes("name") && !l.includes("startup") && !l.includes("business") && !l.includes("company") && !l.includes("project") && !l.includes("team") && !l.includes("brand");
+                  });
                   const nameVal = nameField ? fmt(getVal(nameField)) : submission?.submitter_name;
                   return nameVal || "Applicant";
                 })()}
@@ -251,28 +268,32 @@ export default function ReviewPage() {
                       <div className="flex items-center gap-4 shrink-0">
                         <div className="text-center w-12">
                           <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">AI</p>
-                          <p className="text-sm font-black text-purple-400">{dim.ai_score}</p>
+                          <p className="text-sm font-black text-purple-400">{dim.score ?? dim.ai_score ?? "—"}</p>
                         </div>
                         <div className="text-center w-14">
                           <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">You</p>
-                          <input
-                            type="number" min={0} max={10} step={0.5}
-                            value={dim.human_score ?? ""}
-                            placeholder={String(dim.ai_score)}
-                            onClick={e => e.stopPropagation()}
-                            onChange={e => {
-                              const val = e.target.value === "" ? null : parseFloat(e.target.value);
-                              const dims = [...evaluation.dimensions];
-                              dims[di] = { ...dims[di], human_score: val, final_score: val ?? dim.ai_score };
-                              setEvaluation({ ...evaluation, dimensions: dims });
-                            }}
-                            className="w-12 px-1.5 py-1 rounded-lg bg-primary border border-[var(--border-primary)] text-xs font-black text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
+                          {dim.human_score != null ? (
+                            <p className="text-sm font-black text-[var(--brand-orange)]">{dim.human_score}</p>
+                          ) : (
+                            <input
+                              type="number" min={0} max={10} step={0.5}
+                              value=""
+                              placeholder={String(dim.score ?? "—")}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => {
+                                const val = e.target.value === "" ? null : parseFloat(e.target.value);
+                                const dims = [...evaluation.dimensions];
+                                dims[di] = { ...dims[di], human_score: val, human_comment: dims[di].human_comment || "", final_score: val ?? dim.score };
+                                setEvaluation({ ...evaluation, dimensions: dims });
+                              }}
+                              className="w-12 px-1.5 py-1 rounded-lg bg-primary border border-[var(--border-primary)] text-xs font-black text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          )}
                         </div>
                         <div className="text-center w-12">
                           <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Final</p>
-                          <p className={cn("text-sm font-black", (dim.final_score ?? dim.ai_score) >= 7 ? "text-emerald-400" : (dim.final_score ?? dim.ai_score) >= 5 ? "text-amber-400" : "text-rose-400")}>
-                            {dim.final_score ?? dim.ai_score}
+                          <p className={cn("text-sm font-black", (dim.final_score ?? dim.score) >= 7 ? "text-emerald-400" : (dim.final_score ?? dim.score) >= 5 ? "text-amber-400" : "text-rose-400")}>
+                            {dim.final_score ?? dim.score ?? "—"}
                           </p>
                         </div>
                         {isExp ? <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />}
@@ -311,6 +332,24 @@ export default function ReviewPage() {
                                   {dim.ai_weaknesses.map((w, i) => <p key={i} className="text-[10px] text-rose-300">− {w}</p>)}
                                 </div>
                               )}
+                            </div>
+                          )}
+                          {/* Human override justification */}
+                          {dim.human_score != null && (
+                            <div className="p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20">
+                              <p className="text-[9px] font-black uppercase text-[var(--brand-orange)] mb-1">Human Override</p>
+                              <textarea
+                                value={dim.human_comment || ""}
+                                onChange={e => {
+                                  const dims = [...evaluation.dimensions];
+                                  dims[di] = { ...dims[di], human_comment: e.target.value };
+                                  setEvaluation({ ...evaluation, dimensions: dims });
+                                }}
+                                onClick={e => e.stopPropagation()}
+                                rows={2}
+                                placeholder="Why did you override the AI score?"
+                                className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none"
+                              />
                             </div>
                           )}
                         </div>

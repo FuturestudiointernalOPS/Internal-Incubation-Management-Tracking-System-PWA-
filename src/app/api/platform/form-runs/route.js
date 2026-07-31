@@ -453,7 +453,7 @@ export async function POST(req) {
       const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
       if (authError) return authError;
 
-      const { submission_id, decision, comment, internal_note } = body;
+      const { submission_id, decision, comment, internal_note, dimension_overrides } = body;
       if (!submission_id || !decision) return NextResponse.json({ success: false, error: "submission_id and decision required" }, { status: 400 });
 
       let reviewerName = session.cid;
@@ -462,11 +462,36 @@ export async function POST(req) {
         if (r.rows.length) reviewerName = r.rows[0].name;
       } catch (_) {}
 
-      // Save review
+      // Save review with dimension overrides if provided
       await db.execute({
         sql: `INSERT INTO platform_submission_reviews (submission_id, reviewer_id, reviewer_name, decision, comment, internal_note) VALUES (?, ?, ?, ?, ?, ?)`,
         args: [parseInt(submission_id), session.cid, reviewerName, decision, comment || null, internal_note || null],
       });
+
+      // Store dimension overrides in separate evaluation update
+      if (dimension_overrides && Array.isArray(dimension_overrides) && dimension_overrides.length > 0) {
+        try {
+          const evalRes = await db.execute({
+            sql: "SELECT id, dimensions FROM platform_submission_evaluations WHERE submission_id = ? ORDER BY evaluated_at DESC LIMIT 1",
+            args: [parseInt(submission_id)],
+          });
+          if (evalRes.rows.length > 0) {
+            const existing = evalRes.rows[0];
+            const dims = existing.dimensions || [];
+            const updatedDims = dims.map(d => {
+              const override = dimension_overrides.find(o => o.name === d.name);
+              if (override) {
+                return { ...d, human_score: override.human_score, human_comment: override.human_comment || "", final_score: override.final_score };
+              }
+              return d;
+            });
+            await db.execute({
+              sql: "UPDATE platform_submission_evaluations SET dimensions = ? WHERE id = ?",
+              args: [JSON.stringify(updatedDims), existing.id],
+            });
+          }
+        } catch (_) {}
+      }
 
       // Update submission status — map workflow decision to core platform state
       const CORE_STATES = ["approved", "rejected", "revision_requested", "submitted", "draft"];
