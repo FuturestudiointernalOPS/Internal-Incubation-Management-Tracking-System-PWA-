@@ -1,14 +1,12 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, Eye, FileText, Filter, X } from "lucide-react";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
-export default function ResponsesPage() {
+function ResponsesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const formParam = searchParams.get("form_id");
@@ -328,5 +326,13 @@ export default function ResponsesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ResponsesPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>}>
+      <ResponsesContent />
+    </Suspense>
   );
 }

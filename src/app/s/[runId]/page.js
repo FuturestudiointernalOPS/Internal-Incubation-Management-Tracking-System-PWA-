@@ -129,13 +129,13 @@ export default function PublicSubmitPage() {
           </select>
         );
       case "rating": {
-        const opts = (field.options && field.options.length > 0) ? field.options : [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }];
+        const opts = (Array.isArray(field.options) && field.options.length > 0) ? field.options : [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }];
         return (
           <div className="space-y-2">
             <p className="text-xs text-slate-500">Select a rating:</p>
             <div className="flex gap-3 flex-wrap">
               {opts.map(o => (
-                <button key={o.value} onClick={() => updateField(field.id, o.value)} disabled={isDisabled}
+                <button key={o.value} type="button" onClick={() => updateField(field.id, o.value)} disabled={isDisabled}
                   className={`min-w-[56px] px-4 py-3 rounded-xl text-base font-bold border-2 transition-all ${
                     value === o.value
                       ? "bg-orange-500 text-white border-orange-500 scale-110 shadow-lg shadow-orange-500/30"
