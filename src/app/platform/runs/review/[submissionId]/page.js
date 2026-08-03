@@ -39,6 +39,7 @@ export default function ReviewPage() {
   const [expandedDims, setExpandedDims] = useState({});
   const [showHistory, setShowHistory] = useState(false);
   const [workflow, setWorkflow] = useState(DEFAULT_WORKFLOW);
+  const [collapsedSections, setCollapsedSections] = useState({});
 
   const notify = (msg) => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
 
@@ -70,6 +71,20 @@ export default function ReviewPage() {
       if (evalData.success && evalData.evaluation) {
         setEvaluation(evalData.evaluation);
         setEvalHistory(evalData.history || [evalData.evaluation]);
+      } else {
+        // No evaluation yet — auto-trigger AI evaluation if form is configured for it
+        try {
+          const triggerRes = await fetch("/api/platform/ai/evaluate-submission", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ submission_id: parseInt(submissionId) }),
+          });
+          const triggerData = await triggerRes.json();
+          if (triggerData.success && triggerData.evaluation) {
+            setEvaluation(triggerData.evaluation);
+            setEvalHistory([triggerData.evaluation]);
+          }
+        } catch (_) {}
       }
     } catch (e) { setError(e.message); }
     setLoading(false);
@@ -210,7 +225,20 @@ export default function ReviewPage() {
         <div className="rounded-2xl bg-secondary border border-[var(--border-primary)] overflow-hidden">
           <div className="px-6 py-4 border-b border-[var(--border-primary)] flex items-center gap-3">
             <FileText className="w-5 h-5 text-[var(--text-secondary)]" />
-            <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">Application</h2>
+            <h2 className="text-sm font-black uppercase text-[var(--text-primary)] flex-1">Application</h2>
+            {sectionsWithFields.filter(s => s.fields.some(f => fmt(getVal(f)))).length > 2 && (
+              <button
+                onClick={() => {
+                  const allIds = {};
+                  const hasCollapsed = Object.values(collapsedSections).some(v => v);
+                  sectionsWithFields.forEach(s => { allIds[s.id] = !hasCollapsed; });
+                  setCollapsedSections(hasCollapsed ? {} : allIds);
+                }}
+                className="text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] uppercase"
+              >
+                {Object.values(collapsedSections).some(v => v) ? "Expand All" : "Collapse All"}
+              </button>
+            )}
           </div>
           <div className="divide-y divide-[var(--border-primary)]">
             {sectionsWithFields.map(sec => {
@@ -218,18 +246,27 @@ export default function ReviewPage() {
               if (answered.length === 0) return null;
               return (
                 <div key={sec.id} className="px-6 py-4">
-                  <h3 className="text-[10px] font-black uppercase text-[var(--brand-orange)] tracking-wider mb-3">{sec.title}</h3>
-                  <div className="space-y-3">
-                    {answered.map(f => {
-                      const val = fmt(getVal(f));
-                      return (
-                        <div key={f.id}>
-                          <p className="text-[10px] font-bold text-[var(--text-secondary)] mb-1">{f.label}</p>
-                          <p className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{val}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <button
+                    onClick={() => setCollapsedSections(p => ({ ...p, [sec.id]: !p[sec.id] }))}
+                    className="flex items-center gap-2 w-full text-left"
+                  >
+                    <h3 className="text-[10px] font-black uppercase text-[var(--brand-orange)] tracking-wider flex-1">{sec.title}</h3>
+                    <span className="text-[9px] text-[var(--text-secondary)]">{answered.length} answered</span>
+                    {collapsedSections[sec.id] ? <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)]" /> : <ChevronUp className="w-3.5 h-3.5 text-[var(--text-secondary)]" />}
+                  </button>
+                  {!collapsedSections[sec.id] && (
+                    <div className="mt-3 space-y-3">
+                      {answered.map(f => {
+                        const val = fmt(getVal(f));
+                        return (
+                          <div key={f.id}>
+                            <p className="text-[10px] font-bold text-[var(--text-secondary)] mb-1">{f.label}</p>
+                            <p className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{val}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
