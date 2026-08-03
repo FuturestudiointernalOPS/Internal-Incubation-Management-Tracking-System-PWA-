@@ -73,16 +73,47 @@ export async function POST(req) {
       }
     } catch (_) { /* table may not exist yet */ }
 
-    // Find submitter identity from form fields
+    // Find submitter identity by looking up form field labels
     let submitterName = "Anonymous";
     let submitterEmail = null;
-    if (typeof data === "object") {
-      for (const [key, value] of Object.entries(data)) {
-        const k = String(key).toLowerCase();
-        // Skip JSON phone objects — they contain curly braces
-        const v = typeof value === "string" && !value.startsWith("{") ? value : String(value);
-        if ((k.includes("name") || k.includes("full")) && submitterName === "Anonymous") submitterName = v.substring(0, 200);
-        if (k.includes("email") && !submitterEmail && v.includes("@")) submitterEmail = v.substring(0, 200);
+    if (typeof data === "object" && run_id) {
+      try {
+        // Fetch form fields to map field IDs to labels
+        const runInfo = await db.execute({
+          sql: "SELECT form_id FROM platform_form_runs WHERE id = ?",
+          args: [parseInt(run_id)],
+        });
+        if (runInfo.rows.length > 0) {
+          const fieldsRes = await db.execute({
+            sql: "SELECT id, label, field_type FROM platform_form_fields WHERE form_id = ?",
+            args: [runInfo.rows[0].form_id],
+          });
+          const fieldMap = {};
+          for (const f of fieldsRes.rows) {
+            fieldMap[String(f.id)] = { label: f.label, type: f.field_type };
+          }
+          // Now find name/email by field label, not field ID
+          for (const [key, value] of Object.entries(data)) {
+            const fieldInfo = fieldMap[String(key)];
+            if (!fieldInfo) continue;
+            const label = (fieldInfo.label || "").toLowerCase();
+            const v = typeof value === "string" && !value.startsWith("{") ? value : String(value);
+            if ((label.includes("name") || label.includes("full")) && submitterName === "Anonymous") {
+              submitterName = v.substring(0, 200);
+            }
+            if (label.includes("email") && !submitterEmail && v.includes("@")) {
+              submitterEmail = v.substring(0, 200);
+            }
+          }
+        }
+      } catch (_) {
+        // Fallback: try matching by key (legacy approach)
+        for (const [key, value] of Object.entries(data)) {
+          const k = String(key).toLowerCase();
+          const v = typeof value === "string" && !value.startsWith("{") ? value : String(value);
+          if ((k.includes("name") || k.includes("full")) && submitterName === "Anonymous") submitterName = v.substring(0, 200);
+          if (k.includes("email") && !submitterEmail && v.includes("@")) submitterEmail = v.substring(0, 200);
+        }
       }
     }
     const submitterId = submitterEmail || "public-" + Date.now();
