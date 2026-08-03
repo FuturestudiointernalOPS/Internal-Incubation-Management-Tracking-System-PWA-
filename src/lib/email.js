@@ -277,3 +277,48 @@ async function sendEmail({ to, subject, html }) {
     return { success: false, error: e.message };
   }
 }
+
+/**
+ * Send a decision notification email to an applicant
+ */
+export async function sendDecisionEmail({ to, applicantName, formName, decision, comment, orgName }) {
+  const decisionLabels = {
+    approved: "approved",
+    rejected: "not selected to proceed",
+    revision_requested: "being reviewed — additional information requested",
+  };
+  const decisionLabel = decisionLabels[decision] || decision;
+  const subject = decision === "approved"
+    ? `Your ${formName || "application"} has been approved`
+    : decision === "rejected"
+      ? `Update on your ${formName || "application"}`
+      : `Additional information needed — ${formName || "application"}`;
+
+  const commentBlock = comment ? `<p style="margin:16px 0 0;font-size:14px;color:#cbd5e1;font-style:italic;border-left:3px solid #f97316;padding-left:12px;">"${comment}"</p>` : "";
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 800;">${subject}</h1>
+              <p style="margin:0 0 8px;font-size:15px;color:#e2e8f0;">Hello ${applicantName || "there"},</p>
+              <p style="margin:0 0 8px;font-size:14px;color:#94a3b8;line-height:1.6;">
+                Your ${formName || "application"} has been <strong style="color:#f8fafc;">${decisionLabel}</strong>.
+              </p>
+              ${commentBlock}
+              <p style="margin:24px 0 0;font-size:12px;color:#64748b;">
+                ${orgName || "Future Studio"} — This is an automated notification.
+              </p>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body></html>`;
+
+  return sendEmail({ to, subject, html });
+}

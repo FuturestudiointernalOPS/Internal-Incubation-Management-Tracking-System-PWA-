@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { sendDecisionEmail } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 
 /**
@@ -502,6 +503,25 @@ export async function POST(req) {
       });
 
       logTimeline(parseInt(submission_id), decision, session.cid, reviewerName, { comment, internal_note });
+
+      // Send decision email to applicant
+      try {
+        const subData = result.rows[0].data || {};
+        const applicantEmail = Object.values(subData).find(v => typeof v === "string" && v.includes("@"));
+        if (applicantEmail) {
+          const applicantName = result.rows[0].submitter_name || "";
+          const runInfo = await db.execute({ sql: "SELECT f.name FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
+          const formName = runInfo.rows[0]?.name || "";
+          await sendDecisionEmail({
+            to: applicantEmail,
+            applicantName,
+            formName,
+            decision,
+            comment: comment || "",
+          });
+          logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision });
+        }
+      } catch (_) {}
 
       // Fire automation — get run details for context
       const sub = await db.execute({ sql: "SELECT run_id FROM platform_form_submissions WHERE id = ?", args: [parseInt(submission_id)] });

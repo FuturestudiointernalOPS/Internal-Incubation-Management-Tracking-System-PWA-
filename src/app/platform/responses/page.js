@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, Eye, FileText, Filter, X } from "lucide-react";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 export default function ResponsesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const formParam = searchParams.get("form_id");
   const [loading, setLoading] = useState(true);
   const [runs, setRuns] = useState([]);
   const [allSubs, setAllSubs] = useState([]);
@@ -57,6 +59,14 @@ export default function ResponsesPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Apply form_id from URL param after forms load
+  useEffect(() => {
+    if (formParam && forms.length > 0 && !selectedFormId) {
+      const match = forms.find(f => String(f.id) === String(formParam));
+      if (match) setSelectedFormId(String(match.id));
+    }
+  }, [formParam, forms, selectedFormId]);
 
   // Load form fields when a form is selected
   useEffect(() => {

@@ -463,7 +463,7 @@ export default function FormRunsPage() {
       { id: "overview", label: "Overview", icon: BarChart3 },
       { id: "share", label: "Share", icon: Link2 },
       { id: "assignments", label: `Assignments (${assignments.length})`, icon: Users },
-      { id: "responses", label: "All Responses", icon: FileText, href: "/platform/responses" },
+      { id: "responses", label: "All Responses", icon: FileText, href: `/platform/responses?form_id=${selectedRun?.form_id || ""}` },
       { id: "settings", label: "Settings", icon: Settings },
     ];
 
