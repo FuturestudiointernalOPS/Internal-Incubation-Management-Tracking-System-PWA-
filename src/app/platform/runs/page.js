@@ -6,7 +6,7 @@ import {
   XCircle, FileText, RotateCcw, Eye, MessageSquare, User, Filter,
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
-  StopCircle, Archive, RefreshCw, ChevronDown, ChevronRight, Info,
+  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info,
 } from "lucide-react";
 
 /**
@@ -181,6 +181,10 @@ export default function FormRunsPage() {
   const [notification, setNotification] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(15);
+  const [sortField, setSortField] = useState("created_at");
+  const [sortDir, setSortDir] = useState("desc");
 
   // Detail view
   const [selectedRun, setSelectedRun] = useState(null);
@@ -1118,29 +1122,93 @@ export default function FormRunsPage() {
           <option value="all">All Status</option><option value="draft">Draft</option><option value="scheduled">Scheduled</option><option value="active">Active</option><option value="closed">Closed</option><option value="cancelled">Cancelled</option><option value="archived">Archived</option>
         </select>
       </div>
-      {loading ? <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
-        <div className="flex flex-col gap-2">
-          {runs.filter((r) => !search || r.name.toLowerCase().includes(search.toLowerCase())).map((r) => {
-            const cfg = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
-            return (
-              <div key={r.id} onClick={() => openRun(r)} className="flex items-center gap-4 p-4 rounded-xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer group">
-                <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0"><Play className="w-5 h-5 text-[var(--brand-orange)]" /></div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-black text-[var(--text-primary)] uppercase truncate">{r.name}</h3>
-                    <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase shrink-0", cfg.color, cfg.bg)}>{cfg.label}</span>
-                  </div>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">Form: {r.form_name}</p>
-                  <div className="flex items-center gap-3 mt-0.5 text-[9px] text-[var(--text-secondary)]">
-                    {r.opens_at && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(r.opens_at).toLocaleDateString()}</span>}
-                    {r.closes_at && <span className="flex items-center gap-1">→ {new Date(r.closes_at).toLocaleDateString()}</span>}
+      {loading ? <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (() => {
+          const filtered = runs.filter((r) => !search || r.name.toLowerCase().includes(search.toLowerCase())).filter((r) => statusFilter === "all" || r.status === statusFilter);
+          const sorted = [...filtered].sort((a, b) => {
+            const aVal = a[sortField] ?? "";
+            const bVal = b[sortField] ?? "";
+            if (sortField === "created_at" || sortField === "opens_at" || sortField === "closes_at") {
+              return sortDir === "asc" ? new Date(aVal) - new Date(bVal) : new Date(bVal) - new Date(aVal);
+            }
+            return sortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+          });
+          const totalPages = Math.ceil(sorted.length / perPage);
+          const paginated = sorted.slice((page - 1) * perPage, page * perPage);
+          if (sorted.length === 0) return <div className="text-center py-16 text-[var(--text-secondary)] text-[11px] font-bold">No form runs found</div>;
+          return (
+            <>
+              <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
+                <table className="w-full text-left">
+                  <thead className="bg-tertiary">
+                    <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                      <th className="px-3 py-3 w-10">SN</th>
+                      {[
+                        { key: "name", label: "Name", w: "" },
+                        { key: "form_name", label: "Form", w: "w-40" },
+                        { key: "status", label: "Status", w: "w-28" },
+                        { key: "opens_at", label: "Opens", w: "w-28" },
+                        { key: "closes_at", label: "Closes", w: "w-28" },
+                        { key: "created_at", label: "Created", w: "w-28" },
+                      ].map((col) => (
+                        <th key={col.key} className={`px-3 py-3 cursor-pointer hover:text-[var(--brand-orange)] transition-colors ${col.w}`} onClick={() => {
+                          if (sortField === col.key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+                          else { setSortField(col.key); setSortDir("asc"); }
+                          setPage(1);
+                        }}>
+                          <span className="flex items-center gap-1">
+                            {col.label}
+                            {sortField === col.key && (
+                              sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+                            )}
+                          </span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-primary)]">
+                    {paginated.map((r, i) => {
+                      const cfg = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
+                      const sn = (page - 1) * perPage + i + 1;
+                      return (
+                        <tr key={r.id} onClick={() => openRun(r)} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50 cursor-pointer">
+                          <td className="px-3 py-3 text-[var(--text-secondary)] text-center">{sn}</td>
+                          <td className="px-3 py-3 font-black uppercase truncate max-w-[250px]">
+                            <div className="flex items-center gap-2">
+                              <Play className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0" />
+                              <span className="truncate">{r.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] truncate max-w-[160px]">{r.form_name || "—"}</td>
+                          <td className="px-3 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase whitespace-nowrap", cfg.color, cfg.bg)}>{cfg.label}</span></td>
+                          <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{r.opens_at ? new Date(r.opens_at).toLocaleDateString() : "—"}</td>
+                          <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{r.closes_at ? new Date(r.closes_at).toLocaleDateString() : "—"}</td>
+                          <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-[10px] text-[var(--text-secondary)]">Showing {((page - 1) * perPage) + 1}–{Math.min(page * perPage, sorted.length)} of {sorted.length}</p>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">Prev</button>
+                    {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                      let pn;
+                      if (totalPages <= 7) pn = i + 1;
+                      else if (page <= 4) pn = i + 1;
+                      else if (page >= totalPages - 3) pn = totalPages - 6 + i;
+                      else pn = page - 3 + i;
+                      return <button key={pn} onClick={() => setPage(pn)} className={cn("w-7 h-7 rounded-lg text-[10px] font-bold", page === pn ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>{pn}</button>;
+                    })}
+                    <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">Next</button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              )}
+            </>
+          );
+        })()}
 
       {/* Create modal */}
       {/* ─── Date Picker Modal (completely outside create modal, no clipping) ─── */}
