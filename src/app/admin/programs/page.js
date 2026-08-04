@@ -33,7 +33,7 @@ export default function ProgramManagement() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeTab, setTab] = useState("active");
+  const [activeTab, setTab] = useState("all");
   const [editingProgram, setEditingProgram] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -434,20 +434,28 @@ export default function ProgramManagement() {
         </header>
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="relative w-full md:w-72">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-            <select
-              value={activeTab}
-              onChange={(e) => setTab(e.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)] transition-all"
-            >
-              <option value="active">{t("admin.tabActive")}</option>
-              <option value="planned">Planned</option>
-              <option value="pending">{t("admin.tabPending")}</option>
-              <option value="archived">{t("admin.tabArchived")}</option>
-              <option value="completed">{t("admin.tabCompleted")}</option>
-              <option value="all">{t("admin.tabAll")}</option>
-            </select>
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-1 bg-secondary border border-[var(--border-primary)] rounded-xl p-1">
+            {[
+              { key: "all", label: t("admin.tabAll") },
+              { key: "active", label: t("admin.tabActive") },
+              { key: "planned", label: "Planned" },
+              { key: "pending", label: t("admin.tabPending") },
+              { key: "completed", label: t("admin.tabCompleted") },
+              { key: "archived", label: t("admin.tabArchived") },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setTab(tab.key)}
+                className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  activeTab === tab.key
+                    ? "bg-[var(--brand-orange)] text-black"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           <div className="relative w-full md:w-80">
