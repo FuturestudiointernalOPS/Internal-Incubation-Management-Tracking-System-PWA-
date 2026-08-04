@@ -88,7 +88,7 @@ export async function recalculateKpiProgress(programId, participantId) {
                   participant_count = EXCLUDED.participant_count,
                   approved_count = EXCLUDED.approved_count,
                   calculated_at = NOW()`,
-            args: [String(programId), r.kpi_id, r.title.substring(0, 255), r.completion_rate, totalParticipants, r.approved_count],
+            args: [String(programId), String(r.kpi_id), r.title.substring(0, 255), r.completion_rate, totalParticipants, r.approved_count],
           });
         } catch (e) {
           console.warn("kpi_progress cache write:", e.message);

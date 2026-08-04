@@ -269,6 +269,7 @@ export default function AdminDashboard() {
   const [activeBlockers, setActiveBlockers] = useState([]);
   const [blockersLoading, setBlockersLoading] = useState(false);
   const [resolvingBlocker, setResolvingBlocker] = useState(null);
+  const [kpiSummary, setKpiSummary] = useState([]);
 
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -276,17 +277,19 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [stateRes, notifRes, opRes, blockerRes] = await Promise.all([
+      const [stateRes, notifRes, opRes, blockerRes, kpiRes] = await Promise.all([
         fetch("/api/superadmin/full-state"),
         fetch("/api/notifications?recipient_id=sa"),
         fetch("/api/op-reports"),
         fetch("/api/blockers?status=active"),
+        fetch("/api/dashboard?summary=true"),
       ]);
 
       const stateData = await stateRes.json();
       const notifData = await notifRes.json();
       const opData = await opRes.json();
       const blockerData = await blockerRes.json();
+      const kpiData = await kpiRes.json();
 
       if (stateData.success) {
         setStats(stateData.stats || {});
@@ -368,6 +371,9 @@ export default function AdminDashboard() {
             .sort((a, b) => b[1] - a[1])
             .slice(0, 6),
         );
+      }
+      if (kpiData.success) {
+        setKpiSummary(kpiData.programs || []);
       }
     } catch (err) {
       console.error("Dashboard sync failure:", err);
@@ -1202,6 +1208,60 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+
+        {/* ═══════════════════════════════════════════════ */}
+        {/* KPI PROGRESS OVERVIEW                               */}
+        {/* ═══════════════════════════════════════════════ */}
+        {kpiSummary.length > 0 && (
+          <div className="space-y-4 pt-6 border-t border-[var(--border-primary)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
+                    KPI Progress
+                  </h3>
+                  <p className="text-[9px] font-bold text-slate-500">
+                    Weighted average completion across programs
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {kpiSummary.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => router.push(`/admin/programs/${p.id}`)}
+                  className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-emerald-500/30 cursor-pointer transition-all"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate">{p.name}</span>
+                    <span className={cn("text-[8px] font-black uppercase px-2 py-0.5 rounded",
+                      p.avg_kpi_rate >= 70 ? "bg-emerald-500/10 text-emerald-400" :
+                      p.avg_kpi_rate >= 40 ? "bg-amber-500/10 text-amber-400" :
+                      "bg-rose-500/10 text-rose-400"
+                    )}>{p.avg_kpi_rate}%</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[9px] text-slate-500 mb-2">
+                    <Target className="w-3 h-3" /> {p.kpi_count} KPIs
+                    <span className={cn("ml-auto px-1.5 py-0.5 rounded text-[7px] font-bold",
+                      p.status === 'Active' ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"
+                    )}>{p.status}</span>
+                  </div>
+                  <div className="h-2 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all",
+                      p.avg_kpi_rate >= 70 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                      p.avg_kpi_rate >= 40 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                      "bg-gradient-to-r from-rose-500 to-rose-400"
+                    )} style={{width: `${Math.max(p.avg_kpi_rate, 5)}%`}} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ═══════════════════════════════════════════════ */}
         {/* SECTION B — INTERNAL OPERATIONS                */}

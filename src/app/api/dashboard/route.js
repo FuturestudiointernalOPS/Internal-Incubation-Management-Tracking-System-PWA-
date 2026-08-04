@@ -13,9 +13,29 @@ import { requireAuth } from "@/lib/auth";
 export async function GET(req) {
   try {
     await initDb();
+    const { searchParams } = new URL(req.url);
+
+    // Shortcut: KPI summary for Super Admin dashboard (no user_id required)
+    if (searchParams.get("summary") === "true") {
+      const authError = await requireAuth(["super_admin"]);
+      if (authError) return authError;
+      const kpiRes = await db.execute({
+        sql: `SELECT p.id, p.name, p.status,
+                     ROUND(AVG(kp.completion_rate)) AS avg_kpi_rate,
+                     COUNT(DISTINCT kp.kpi_id) AS kpi_count
+              FROM v2_programs p
+              LEFT JOIN kpi_progress kp ON p.id::text = kp.program_id
+              WHERE p.status NOT IN ('archived', 'cancelled')
+              GROUP BY p.id, p.name, p.status
+              HAVING COUNT(DISTINCT kp.kpi_id) > 0
+              ORDER BY avg_kpi_rate DESC NULLS LAST`,
+        args: [],
+      });
+      return NextResponse.json({ success: true, programs: kpiRes.rows });
+    }
+
     const authError = await requireAuth();
     if (authError) return authError;
-    const { searchParams } = new URL(req.url);
     const userId = searchParams.get("user_id");
     const role = searchParams.get("role");
     const year = parseInt(searchParams.get("year")) || new Date().getFullYear();
