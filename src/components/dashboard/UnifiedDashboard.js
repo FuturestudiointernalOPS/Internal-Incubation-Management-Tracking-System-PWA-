@@ -303,17 +303,22 @@ export default function UnifiedDashboard({ role: propRole }) {
     if (user) fetchDashboardData();
   }, [user, fetchDashboardData]);
 
-  // KPI fetch for assigned programs
+  // KPI fetch for assigned programs (parallelized)
   const fetchKpisForPrograms = useCallback(async (programs) => {
     if (!programs?.length) return;
+    const batch = programs.slice(0, 4);
+    const results = await Promise.all(
+      batch.map(async (p) => {
+        try {
+          const res = await fetch(`/api/pm/full-state?id=${encodeURIComponent(p.id)}&metrics=true`);
+          const d = await res.json();
+          if (d?.kpis?.length) return { id: p.id, kpis: d.kpis };
+        } catch (_) {}
+        return null;
+      }),
+    );
     const kpiMap = {};
-    for (const p of programs.slice(0, 4)) {
-      try {
-        const res = await fetch(`/api/pm/full-state?id=${encodeURIComponent(p.id)}&metrics=true`);
-        const d = await res.json();
-        if (d?.kpis?.length) kpiMap[p.id] = d.kpis;
-      } catch (_) {}
-    }
+    results.filter(Boolean).forEach((r) => { kpiMap[r.id] = r.kpis; });
     setProgramKpis(kpiMap);
   }, []);
 
