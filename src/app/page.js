@@ -14,7 +14,7 @@ export default function LandingPage() {
     if (sa_session === 'prime-2026-active') {
       router.replace('/admin');
     } else if (user) {
-      if (user.role === 'program_manager') router.replace('/pm/dashboard');
+      if (user.role === 'program_manager') router.replace('/pm');
       else if (user.role === 'super_admin') router.replace('/admin');
       else router.replace('/login');
     } else {
