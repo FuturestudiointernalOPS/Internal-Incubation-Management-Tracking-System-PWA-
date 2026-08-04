@@ -1024,7 +1024,9 @@ export default function UnifiedDashboard({ role: propRole }) {
                         )}
                         <div className="grid grid-cols-2 gap-1.5">
                           {kpis.slice(0, 6).map((kpi) => {
-                            const pct = kpi.approved_count != null ? Math.min(100, kpi.approved_count * 10) : (kpi.current_value != null ? Math.min(100, (kpi.current_value / (kpi.target_value || 80)) * 100) : 0);
+                            const total = parseInt(kpi.participant_count) || 1;
+                            const approved = parseInt(kpi.approved_count) || 0;
+                            const pct = total > 0 ? Math.round((approved / total) * 100) : 0;
                             return (
                               <div key={kpi.kpi_id} className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
                                 <div className="flex items-center justify-between mb-1">
@@ -1086,6 +1088,15 @@ export default function UnifiedDashboard({ role: propRole }) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {quickAccess.programs?.slice(0, 4).map((p) => {
                       const progress = p.completion_index || 0;
+                      // Get this program's KPIs from dashboard data
+                      const progKpis = (data?.kpis || []).filter(k => String(k.program_id) === String(p.id));
+                      const kpiProgress = progKpis.length > 0
+                        ? Math.round(progKpis.reduce((sum, k) => {
+                            const total = parseInt(k.participant_count) || 1;
+                            const approved = parseInt(k.approved_count) || 0;
+                            return sum + (approved / total) * (parseFloat(k.weight) || 0);
+                          }, 0) / 100)
+                        : progress;
                       return (
                         <div
                           key={p.id}
@@ -1111,16 +1122,16 @@ export default function UnifiedDashboard({ role: propRole }) {
                           <div className="mt-3 space-y-1">
                             <div className="flex justify-between items-end">
                               <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">
-                                {t("dashboard.progress", "Progression")}
+                                {t("dashboard.kpiProgress", "KPI Progress")}
                               </span>
                               <span className="text-[9px] font-black text-emerald-400">
-                                {Number(progress).toFixed(0)}%
+                                {Number(kpiProgress).toFixed(0)}%
                               </span>
                             </div>
                             <div className="h-1.5 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden border border-[var(--border-primary)]">
                               <div
                                 className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
-                                style={{ width: `${progress}%` }}
+                                style={{ width: `${kpiProgress}%` }}
                               />
                             </div>
                           </div>

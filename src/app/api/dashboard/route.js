@@ -213,10 +213,11 @@ export async function GET(req) {
         args: [userId],
       }),
 
-      // 15. KPI Progress (for program managers)
+      // 15. KPI Progress (for program managers) — includes participant counts
       db.execute({
         sql: `SELECT k.program_id, k.id AS kpi_id, k.title, k.weight, k.target_value, k.auto_weight,
-                     COUNT(DISTINCT s.participant_id) AS approved_count
+                     COUNT(DISTINCT s.participant_id) AS approved_count,
+                     (SELECT COUNT(DISTINCT p2.id) FROM v2_participants p2 WHERE p2.program_id::text = k.program_id::text) AS participant_count
               FROM v2_kpis k
               LEFT JOIN v2_document_requirements d ON d.program_id::text = k.program_id::text AND POSITION(k.id::text IN CAST(d.kpi_ids AS TEXT)) > 0
               LEFT JOIN v2_submissions s ON s.deliverable_id::text = d.id::text AND s.status = 'approved'
