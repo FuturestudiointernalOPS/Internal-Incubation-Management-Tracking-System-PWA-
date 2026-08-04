@@ -243,9 +243,13 @@ export default function NewProgram() {
         setProgram((p) => ({ ...p, assigned_segments: [data.group.id] }));
         setSegments((prev) => [...prev, data.group]);
         setIsCreatingGroup(false);
-        notify("success", "Group created. Saving program...");
-        // Auto-save program with explicit groupId to avoid stale closure
-        setTimeout(() => handleDeploy({ preventDefault: () => {} }, data.group.id), 300);
+        // Only auto-save program if PM is already selected
+        if (program.assigned_pm_id) {
+          notify("success", "Group created. Auto-saving program...");
+          setTimeout(() => handleDeploy({ preventDefault: () => {} }, data.group.id), 300);
+        } else {
+          notify("success", "Group created. Fill in the Program Manager and name, then deploy to save.");
+        }
       }
     } catch (e) {
       notify("error", e.message);
