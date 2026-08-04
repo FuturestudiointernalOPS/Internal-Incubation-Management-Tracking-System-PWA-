@@ -2164,6 +2164,13 @@ function ProgramWorkspace() {
                                 <button
                                   onClick={() => {
                                     setSelectedSessionId(session.id);
+                                    // Pre-populate KPIs from the session (handle JSON string or array)
+                                    let sessionKpiIds = session.kpi_ids || [];
+                                    if (typeof sessionKpiIds === "string") {
+                                      try { sessionKpiIds = JSON.parse(sessionKpiIds); } catch (_) { sessionKpiIds = []; }
+                                    }
+                                    if (!Array.isArray(sessionKpiIds)) sessionKpiIds = [];
+                                    setNewRequirement((p) => ({ ...p, kpi_ids: sessionKpiIds }));
                                     setShowRequirementModal(true);
                                   }}
                                   className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
@@ -3751,7 +3758,7 @@ function ProgramWorkspace() {
                 </button>
                 <button
                   onClick={addSession}
-                  disabled={isSaving || !newSession.title.trim()}
+                  disabled={isSaving || !newSession.title.trim() || (kpis.length > 0 && (!newSession.kpi_ids || newSession.kpi_ids.length === 0))}
                   className="flex-1 btn btn-primary"
                 >
                   {isSaving ? "Creating..." : "Create Session"}
