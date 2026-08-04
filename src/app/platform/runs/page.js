@@ -866,203 +866,219 @@ export default function FormRunsPage() {
 
         {/* Review Modal */}
         {showReview && reviewing && (
-          <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => setShowReview(false)}>
-            <div className="card w-full max-w-xl space-y-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Review Submission</h3><button onClick={() => setShowReview(false)}><X className="w-5 h-5" /></button></div>
+          <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowReview(false)}>
+            <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
-              {/* Submitted data preview */}
-              {reviewing.data && Object.keys(reviewing.data).length > 0 && (
-                <div className="space-y-2 bg-tertiary rounded-xl p-4 border border-[var(--border-primary)]">
-                  <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-2">Submitted Data</p>
-                  {/* Scoring Breakdown */}
-                  {reviewing.data._scores && (
-                    <div className="mb-3 p-2.5 rounded-lg bg-[var(--border-primary)]/30">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[8px] font-black uppercase text-[var(--text-primary)]">Score</span>
-                        <span className={cn("text-[12px] font-black", reviewing.data._scores.overall >= 80 ? "text-emerald-500" : reviewing.data._scores.overall >= 60 ? "text-amber-500" : "text-rose-500")}>
-                          {reviewing.data._scores.overall}%
-                          {reviewing.data._scores.ranking && <span className="ml-1.5 text-[8px]">({reviewing.data._scores.ranking})</span>}
-                        </span>
-                      </div>
-                      {reviewing.data._scores.sections && Object.entries(reviewing.data._scores.sections).map(([name, sec]) => (
-                        <div key={name} className="flex items-center justify-between text-[9px] py-0.5">
-                          <span className="text-[var(--text-secondary)]">{name} <span className="text-[7px]">(wt:{sec.weight})</span></span>
-                          <span className={cn("font-bold", sec.score >= 80 ? "text-emerald-500" : sec.score >= 60 ? "text-amber-500" : "text-rose-500")}>{sec.score}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)] shrink-0">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Review Submission</h3>
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{reviewing.submitter_name || "Anonymous"}</p>
+                </div>
+                <button onClick={() => setShowReview(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-                  {/* AI Evaluation Table */}
-                  {evaluation?.dimensions && (
-                    <div className="mb-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black uppercase text-purple-400">AI Evaluation</span>
-                        <span className="text-[8px] font-bold text-[var(--text-secondary)]">
-                          Overall: {evaluation.overall_score}% · {evaluation.ranking}
-                        </span>
-                      </div>
-                      <div className="rounded-lg border border-purple-500/20 overflow-hidden">
-                        <table className="w-full text-left">
-                          <thead className="bg-purple-500/5">
-                            <tr className="text-[7px] font-black uppercase text-[var(--text-secondary)]">
-                              <th className="px-2 py-1.5">Dimension</th>
-                              <th className="px-2 py-1.5">AI</th>
-                              <th className="px-2 py-1.5">You</th>
-                              <th className="px-2 py-1.5">Final</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[var(--border-primary)]">
-                            {evaluation.dimensions.map((dim, di) => (
-                              <tr key={di} className="text-[9px]">
-                                <td className="px-2 py-1.5">
-                                  <span className="font-bold text-[var(--text-primary)]">{dim.name}</span>
-                                  {dim.ai_reasoning && (
-                                    <p className="text-[7px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dim.ai_reasoning.substring(0, 100)}{dim.ai_reasoning.length > 100 ? "..." : ""}</p>
-                                  )}
-                                </td>
-                                <td className="px-2 py-1.5">
-                                  <span className="font-black text-purple-400">{dim.ai_score}</span>
-                                </td>
-                                <td className="px-2 py-1.5">
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    max={10}
-                                    step={0.5}
-                                    value={dim.human_score ?? ""}
-                                    placeholder={String(dim.ai_score)}
-                                    onChange={(e) => {
-                                      const val = e.target.value === "" ? null : parseFloat(e.target.value);
-                                      const updated = { ...evaluation };
-                                      updated.dimensions[di].human_score = val;
-                                      updated.dimensions[di].final_score = val ?? dim.ai_score;
-                                      setEvaluation(updated);
-                                    }}
-                                    className="w-12 px-1 py-0.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  />
-                                </td>
-                                <td className="px-2 py-1.5">
-                                  <span className={cn("font-black", (dim.final_score ?? dim.ai_score) >= 7 ? "text-emerald-400" : (dim.final_score ?? dim.ai_score) >= 5 ? "text-amber-400" : "text-rose-400")}>
-                                    {dim.final_score ?? dim.ai_score}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
+              {/* Scrollable Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-5">
 
-                  {(() => {
-                    // Map submission data keys to field labels using form structure
-                    const subData = reviewing.data || {};
-                    const entries = runFormFields
-                      .filter(f => {
-                        const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
-                        return val !== undefined && val !== null && val !== "";
-                      })
-                      .map(f => {
-                        const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
-                        let display = String(val);
-                        if (typeof val === "string" && val.startsWith("{") && val.includes('"code"')) {
-                          try {
-                            const p = JSON.parse(val);
-                            if (p.code && p.number) {
-                              const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+225", flag: "🇨🇮" }, { code: "+221", flag: "🇸🇳" }, { code: "+228", flag: "🇹🇬" }, { code: "+237", flag: "🇨🇲" }, { code: "+250", flag: "🇷🇼" }, { code: "+256", flag: "🇺🇬" }, { code: "+255", flag: "🇹🇿" }, { code: "+251", flag: "🇪🇹" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+86", flag: "🇨🇳" }, { code: "+971", flag: "🇦🇪" }, { code: "+55", flag: "🇧🇷" }].find(c => c.code === p.code);
-                              display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
-                            }
-                          } catch (_) {}
-                        }
-                        return { label: f.label, value: display };
-                      });
-                    
-                    // Fallback: show any unmatched data as raw only if no fields matched
-                    const unmatched = Object.entries(subData)
-                      .filter(([k]) => k !== "_scores" && k !== "_evaluation")
-                      .filter(([k]) => !runFormFields.some(f => String(f.id) === k || f.label === k));
-                    
-                    return (
-                      <>
-                        {entries.map(({ label, value }) => (
-                          <div key={label} className="flex items-start gap-2 text-[11px]">
-                            <span className="font-bold text-[var(--text-secondary)] shrink-0 min-w-[120px]">{label}</span>
-                            <span className="text-[var(--text-primary)] font-bold break-all">{value}</span>
+                {/* Submitted Answers */}
+                {reviewing.data && Object.keys(reviewing.data).length > 0 && (() => {
+                  const subData = reviewing.data || {};
+                  const entries = runFormFields
+                    .filter(f => {
+                      const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+                      return val !== undefined && val !== null && val !== "";
+                    })
+                    .map(f => {
+                      const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+                      let display = String(val);
+                      if (typeof val === "string" && val.startsWith("{") && val.includes('"code"')) {
+                        try {
+                          const p = JSON.parse(val);
+                          if (p.code && p.number) {
+                            const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+971", flag: "🇦🇪" }].find(c => c.code === p.code);
+                            display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
+                          }
+                        } catch (_) {}
+                      }
+                      return { label: f.label, value: display, type: f.field_type };
+                    });
+
+                  // Fallback unmatched keys
+                  const unmatched = Object.entries(subData)
+                    .filter(([k]) => k !== "_scores" && k !== "_evaluation")
+                    .filter(([k]) => !runFormFields.some(f => String(f.id) === k || f.label === k));
+
+                  const allEntries = [
+                    ...entries,
+                    ...unmatched.map(([key, value]) => ({ label: key, value: String(value), type: "text" })),
+                  ];
+
+                  if (allEntries.length === 0) return null;
+
+                  return (
+                    <div>
+                      <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-3">Submitted Answers</p>
+                      <div className="space-y-3">
+                        {allEntries.map(({ label, value, type }) => (
+                          <div key={label} className="rounded-xl bg-tertiary border border-[var(--border-primary)] p-4">
+                            <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-1.5">{label}</p>
+                            <p className={cn(
+                              "text-[13px] font-semibold text-[var(--text-primary)] leading-relaxed",
+                              (type === "textarea" || type === "richtext") ? "whitespace-pre-wrap" : ""
+                            )}>{value}</p>
                           </div>
                         ))}
-                        {unmatched.map(([key, value]) => {
-                          let display = String(value);
-                          if (typeof value === "string" && value.startsWith("{") && value.includes('"code"')) {
-                            try {
-                              const p = JSON.parse(value);
-                              if (p.code && p.number) {
-                                const cnt = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+225", flag: "🇨🇮" }, { code: "+221", flag: "🇸🇳" }, { code: "+228", flag: "🇹🇬" }, { code: "+237", flag: "🇨🇲" }, { code: "+250", flag: "🇷🇼" }, { code: "+256", flag: "🇺🇬" }, { code: "+255", flag: "🇹🇿" }, { code: "+251", flag: "🇪🇹" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+86", flag: "🇨🇳" }, { code: "+971", flag: "🇦🇪" }, { code: "+55", flag: "🇧🇷" }].find(c => c.code === p.code);
-                                display = `${cnt?.flag || ""} ${p.code} ${p.number}`;
-                              }
-                            } catch (_) {}
-                          }
-                          return (
-                            <div key={key} className="flex items-start gap-2 text-[11px]">
-                              <span className="font-black text-[var(--text-secondary)] uppercase shrink-0">{key}:</span>
-                              <span className="text-[var(--text-primary)] font-bold break-all">{display}</span>
-                            </div>
-                          );
-                        })}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
-              {/* Submission Timeline */}
-              {reviewTimeline.length > 0 && (
-                <div className="space-y-2 bg-tertiary rounded-xl p-4 border border-[var(--border-primary)]">
-                  <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-2">Activity Timeline</p>
-                  <div className="space-y-2">
-                    {reviewTimeline.map((entry, idx) => (
-                      <div key={idx} className="flex items-start gap-2 text-[10px]">
-                        <div className={cn("w-1.5 h-1.5 mt-1 rounded-full shrink-0",
-                          entry.action === "submitted" ? "bg-blue-500" :
-                          entry.action === "approved" ? "bg-emerald-500" :
-                          entry.action === "rejected" ? "bg-rose-500" :
-                          entry.action === "revision_requested" ? "bg-amber-500" :
-                          entry.action === "draft_saved" || entry.action === "started" ? "bg-slate-500" :
-                          "bg-[var(--brand-orange)]"
-                        )} />
-                        <div>
-                          <span className="font-black uppercase">{entry.action}</span>
-                          {entry.actor_name && <span className="text-[var(--text-secondary)]"> by {entry.actor_name}</span>}
-                          <span className="text-[var(--text-secondary)] ml-1">{new Date(entry.created_at).toLocaleDateString()}</span>
-                        </div>
+                {/* AI Evaluation */}
+                {evaluation?.dimensions && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[9px] font-black uppercase text-purple-400 tracking-wider">AI Evaluation</p>
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                        Overall: <span className="text-purple-400 font-black">{evaluation.overall_score}%</span>
+                        {evaluation.ranking && <> · {evaluation.ranking}</>}
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-purple-500/20 overflow-hidden">
+                      <table className="w-full text-left">
+                        <thead className="bg-purple-500/5">
+                          <tr className="text-[8px] font-black uppercase text-[var(--text-secondary)]">
+                            <th className="px-3 py-2">Dimension</th>
+                            <th className="px-3 py-2 text-center">AI</th>
+                            <th className="px-3 py-2 text-center">Override</th>
+                            <th className="px-3 py-2 text-center">Final</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border-primary)]">
+                          {evaluation.dimensions.map((dim, di) => (
+                            <tr key={di} className="text-[10px]">
+                              <td className="px-3 py-2">
+                                <span className="font-bold text-[var(--text-primary)]">{dim.name}</span>
+                                {dim.ai_reasoning && (
+                                  <p className="text-[8px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dim.ai_reasoning.substring(0, 100)}{dim.ai_reasoning.length > 100 ? "..." : ""}</p>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className="font-black text-purple-400">{dim.ai_score}</span>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <input
+                                  type="number" min={0} max={10} step={0.5}
+                                  value={dim.human_score ?? ""}
+                                  placeholder={String(dim.ai_score)}
+                                  onChange={(e) => {
+                                    const val = e.target.value === "" ? null : parseFloat(e.target.value);
+                                    const updated = { ...evaluation };
+                                    updated.dimensions[di].human_score = val;
+                                    updated.dimensions[di].final_score = val ?? dim.ai_score;
+                                    setEvaluation(updated);
+                                  }}
+                                  className="w-14 px-1 py-0.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className={cn("font-black", (dim.final_score ?? dim.ai_score) >= 7 ? "text-emerald-400" : (dim.final_score ?? dim.ai_score) >= 5 ? "text-amber-400" : "text-rose-400")}>
+                                  {dim.final_score ?? dim.ai_score}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Scoring Breakdown */}
+                {reviewing.data?._scores && (
+                  <div className="rounded-xl bg-tertiary border border-[var(--border-primary)] p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider">Score Breakdown</p>
+                      <span className={cn("text-base font-black", reviewing.data._scores.overall >= 80 ? "text-emerald-500" : reviewing.data._scores.overall >= 60 ? "text-amber-500" : "text-rose-500")}>
+                        {reviewing.data._scores.overall}%
+                        {reviewing.data._scores.ranking && <span className="ml-2 text-[10px] font-bold text-[var(--text-secondary)]">({reviewing.data._scores.ranking})</span>}
+                      </span>
+                    </div>
+                    {reviewing.data._scores.sections && Object.entries(reviewing.data._scores.sections).map(([name, sec]) => (
+                      <div key={name} className="flex items-center justify-between text-[10px] py-1 border-t border-[var(--border-primary)]">
+                        <span className="text-[var(--text-secondary)]">{name} <span className="text-[8px] opacity-60">(weight: {sec.weight})</span></span>
+                        <span className={cn("font-black", sec.score >= 80 ? "text-emerald-500" : sec.score >= 60 ? "text-amber-500" : "text-rose-500")}>{sec.score}%</span>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="space-y-3">
-                <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Decision</label>
-                  <select value={reviewData.decision} onChange={(e) => setReviewData({ ...reviewData, decision: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
-                    <option value="approved">✓ Approve</option>
-                    <option value="rejected">✗ Reject</option>
-                    <option value="revision_requested">↻ Request Revision</option>
-                    <option value="escalated">↑ Escalate</option>
-                    <option value="reassigned">→ Reassign</option>
-                  </select>
+                {/* Activity Timeline */}
+                {reviewTimeline.length > 0 && (
+                  <div>
+                    <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-3">Activity Timeline</p>
+                    <div className="space-y-2">
+                      {reviewTimeline.map((entry, idx) => (
+                        <div key={idx} className="flex items-start gap-3 text-[10px]">
+                          <div className={cn("w-2 h-2 mt-1 rounded-full shrink-0",
+                            entry.action === "submitted" ? "bg-blue-500" :
+                            entry.action === "approved" ? "bg-emerald-500" :
+                            entry.action === "rejected" ? "bg-rose-500" :
+                            entry.action === "revision_requested" ? "bg-amber-500" :
+                            "bg-slate-500"
+                          )} />
+                          <div>
+                            <span className="font-black uppercase text-[var(--text-primary)]">{entry.action}</span>
+                            {entry.actor_name && <span className="text-[var(--text-secondary)]"> by {entry.actor_name}</span>}
+                            <span className="text-[var(--text-secondary)] ml-1">{new Date(entry.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Review Decision Form */}
+                <div className="space-y-3 pt-2 border-t border-[var(--border-primary)]">
+                  <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider">Your Decision</p>
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1.5 block">Decision</label>
+                    <select value={reviewData.decision} onChange={(e) => setReviewData({ ...reviewData, decision: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                      <option value="approved">✓ Approve</option>
+                      <option value="rejected">✗ Reject</option>
+                      <option value="revision_requested">↻ Request Revision</option>
+                      <option value="escalated">↑ Escalate</option>
+                      <option value="reassigned">→ Reassign</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1.5 block">Public Comment <span className="normal-case font-bold opacity-60">(visible to submitter)</span></label>
+                    <textarea value={reviewData.comment} onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder="Leave a comment for the applicant..." />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1.5 block">Internal Note <span className="text-amber-500 font-bold">(private)</span></label>
+                    <textarea value={reviewData.internal_note} onChange={(e) => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] resize-none" placeholder="Only visible to other reviewers..." />
+                  </div>
                 </div>
-                <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Public Comment</label><textarea value={reviewData.comment} onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder="Visible to the submitter" /></div>
-                <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Internal Note <span className="text-amber-500">(private)</span></label><textarea value={reviewData.internal_note} onChange={(e) => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] resize-none" placeholder="Only visible to other reviewers" /></div>
               </div>
-              <div className="flex gap-2"><button onClick={() => setShowReview(false)} className="flex-1 btn btn-secondary">Cancel</button><button onClick={handleReview} disabled={saving} className="flex-1 btn btn-primary">{saving ? "Saving..." : "Submit Review"}</button></div>
+
+              {/* Sticky Footer */}
+              <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-primary)] bg-secondary shrink-0">
+                <button onClick={() => setShowReview(false)} className="flex-1 btn btn-secondary">Cancel</button>
+                <button onClick={handleReview} disabled={saving} className="flex-1 btn btn-primary">{saving ? "Saving..." : "Submit Review"}</button>
+              </div>
             </div>
           </div>
         )}
+
       </div>
     );
   }
 
   // ─── LIST VIEW ───
+
   return (
     <div className="p-6 space-y-6 animate-in">
       {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-black uppercase">{notification}</div>}
@@ -1103,20 +1119,22 @@ export default function FormRunsPage() {
         </select>
       </div>
       {loading ? <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex flex-col gap-2">
           {runs.filter((r) => !search || r.name.toLowerCase().includes(search.toLowerCase())).map((r) => {
             const cfg = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
             return (
-              <div key={r.id} onClick={() => openRun(r)} className="p-5 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer group">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center"><Play className="w-5 h-5 text-[var(--brand-orange)]" /></div>
-                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.color, cfg.bg)}>{cfg.label}</span>
-                </div>
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{r.name}</h3>
-                <p className="text-[10px] text-[var(--text-secondary)] mt-1">Form: {r.form_name}</p>
-                <div className="flex items-center gap-3 mt-3 text-[9px] text-[var(--text-secondary)]">
-                  {r.opens_at && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(r.opens_at).toLocaleDateString()}</span>}
-                  {r.closes_at && <span className="flex items-center gap-1">→ {new Date(r.closes_at).toLocaleDateString()}</span>}
+              <div key={r.id} onClick={() => openRun(r)} className="flex items-center gap-4 p-4 rounded-xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer group">
+                <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0"><Play className="w-5 h-5 text-[var(--brand-orange)]" /></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-[var(--text-primary)] uppercase truncate">{r.name}</h3>
+                    <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase shrink-0", cfg.color, cfg.bg)}>{cfg.label}</span>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">Form: {r.form_name}</p>
+                  <div className="flex items-center gap-3 mt-0.5 text-[9px] text-[var(--text-secondary)]">
+                    {r.opens_at && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(r.opens_at).toLocaleDateString()}</span>}
+                    {r.closes_at && <span className="flex items-center gap-1">→ {new Date(r.closes_at).toLocaleDateString()}</span>}
+                  </div>
                 </div>
               </div>
             );
