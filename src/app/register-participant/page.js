@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Loader2, CheckCircle, AlertCircle, ArrowRight, Users } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default function RegisterParticipantPage() {
-  const router = useRouter();
   const [groupId, setGroupId] = useState(null);
 
   useEffect(() => {
@@ -108,11 +106,9 @@ export default function RegisterParticipantPage() {
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md w-full text-center space-y-6">
           <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto" />
-          <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Registration Complete</h1>
-          <p className="text-slate-400 text-sm">You have successfully joined <strong className="text-white">{group?.name || 'the program'}</strong>.</p>
-          <button onClick={() => router.push('/login')} className="px-8 py-3 bg-[#FF6600] text-black font-black uppercase tracking-widest rounded-xl text-sm hover:bg-white transition-all">
-            Go to Login
-          </button>
+          <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Application Submitted</h1>
+          <p className="text-slate-400 text-sm">Your registration for <strong className="text-white">{group?.name || 'the program'}</strong> has been submitted.</p>
+          <p className="text-slate-500 text-xs">Our team will review your application. If approved, you will receive an email with your login instructions within 24 hours.</p>
         </motion.div>
       </div>
     );

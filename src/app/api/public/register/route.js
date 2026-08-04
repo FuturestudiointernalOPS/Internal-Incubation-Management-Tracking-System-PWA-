@@ -52,13 +52,13 @@ export async function POST(req) {
     if (existCheck.rows.length > 0) {
       // Update existing contact
       await db.execute({
-        sql: "UPDATE contacts SET password = ?, name = ?, status = 'active', group_name = ? WHERE email = ?",
+        sql: "UPDATE contacts SET password = ?, name = ?, status = 'pending', group_name = ? WHERE email = ?",
         args: [hashedPassword, name, group.name, normalizedEmail],
       });
     } else {
       // Create new contact
       await db.execute({
-        sql: "INSERT INTO contacts (cid, name, email, phone, password, role, status, group_name, created_at) VALUES (?, ?, ?, ?, ?, 'participant', 'active', ?, NOW())",
+        sql: "INSERT INTO contacts (cid, name, email, phone, password, role, status, group_name, created_at) VALUES (?, ?, ?, ?, ?, 'participant', 'pending', ?, NOW())",
         args: [cid, name, normalizedEmail, phone || null, hashedPassword, group.name],
       });
     }
@@ -68,7 +68,7 @@ export async function POST(req) {
       try {
         const contactCid = existCheck.rows.length > 0 ? existCheck.rows[0].cid : cid;
         await db.execute({
-          sql: "INSERT INTO v2_participants (program_id, user_id, name, email, phone, status, created_at) VALUES (?, ?, ?, ?, ?, 'active', NOW()) ON CONFLICT DO NOTHING",
+          sql: "INSERT INTO v2_participants (program_id, user_id, name, email, phone, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', NOW()) ON CONFLICT DO NOTHING",
           args: [group.program_id, contactCid, name, normalizedEmail, phone || null],
         });
       } catch (e) {
@@ -78,7 +78,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      message: "Registration complete. You can now login.",
+      message: "Application Submitted. Our team will review your application. If approved, you'll receive an email with your login instructions.",
       user: { cid: existCheck.rows.length > 0 ? existCheck.rows[0].cid : cid, name, email: normalizedEmail, role: "participant" },
     });
   } catch (error) {
