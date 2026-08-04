@@ -211,9 +211,6 @@ function ProgramWorkspace() {
     due_date: "",
     assignee_type: "all",
     assignee_id: "",
-    max_marks: "100",
-    passing_marks: "50",
-    weight: "1",
   });
   const [newPMReport, setNewPMReport] = useState({
     summary: "",
@@ -461,13 +458,18 @@ function ProgramWorkspace() {
 
   const addRequirement = async (shouldClose = true) => {
     if (!newRequirement.title.trim()) return;
-    const maxMarks = parseInt(newRequirement.max_marks, 10) || 100;
-    if (maxMarks > 100) {
-      notify("Maximum marks cannot exceed 100.", "error");
+    if (!newRequirement.kpi_ids || newRequirement.kpi_ids.length === 0) {
+      notify("Please link at least one KPI. Grading parameters are derived from linked KPIs.", "error");
       return;
     }
     setIsSaving(true);
     try {
+      // Derive grading from linked KPIs
+      const linkedKpis = kpis.filter(k => (newRequirement.kpi_ids || []).includes(k.id));
+      const avgWeight = linkedKpis.length > 0
+        ? parseFloat((linkedKpis.reduce((s, k) => s + (parseFloat(k.weight) || 0), 0) / linkedKpis.length).toFixed(2))
+        : 1;
+
       const res = await fetch("/api/pm/curriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -482,9 +484,7 @@ function ProgramWorkspace() {
           due_date: newRequirement.due_date || null,
           assignee_type: newRequirement.assignee_type || "all",
           assignee_id: newRequirement.assignee_id || "",
-          max_marks: maxMarks,
-          passing_marks: parseInt(newRequirement.passing_marks, 10) || 50,
-          weight: parseFloat(newRequirement.weight) || 1,
+          weight: avgWeight,
         }),
       });
       const data = await res.json();
@@ -499,9 +499,6 @@ function ProgramWorkspace() {
           due_date: "",
           assignee_type: "all",
           assignee_id: "",
-          max_marks: "100",
-          passing_marks: "50",
-          weight: "1",
         });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
@@ -4186,55 +4183,22 @@ function ProgramWorkspace() {
                   </div>
                 </div>
 
-                {/* Assessment Configuration */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
-                      <Target className="w-3 h-3" /> Max Marks
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={newRequirement.max_marks || "100"}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10);
-                        if (v > 100) { notify("Maximum marks cannot exceed 100.", "error"); return; }
-                        setNewRequirement((p) => ({ ...p, max_marks: e.target.value }));
-                      }}
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
-                      <CheckCircle2 className="w-3 h-3" /> Passing
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={newRequirement.passing_marks || "50"}
-                      onChange={(e) => setNewRequirement((p) => ({ ...p, passing_marks: e.target.value }))}
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
-                      <Activity className="w-3 h-3" /> Weight
-                    </label>
-                    <input
-                      type="number"
-                      min="0.1"
-                      max="10"
-                      step="0.1"
-                      value={newRequirement.weight || "1"}
-                      onChange={(e) => setNewRequirement((p) => ({ ...p, weight: e.target.value }))}
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                    />
-                  </div>
+                {/* Grading — derived from linked KPIs */}
+                <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-2">
+                    <Target className="w-3 h-3 inline mr-1" /> Grading (from linked KPIs)
+                  </p>
+                  {(() => {
+                    const linked = kpis.filter(k => (newRequirement.kpi_ids || []).includes(k.id));
+                    if (linked.length === 0) {
+                      return <p className="text-[8px] text-slate-500 italic">Select at least one KPI below to determine grading parameters.</p>;
+                    }
+                    const avgWeight = (linked.reduce((s, k) => s + (parseFloat(k.weight) || 0), 0) / linked.length).toFixed(1);
+                    return <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div><span className="text-slate-500">KPIs linked:</span> <span className="font-bold text-purple-400">{linked.length}</span></div>
+                      <div><span className="text-slate-500">Avg weight:</span> <span className="font-bold text-purple-400">{avgWeight}%</span></div>
+                    </div>;
+                  })()}
                 </div>
 
                 <div className="space-y-1">
@@ -4356,14 +4320,14 @@ function ProgramWorkspace() {
                 <div className="flex-1 flex flex-col gap-2">
                   <button
                     onClick={() => addRequirement(false)}
-                    disabled={isSaving || !newRequirement.title.trim()}
+                    disabled={isSaving || !newRequirement.title.trim() || (newRequirement.kpi_ids || []).length === 0}
                     className="w-full btn btn-secondary text-[9px] py-2 border-dashed"
                   >
                     {isSaving ? "Saving..." : "Save & Add Another"}
                   </button>
                   <button
                     onClick={() => addRequirement(true)}
-                    disabled={isSaving || !newRequirement.title.trim()}
+                    disabled={isSaving || !newRequirement.title.trim() || (newRequirement.kpi_ids || []).length === 0}
                     className="w-full btn btn-primary py-3"
                   >
                     {isSaving ? "Saving..." : "Save & Close"}

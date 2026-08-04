@@ -152,7 +152,7 @@ export async function POST(req) {
     }
 
     if (action === "add_requirement") {
-      const { title, description, session_id, allowed_format, kpi_ids, due_date, assignee_type, assignee_id } =
+      const { title, description, session_id, allowed_format, kpi_ids, due_date, assignee_type, assignee_id, weight } =
         payload;
       const result = await db.execute({
         sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
@@ -162,13 +162,15 @@ export async function POST(req) {
           description || null,
           session_id || null,
           allowed_format || "pdf",
-          1,
+          weight || 1,
           JSON.stringify(kpi_ids || []),
           due_date || null,
           assignee_type || "all",
           assignee_id || null,
         ],
       });
+      // Recalculate KPI progress after adding a requirement
+      try { await recalculateKpiProgress(program_id); } catch (_) {}
       return NextResponse.json({ success: true, id: result.rows[0].id });
     }
 
