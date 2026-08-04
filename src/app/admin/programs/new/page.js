@@ -147,12 +147,10 @@ export default function NewProgram() {
         if (knowData.success) setKnowledgeNodes(knowData.conceptNotes || []);
         if (segData.success) setSegments(segData.families || []);
         if (tmplData.success) setTemplates(tmplData.templates || []);
-        // Filter: Only Future Studio Staff (role='staff' or 'admin')
+        // Filter: Only Future Studio contacts
         if (staffData.success) {
           const staffOnly = (staffData.contacts || []).filter(
             (c) =>
-              c.role === "staff" ||
-              c.role === "admin" ||
               c.group_name?.toUpperCase() === "FUTURE STUDIO",
           );
           setStaffList(staffOnly);

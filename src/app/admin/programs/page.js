@@ -148,10 +148,7 @@ export default function ProgramManagement() {
         ).filter(
           (c) =>
             c &&
-            (c.role === "super_admin" ||
-              c.role === "program_manager" ||
-              c.role === "admin" ||
-              c.role === "staff"),
+            c.group_name?.toUpperCase() === "FUTURE STUDIO",
         );
         setTeams(managers);
       }
