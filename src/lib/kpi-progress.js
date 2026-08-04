@@ -1,155 +1,122 @@
 // =============================================================================
-// KPI PROGRESS UTILITY
-// Shared functions for recalculating and querying KPI progress.
-// Used by API routes to avoid internal HTTP calls.
+// KPI PROGRESS UTILITY — APPROVED-ONLY, PARTICIPANT-WEIGHTED
+// =============================================================================
+// Only approved submissions count toward KPI completion.
+// Results cached in kpi_progress table for fast dashboard reads.
 // =============================================================================
 import db from "@/lib/db";
 
 /**
- * Recalculates and stores KPI progress for a program.
- * If participantId is provided, calculates progress for that specific participant
- * by checking their approved submissions against document requirements.
- * Otherwise, calculates global progress based on session/doc completion status.
+ * Recalculate KPI progress for a program.
+ * Counts unique participants with APPROVED submissions per KPI-linked deliverable.
+ * Caches results in kpi_progress table.
  */
 export async function recalculateKpiProgress(programId, participantId) {
-  // 1. Fetch KPIs for this program
-  const kpiRes = await db.execute({
-    sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
-    args: [programId],
-  });
-  const kpiList = kpiRes.rows || [];
-
-  if (kpiList.length === 0) return [];
-
-  // 2. Fetch all sessions and document requirements for this program
-  const [sessionRes, docRes] = await Promise.all([
-    db.execute({
-      sql: "SELECT * FROM v2_sessions WHERE program_id::text = ?",
+  try {
+    // 1. Fetch KPIs with weights
+    const kpiRes = await db.execute({
+      sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
       args: [programId],
-    }),
-    db.execute({
+    });
+    const kpis = kpiRes.rows || [];
+    if (kpis.length === 0) return [];
+
+    // 2. Total participant count
+    const partRes = await db.execute({
+      sql: "SELECT COUNT(*) AS count FROM v2_participants WHERE program_id::text = ? AND (status IS NULL OR status != 'archived')",
+      args: [programId],
+    });
+    const totalParticipants = parseInt(partRes.rows[0]?.count) || 1;
+
+    // 3. All deliverables for this program
+    const docRes = await db.execute({
       sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ?",
       args: [programId],
-    }),
-  ]);
-
-  const sessionList = sessionRes.rows || [];
-  const docList = docRes.rows || [];
-
-  // Fetch participant submissions if per-participant progress requested
-  let participantSubmissions = [];
-  if (participantId) {
-    try {
-      const subRes = await db.execute({
-        sql: `SELECT s.* FROM v2_submissions s
-              LEFT JOIN v2_participants p ON s.participant_id::text = p.id::text
-              WHERE (s.participant_id::text = ? OR p.email = ? OR p.user_id = ?)
-              AND s.program_id::text = ? AND s.status = 'approved'`,
-        args: [participantId, participantId, participantId, programId],
-      });
-      participantSubmissions = subRes.rows || [];
-    } catch (_) {}
-  }
-
-  // 3. Calculate progress for each KPI
-  const progressEntries = kpiList.map((kpi) => {
-    const kpiId = String(kpi.id);
-
-    // Find linked sessions
-    const linkedSessions = sessionList.filter((s) => {
-      try {
-        const ids =
-          typeof s.kpi_ids === "string"
-            ? JSON.parse(s.kpi_ids)
-            : s.kpi_ids || [];
-        return ids.map(String).includes(kpiId);
-      } catch {
-        return false;
-      }
     });
 
-    // Find linked document requirements
-    const linkedDocs = docList.filter((d) => {
-      try {
-        const ids =
-          typeof d.kpi_ids === "string"
-            ? JSON.parse(d.kpi_ids)
-            : d.kpi_ids || [];
-        return ids.map(String).includes(kpiId);
-      } catch {
-        return false;
-      }
+    // 4. Approved submissions (only these count)
+    let approvedQuery = `SELECT s.*, d.kpi_ids FROM v2_submissions s
+      JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
+      WHERE s.program_id::text = ? AND s.status = 'approved'`;
+    const approvedArgs = [programId];
+    if (participantId) {
+      approvedQuery += ` AND s.participant_id::text = ?`;
+      approvedArgs.push(participantId);
+    }
+    const approvedRes = await db.execute({ sql: approvedQuery, args: approvedArgs });
+    const approvedSubs = approvedRes.rows || [];
+
+    // 5. Per KPI: count unique participants with approved work
+    const results = kpis.map((kpi) => {
+      const kpiIdStr = String(kpi.id);
+      const linkedDocIds = docRes.rows
+        .filter((d) => {
+          try {
+            const ids = typeof d.kpi_ids === "string" ? JSON.parse(d.kpi_ids || "[]") : (d.kpi_ids || []);
+            return ids.map(String).includes(kpiIdStr);
+          } catch { return false; }
+        })
+        .map((d) => String(d.id));
+
+      const approvedForKpi = approvedSubs.filter((s) =>
+        linkedDocIds.includes(String(s.deliverable_id)),
+      );
+      const uniqueApproved = new Set(approvedForKpi.map((s) => s.participant_id)).size;
+      const completionRate = Math.round((uniqueApproved / totalParticipants) * 100);
+
+      return {
+        kpi_id: kpi.id,
+        program_id: programId,
+        title: kpi.title,
+        weight: parseFloat(kpi.weight) || 0,
+        completion_rate: completionRate,
+        approved_count: uniqueApproved,
+        participant_count: totalParticipants,
+      };
     });
 
-    const totalSessions = linkedSessions.length;
-    const completedSessions = linkedSessions.filter(
-      (s) => s.status === "completed",
-    ).length;
-    const totalDocs = linkedDocs.length;
-    let completedDocs;
-    if (participantId && participantSubmissions.length > 0) {
-      // Per-participant: check if they have approved submissions for linked docs
-      completedDocs = linkedDocs.filter((d) =>
-        participantSubmissions.some(
-          (s) => String(s.deliverable_id || s.document_id) === String(d.id),
-        ),
-      ).length;
-    } else {
-      // Global: check document requirement completion flag
-      completedDocs = linkedDocs.filter((d) => d.is_completed).length;
+    // 6. Cache to kpi_progress table
+    if (!participantId) {
+      for (const r of results) {
+        try {
+          await db.execute({
+            sql: `INSERT INTO kpi_progress (program_id, kpi_id, kpi_name, completion_rate, participant_count, approved_count, calculated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, NOW())
+                  ON CONFLICT (program_id, kpi_id) DO UPDATE SET
+                  kpi_name = EXCLUDED.kpi_name,
+                  completion_rate = EXCLUDED.completion_rate,
+                  participant_count = EXCLUDED.participant_count,
+                  approved_count = EXCLUDED.approved_count,
+                  calculated_at = NOW()`,
+            args: [String(programId), r.kpi_id, r.title.substring(0, 255), r.completion_rate, totalParticipants, r.approved_count],
+          });
+        } catch (e) {
+          console.warn("kpi_progress cache write:", e.message);
+        }
+      }
     }
 
-    const totalItems = totalSessions + totalDocs;
-    const completedItems = completedSessions + completedDocs;
-    // Weight: equal distribution across all KPIs
-    const weight =
-      kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0;
-    const progress =
-      totalItems > 0
-        ? Math.round((completedItems / totalItems) * 100)
-        : 0;
-
-    return {
-      kpi_id: kpi.id,
-      program_id: programId,
-      kpi_name: kpi.title,
-      linked_sessions: totalSessions,
-      completed_sessions: completedSessions,
-      linked_docs: totalDocs,
-      completed_docs: completedDocs,
-      total_items: totalItems,
-      completed_items: completedItems,
-      progress,
-      weight,
-    };
-  });
-
-  // 4. Upsert each entry into kpi_progress table (only for global progress, not per-participant)
-  if (!participantId) {
-    try {
-    for (const entry of progressEntries) {
-      await db.execute({
-        sql: "INSERT INTO kpi_progress (kpi_id, program_id, kpi_name, linked_sessions, completed_sessions, linked_docs, completed_docs, total_items, completed_items, progress, weight, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW()) ON CONFLICT (kpi_id, program_id) DO UPDATE SET linked_sessions = EXCLUDED.linked_sessions, completed_sessions = EXCLUDED.completed_sessions, linked_docs = EXCLUDED.linked_docs, completed_docs = EXCLUDED.completed_docs, total_items = EXCLUDED.total_items, completed_items = EXCLUDED.completed_items, progress = EXCLUDED.progress, weight = EXCLUDED.weight, updated_at = NOW()",
-        args: [
-          entry.kpi_id,
-          entry.program_id,
-          entry.kpi_name,
-          entry.linked_sessions,
-          entry.completed_sessions,
-          entry.linked_docs,
-          entry.completed_docs,
-          entry.total_items,
-          entry.completed_items,
-          entry.progress,
-          entry.weight,
-        ],
-      });
-    }
+    return results;
   } catch (e) {
-    // kpi_progress schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 11
-    console.warn("kpi_progress write failed:", e.message);
+    console.error("recalculateKpiProgress error:", e.message);
+    return [];
   }
-  } // end if (!participantId)
+}
 
-  return progressEntries;
+/**
+ * Fetch cached KPI progress for fast dashboard reads.
+ */
+export async function getCachedKpiProgress(programId) {
+  try {
+    const res = await db.execute({
+      sql: `SELECT kp.*, k.title, k.weight, k.target_value, k.auto_weight
+            FROM kpi_progress kp
+            JOIN v2_kpis k ON kp.kpi_id = k.id
+            WHERE kp.program_id = ? AND k.program_id::text = ?`,
+      args: [programId, programId],
+    });
+    return res.rows || [];
+  } catch {
+    return [];
+  }
 }

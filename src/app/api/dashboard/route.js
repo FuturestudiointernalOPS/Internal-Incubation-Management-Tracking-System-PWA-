@@ -213,17 +213,14 @@ export async function GET(req) {
         args: [userId],
       }),
 
-      // 15. KPI Progress (for program managers) — includes participant counts
+      // 15. KPI Progress (cached — updated on submissions approval)
       db.execute({
-        sql: `SELECT k.program_id, k.id AS kpi_id, k.title, k.weight, k.target_value, k.auto_weight,
-                     COUNT(DISTINCT s.participant_id) AS approved_count,
-                     (SELECT COUNT(DISTINCT p2.id) FROM v2_participants p2 WHERE p2.program_id::text = k.program_id::text) AS participant_count
-              FROM v2_kpis k
-              LEFT JOIN v2_document_requirements d ON d.program_id::text = k.program_id::text AND POSITION(k.id::text IN CAST(d.kpi_ids AS TEXT)) > 0
-              LEFT JOIN v2_submissions s ON s.deliverable_id::text = d.id::text AND s.status = 'approved'
-              WHERE k.program_id IN (SELECT program_id::text FROM v2_programs WHERE assigned_pm_id = ? OR assigned_assistant_id LIKE ? OR id::text IN (SELECT program_id::text FROM v2_teams WHERE handler_id = ?))
-              GROUP BY k.program_id, k.id, k.title, k.weight, k.target_value, k.auto_weight
-              ORDER BY k.program_id, k.id`,
+        sql: `SELECT kp.program_id, kp.kpi_id, k.title, k.weight, k.target_value, k.auto_weight,
+                     kp.approved_count, kp.participant_count, kp.completion_rate
+              FROM kpi_progress kp
+              JOIN v2_kpis k ON kp.kpi_id = k.id AND kp.program_id::text = k.program_id::text
+              WHERE kp.program_id IN (SELECT program_id::text FROM v2_programs WHERE assigned_pm_id = ? OR assigned_assistant_id LIKE ? OR id::text IN (SELECT program_id::text FROM v2_teams WHERE handler_id = ?))
+              ORDER BY kp.program_id, kp.kpi_id`,
         args: [userId, `%${userId}%`, userId],
       }),
     ]);
