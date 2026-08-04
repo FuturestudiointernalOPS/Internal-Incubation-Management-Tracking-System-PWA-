@@ -425,7 +425,7 @@ export async function PUT(req) {
         duration_weeks || 4,
         status,
         finalIsArchived,
-        JSON.stringify(materials || []),
+        JSON.stringify(typeof materials === "string" ? JSON.parse(materials || "[]") : (materials || [])),
         start_date || null,
         end_date || null,
         grading_mode || "graded",

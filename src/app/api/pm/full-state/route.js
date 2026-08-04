@@ -138,10 +138,21 @@ export async function GET(req) {
     const program = progRes.rows[0];
     if (program) {
       try {
-        program.materials =
-          typeof program.materials === "string"
-            ? JSON.parse(program.materials || "[]")
-            : program.materials || [];
+        // Defensive: materials may be double-stringified from older saves
+        if (typeof program.materials === "string") {
+          let parsed = program.materials;
+          // Try to parse up to 4 levels of nesting
+          for (let i = 0; i < 4; i++) {
+            try {
+              const p = JSON.parse(parsed);
+              if (Array.isArray(p)) { parsed = p; break; }
+              parsed = p;
+            } catch { break; }
+          }
+          program.materials = Array.isArray(parsed) ? parsed : [];
+        } else {
+          program.materials = Array.isArray(program.materials) ? program.materials : [];
+        }
 
         if (
           typeof program.note_files === "string" &&
