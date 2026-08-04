@@ -50,6 +50,7 @@ export async function GET(req) {
       activityRes,
       assignmentsRes,
       myTasksRes,
+      kpiRes,
     ] = await Promise.allSettled([
       // 1. User info
       db.execute({
@@ -210,6 +211,19 @@ export async function GET(req) {
                 end_date ASC NULLS LAST
               LIMIT 5`,
         args: [userId],
+      }),
+
+      // 15. KPI Progress (for program managers)
+      db.execute({
+        sql: `SELECT k.program_id, k.id AS kpi_id, k.title, k.weight, k.target_value, k.auto_weight,
+                     COUNT(DISTINCT s.participant_id) AS approved_count
+              FROM v2_kpis k
+              LEFT JOIN v2_document_requirements d ON d.program_id::text = k.program_id::text AND POSITION(k.id::text IN CAST(d.kpi_ids AS TEXT)) > 0
+              LEFT JOIN v2_submissions s ON s.deliverable_id::text = d.id::text AND s.status = 'approved'
+              WHERE k.program_id IN (SELECT program_id::text FROM v2_programs WHERE assigned_pm_id = ? OR assigned_assistant_id LIKE ? OR id::text IN (SELECT program_id::text FROM v2_teams WHERE handler_id = ?))
+              GROUP BY k.program_id, k.id, k.title, k.weight, k.target_value, k.auto_weight
+              ORDER BY k.program_id, k.id`,
+        args: [userId, `%${userId}%`, userId],
       }),
     ]);
 
@@ -572,6 +586,12 @@ export async function GET(req) {
       myTasks = myTasksRes.value.rows;
     }
 
+    // 10. KPI Progress
+    let kpiProgress = [];
+    if (kpiRes.status === "fulfilled") {
+      kpiProgress = kpiRes.value.rows;
+    }
+
     // ─────────────────────────────────────────────
     // RESPONSE
     // ─────────────────────────────────────────────
@@ -610,6 +630,7 @@ export async function GET(req) {
         blockers: allBlockers.slice(0, 5),
       },
       assignments,
+      kpis: kpiProgress,
     });
   } catch (error) {
     console.error("GET dashboard error:", error);

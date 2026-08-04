@@ -181,7 +181,6 @@ export default function UnifiedDashboard({ role: propRole }) {
   // ── Data ──
   const [data, setData] = useState(null);
   const [fetching, setFetching] = useState(true);
-  const [programKpis, setProgramKpis] = useState({});
 
   // ── Calendar state ──
   const now = useMemo(() => new Date(), []);
@@ -302,32 +301,6 @@ export default function UnifiedDashboard({ role: propRole }) {
   useEffect(() => {
     if (user) fetchDashboardData();
   }, [user, fetchDashboardData]);
-
-  // KPI fetch for assigned programs (parallelized)
-  const fetchKpisForPrograms = useCallback(async (programs) => {
-    if (!programs?.length) return;
-    const batch = programs.slice(0, 4);
-    const results = await Promise.all(
-      batch.map(async (p) => {
-        try {
-          const res = await fetch(`/api/pm/full-state?id=${encodeURIComponent(p.id)}&metrics=true`);
-          const d = await res.json();
-          if (d?.kpis?.length) return { id: p.id, kpis: d.kpis };
-        } catch (_) {}
-        return null;
-      }),
-    );
-    const kpiMap = {};
-    results.filter(Boolean).forEach((r) => { kpiMap[r.id] = r.kpis; });
-    setProgramKpis(kpiMap);
-  }, []);
-
-  // Fetch KPIs when dashboard data loads
-  useEffect(() => {
-    if (data?.quickAccess?.programs?.length) {
-      fetchKpisForPrograms(data.quickAccess.programs);
-    }
-  }, [data, fetchKpisForPrograms]);
 
   // Ticket 1.6: refetch calendar when tab becomes visible again
   useEffect(() => {
@@ -1025,7 +998,13 @@ export default function UnifiedDashboard({ role: propRole }) {
               )}
 
             {/* STRATEGIC KPIs */}
-            {visibility.showQuickPrograms && Object.keys(programKpis).length > 0 && (
+            {visibility.showQuickPrograms && (data?.kpis || []).length > 0 && (() => {
+              const grouped = {};
+              (data.kpis || []).forEach(kpi => {
+                if (!grouped[kpi.program_id]) grouped[kpi.program_id] = [];
+                grouped[kpi.program_id].push(kpi);
+              });
+              return (
               <div className="card">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp className="w-4 h-4 text-[var(--brand-orange)]" />
@@ -1034,8 +1013,8 @@ export default function UnifiedDashboard({ role: propRole }) {
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {Object.entries(programKpis).map(([programId, kpis]) => {
-                    const prog = (data?.quickAccess?.programs || []).find(p => p.id === programId);
+                  {Object.entries(grouped).slice(0, 3).map(([programId, kpis]) => {
+                    const prog = (data?.quickAccess?.programs || []).find(p => String(p.id) === String(programId));
                     return (
                       <div key={programId} className="space-y-2">
                         {prog && (
@@ -1045,9 +1024,9 @@ export default function UnifiedDashboard({ role: propRole }) {
                         )}
                         <div className="grid grid-cols-2 gap-1.5">
                           {kpis.slice(0, 6).map((kpi) => {
-                            const pct = kpi.current_value != null ? Math.min(100, (kpi.current_value / (kpi.target_value || 80)) * 100) : 0;
+                            const pct = kpi.approved_count != null ? Math.min(100, kpi.approved_count * 10) : (kpi.current_value != null ? Math.min(100, (kpi.current_value / (kpi.target_value || 80)) * 100) : 0);
                             return (
-                              <div key={kpi.id} className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
+                              <div key={kpi.kpi_id} className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-[7px] font-bold text-[var(--text-secondary)] uppercase truncate max-w-[80px]">
                                     {kpi.title || kpi.name}
@@ -1066,7 +1045,8 @@ export default function UnifiedDashboard({ role: propRole }) {
                   })}
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* My Programs — Rich Cards */}
             {visibility.showQuickPrograms && (
