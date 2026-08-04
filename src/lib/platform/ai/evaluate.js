@@ -23,8 +23,7 @@ function formatSubmissionForAI(submission, fields) {
   const fieldMap = {};
   if (Array.isArray(fields)) {
     for (const f of fields) {
-      fieldMap[f.id] = f.label;
-      // Also map by label for direct lookup
+      fieldMap[String(f.id)] = f.label;
       fieldMap[f.label] = f.label;
     }
   }
@@ -34,7 +33,9 @@ function formatSubmissionForAI(submission, fields) {
     const displayValue = typeof value === "string" && value.startsWith("{") && value.includes('"code"')
       ? (() => { try { const p = JSON.parse(value); return `${p.code} ${p.number}`; } catch { return String(value); } })()
       : String(value);
-    lines.push(`Q: ${key}\nA: ${displayValue}\n`);
+    // Use readable label if available, otherwise use raw key
+    const label = fieldMap[key] || key;
+    lines.push(`Q: ${label}\nA: ${displayValue}\n`);
   }
 
   return lines.join("\n");
@@ -80,11 +81,11 @@ ${dimensionsJson}
 
 For each dimension, provide:
 - score: number from 1 to 10
-- reasoning: 2-4 sentences explaining the score
-- evidence: array of specific quotes from the applicant's responses that support your evaluation
+- reasoning: 2-4 sentences explaining exactly WHY you gave this score — reference specific things the applicant said
+- evidence: array of direct quotes from the applicant in format "Q: [question label] — [quote from answer]" (max 3 per dimension)
 - confidence: number from 0.0 to 1.0 indicating how confident you are in this evaluation
-- strengths: array of strings identifying specific strengths
-- weaknesses: array of strings identifying areas for improvement
+- strengths: array of strings identifying specific strengths observed in the responses
+- weaknesses: array of strings identifying specific areas for improvement
 
 Then provide:
 - overall_score: weighted average of dimension scores (0-100 scale)
@@ -97,7 +98,7 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
       "name": "Dimension Name",
       "score": 8.5,
       "reasoning": "...",
-      "evidence": ["Q1: ...", "Q5: ..."],
+      "evidence": ["Q: Full Name — Ezi Baba", "Q: Describe your business — TrackFlow Technologies is building..."],
       "confidence": 0.92,
       "strengths": ["..."],
       "weaknesses": ["..."]
@@ -108,9 +109,12 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
 }`;
 }
 
+
+
 /**
  * Parse the AI response into structured evaluation data.
  */
+
 function parseEvaluationResponse(raw, framework) {
   try {
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

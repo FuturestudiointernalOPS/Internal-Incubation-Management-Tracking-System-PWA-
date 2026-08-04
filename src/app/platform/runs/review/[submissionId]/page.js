@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Loader2, User, FileText, CheckCircle2, XCircle,
-  RotateCcw, Clock, AlertTriangle, Sparkles, ChevronDown,
-  ChevronUp, RefreshCw, ExternalLink, History, Mail, Phone, Globe, Star
+  ArrowLeft, Loader2, User, FileText, CheckCircle2,
+  AlertTriangle, Sparkles, ChevronDown,
+  ChevronUp, RefreshCw, History, Lock
 } from "lucide-react";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
@@ -92,7 +92,43 @@ export default function ReviewPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Lock all editing once a review decision has been submitted (email sent to applicant)
+  const isReviewLocked = ["approved", "rejected", "revision_requested"].includes(submission?.status);
+
+  // Live-recalculate overall % whenever human overrides any dimension score
+  const computedOverall = useMemo(() => {
+    if (!evaluation?.dimensions?.length) return evaluation?.overall_score ?? null;
+    const dims = evaluation.dimensions;
+    const totalWeight = dims.reduce((s, d) => s + (d.weight ?? 1), 0);
+    const weighted = dims.reduce((s, d) => {
+      const score = d.final_score ?? d.score ?? 0;
+      return s + (score * (d.weight ?? 1));
+    }, 0);
+    return Math.round((weighted / totalWeight) * 10);
+  }, [evaluation]);
+
+  // Helper: update a single dimension's human score
+  const updateDimScore = (di, val) => {
+    if (isReviewLocked) return;
+    setEvaluation(prev => {
+      const dims = [...prev.dimensions];
+      dims[di] = { ...dims[di], human_score: val, human_comment: dims[di].human_comment || "", final_score: val ?? dims[di].score };
+      return { ...prev, dimensions: dims };
+    });
+  };
+
+  // Helper: update a single dimension's human comment
+  const updateDimComment = (di, val) => {
+    if (isReviewLocked) return;
+    setEvaluation(prev => {
+      const dims = [...prev.dimensions];
+      dims[di] = { ...dims[di], human_comment: val };
+      return { ...prev, dimensions: dims };
+    });
+  };
+
   const handleReRunAI = async () => {
+    if (isReviewLocked) return;
     setSaving(true);
     try {
       const res = await fetch("/api/platform/ai/evaluate-submission", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ submission_id: parseInt(submissionId) }) });
@@ -163,14 +199,22 @@ export default function ReviewPage() {
         <span className="text-[var(--text-secondary)] opacity-20">|</span>
         <h2 className="text-sm font-black uppercase text-[var(--text-primary)] truncate">{submission?.submitter_name || "Review"}</h2>
         <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", statusColor)}>{statusLabel}</span>
+        {isReviewLocked && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-500/10 text-slate-400 text-[8px] font-black uppercase border border-slate-500/20">
+            <Lock className="w-2.5 h-2.5" /> Locked
+          </span>
+        )}
         <div className="flex-1" />
         {evaluation && (
           <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20">
             <Sparkles className="w-3 h-3 text-purple-400" />
-            <span className="text-xs font-black text-purple-400">{evaluation.overall_score}%</span>
+            <span className="text-xs font-black text-purple-400">{computedOverall ?? evaluation.overall_score}%</span>
+            {computedOverall !== null && computedOverall !== evaluation.overall_score && (
+              <span className="text-[8px] text-slate-400 font-bold">adjusted</span>
+            )}
           </div>
         )}
-        <button onClick={handleReRunAI} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px] font-black uppercase hover:bg-purple-500/20 transition-colors">
+        <button onClick={handleReRunAI} disabled={saving || isReviewLocked} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px] font-black uppercase hover:bg-purple-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           <RefreshCw className={cn("w-3 h-3", saving && "animate-spin")} /> Re-run AI
         </button>
       </div>
@@ -279,117 +323,222 @@ export default function ReviewPage() {
             <div className="px-6 py-4 border-b border-[var(--border-primary)] flex items-center gap-3">
               <Sparkles className="w-5 h-5 text-purple-400" />
               <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">AI Evaluation</h2>
-              {evaluation.recommendation && (
-                <span className="ml-auto text-[10px] text-[var(--text-secondary)] italic">
-                  {evaluation.recommendation.substring(0, 60)}{evaluation.recommendation.length > 60 ? "…" : ""}
-                </span>
-              )}
+              <div className="ml-auto flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Overall</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <p className={cn("text-base font-black", (computedOverall ?? evaluation.overall_score) >= 80 ? "text-emerald-400" : (computedOverall ?? evaluation.overall_score) >= 60 ? "text-amber-400" : "text-rose-400")}>{computedOverall ?? evaluation.overall_score}%</p>
+                    {computedOverall !== null && computedOverall !== evaluation.overall_score && (
+                      <span className="text-[8px] text-slate-400 font-bold">adjusted</span>
+                    )}
+                  </div>
+                </div>
+                {evaluation.ranking && (
+                  <span className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[10px] font-black text-purple-400">{evaluation.ranking}</span>
+                )}
+              </div>
             </div>
+
+            {evaluation.recommendation && (
+              <div className="px-6 py-3 bg-purple-500/5 border-b border-purple-500/10">
+                <p className="text-[9px] font-black uppercase text-purple-400 mb-1">AI Recommendation</p>
+                <p className="text-[11px] text-[var(--text-primary)] leading-relaxed">{evaluation.recommendation}</p>
+              </div>
+            )}
+
             <div className="divide-y divide-[var(--border-primary)]">
               {evaluation.dimensions.map((dim, di) => {
                 const isExp = expandedDims[di];
+                const aiScore = dim.score ?? dim.ai_score;
+                const finalScore = dim.final_score ?? aiScore;
+                const scoreLabel = finalScore >= 9 ? "Excellent" : finalScore >= 7 ? "Strong" : finalScore >= 5 ? "Adequate" : finalScore >= 3 ? "Weak" : "Poor";
+                const scoreColor = finalScore >= 7 ? "text-emerald-400" : finalScore >= 5 ? "text-amber-400" : "text-rose-400";
+                const scoreBg = finalScore >= 7 ? "bg-emerald-500/10 border-emerald-500/20" : finalScore >= 5 ? "bg-amber-500/10 border-amber-500/20" : "bg-rose-500/10 border-rose-500/20";
+
+                // Match evidence quotes to actual form fields
+                const relevantFields = fields.filter(f => {
+                  const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+                  if (!val) return false;
+                  const valStr = String(val).toLowerCase();
+                  // Check if any evidence quote references this field's label or content
+                  return (dim.evidence || []).some(ev =>
+                    ev.toLowerCase().includes(f.label.toLowerCase().substring(0, 15)) ||
+                    valStr.slice(0, 60).split(' ').filter(w => w.length > 5).some(word => ev.toLowerCase().includes(word.toLowerCase()))
+                  );
+                }).slice(0, 4);
+
+                // If no matched fields, show top 3 long-form answers as fallback
+                const qaFields = relevantFields.length > 0 ? relevantFields : fields.filter(f => {
+                  const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+                  return val && String(val).length > 30 && (f.field_type === "textarea" || f.field_type === "richtext" || f.field_type === "text");
+                }).slice(0, 3);
+
                 return (
                   <div key={di}>
+                    {/* Row header — click to expand */}
                     <div
                       onClick={() => setExpandedDims(p => ({ ...p, [di]: !p[di] }))}
-                      className="px-6 py-3 flex items-center gap-4 cursor-pointer hover:bg-tertiary/50 transition-colors"
+                      className="px-6 py-4 flex items-center gap-4 cursor-pointer hover:bg-tertiary/50 transition-colors"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-bold text-[var(--text-primary)]">{dim.name}</span>
                           {dim.confidence != null && (
                             <span className="text-[9px] text-[var(--text-secondary)]">{(dim.confidence * 100).toFixed(0)}% confident</span>
                           )}
                         </div>
+                        {!isExp && dim.reasoning && (
+                          <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 truncate max-w-xs">{dim.reasoning}</p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-4 shrink-0">
-                        <div className="text-center w-12">
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-center">
                           <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">AI</p>
-                          <p className="text-sm font-black text-purple-400">{dim.score ?? dim.ai_score ?? "—"}</p>
+                          <p className="text-sm font-black text-purple-400">{aiScore ?? "—"}</p>
                         </div>
-                        <div className="text-center w-14">
+                      <div className="text-center">
                           <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">You</p>
-                          {dim.human_score != null ? (
-                            <p className="text-sm font-black text-[var(--brand-orange)]">{dim.human_score}</p>
-                          ) : (
-                            <input
-                              type="number" min={0} max={10} step={0.5}
-                              value=""
-                              placeholder={String(dim.score ?? "—")}
-                              onClick={e => e.stopPropagation()}
-                              onChange={e => {
-                                const val = e.target.value === "" ? null : parseFloat(e.target.value);
-                                const dims = [...evaluation.dimensions];
-                                dims[di] = { ...dims[di], human_score: val, human_comment: dims[di].human_comment || "", final_score: val ?? dim.score };
-                                setEvaluation({ ...evaluation, dimensions: dims });
-                              }}
-                              className="w-12 px-1.5 py-1 rounded-lg bg-primary border border-[var(--border-primary)] text-xs font-black text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          )}
+                          <input
+                            type="number" min={0} max={10} step={0.5}
+                            value={dim.human_score ?? ""}
+                            placeholder={String(aiScore ?? "—")}
+                            disabled={isReviewLocked}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => updateDimScore(di, e.target.value === "" ? null : parseFloat(e.target.value))}
+                            className={cn(
+                              "w-12 px-1.5 py-1 rounded-lg border text-xs font-black outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                              dim.human_score != null ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/40 text-[var(--brand-orange)]" : "bg-primary border-[var(--border-primary)] text-[var(--text-primary)]",
+                              isReviewLocked && "opacity-50 cursor-not-allowed"
+                            )}
+                          />
                         </div>
-                        <div className="text-center w-12">
+                        <div className="text-center">
                           <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Final</p>
-                          <p className={cn("text-sm font-black", (dim.final_score ?? dim.score) >= 7 ? "text-emerald-400" : (dim.final_score ?? dim.score) >= 5 ? "text-amber-400" : "text-rose-400")}>
-                            {dim.final_score ?? dim.score ?? "—"}
-                          </p>
+                          <p className={cn("text-sm font-black", scoreColor)}>{finalScore ?? "—"}</p>
                         </div>
                         {isExp ? <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />}
                       </div>
                     </div>
+
+                    {/* Expanded panel */}
                     {isExp && (
-                      <div className="px-6 py-4 bg-tertiary/30 border-t border-[var(--border-primary)]">
-                        <div className="space-y-3 max-w-2xl">
-                          {dim.ai_reasoning && (
-                            <div>
-                              <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">Reasoning</p>
-                              <p className="text-[11px] text-[var(--text-primary)] leading-relaxed">{dim.ai_reasoning}</p>
+                      <div className="bg-tertiary/20 border-t border-[var(--border-primary)] px-6 py-5 space-y-5">
+
+                        {/* Score verdict */}
+                        <div className={cn("flex items-center gap-4 p-4 rounded-xl border", scoreBg)}>
+                          <div>
+                            <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-0.5">Score Verdict</p>
+                            <div className="flex items-baseline gap-2">
+                              <span className={cn("text-3xl font-black", scoreColor)}>{finalScore}</span>
+                              <span className="text-sm text-[var(--text-secondary)] font-bold">/ 10</span>
+                              <span className={cn("text-xs font-black uppercase ml-1", scoreColor)}>— {scoreLabel}</span>
                             </div>
-                          )}
-                          {dim.ai_evidence?.length > 0 && (
-                            <div>
-                              <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">Evidence</p>
-                              <div className="space-y-1">
-                                {dim.ai_evidence.map((e, i) => (
-                                  <p key={i} className="text-[11px] text-[var(--text-secondary)] italic pl-3 border-l-2 border-[var(--border-primary)]">"{e}"</p>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {(dim.ai_strengths?.length > 0 || dim.ai_weaknesses?.length > 0) && (
-                            <div className="grid grid-cols-2 gap-3">
-                              {dim.ai_strengths?.length > 0 && (
-                                <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                                  <p className="text-[9px] font-black uppercase text-emerald-400 mb-1">Strengths</p>
-                                  {dim.ai_strengths.map((s, i) => <p key={i} className="text-[10px] text-emerald-300">+ {s}</p>)}
-                                </div>
-                              )}
-                              {dim.ai_weaknesses?.length > 0 && (
-                                <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/20">
-                                  <p className="text-[9px] font-black uppercase text-rose-400 mb-1">Weaknesses</p>
-                                  {dim.ai_weaknesses.map((w, i) => <p key={i} className="text-[10px] text-rose-300">− {w}</p>)}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {/* Human override justification */}
-                          {dim.human_score != null && (
-                            <div className="p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20">
-                              <p className="text-[9px] font-black uppercase text-[var(--brand-orange)] mb-1">Human Override</p>
-                              <textarea
-                                value={dim.human_comment || ""}
-                                onChange={e => {
-                                  const dims = [...evaluation.dimensions];
-                                  dims[di] = { ...dims[di], human_comment: e.target.value };
-                                  setEvaluation({ ...evaluation, dimensions: dims });
-                                }}
-                                onClick={e => e.stopPropagation()}
-                                rows={2}
-                                placeholder="Why did you override the AI score?"
-                                className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none"
-                              />
+                          </div>
+                          {dim.confidence != null && (
+                            <div className="ml-auto text-right">
+                              <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-0.5">Confidence</p>
+                              <p className="text-sm font-black text-[var(--text-primary)]">{(dim.confidence * 100).toFixed(0)}%</p>
                             </div>
                           )}
                         </div>
+
+                        {/* AI Reasoning */}
+                        {dim.reasoning && (
+                          <div>
+                            <p className="text-[9px] font-black uppercase text-purple-400 tracking-wider mb-2">Why this score?</p>
+                            <p className="text-[12px] text-[var(--text-primary)] leading-relaxed">{dim.reasoning}</p>
+                          </div>
+                        )}
+
+                        {/* Strengths & Weaknesses */}
+                        {(dim.strengths?.length > 0 || dim.weaknesses?.length > 0) && (
+                          <div className="grid grid-cols-2 gap-3">
+                            {dim.strengths?.length > 0 && (
+                              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                                <p className="text-[9px] font-black uppercase text-emerald-400 mb-2">✓ Strengths</p>
+                                <div className="space-y-1.5">
+                                  {dim.strengths.map((s, i) => (
+                                    <p key={i} className="text-[11px] text-emerald-300 leading-snug">+ {s}</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {dim.weaknesses?.length > 0 && (
+                              <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/20">
+                                <p className="text-[9px] font-black uppercase text-rose-400 mb-2">✗ Areas to Improve</p>
+                                <div className="space-y-1.5">
+                                  {dim.weaknesses.map((w, i) => (
+                                    <p key={i} className="text-[11px] text-rose-300 leading-snug">− {w}</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Evidence quotes from AI */}
+                        {dim.evidence?.length > 0 && (
+                          <div>
+                            <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-2">Evidence from Applicant</p>
+                            <div className="space-y-2">
+                              {dim.evidence.map((ev, i) => (
+                                <p key={i} className="text-[11px] text-[var(--text-secondary)] italic pl-4 border-l-2 border-purple-500/30 leading-relaxed">"{ev}"</p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Relevant Q&A from the form */}
+                        {qaFields.length > 0 && (
+                          <div>
+                            <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-2">Relevant Questions & Responses</p>
+                            <div className="space-y-3">
+                              {qaFields.map(f => {
+                                const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+                                if (!val) return null;
+                                return (
+                                  <div key={f.id} className="rounded-xl bg-secondary border border-[var(--border-primary)] p-4">
+                                    <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-2">{f.label}</p>
+                                    <p className="text-[12px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{String(val)}</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Human override */}
+                        <div className="pt-2 border-t border-[var(--border-primary)]">
+                          {isReviewLocked ? (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-500/5 border border-slate-500/20">
+                              <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <p className="text-[10px] text-slate-400 font-bold">Score editing is locked — a review decision has already been submitted to this applicant.</p>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-[9px] font-black uppercase text-[var(--brand-orange)] tracking-wider mb-2">Override Score</p>
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="number" min={0} max={10} step={0.5}
+                                  value={dim.human_score ?? ""}
+                                  placeholder={String(aiScore ?? "—")}
+                                  onClick={e => e.stopPropagation()}
+                                  onChange={e => updateDimScore(di, e.target.value === "" ? null : parseFloat(e.target.value))}
+                                  className="w-20 px-3 py-2 rounded-xl bg-primary border border-[var(--border-primary)] text-sm font-black text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shrink-0"
+                                />
+                                <textarea
+                                  value={dim.human_comment || ""}
+                                  onChange={e => updateDimComment(di, e.target.value)}
+                                  onClick={e => e.stopPropagation()}
+                                  rows={2}
+                                  placeholder="Explain why you're overriding the AI score (optional)..."
+                                  className="flex-1 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+
                       </div>
                     )}
                   </div>
@@ -400,35 +549,48 @@ export default function ReviewPage() {
         )}
 
         {/* ── DECISION ── */}
+
         <div className="rounded-2xl bg-secondary border border-[var(--border-primary)] overflow-hidden">
           <div className="px-6 py-4 border-b border-[var(--border-primary)] flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-[var(--brand-orange)]" />
             <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">Decision</h2>
           </div>
           <div className="px-6 py-4 space-y-4">
-            <div className="flex gap-2">
-              {workflow.decisions.map(d => (
-                <button key={d.id} onClick={() => setReviewData({ ...reviewData, decision: d.id })}
-                  className={cn(
-                    "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase border transition-all text-center",
-                    reviewData.decision === d.id
-                      ? `bg-${d.color}-500/10 border-${d.color}-500 text-${d.color}-400`
-                      : "bg-tertiary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]"
-                  )}>
-                  {d.label}
+            {isReviewLocked ? (
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-500/5 border border-slate-500/20">
+                <Lock className="w-5 h-5 text-slate-400 shrink-0" />
+                <div>
+                  <p className="text-xs font-black text-[var(--text-primary)] uppercase">Decision Locked</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">A decision of <strong className={statusColor}>{statusLabel}</strong> has already been submitted for this application.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  {workflow.decisions.map(d => (
+                    <button key={d.id} onClick={() => setReviewData({ ...reviewData, decision: d.id })}
+                      className={cn(
+                        "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase border transition-all text-center",
+                        reviewData.decision === d.id
+                          ? `bg-${d.color}-500/10 border-${d.color}-500 text-${d.color}-400`
+                          : "bg-tertiary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]"
+                      )}>
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+                <textarea value={reviewData.comment} onChange={e => setReviewData({ ...reviewData, comment: e.target.value })} rows={2}
+                  placeholder="Comment visible to applicant..."
+                  className="w-full rounded-xl px-4 py-3 text-xs font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
+                <textarea value={reviewData.internal_note} onChange={e => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2}
+                  placeholder="Internal note (private)..."
+                  className="w-full rounded-xl px-4 py-3 text-xs font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
+                <button onClick={handleReview} disabled={saving}
+                  className="w-full py-3 rounded-xl bg-[var(--brand-orange)] text-black text-xs font-black uppercase hover:brightness-110 disabled:opacity-50 transition-all">
+                  {saving ? "Saving..." : `Submit Review — ${decisionMeta.label}`}
                 </button>
-              ))}
-            </div>
-            <textarea value={reviewData.comment} onChange={e => setReviewData({ ...reviewData, comment: e.target.value })} rows={2}
-              placeholder="Comment visible to applicant..."
-              className="w-full rounded-xl px-4 py-3 text-xs font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
-            <textarea value={reviewData.internal_note} onChange={e => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2}
-              placeholder="Internal note (private)..."
-              className="w-full rounded-xl px-4 py-3 text-xs font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
-            <button onClick={handleReview} disabled={saving}
-              className="w-full py-3 rounded-xl bg-[var(--brand-orange)] text-black text-xs font-black uppercase hover:brightness-110 disabled:opacity-50 transition-all">
-              {saving ? "Saving..." : `Submit Review — ${decisionMeta.label}`}
-            </button>
+              </>
+            )}
           </div>
         </div>
 
