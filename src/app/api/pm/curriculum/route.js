@@ -656,6 +656,10 @@ export async function DELETE(req) {
         args: [id],
       });
       await db.execute({
+        sql: "DELETE FROM v2_attendance WHERE session_id = ?",
+        args: [id],
+      });
+      await db.execute({
         sql: "DELETE FROM v2_document_requirements WHERE session_id = ?",
         args: [id],
       });

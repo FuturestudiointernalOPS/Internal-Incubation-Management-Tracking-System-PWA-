@@ -44,7 +44,7 @@ export async function GET(req) {
       },
       {
         name: "sessions",
-        sql: "SELECT * FROM v2_sessions WHERE program_id = ?",
+        sql: "SELECT * FROM v2_sessions WHERE program_id = ? AND (status IS NULL OR status != 'archived')",
         args: [id],
       },
       {
