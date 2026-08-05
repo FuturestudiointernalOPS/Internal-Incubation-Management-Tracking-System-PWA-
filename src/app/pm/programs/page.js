@@ -309,7 +309,7 @@ export default function PMProgramsRegistry() {
                       </div>
                       <div>
                         <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">
-                          {t("common.submit")}
+                          {t("pm.deliverables", "Deliverables")}
                         </p>
                         <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter flex items-center gap-2 italic">
                           {program.docs_completed || 0}/
@@ -361,8 +361,10 @@ export default function PMProgramsRegistry() {
                             {t("common.refresh")}
                           </button>
                         ) : (
-                          <button className="btn-prime !py-3 !px-6 shadow-xl shadow-blue-600/10">
-                            {t("common.submit")}{" "}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); router.push(`/pm/programs/${program.id}`); }}
+                            className="btn-prime !py-3 !px-6 shadow-xl shadow-blue-600/10">
+                            {t("common.view", "View")}{" "}
                             <ArrowRight className="w-4 h-4 ml-2" />
                           </button>
                         )}
