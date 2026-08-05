@@ -447,7 +447,7 @@ const NAVIGATION_MATRIX = {
     },
     {
       id: "platform",
-      name: "PLATFORM",
+      name: "INBOUND",
       icon: Blocks,
       href: "/platform",
     },
