@@ -1306,7 +1306,7 @@ export default function ProgramManagement() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const regId = s.registration_id || s.id;
-                                navigator.clipboard.writeText(`${window.location.origin}/register-participant?group_id=${regId}`);
+                                navigator.clipboard.writeText(`${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(regId))}`);
                                 window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t?.("admin.copied") || "Registration link copied to clipboard" } }));
                               }}
                             >

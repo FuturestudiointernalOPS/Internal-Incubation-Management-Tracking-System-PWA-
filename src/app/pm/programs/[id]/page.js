@@ -1178,12 +1178,14 @@ function ProgramWorkspace() {
                     </p>
                     <div className="flex items-center gap-2 mt-3">
                       <code className="text-[10px] font-mono bg-black/30 px-3 py-2 rounded-lg border border-[var(--border-primary)] truncate max-w-[450px] block" style={{ color: "var(--text-primary)" }}>
-                        {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={families[0].registration_id}
+                        {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={families[0]?.registration_id && encodeURIComponent(families[0].registration_id)}
                       </code>
                       <button
                         onClick={() => {
+                          const fid = families[0]?.registration_id;
+                          if (!fid) return;
                           navigator.clipboard.writeText(
-                            `${window.location.origin}/register-participant?group_id=${families[0].registration_id}`
+                            `${window.location.origin}/register-participant?group_id=${encodeURIComponent(fid)}`
                           );
                           window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
                         }}

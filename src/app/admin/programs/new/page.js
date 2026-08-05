@@ -1125,13 +1125,13 @@ export default function NewProgram() {
                     <div className="flex items-center justify-between gap-3 bg-black/40 p-2 rounded border border-white/5 overflow-hidden">
                       <span className="text-[8px] font-mono text-white/60 truncate">
                         {window.location.origin}/register-participant?group_id=
-                        {createdGroup.registration_id}
+                        {createdGroup.registration_id && encodeURIComponent(createdGroup.registration_id)}
                       </span>
                       <button
                         type="button"
                         onClick={() => {
                           navigator.clipboard.writeText(
-                            `${window.location.origin}/register-participant?group_id=${createdGroup.registration_id}`,
+                            `${window.location.origin}/register-participant?group_id=${createdGroup.registration_id && encodeURIComponent(createdGroup.registration_id)}`,
                           );
                           notify("success", "Copied");
                         }}
