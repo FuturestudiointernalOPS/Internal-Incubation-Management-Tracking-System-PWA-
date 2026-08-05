@@ -102,6 +102,7 @@ export async function POST(req) {
         notes,
         extra_materials,
         timezone,
+        requirements, // Extracted from payload
       } = payload;
 
       // Conflict detection: check for overlapping sessions
@@ -148,7 +149,49 @@ export async function POST(req) {
           timezone || 'UTC',
         ],
       });
-      return NextResponse.json({ success: true, id: result.rows[0].id });
+      const newSessionId = result.rows[0].id;
+
+      // Automatically add an Attendance requirement for the new session
+      await db.execute({
+        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        args: [
+          program_id,
+          "Attendance",
+          "System-generated attendance tracking",
+          newSessionId,
+          "system",
+          1,
+          JSON.stringify([]),
+          end_date || null,
+          "all"
+        ]
+      });
+
+      // Insert any deliverables defined during creation
+      if (requirements && Array.isArray(requirements)) {
+        for (const req of requirements) {
+          await db.execute({
+            sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            args: [
+              program_id,
+              req.title,
+              req.description || null,
+              newSessionId,
+              req.allowed_format || "pdf",
+              req.weight || 1,
+              JSON.stringify(req.kpi_ids || []),
+              req.due_date || null,
+              req.assignee_type || "all",
+              req.assignee_id || null,
+            ],
+          });
+        }
+      }
+
+      // Recalculate KPI progress after adding requirements
+      try { await recalculateKpiProgress(program_id); } catch (_) {}
+
+      return NextResponse.json({ success: true, id: newSessionId });
     }
 
     if (action === "add_requirement") {

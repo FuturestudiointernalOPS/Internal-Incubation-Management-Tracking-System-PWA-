@@ -192,6 +192,7 @@ function ProgramWorkspace() {
     end_time: "",
     notes: "",
     extra_materials: [],
+    requirements: [],
   });
 
   const [newSessionMaterial, setNewSessionMaterial] = useState({
@@ -425,6 +426,7 @@ function ProgramWorkspace() {
           end_time: newSession.end_time || null,
           notes: newSession.notes || null,
           extra_materials: newSession.extra_materials || [],
+          requirements: newSession.requirements || [],
         }),
       });
       const data = await res.json();
@@ -446,6 +448,7 @@ function ProgramWorkspace() {
           end_time: "",
           notes: "",
           extra_materials: [],
+          requirements: [],
         });
         fetchProgramData(true);
       } else notify(data.error || "Add failed.", "error");
@@ -3746,6 +3749,85 @@ function ProgramWorkspace() {
                         )}
                       </button>
                     ))}
+                  </div>
+                </div>
+                <div className="space-y-2 mt-4 pt-4 border-t border-[var(--border-primary)]">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
+                    <FileText className="w-3 h-3 text-indigo-400" /> Deliverables / Requirements
+                  </label>
+                  
+                  {/* List of added requirements */}
+                  {(newSession.requirements || []).length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {(newSession.requirements || []).map((req, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-[10px]">
+                          <div>
+                            <span className="font-bold text-indigo-400 uppercase">{req.title}</span>
+                            <span className="text-slate-400 ml-2">({req.allowed_format})</span>
+                          </div>
+                          <button type="button" onClick={() => setNewSession(p => ({ ...p, requirements: p.requirements.filter((_, i) => i !== idx) }))} className="text-rose-500 hover:scale-110">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Inline Form to add a new requirement */}
+                  <div className="p-3 bg-[var(--surface-1)] rounded-xl border border-[var(--border-primary)] space-y-3">
+                    <input
+                      value={newRequirement.title}
+                      onChange={(e) => setNewRequirement(p => ({ ...p, title: e.target.value }))}
+                      placeholder="Requirement Title (e.g. Pitch Deck PDF)"
+                      className="w-full rounded-lg px-3 py-2 text-[11px] font-bold outline-none transition-colors"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={newRequirement.allowed_format}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, allowed_format: e.target.value }))}
+                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      >
+                        <option value="pdf">PDF Document</option>
+                        <option value="image">Image File</option>
+                        <option value="link">External Link</option>
+                        <option value="video">Video Upload</option>
+                      </select>
+                      <input
+                        type="date"
+                        value={newRequirement.due_date || ""}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, due_date: e.target.value }))}
+                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={newRequirement.assignee_type || "all"}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, assignee_type: e.target.value, assignee_id: "" }))}
+                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      >
+                        <option value="all">All Participants</option>
+                        <option value="team">Specific Team</option>
+                        <option value="individual">Specific Individual</option>
+                      </select>
+                      <div className="flex items-center text-[9px] text-slate-400 italic px-2">
+                        * Evaluated via Session KPIs
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!newRequirement.title.trim()}
+                      onClick={() => {
+                        setNewSession(p => ({ ...p, requirements: [...(p.requirements || []), { ...newRequirement, kpi_ids: p.kpi_ids || [] }] }));
+                        setNewRequirement({ title: "", description: "", allowed_format: "pdf", kpi_ids: [], due_date: "", assignee_type: "all", assignee_id: "" });
+                      }}
+                      className="w-full py-2 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/30 disabled:opacity-50 transition-colors"
+                    >
+                      <Plus className="w-3 h-3 inline mr-1" /> Add Deliverable
+                    </button>
                   </div>
                 </div>
               </div>
