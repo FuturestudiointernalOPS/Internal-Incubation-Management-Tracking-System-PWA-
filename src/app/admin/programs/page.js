@@ -899,19 +899,20 @@ export default function ProgramManagement() {
               </div>
 
               {/* Registration Link */}
-              {editingProgram?.assigned_segments && editingProgram.assigned_segments.length > 0 && (
+              {editingProgram?.assigned_segments && editingProgram.assigned_segments.length > 0 && editingProgram.assigned_segments[0] && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
                     Registration Link
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 bg-primary/50 rounded-xl px-1 py-1 border border-[var(--border-primary)]">
                     <code className="flex-1 text-[9px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>
-                      {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={editingProgram.assigned_segments[0]}
+                      {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={encodeURIComponent(String(editingProgram.assigned_segments[0] || ''))}
                     </code>
                     <button
-                      type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/register-participant?group_id=${editingProgram.assigned_segments[0]}`);
+                        const gid = editingProgram.assigned_segments[0];
+                        if (!gid) return;
+                        navigator.clipboard.writeText(`${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(gid))}`);
                         window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
                       }}
                       className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"

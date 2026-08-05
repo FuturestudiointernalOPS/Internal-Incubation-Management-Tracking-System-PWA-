@@ -151,12 +151,13 @@ export default function SuperAdminExecutiveView({ params }) {
           </div>
 
           <div className="flex items-center gap-6">
-             {program.assigned_segments?.length > 0 && (
+             {program.assigned_segments?.length > 0 && program.assigned_segments[0] && (
                 <div className="flex flex-col items-end gap-2 px-6 py-2 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
                    <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest italic">Registration Node</p>
                    <button 
                       onClick={() => {
-                         const url = `${window.location.origin}/register-participant?group_id=${program.assigned_segments[0]}`;
+                         const gid = program.assigned_segments[0];
+                         const url = `${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(gid))}`;
                          navigator.clipboard.writeText(url);
                          window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'URL Copied' } }));
                       }}
