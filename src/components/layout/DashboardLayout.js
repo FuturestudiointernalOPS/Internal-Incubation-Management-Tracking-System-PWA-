@@ -49,15 +49,11 @@ import { useTheme } from "@/lib/ThemeProvider";
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
   dashboard: "navigation.dashboard",
-  crm: "navigation.crm",
-  crm_dashboard: "navigation.crmDashboard",
-  crm_timeline: "navigation.crmTimeline",
   programs: "navigation.programs",
   all_programs: "navigation.allPrograms",
   create_program: "navigation.createProgram",
   create_project: "navigation.createProject",
   progress_hub: "navigation.progress",
-  operations: "navigation.operations",
   internal_ops: "navigation.internalOps",
   internal_ops_board: "navigation.internalOpsBoard",
   messages: "navigation.messages",
@@ -66,7 +62,6 @@ const NAV_KEY_MAP = {
   forms: "navigation.forms",
   all_contacts: "navigation.contacts",
   knowledge: "navigation.knowledgeBase",
-  knowledge_base: "navigation.knowledgeBase",
   reports: "navigation.reports",
   report_responses: "navigation.reportResponses",
   internal_reports: "navigation.internalReports",
@@ -84,17 +79,6 @@ const NAV_KEY_MAP = {
   intel_feed: "navigation.intelFeed",
   announcements: "navigation.announcements",
   followups: "navigation.followups",
-  standup: "navigation.standup",
-  retro: "navigation.retro",
-  audit_logs: "navigation.auditLogs",
-  security: "navigation.security",
-  integrations: "navigation.integrations",
-  access_summary: "navigation.userAccess",
-  permissions: "navigation.permissions",
-  engineering_dashboard: "navigation.engineering",
-  system: "navigation.systemMonitoring",
-  pending_users: "navigation.pendingApprovals",
-  bulk_upload: "navigation.bulkImport",
 };
 
 function tnav(key) {
