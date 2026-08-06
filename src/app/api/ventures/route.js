@@ -84,6 +84,20 @@ export const POST = createHandler(
     } catch(e) {
       console.warn("Failed to add venture member:", e.message);
     }
+
+    // Timeline event
+    try {
+      const { getSession } = await import("@/lib/auth");
+      const session = await getSession();
+      if (session?.cid) {
+        await db.execute({
+          sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
+                VALUES (?, 'venture_created', ?, 'ventures', ?, ?, ?::jsonb)`,
+          args: [session.cid, `Founded "${name}"`, venture_id, session.cid, JSON.stringify({ venture_name: name, industry })],
+        });
+      }
+    } catch (_) {}
+
     return NextResponse.json({ success: true, id, venture_id });
   },
 );
@@ -104,6 +118,23 @@ export const PUT = createHandler(
     if (updates.social_media) updates.social_media = JSON.stringify(updates.social_media);
     if (updates.branding) updates.branding = JSON.stringify(updates.branding);
     const result = await updateVenture(id, updates);
+
+    // Timeline event
+    if (result.updated) {
+      try {
+        const { getSession } = await import("@/lib/auth");
+        const session = await getSession();
+        if (session?.cid) {
+          const updatedFields = Object.keys(updates).filter(k => k !== "social_media" && k !== "branding");
+          await db.execute({
+            sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
+                  VALUES (?, 'venture_updated', ?, 'ventures', ?, ?, ?::jsonb)`,
+            args: [session.cid, `Updated venture ${id}`, id, session.cid, JSON.stringify({ updated_fields: updatedFields })],
+          });
+        }
+      } catch (_) {}
+    }
+
     return NextResponse.json({ success: true, ...result });
   },
 );
