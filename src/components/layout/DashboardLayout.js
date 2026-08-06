@@ -291,7 +291,7 @@ const NAVIGATION_MATRIX = {
         { id: "crm_timeline", name: "TIMELINE", href: "/admin/crm/timeline" },
         { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },
         { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/bulk-upload" },
-        { id: "forms", name: "FORMS", href: "/admin/communications/forms" },
+        { id: "forms", name: "FORMS", href: "/platform" },
         { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
         { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
         { id: "campaigns", name: "CAMPAIGNS", href: "/admin/communications/campaigns" },
