@@ -355,7 +355,6 @@ const NAVIGATION_MATRIX = {
         { id: "blockers", name: "BLOCKERS", href: "/admin/blockers" },
         { id: "standup", name: "STANDUP", href: "/staff/op-report" },
         { id: "retro", name: "RETRO", href: "/staff/op-report" },
-        { id: "internal_reports", name: "OP REPORTS", href: "/admin/op-reports" },
       ],
     },
 
@@ -370,8 +369,16 @@ const NAVIGATION_MATRIX = {
     },
 
     { id: "finance", name: "FINANCE", icon: BarChart3, href: "/admin/finance" },
-    { id: "metrics", name: "HEALTH", icon: Activity, href: "/admin/metrics" },
-    { id: "reports", name: "REPORTS", icon: FileText, href: "/admin/reports" },
+    {
+      id: "reports",
+      name: "REPORTS",
+      icon: FileText,
+      subItems: [
+        { id: "program_reports", name: "PROGRAM REPORTS", href: "/admin/reports/responses" },
+        { id: "internal_reports", name: "OP REPORTS", href: "/admin/op-reports" },
+        { id: "metrics", name: "PROGRAM HEALTH", href: "/admin/metrics" },
+      ],
+    },
 
     {
       id: "settings",
