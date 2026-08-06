@@ -16,8 +16,8 @@ export async function GET() {
     ]);
     if (authError) return authError;
     const result = await db.execute(
-      "SELECT * FROM families ORDER BY is_archived ASC, name ASC",
-    );
+      "SELECT * FROM families ORDER BY name ASC",
+    ).catch(() => db.execute("SELECT * FROM families ORDER BY name ASC"));
     return NextResponse.json({ success: true, families: result.rows });
   } catch (error) {
     return NextResponse.json(
@@ -142,6 +142,13 @@ export async function PATCH(req) {
     await db.execute({
       sql: "UPDATE families SET is_archived = ? WHERE id = ?",
       args: [is_archived ? 1 : 0, id],
+    }).catch(async () => {
+      // Column may not exist yet — try adding it
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
+      await db.execute({
+        sql: "UPDATE families SET is_archived = ? WHERE id = ?",
+        args: [is_archived ? 1 : 0, id],
+      });
     });
 
     return NextResponse.json({ success: true });

@@ -69,21 +69,18 @@ export async function GET(req) {
         args: [groupName],
       }),
       db.execute({
-        sql: "SELECT group_score FROM families WHERE name = ?",
+        sql: "SELECT * FROM families WHERE name = ?",
         args: [groupName],
-      }),
+      }).catch(() => ({ rows: [] })),
     ]);
 
     // Aggregate Grading
     const submissions = subRes.rows;
     let individualScore = 0;
     submissions.forEach((s) => {
-      individualScore += parseInt(s.score) || 0;
+      individualScore += parseInt(s.score || s.grade) || 0;
     });
-    const groupScore =
-      familyRes.rows.length > 0
-        ? parseInt(familyRes.rows[0].group_score) || 0
-        : 0;
+    const groupScore = 0; // group_score column not yet available on families
     const finalGrade = individualScore + groupScore;
 
     return NextResponse.json({

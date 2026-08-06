@@ -20,7 +20,7 @@ export async function GET(req, { params }) {
       sql: `SELECT i.*, p.name as program_name
             FROM v2_invitations i
             LEFT JOIN v2_programs p ON i.program_id = p.id::text
-            WHERE i.token = ? AND i.expires_at > datetime('now')`,
+            WHERE i.token = ? AND i.expires_at > NOW()`,
       args: [token]
     });
 
@@ -55,7 +55,7 @@ export async function POST(req, { params }) {
 
     // 1. Validate Invite
     const inviteCheck = await db.execute({
-      sql: "SELECT * FROM v2_invitations WHERE token = ? AND expires_at > datetime('now')",
+      sql: "SELECT * FROM v2_invitations WHERE token = ? AND expires_at > NOW()",
       args: [token]
     });
 

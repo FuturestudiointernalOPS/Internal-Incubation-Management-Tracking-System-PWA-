@@ -82,7 +82,7 @@ export async function GET(req) {
     const program_id = searchParams.get("program_id");
 
     let query =
-      "SELECT * FROM v2_invitations WHERE expires_at > datetime('now')";
+      "SELECT * FROM v2_invitations WHERE expires_at > NOW()";
     let args = [];
 
     if (program_id) {

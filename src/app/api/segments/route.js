@@ -12,7 +12,7 @@ export const GET = createHandler(
       success: true,
       segments: result.rows.map((r) => ({
         ...r,
-        filters: JSON.parse(r.filters),
+        filters: JSON.parse(r.criteria || '{}'),
       })),
     });
   },

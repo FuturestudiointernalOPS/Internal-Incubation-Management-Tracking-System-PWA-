@@ -69,7 +69,7 @@ export async function POST(req) {
       await db.execute({
         sql: `INSERT INTO audit_log (entity_type, entity_id, user_id, user_name, action, details)
               VALUES ('user', 0, ?, ?, 'password_setup', 'Password set via secure setup link')`,
-        args: [setupRecord.contact_cid, setupRecord.user_email],
+        args: [setupRecord.contact_cid, setupRecord.contact_cid],
       });
     } catch (e) {
       // Audit logging is non-critical

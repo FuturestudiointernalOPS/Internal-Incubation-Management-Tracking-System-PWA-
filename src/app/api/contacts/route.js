@@ -21,7 +21,7 @@ async function fireInvite(cid, name, email, role, groupId) {
     await db.execute({
       sql: "UPDATE contacts SET invited_at = NOW() WHERE cid = ?",
       args: [cid],
-    });
+    }).catch(() => {}); // Column may not exist yet — non-critical
     // Send email synchronously so Vercel doesn't kill the worker
     const { sendInviteEmail } = await import("@/lib/email");
     await sendInviteEmail({ to: email, name, role, token });

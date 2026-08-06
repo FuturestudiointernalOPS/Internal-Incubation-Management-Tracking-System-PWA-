@@ -51,9 +51,8 @@ export async function GET(req) {
       success: true,
       name: record.name,
       email: record.email,
-      role: record.role || record.token_type?.replace("_invite", "").replace("_", " "),
+      role: record.role || "participant",
       cid: record.contact_cid,
-      tokenType: record.token_type,
     });
   } catch (error) {
     console.error("Activate GET error:", error);

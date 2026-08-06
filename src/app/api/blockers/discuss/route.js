@@ -30,11 +30,11 @@ export async function GET(req) {
     }
 
     const result = await db.execute({
-      sql: `SELECT id, sender_id, sender_name, body, blocker_id, created_at
+      sql: `SELECT id, sender_id, body, target_type, target_id, created_at
             FROM v2_messages
-            WHERE blocker_id = ?
+            WHERE target_type = 'blocker' AND target_id = ?
             ORDER BY created_at ASC`,
-      args: [parseInt(blocker_id)],
+      args: [blocker_id],
     });
 
     return NextResponse.json({ success: true, messages: result.rows });
@@ -76,10 +76,10 @@ export async function POST(req) {
     const blocker = blockerCheck.rows[0];
 
     const result = await db.execute({
-      sql: `INSERT INTO v2_messages (sender_id, sender_name, body, blocker_id)
-            VALUES (?, ?, ?, ?)
+      sql: `INSERT INTO v2_messages (sender_id, body, target_type, target_id)
+            VALUES (?, ?, 'blocker', ?)
             RETURNING id, created_at`,
-      args: [sender_id, sender_name || "", msgBody.trim(), parseInt(blocker_id)],
+      args: [sender_id, msgBody.trim(), blocker_id],
     });
 
     // Notify the blocker creator (unless they're the one commenting)

@@ -14,21 +14,22 @@ export async function POST(req) {
     ]);
     if (authError) return authError;
 
-    // Ensure table exists
+    // Ensure table and columns exist (idempotent)
     try {
       await db.execute({
         sql: `CREATE TABLE IF NOT EXISTS v2_attendance (
           id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
           session_id TEXT NOT NULL,
-          program_id TEXT,
           participant_id TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'present',
-          date DATE DEFAULT CURRENT_DATE,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
+          created_at TIMESTAMPTZ DEFAULT NOW()
         )`,
         args: [],
       });
+      // Add columns that may not exist on older versions of the table
+      await db.execute({ sql: "ALTER TABLE v2_attendance ADD COLUMN IF NOT EXISTS program_id TEXT", args: [] });
+      await db.execute({ sql: "ALTER TABLE v2_attendance ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE", args: [] });
+      await db.execute({ sql: "ALTER TABLE v2_attendance ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()", args: [] });
     } catch (_) {}
 
     const body = await req.json();

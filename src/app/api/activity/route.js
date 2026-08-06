@@ -6,7 +6,7 @@ export const GET = createHandler(
   { roles: ["staff", "super_admin"] },
   async () => {
     const result = await db.execute(
-      `SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT 100`,
+      `SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 100`,
     );
     return NextResponse.json({ success: true, activity: result.rows });
   },

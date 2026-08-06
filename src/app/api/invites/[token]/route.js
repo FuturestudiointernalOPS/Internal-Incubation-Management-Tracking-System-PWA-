@@ -9,7 +9,7 @@ export async function GET(req, { params }) {
   try {
     const { token } = await params;
     const result = await db.execute({
-      sql: "SELECT token, contact_cid, user_email, role, group_id, expires_at FROM password_setup_tokens WHERE token = ? AND used = 0",
+      sql: "SELECT token, contact_cid, expires_at FROM password_setup_tokens WHERE token = ? AND used = 0",
       args: [token],
     });
 
@@ -28,9 +28,6 @@ export async function GET(req, { params }) {
       invite: {
         token: row.token,
         contact_cid: row.contact_cid,
-        email: row.user_email,
-        role: row.role,
-        group_id: row.group_id,
         expires_at: row.expires_at,
       },
     });
@@ -52,7 +49,7 @@ export async function POST(req, { params }) {
 
     // Validate token
     const tokenResult = await db.execute({
-      sql: "SELECT contact_cid, user_email, role, group_id, used FROM password_setup_tokens WHERE token = ?",
+      sql: "SELECT contact_cid, used FROM password_setup_tokens WHERE token = ?",
       args: [token],
     });
 
@@ -61,10 +58,17 @@ export async function POST(req, { params }) {
     }
 
     const row = tokenResult.rows[0];
-    const contactEmail = (email || row.user_email || "").trim().toLowerCase();
-    const contactName = (name || "").trim();
-    const contactRole = row.role || "participant";
     const contactCid = row.contact_cid;
+
+    // Look up contact details from contacts table
+    const contactRes = await db.execute({
+      sql: "SELECT name, email, role, group_name, program_id FROM contacts WHERE cid = ?",
+      args: [contactCid],
+    });
+    const contact = contactRes.rows[0] || {};
+    const contactEmail = (email || contact.email || "").trim().toLowerCase();
+    const contactName = (name || contact.name || "").trim();
+    const contactRole = contact.role || "participant";
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -78,32 +82,31 @@ export async function POST(req, { params }) {
     if (existCheck.rows.length > 0) {
       // Update existing contact with password + program_id
       await db.execute({
-        sql: "UPDATE contacts SET password = ?, name = COALESCE(NULLIF(?, ''), name), status = 'active', program_id = COALESCE(program_id, ?) WHERE email = ?",
-        args: [hashedPassword, contactName, row.group_id, contactEmail],
+        sql: "UPDATE contacts SET password = ?, name = COALESCE(NULLIF(?, ''), name), status = 'active' WHERE email = ?",
+        args: [hashedPassword, contactName, contactEmail],
       });
     } else {
       // Create new contact
       await db.execute({
-        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, status, program_id, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, 'active', ?, NOW())`,
-        args: [contactCid, contactName, contactEmail, phone || null, hashedPassword, contactRole, row.group_id],
+        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, status, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())`,
+        args: [contactCid, contactName, contactEmail, phone || null, hashedPassword, contactRole],
       });
     }
 
     // Mark token as used
     await db.execute({
-      sql: "UPDATE password_setup_tokens SET used = 1, used_at = NOW() WHERE token = ?",
+      sql: "UPDATE password_setup_tokens SET used = 1 WHERE token = ?",
       args: [token],
     });
 
-    // Add participant to the program
-    if (row.group_id) {
+    // Add participant to the program (if contact has program_id)
+    if (contact.program_id) {
       try {
         await db.execute({
-          sql: `INSERT INTO v2_participants (program_id, user_id, name, email, phone, status, created_at)
-                VALUES (?, ?, ?, ?, ?, 'active', NOW())
-                ON CONFLICT DO NOTHING`,
-          args: [row.group_id, contactCid, contactName, contactEmail, phone || null],
+          sql: `INSERT INTO v2_participants (program_id, name, email, phone, status, created_at)
+                VALUES (?, ?, ?, ?, 'active', NOW())`,
+          args: [contact.program_id, contactName, contactEmail, phone || null],
         });
       } catch (e) {
         console.warn("Failed to add participant to program:", e.message);
