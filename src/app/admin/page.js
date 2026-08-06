@@ -38,6 +38,10 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 
+function cn(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
+
 function getWeekNumber(date) {
   const d = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
