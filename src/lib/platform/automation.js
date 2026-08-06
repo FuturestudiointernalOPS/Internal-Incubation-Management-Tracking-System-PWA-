@@ -30,15 +30,45 @@ export const PLATFORM_EVENTS = {
   DEADLINE_APPROACHING: "deadline.approaching",
 };
 
+// ─── CRM INTEGRATION HELPERS ───────────────────────────────────────
+
+async function syncCrmContact(submission) {
+  try {
+    const { default: db, initDb } = await import("@/lib/db");
+    await initDb();
+    const subData = submission.data || {};
+    const vals = Object.values(subData);
+    const email = vals.find(v => typeof v === "string" && v.includes("@"));
+    if (!email) return null;
+    const name = vals.find(v => typeof v === "string" && v.length > 1 && !v.includes("@") && !v.startsWith("{"));
+    const phone = vals.find(v => typeof v === "string" && /^[\d\s\+\-\(\)]{7,}$/.test(v));
+    const cid = submission.submitter_id || "USR_" + Math.random().toString(36).substring(2, 10).toUpperCase();
+    await db.execute({
+      sql: `INSERT INTO contacts (cid, name, email, phone, role, status)
+            VALUES (?, ?, ?, ?, 'applicant', 'active')
+            ON CONFLICT(email) DO UPDATE SET
+              name = COALESCE(NULLIF(EXCLUDED.name, ''), contacts.name),
+              phone = COALESCE(EXCLUDED.phone, contacts.phone)`,
+      args: [cid, name || "Applicant", email.toLowerCase().trim(), phone || null],
+    });
+    return cid;
+  } catch (e) { return null; }
+}
+
+async function writeCrmTimeline(cid, type, desc, module, ctxId, actor, meta) {
+  try {
+    const { default: db, initDb } = await import("@/lib/db");
+    await initDb();
+    await db.execute({
+      sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
+            VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)`,
+      args: [cid, type, desc, module, String(ctxId), actor || "system", JSON.stringify(meta || {})],
+    });
+  } catch (e) {}
+}
+
 // ─── AUTOMATION RULES ──────────────────────────────────────────────
 
-/**
- * Each rule has:
- * - event: which Platform event triggers it
- * - condition: optional async function returning true/false
- * - action: async function to execute
- * - description: human-readable
- */
 const RULES = [
   // ── Submission received ──
   {
@@ -48,7 +78,6 @@ const RULES = [
     action: async (ctx) => {
       const { submission, run, form, session } = ctx;
 
-      // Audit log
       await audit({
         entity_type: "submission",
         entity_id: submission.id,
@@ -59,7 +88,6 @@ const RULES = [
         meta: { run_id: submission.run_id, form_id: run?.form_id },
       });
 
-      // Send confirmation email to participant
       try {
         const { default: db, initDb } = await import("@/lib/db");
         await initDb();
@@ -79,7 +107,6 @@ const RULES = [
         console.error("[Automation] Confirmation email failed:", e.message);
       }
 
-      // In-app notification for run owner
       if (run?.owner_id) {
         await notifyUser({
           userId: run.owner_id,
@@ -92,6 +119,23 @@ const RULES = [
     },
   },
 
+  // ── CRM: Sync submission to contacts + timeline ──
+  {
+    event: PLATFORM_EVENTS.SUBMISSION_RECEIVED,
+    description: "Create/update CRM contact and write timeline event",
+    condition: (ctx) => ctx.submission?.status === "submitted",
+    action: async (ctx) => {
+      const cid = await syncCrmContact(ctx.submission);
+      if (cid) {
+        const runName = ctx.run?.name || "form";
+        await writeCrmTimeline(cid, "form_submitted",
+          `Submitted "${runName}"`, "forms",
+          ctx.submission.id, ctx.submission.submitter_id,
+          { run_id: ctx.submission.run_id });
+      }
+    },
+  },
+
   // ── Review completed ──
   {
     event: PLATFORM_EVENTS.REVIEW_COMPLETED,
@@ -100,7 +144,6 @@ const RULES = [
     action: async (ctx) => {
       const { review, submission, run, session } = ctx;
 
-      // Audit log
       await audit({
         entity_type: "review",
         entity_id: review.id || submission.id,
@@ -111,7 +154,6 @@ const RULES = [
         meta: { run_id: submission.run_id, comment: review.comment?.substring(0, 100) },
       });
 
-      // Send decision email to participant
       try {
         const { default: db, initDb } = await import("@/lib/db");
         await initDb();
@@ -133,7 +175,6 @@ const RULES = [
         console.error("[Automation] Decision email failed:", e.message);
       }
 
-      // In-app notification for submitter
       const decisionLabel =
         review.decision === "approved" ? "approved" :
         review.decision === "rejected" ? "not accepted" :
@@ -146,6 +187,23 @@ const RULES = [
         actionUrl: `/platform/runs/submit/${run?.id}`,
         type: "review",
       });
+    },
+  },
+
+  // ── CRM: Write review decision to timeline ──
+  {
+    event: PLATFORM_EVENTS.REVIEW_COMPLETED,
+    description: "Write review decision to CRM contact timeline",
+    condition: (ctx) => ctx.review?.decision && (ctx.review.decision === "approved" || ctx.review.decision === "rejected"),
+    action: async (ctx) => {
+      if (!ctx.submission?.submitter_id) return;
+      const isApproved = ctx.review.decision === "approved";
+      const runName = ctx.run?.name || "form";
+      await writeCrmTimeline(ctx.submission.submitter_id,
+        isApproved ? "application_approved" : "application_rejected",
+        isApproved ? `Application approved for "${runName}"` : `Application not successful for "${runName}"`,
+        "forms", ctx.submission.id, ctx.review.reviewer_id || "system",
+        { decision: ctx.review.decision, run_id: ctx.submission.run_id });
     },
   },
 
@@ -237,26 +295,15 @@ const RULES = [
 
 // ─── ENGINE ────────────────────────────────────────────────────────
 
-/**
- * Fire an event. Runs all matching rules asynchronously.
- * This is intentionally fire-and-forget — failures are logged but
- * never block the main request.
- *
- * @param {string} event - one of PLATFORM_EVENTS
- * @param {Object} ctx - context object with relevant data
- *   { submission, review, run, form, session, assignment }
- */
 export function fireEvent(event, ctx = {}) {
   if (!event) return;
   console.log(`[Automation] Firing event: ${event}`, Object.keys(ctx));
 
   const matching = RULES.filter((r) => r.event === event);
 
-  // Run all matching rules asynchronously
   for (const rule of matching) {
     Promise.resolve()
       .then(async () => {
-        // Check condition if present
         if (rule.condition) {
           const ok = await rule.condition(ctx);
           if (!ok) return;
@@ -269,9 +316,6 @@ export function fireEvent(event, ctx = {}) {
   }
 }
 
-/**
- * Run after a submission is received (fires SUBMISSION_RECEIVED or SUBMISSION_DRAFT_SAVED).
- */
 export function onSubmission(submission, run, form, session) {
   const event = submission.status === "draft"
     ? PLATFORM_EVENTS.SUBMISSION_DRAFT_SAVED
@@ -279,30 +323,18 @@ export function onSubmission(submission, run, form, session) {
   fireEvent(event, { submission, run, form, session });
 }
 
-/**
- * Run after a review is completed.
- */
 export function onReview(review, submission, run, session) {
   fireEvent(PLATFORM_EVENTS.REVIEW_COMPLETED, { review, submission, run, session });
 }
 
-/**
- * Run after a run is created.
- */
 export function onRunCreated(run, session) {
   fireEvent(PLATFORM_EVENTS.RUN_CREATED, { run, session });
 }
 
-/**
- * Run after a run is launched.
- */
 export function onRunLaunched(run, session) {
   fireEvent(PLATFORM_EVENTS.RUN_LAUNCHED, { run, session });
 }
 
-/**
- * Run after an assignment is added.
- */
 export function onAssignmentAdded(assignment, run) {
   fireEvent(PLATFORM_EVENTS.ASSIGNMENT_ADDED, { assignment, run });
 }

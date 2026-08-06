@@ -160,10 +160,10 @@ export default function PlatformLayout({ children }) {
               )}
             </button>
             <Link
-              href="/admin"
+              href="/admin/crm"
               className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
             >
-              ← Back to Operations
+              ← Back to CRM
             </Link>
           </div>
 
