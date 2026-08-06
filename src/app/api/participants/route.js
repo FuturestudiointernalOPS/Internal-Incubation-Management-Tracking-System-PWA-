@@ -48,6 +48,7 @@ export async function POST(req) {
     // 3. FLEXIBLE SYNC: Upsert into V1 Contacts
     const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
     const generatedPassword = `FSP${randomStr}`;
+    const cid = `c-${Math.random().toString(36).substr(2, 9)}`;
 
     await db.execute({
       sql: `INSERT INTO contacts (cid, name, email, phone, program_id, program_name, role, password)
@@ -59,7 +60,7 @@ export async function POST(req) {
               program_name = EXCLUDED.program_name,
               role = EXCLUDED.role`,
       args: [
-        `c-${Math.random().toString(36).substr(2, 9)}`,
+        cid,
         name,
         email,
         phone || null,
@@ -69,6 +70,15 @@ export async function POST(req) {
         generatedPassword,
       ],
     });
+
+    // Timeline event
+    try {
+      await db.execute({
+        sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
+              VALUES (?, 'participant_enrolled', 'Enrolled in program', 'programs', ?, 'system', '{}'::jsonb)`,
+        args: [cid, program_id],
+      });
+    } catch (_) {}
 
     return NextResponse.json({
       success: true,

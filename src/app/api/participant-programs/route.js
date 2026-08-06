@@ -130,6 +130,15 @@ export async function POST(req) {
           ],
         });
 
+        // Timeline event
+        try {
+          await db.execute({
+            sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
+                  VALUES (?, 'participant_enrolled', 'Enrolled in program', 'programs', ?, 'system', '{}'::jsonb)`,
+            args: [participant_id, program_id],
+          });
+        } catch (_) {}
+
         results.push(program_id);
       } catch (err) {
         console.error(
@@ -188,6 +197,15 @@ export async function DELETE(req) {
             VALUES (?, ?, 'removed', ?)`,
       args: [participant_id, program_id, body.assigned_by || null],
     });
+
+    // Timeline event
+    try {
+      await db.execute({
+        sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
+              VALUES (?, 'participant_withdrawn', 'Withdrawn from program', 'programs', ?, 'system', '{}'::jsonb)`,
+        args: [participant_id, program_id],
+      });
+    } catch (_) {}
 
     return NextResponse.json({
       success: true,
