@@ -1152,14 +1152,14 @@ export async function seedDefaultResponsibilities() {
       {
         name: "Operations",
         key: "operations",
-        description: "Internal operations — workspace, reports, CRM",
+        description: "Internal operations — workspace, reports, standups",
         icon: "Settings",
       },
       {
-        name: "Communications",
-        key: "communications",
-        description: "Messaging, campaigns, contacts, forms",
-        icon: "Send",
+        name: "CRM",
+        key: "crm",
+        description: "People, contacts, timeline, forms, communications",
+        icon: "Users",
       },
       {
         name: "Finance",

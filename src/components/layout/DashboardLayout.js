@@ -49,11 +49,15 @@ import { useTheme } from "@/lib/ThemeProvider";
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
   dashboard: "navigation.dashboard",
+  crm: "navigation.crm",
+  crm_dashboard: "navigation.crmDashboard",
+  crm_timeline: "navigation.crmTimeline",
   programs: "navigation.programs",
   all_programs: "navigation.allPrograms",
   create_program: "navigation.createProgram",
   create_project: "navigation.createProject",
   progress_hub: "navigation.progress",
+  operations: "navigation.operations",
   internal_ops: "navigation.internalOps",
   internal_ops_board: "navigation.internalOpsBoard",
   messages: "navigation.messages",
@@ -62,6 +66,7 @@ const NAV_KEY_MAP = {
   forms: "navigation.forms",
   all_contacts: "navigation.contacts",
   knowledge: "navigation.knowledgeBase",
+  knowledge_base: "navigation.knowledgeBase",
   reports: "navigation.reports",
   report_responses: "navigation.reportResponses",
   internal_reports: "navigation.internalReports",
@@ -79,6 +84,17 @@ const NAV_KEY_MAP = {
   intel_feed: "navigation.intelFeed",
   announcements: "navigation.announcements",
   followups: "navigation.followups",
+  standup: "navigation.standup",
+  retro: "navigation.retro",
+  audit_logs: "navigation.auditLogs",
+  security: "navigation.security",
+  integrations: "navigation.integrations",
+  access_summary: "navigation.userAccess",
+  permissions: "navigation.permissions",
+  engineering_dashboard: "navigation.engineering",
+  system: "navigation.systemMonitoring",
+  pending_users: "navigation.pendingApprovals",
+  bulk_upload: "navigation.bulkImport",
 };
 
 function tnav(key) {
@@ -282,6 +298,23 @@ const NAVIGATION_MATRIX = {
     },
 
     {
+      id: "crm",
+      name: "CRM",
+      icon: Users,
+      subItems: [
+        { id: "crm_dashboard", name: "DASHBOARD", href: "/admin/crm" },
+        { id: "all_contacts", name: "PEOPLE", href: "/admin/communications/contacts" },
+        { id: "crm_timeline", name: "TIMELINE", href: "/admin/crm/timeline" },
+        { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },
+        { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/bulk-upload" },
+        { id: "forms", name: "FORMS", href: "/admin/communications/forms" },
+        { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
+        { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
+        { id: "campaigns", name: "CAMPAIGNS", href: "/admin/communications/campaigns" },
+      ],
+    },
+
+    {
       id: "programs",
       name: "PROGRAMS",
       icon: Briefcase,
@@ -307,14 +340,7 @@ const NAVIGATION_MATRIX = {
       icon: Rocket,
       subItems: [
         { id: "all_ventures", name: "ALL VENTURES", href: "/admin/ventures" },
-        {
-          id: "register_venture",
-          name: "REGISTER STARTUP",
-          href: "/admin/ventures/register",
-        },
-        { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
-        { id: "security", name: "SECURITY", href: "/admin/security" },
-        { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
+        { id: "register_venture", name: "REGISTER STARTUP", href: "/admin/ventures/register" },
       ],
     },
 
@@ -333,129 +359,48 @@ const NAVIGATION_MATRIX = {
     },
 
     {
-      id: "internal_ops",
-      name: "Internal Ops",
+      id: "operations",
+      name: "OPERATIONS",
       icon: ListTodo,
       subItems: [
         { id: "internal_ops_board", name: "WORKSPACE", href: "/admin/work" },
-        {
-          id: "all_projects",
-          name: "PROJECTS",
-          href: "/admin/projects",
-        },
-        {
-          id: "create_project",
-          name: "CREATE PROJECT",
-          href: "/admin/projects?action=create",
-        },
-        {
-          id: "internal_reports",
-          name: "REPORTS",
-          href: "/admin/op-reports",
-        },
-      ],
-    },
-
-    {
-      id: "communication",
-      name: "COMMUNICATIONS",
-      icon: Send,
-      subItems: [
-        { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
-        {
-          id: "announcements",
-          name: "ANNOUNCEMENTS",
-          href: "/admin/announcements",
-        },
-        {
-          id: "campaigns",
-          name: "CAMPAIGNS",
-          href: "/admin/communications/campaigns",
-        },
-        { id: "forms", name: "FORMS", href: "/admin/communications/forms" },
-        {
-          id: "all_contacts",
-          name: "CONTACTS",
-          href: "/admin/communications/contacts",
-        },
-        {
-          id: "pending_users",
-          name: "PENDING USERS",
-          href: "/admin/pending-users",
-        },
-        { id: "bulk_upload", name: "BULK UPLOAD", href: "/admin/bulk-upload" },
+        { id: "all_projects", name: "PROJECTS", href: "/admin/projects" },
+        { id: "create_project", name: "CREATE PROJECT", href: "/admin/projects?action=create" },
+        { id: "tasks", name: "TASKS", href: "/admin/tasks" },
+        { id: "blockers", name: "BLOCKERS", href: "/admin/blockers" },
+        { id: "standup", name: "STANDUP", href: "/staff/op-report" },
+        { id: "retro", name: "RETRO", href: "/staff/op-report" },
+        { id: "internal_reports", name: "OP REPORTS", href: "/admin/op-reports" },
       ],
     },
 
     {
       id: "knowledge",
-      name: "KNOWLEDGE BASE",
+      name: "KNOWLEDGE",
       icon: Library,
-      href: "/admin/knowledge",
+      subItems: [
+        { id: "knowledge_base", name: "KNOWLEDGE BASE", href: "/admin/knowledge" },
+        { id: "intelligence", name: "INTELLIGENCE", href: "/admin/intelligence" },
+      ],
     },
 
+    { id: "finance", name: "FINANCE", icon: BarChart3, href: "/admin/finance" },
+    { id: "metrics", name: "HEALTH", icon: Activity, href: "/admin/metrics" },
+    { id: "reports", name: "REPORTS", icon: FileText, href: "/admin/reports" },
+
     {
-      id: "intelligence",
-      name: "INTELLIGENCE",
-      icon: TrendingUp,
-      href: "/admin/intelligence",
-    },
-    {
-      id: "reports",
-      name: "REPORTS",
-      icon: FileText,
-      href: "/admin/reports",
-    },
-    {
-      id: "finance",
-      name: "FINANCE",
-      icon: BarChart3,
-      href: "/admin/finance",
-    },
-    {
-      id: "metrics",
-      name: "HEALTH",
-      icon: Activity,
-      href: "/admin/metrics",
-    },
-    {
-      id: "standups_retros",
-      name: "STANDUPS & RETROS",
-      icon: MessageSquare,
-      subItems: [
-        { id: "standup", name: "STANDUP", href: "/staff/op-report" },
-        { id: "retro", name: "RETRO", href: "/staff/op-report" },
-      ],
-    },
-    {
-      id: "engineering",
-      name: "ENGINEERING",
+      id: "settings",
+      name: "SETTINGS",
       icon: Wrench,
       subItems: [
-        {
-          id: "engineering_dashboard",
-          name: "DASHBOARD",
-          href: "/admin/engineering",
-        },
-        {
-          id: "permissions",
-          name: "PERMISSIONS",
-          href: "/admin/engineering/permissions",
-        },
+        { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
+        { id: "security", name: "SECURITY", href: "/admin/security" },
+        { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
         { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
+        { id: "permissions", name: "PERMISSIONS", href: "/admin/engineering/permissions" },
+        { id: "engineering_dashboard", name: "ENGINEERING", href: "/admin/engineering" },
+        { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
       ],
-    },
-    {
-      id: "platform",
-      name: "INBOUND",
-      icon: Blocks,
-      href: "/platform",
-    },
-    {
-      id: "system",
-      name: "SYSTEM MONITORING",
-      icon: HeartPulse,
-      href: "/admin/system",
     },
   ],
   admin: [
@@ -759,52 +704,69 @@ const NAVIGATION_MATRIX = {
 // =============================================================================
 
 const NAV_RESPONSIBILITY_MAP = {
-  // Super Admin / Admin
+  // CRM
+  crm: "crm",
+  crm_dashboard: "crm",
+  crm_timeline: "crm",
+  all_contacts: "crm",
+  pending_users: "crm",
+  bulk_upload: "crm",
+  forms: "crm",
+  messages: "crm",
+  announcements: "crm",
+  campaigns: "crm",
+  // Programs
   programs: "program_management",
   all_programs: "program_management",
   create_program: "program_management",
   progress: "program_management",
   program_reports: "program_management",
   submissions: "program_management",
-  all_projects: "project_ownership",
-  create_project: "project_ownership",
-  internal_ops_board: "operations",
-  internal_reports: "reporting",
-  my_projects: "project_ownership",
-  communication: "communications",
-  messages: "communications",
-  campaigns: "communications",
-  forms: "communications",
-  all_contacts: "communications",
-  pending_users: "communications",
-  bulk_upload: "communications",
-  groups: "communications",
-  knowledge: "knowledge_base",
-  intelligence: "intelligence",
-  finance: "finance",
-  metrics: "reporting",
-  engineering: "engineering",
-  standups_retros: "engineering",
-  standup: "engineering",
-  retro: "engineering",
-  my_tasks: "engineering",
-  assigned_tasks: "engineering",
-  rituals: "engineering",
-  personnel: "user_management",
-  logs: "user_management",
-  reports: "reporting",
-  permissions: "user_management",
-  // Nav sections with custom naming
+  // Ventures
   ventures: "program_management",
   all_ventures: "program_management",
   register_venture: "program_management",
+  // Projects / Operations
+  operations: "operations",
   internal_ops: "operations",
-  // Additional nav items from other role matrices
-  dashboard: null, // always visible
-  projects: null, // always visible
-  announcements: "communications",
+  internal_ops_board: "operations",
+  all_projects: "project_ownership",
+  create_project: "project_ownership",
+  my_projects: "project_ownership",
+  tasks: "operations",
+  blockers: "operations",
+  standup: "operations",
+  retro: "operations",
+  standups_retros: "operations",
+  internal_reports: "reporting",
+  // Knowledge
+  knowledge: "knowledge_base",
+  knowledge_base: "knowledge_base",
+  intelligence: "intelligence",
+  // Finance & Health
+  finance: "finance",
+  metrics: "reporting",
+  reports: "reporting",
+  // Settings
+  settings: "system_settings",
+  audit_logs: "system_settings",
+  security: "system_settings",
+  integrations: "system_settings",
+  system: "system_settings",
   access_summary: "user_management",
+  permissions: "user_management",
   engineering_dashboard: "engineering",
+  engineering: "engineering",
+  // Legacy / always visible
+  dashboard: null,
+  projects: null,
+  personnel: "user_management",
+  logs: "user_management",
+  groups: "crm",
+  communication: "crm",
+  my_tasks: "operations",
+  assigned_tasks: "operations",
+  rituals: "operations",
 };
 
 // Roles that bypass responsibility filtering entirely
