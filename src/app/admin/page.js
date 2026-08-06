@@ -606,38 +606,67 @@ export default function AdminDashboard() {
 
         {/* ──────── PENDING APPROVALS ──────── */}
         {notifications.filter((n) => !n.is_read && n.type === "verification").length > 0 && (
-          <div className="space-y-4">
-            <SectionHeader
-              number="!"
-              title="Pending Access Requests"
-              subtitle="New users awaiting approval to join the platform"
-              icon={Bell}
-              color="bg-orange-500/10 text-orange-500"
-              action={
-                <button onClick={() => router.push("/admin/pending-users")} className="text-[9px] font-black text-orange-400 uppercase hover:underline">
-                  View All Pending →
-                </button>
-              }
-            />
-            <div className="space-y-3">
-              {notifications.filter((n) => !n.is_read && n.type === "verification").map((notif) => (
-                <div key={notif.id} className="card border-orange-500/30 bg-orange-500/5 flex flex-col md:flex-row justify-between items-center gap-6">
-                  <div className="flex items-center gap-5">
-                    <div className="p-3 rounded-xl bg-orange-500/20 text-orange-500">
-                      <Bell className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">{notif.title}</h4>
-                      <p className="text-[11px] font-medium text-[var(--brand-orange)] uppercase tracking-widest mt-1">{notif.message}</p>
+          <div className="card border-orange-500/20 bg-orange-500/[0.02] !p-0 overflow-hidden">
+            <div className="px-5 py-4 border-b border-orange-500/10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                  <Bell className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight">Pending Access Requests</h3>
+                  <p className="text-[10px] text-[var(--text-secondary)]">{notifications.filter((n) => !n.is_read && n.type === "verification").length} new — review before approving</p>
+                </div>
+              </div>
+              <button onClick={() => router.push("/admin/pending-users")} className="text-[9px] font-black text-orange-400 uppercase hover:underline">
+                View All →
+              </button>
+            </div>
+            <div className="divide-y divide-orange-500/5 max-h-[380px] overflow-y-auto">
+              {notifications.filter((n) => !n.is_read && n.type === "verification").slice(0, 5).map((notif) => {
+                const nameMatch = notif.message?.match(/^([\w\s]+) has applied/);
+                const applicantName = nameMatch ? nameMatch[1] : "Applicant";
+                return (
+                  <div key={notif.id} className="px-5 py-4 hover:bg-orange-500/[0.03] transition-colors">
+                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                      <div className="flex items-start gap-4 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-sm font-black text-orange-500">{applicantName.charAt(0)}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-[var(--text-primary)]">{applicantName}</h4>
+                          <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{notif.message}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <button
+                              onClick={async () => {
+                                setProcessingId(notif.id);
+                                await handleApproval(notif);
+                              }}
+                              disabled={processingId === notif.id}
+                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-500 disabled:opacity-50 inline-flex items-center gap-1.5"
+                            >
+                              {processingId === notif.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => router.push("/admin/pending-users")}
+                              className="px-4 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-wider hover:border-orange-500/30"
+                            >
+                              View Details
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <button onClick={() => handleApproval(notif)} disabled={processingId === notif.id}
-                    className="btn btn-primary !bg-emerald-500 hover:!bg-emerald-600 border-none px-6 py-2.5 flex items-center gap-2">
-                    {processingId === notif.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
-                    <span className="text-[10px] font-black uppercase">{t("admin.approveAccess")}</span>
+                );
+              })}
+              {notifications.filter((n) => !n.is_read && n.type === "verification").length > 5 && (
+                <div className="px-5 py-3 text-center">
+                  <button onClick={() => router.push("/admin/pending-users")} className="text-[10px] font-bold text-orange-400 hover:underline">
+                    +{notifications.filter((n) => !n.is_read && n.type === "verification").length - 5} more pending — view all
                   </button>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
