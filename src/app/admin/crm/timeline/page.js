@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Clock, Filter, User, ChevronRight, Search } from "lucide-react";
+import { Clock, Filter, User, Search } from "lucide-react";
 import Link from "next/link";
 
 const MODULE_COLORS = {
@@ -18,12 +18,16 @@ const MODULE_COLORS = {
 
 function TimelinePageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const cid = searchParams.get("cid");
 
   const [contact, setContact] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [moduleFilter, setModuleFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (!cid) return;
@@ -46,7 +50,18 @@ function TimelinePageContent() {
     fetchTimeline();
   }, [cid, moduleFilter]);
 
-  // Group events by year
+  async function handleContactSearch(q) {
+    setSearchQuery(q);
+    if (q.length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setSearchResults(data.contacts || []);
+    } catch (_) {}
+    setSearching(false);
+  }
+
   const eventsByYear = {};
   for (const ev of events) {
     const year = new Date(ev.created_at).getFullYear();
@@ -63,8 +78,38 @@ function TimelinePageContent() {
             <Clock className="w-12 h-12 mx-auto mb-4 text-[var(--text-secondary)]" />
             <h2 className="text-lg font-black uppercase mb-2">Select a Contact</h2>
             <p className="text-sm text-[var(--text-secondary)] mb-6">
-              View a person's complete timeline by navigating from the CRM dashboard or contacts list.
+              Search for a person to view their complete timeline.
             </p>
+            <div className="max-w-md mx-auto mb-4">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => handleContactSearch(e.target.value)}
+                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-[var(--brand-orange)]"
+                />
+              </div>
+              {searchResults.length > 0 && (
+                <div className="mt-2 bg-tertiary border border-[var(--border-primary)] rounded-xl overflow-hidden text-left">
+                  {searchResults.map((c) => (
+                    <button
+                      key={c.cid}
+                      onClick={() => router.push(`/admin/crm/timeline?cid=${c.cid}`)}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary transition-colors text-left"
+                    >
+                      <User className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+                      <div>
+                        <p className="text-sm font-bold">{c.name}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">{c.email}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {searching && <p className="text-[10px] text-[var(--text-secondary)] mt-2">Searching...</p>}
+            </div>
             <Link
               href="/admin/crm"
               className="inline-flex items-center gap-2 px-5 py-3 bg-[var(--brand-orange)] text-black font-bold text-sm uppercase rounded-xl"
@@ -80,7 +125,6 @@ function TimelinePageContent() {
   return (
     <DashboardLayout role="super_admin" activeTab="crm">
       <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <Link href="/admin/crm" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)]">
@@ -97,7 +141,6 @@ function TimelinePageContent() {
           </div>
         </div>
 
-        {/* Module Filters */}
         <div className="flex flex-wrap gap-2">
           {[
             { key: "", label: "All" },
@@ -122,7 +165,6 @@ function TimelinePageContent() {
           ))}
         </div>
 
-        {/* Timeline */}
         {loading ? (
           <div className="text-center py-10">
             <p className="text-sm text-[var(--text-secondary)]">Loading timeline...</p>
@@ -133,7 +175,6 @@ function TimelinePageContent() {
             <p className="text-sm font-bold mb-1">No events yet</p>
             <p className="text-xs text-[var(--text-secondary)]">
               {contact?.name || "This person"}'s timeline will populate as they interact with Future Studio.
-              Events from Forms, Programs, Ventures, and more will appear here automatically.
             </p>
           </div>
         ) : (
@@ -149,28 +190,18 @@ function TimelinePageContent() {
                 <div className="space-y-2 pl-6 border-l-2 border-[var(--border-primary)]">
                   {eventsByYear[year].map((ev) => (
                     <div key={ev.id} className="relative pl-6 pb-4">
-                      {/* Timeline dot */}
                       <div className="absolute left-[-23px] top-1.5 w-2.5 h-2.5 rounded-full bg-[var(--border-primary)] border-2 border-primary" />
                       <div className="bg-primary border border-[var(--border-primary)] rounded-xl p-4">
                         <div className="flex items-start justify-between gap-3">
                           <p className="text-sm font-bold">{ev.description}</p>
                           {ev.context_module && (
-                            <span
-                              className={`shrink-0 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                                MODULE_COLORS[ev.context_module] || MODULE_COLORS.system
-                              }`}
-                            >
+                            <span className={`shrink-0 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${MODULE_COLORS[ev.context_module] || MODULE_COLORS.system}`}>
                               {ev.context_module}
                             </span>
                           )}
                         </div>
                         <p className="text-[10px] text-[var(--text-secondary)] mt-1.5">
-                          {new Date(ev.created_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {new Date(ev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
                     </div>
