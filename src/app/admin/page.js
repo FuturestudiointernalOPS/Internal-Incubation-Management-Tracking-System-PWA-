@@ -604,6 +604,44 @@ export default function AdminDashboard() {
           </div>
         </header>
 
+        {/* ──────── PENDING APPROVALS ──────── */}
+        {notifications.filter((n) => !n.is_read && n.type === "verification").length > 0 && (
+          <div className="space-y-4">
+            <SectionHeader
+              number="!"
+              title="Pending Access Requests"
+              subtitle="New users awaiting approval to join the platform"
+              icon={Bell}
+              color="bg-orange-500/10 text-orange-500"
+              action={
+                <button onClick={() => router.push("/admin/pending-users")} className="text-[9px] font-black text-orange-400 uppercase hover:underline">
+                  View All Pending →
+                </button>
+              }
+            />
+            <div className="space-y-3">
+              {notifications.filter((n) => !n.is_read && n.type === "verification").map((notif) => (
+                <div key={notif.id} className="card border-orange-500/30 bg-orange-500/5 flex flex-col md:flex-row justify-between items-center gap-6">
+                  <div className="flex items-center gap-5">
+                    <div className="p-3 rounded-xl bg-orange-500/20 text-orange-500">
+                      <Bell className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">{notif.title}</h4>
+                      <p className="text-[11px] font-medium text-[var(--brand-orange)] uppercase tracking-widest mt-1">{notif.message}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => handleApproval(notif)} disabled={processingId === notif.id}
+                    className="btn btn-primary !bg-emerald-500 hover:!bg-emerald-600 border-none px-6 py-2.5 flex items-center gap-2">
+                    {processingId === notif.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                    <span className="text-[10px] font-black uppercase">{t("admin.approveAccess")}</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ═══════ DASHBOARD WIDGETS ═══════ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ─── LEFT: CALENDAR ─── */}
@@ -1019,49 +1057,6 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-
-        {/* ──────── PENDING APPROVALS (not messages) ──────── */}
-        {notifications.filter((n) => !n.is_read && n.type === "verification")
-          .length > 0 && (
-          <div className="space-y-4">
-            {notifications
-              .filter((n) => !n.is_read && n.type === "verification")
-              .map((notif) => (
-                <div
-                  key={notif.id}
-                  className="card border-orange-500/30 bg-orange-500/5 flex flex-col md:flex-row justify-between items-center gap-6 animate-pulse hover:animate-none"
-                >
-                  <div className="flex items-center gap-5">
-                    <div className="p-3 rounded-xl bg-orange-500/20 text-orange-500">
-                      <Bell className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                        {notif.title}
-                      </h4>
-                      <p className="text-[11px] font-medium text-[var(--brand-orange)] uppercase tracking-widest mt-1">
-                        {notif.message}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleApproval(notif)}
-                    disabled={processingId === notif.id}
-                    className="btn btn-primary !bg-emerald-500 hover:!bg-emerald-600 border-none px-6 py-2.5 flex items-center gap-2"
-                  >
-                    {processingId === notif.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <UserCheck className="w-4 h-4" />
-                    )}
-                    <span className="text-[10px] font-black uppercase">
-                      {t("admin.approveAccess")}
-                    </span>
-                  </button>
-                </div>
-              ))}
-          </div>
-        )}
 
         {/* ═══════════════════════════════════════════════ */}
         {/* SECTION A — PROGRAM OPERATIONS                 */}
