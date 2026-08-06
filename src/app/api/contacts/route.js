@@ -204,6 +204,29 @@ export async function POST(req) {
       );
     }
 
+    // Fire duplicate detection for new contacts (non-blocking)
+    if (inserted > 0) {
+      Promise.resolve().then(async () => {
+        for (const vc of validContacts) {
+          if (!vc.phone) continue;
+          try {
+            const existing = await db.execute({
+              sql: `SELECT cid FROM contacts WHERE phone = ? AND cid != ? AND email != ? AND deleted_at IS NULL LIMIT 1`,
+              args: [vc.phone, vc.cid, vc.email],
+            });
+            if (existing.rows.length > 0) {
+              await db.execute({
+                sql: `INSERT INTO contact_duplicate_flags (contact_cid_a, contact_cid_b, match_reason, confidence)
+                      VALUES (?, ?, 'same_phone', 0.85)
+                      ON CONFLICT (contact_cid_a, contact_cid_b) DO NOTHING`,
+                args: [vc.cid, existing.rows[0].cid],
+              });
+            }
+          } catch (_) {}
+        }
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ success: true, inserted, errors });
   } catch (error) {
     console.error("CRITICAL CONTACTS ERROR:", error.message);

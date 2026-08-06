@@ -289,6 +289,7 @@ const NAVIGATION_MATRIX = {
         { id: "crm_dashboard", name: "DASHBOARD", href: "/admin/crm" },
         { id: "all_contacts", name: "PEOPLE", href: "/admin/communications/contacts" },
         { id: "crm_timeline", name: "TIMELINE", href: "/admin/crm/timeline" },
+        { id: "crm_duplicates", name: "DUPLICATES", href: "/admin/crm/duplicates" },
         { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },
         { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/bulk-upload" },
         { id: "forms", name: "FORMS", href: "/platform" },
