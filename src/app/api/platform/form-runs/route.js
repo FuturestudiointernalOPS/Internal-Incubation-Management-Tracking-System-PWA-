@@ -535,6 +535,23 @@ export async function POST(req) {
         );
       }
 
+      // Auto-enroll approved applicant into linked program
+      if (decision === "approved") {
+        try {
+          const runRec = await db.execute({ sql: "SELECT form_id FROM platform_form_runs WHERE id = ?", args: [result.rows[0].run_id] });
+          if (runRec.rows.length > 0) {
+            const prog = await db.execute({ sql: "SELECT program_id FROM platform_forms WHERE id = ? AND program_id IS NOT NULL", args: [runRec.rows[0].form_id] });
+            if (prog.rows.length > 0) {
+              const pid = prog.rows[0].program_id;
+              const subId = result.rows[0].submitter_id;
+              await db.execute({ sql: "INSERT INTO participant_programs (participant_id, program_id, status, accepted_at) VALUES (?, ?, 'active', NOW()) ON CONFLICT DO NOTHING", args: [subId, pid] });
+              await db.execute({ sql: "INSERT INTO v2_participants (program_id, user_id, name, email, status) VALUES (?, ?, ?, ?, 'active') ON CONFLICT DO NOTHING", args: [pid, subId, subId, subId] });
+              await db.execute({ sql: "INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, metadata) VALUES (?, 'participant_enrolled', 'Enrolled in program', 'programs', ?, '{}'::jsonb)", args: [subId, pid] });
+            }
+          }
+        } catch (_) {}
+      }
+
       return NextResponse.json({ success: true, submission: result.rows[0] });
     }
 

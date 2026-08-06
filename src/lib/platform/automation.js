@@ -204,6 +204,26 @@ const RULES = [
         isApproved ? `Application approved for "${runName}"` : `Application not successful for "${runName}"`,
         "forms", ctx.submission.id, ctx.review.reviewer_id || "system",
         { decision: ctx.review.decision, run_id: ctx.submission.run_id });
+
+      if (isApproved && ctx.run?.form_id) {
+        try {
+          const { default: db, initDb } = await import("@/lib/db");
+          await initDb();
+          const prog = await db.execute({
+            sql: "SELECT program_id FROM platform_forms WHERE id = ? AND program_id IS NOT NULL",
+            args: [ctx.run.form_id],
+          });
+          if (prog.rows.length > 0) {
+            const pid = prog.rows[0].program_id;
+            await db.execute({
+              sql: "INSERT INTO participant_programs (participant_id, program_id, status, accepted_at) VALUES (?, ?, 'active', NOW()) ON CONFLICT DO NOTHING",
+              args: [ctx.submission.submitter_id, pid],
+            });
+            await writeCrmTimeline(ctx.submission.submitter_id, "participant_enrolled",
+              "Enrolled in program", "programs", pid, "system", { program_id: pid });
+          }
+        } catch (e) {}
+      }
     },
   },
 
