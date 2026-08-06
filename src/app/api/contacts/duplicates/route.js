@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireCapability } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +9,8 @@ export async function GET() {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
+    const capError = await requireCapability("crm", "view");
+    if (capError) return capError;
 
     const flags = await db.execute({
       sql: `SELECT df.*,
@@ -39,6 +41,8 @@ export async function DELETE(req) {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
+    const capError = await requireCapability("crm", "edit");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

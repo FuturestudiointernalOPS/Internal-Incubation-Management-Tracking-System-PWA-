@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireCapability } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 /**
@@ -38,6 +38,16 @@ async function fireInvite(cid, name, email, role, groupId) {
 export async function POST(req) {
   try {
     await initDb();
+    // Auth is optional — public forms create contacts without login.
+    // If authenticated, check capability.
+    try {
+      const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
+      if (!authError) {
+        const capError = await requireCapability("crm", "create");
+        if (capError) return capError;
+      }
+    } catch (_) {}
+
     const body = await req.json();
     const contacts = Array.isArray(body) ? body : [body];
 
@@ -248,6 +258,9 @@ export async function PUT(req) {
       "participant",
     ]);
     if (authError) return authError;
+    const capError = await requireCapability("crm", "edit");
+    if (capError) return capError;
+
     const data = await req.json();
 
     if (!data.cid) {
@@ -452,6 +465,8 @@ export async function GET(req) {
       "founder",
     ]);
     if (authError) return authError;
+    const capError = await requireCapability("crm", "view");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
@@ -502,6 +517,8 @@ export async function DELETE(req) {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
+    const capError = await requireCapability("crm", "delete");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const cid = searchParams.get("cid");

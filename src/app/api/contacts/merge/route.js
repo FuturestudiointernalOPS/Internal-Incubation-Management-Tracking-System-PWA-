@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth, requireCapability, getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +9,8 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
+    const capError = await requireCapability("crm", "delete");
+    if (capError) return capError;
 
     const session = await getSession();
     const { survivor_cid, duplicate_cid } = await req.json();
