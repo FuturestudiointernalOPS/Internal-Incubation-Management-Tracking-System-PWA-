@@ -52,7 +52,6 @@ export default function LoginPage() {
   const [impersonateError, setImpersonateError] = useState("");
   const isStaging =
     typeof window !== "undefined" &&
-    process.env.NEXT_PUBLIC_VERCEL_ENV !== "production" &&
     process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
 
   // Fetch available users when dev tools are opened
