@@ -38,6 +38,7 @@ import {
   Megaphone,
   HeartPulse,
   Blocks,
+  Clock,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -1784,6 +1785,20 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           </header>
 
           <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
+            {/* Staging Impersonation Banner */}
+            {user?.is_impersonation && (
+              <div className="mb-6 p-3 rounded-lg bg-amber-500/15 border border-amber-500/40 flex items-center gap-3">
+                <Wrench className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                    STAGING ENVIRONMENT — Impersonating: {user?.name || "Unknown"} ({user?.role || "unknown"})
+                  </p>
+                  <p className="text-[9px] text-amber-500/70 mt-0.5">
+                    You are viewing the application as this user. Log out to return to your own account.
+                  </p>
+                </div>
+              </div>
+            )}
             {/* Pinned Announcements Banner */}
             {pinnedAnnouncements.length > 0 && (
               <div className="mb-6 space-y-2">

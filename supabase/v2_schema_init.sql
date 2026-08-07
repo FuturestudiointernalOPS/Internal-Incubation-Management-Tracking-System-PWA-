@@ -191,6 +191,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     user_cid TEXT NOT NULL REFERENCES contacts(cid) ON DELETE CASCADE,
     role TEXT NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_impersonation BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Shield,
   Lock,
@@ -10,6 +10,10 @@ import {
   EyeOff,
   AlertCircle,
   Globe,
+  Wrench,
+  Users,
+  ChevronDown,
+  LogIn,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
@@ -38,6 +42,62 @@ export default function LoginPage() {
   const [success, setSuccess] = useState(false);
   const { t, lang, switchLang } = useI18n();
   const router = useRouter();
+
+  // ── Developer Tools (staging only) ──
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
+  const [impersonateUsers, setImpersonateUsers] = useState({});
+  const [selectedRole, setSelectedRole] = useState("");
+  const [selectedUserCid, setSelectedUserCid] = useState("");
+  const [impersonateLoading, setImpersonateLoading] = useState(false);
+  const [impersonateError, setImpersonateError] = useState("");
+  const isStaging =
+    typeof window !== "undefined" &&
+    process.env.NEXT_PUBLIC_VERCEL_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
+
+  // Fetch available users when dev tools are opened
+  useEffect(() => {
+    if (!devToolsOpen || !isStaging) return;
+    async function fetchUsers() {
+      try {
+        const res = await fetch("/api/auth/impersonate");
+        const data = await res.json();
+        if (data.success) {
+          setImpersonateUsers(data.users || {});
+        }
+      } catch (_) {}
+    }
+    fetchUsers();
+  }, [devToolsOpen, isStaging]);
+
+  // Reset user selection when role changes
+  useEffect(() => {
+    setSelectedUserCid("");
+  }, [selectedRole]);
+
+  const handleImpersonate = async () => {
+    if (!selectedUserCid) return;
+    setImpersonateLoading(true);
+    setImpersonateError("");
+    try {
+      const res = await fetch("/api/auth/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cid: selectedUserCid }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+        window.location.href = data.redirect;
+      } else {
+        setImpersonateError(data.error || "Impersonation failed.");
+        setImpersonateLoading(false);
+      }
+    } catch (err) {
+      setImpersonateError("Network error.");
+      setImpersonateLoading(false);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -191,6 +251,96 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
+
+        {/* ── Developer Tools: Staging-Only Impersonation ── */}
+        {isStaging && (
+          <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setDevToolsOpen(!devToolsOpen)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-500/10 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-amber-500" />
+                <span className="text-[11px] font-black text-amber-500 uppercase tracking-widest">
+                  Developer Tools (Staging Only)
+                </span>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-amber-500 transition-transform ${devToolsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {devToolsOpen && (
+              <div className="px-4 pb-4 space-y-3 animate-in">
+                <div className="border-t border-amber-500/20 pt-3">
+                  <p className="text-[9px] font-bold text-amber-500/70 uppercase tracking-wider mb-2">
+                    Login as any user without password
+                  </p>
+
+                  {/* Role selector */}
+                  <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1 block">
+                    Role
+                  </label>
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-2 px-3 text-xs font-medium outline-none focus:border-amber-500 transition-all mb-2"
+                  >
+                    <option value="">— Select role —</option>
+                    {Object.keys(impersonateUsers).map((role) => (
+                      <option key={role} value={role}>
+                        {role.replace(/_/g, " ").toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* User selector */}
+                  {selectedRole && impersonateUsers[selectedRole] && (
+                    <>
+                      <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1 block">
+                        User
+                      </label>
+                      <select
+                        value={selectedUserCid}
+                        onChange={(e) => setSelectedUserCid(e.target.value)}
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-2 px-3 text-xs font-medium outline-none focus:border-amber-500 transition-all mb-2"
+                      >
+                        <option value="">— Select user —</option>
+                        {impersonateUsers[selectedRole].map((u) => (
+                          <option key={u.cid} value={u.cid}>
+                            {u.name} ({u.email})
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+
+                  {/* Error */}
+                  {impersonateError && (
+                    <div className="p-2 rounded-md bg-rose-500/10 border border-rose-500/20 flex items-center gap-2 mb-2">
+                      <AlertCircle className="w-3 h-3 text-rose-500" />
+                      <span className="text-[9px] font-bold text-rose-500 uppercase">
+                        {impersonateError}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Login button */}
+                  <button
+                    type="button"
+                    disabled={!selectedUserCid || impersonateLoading}
+                    onClick={handleImpersonate}
+                    className="w-full py-2.5 bg-amber-500 text-black rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    {impersonateLoading ? "Logging in..." : "Login as Selected User"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-center gap-2 mb-4">
           <Globe className="w-3.5 h-3.5 text-[var(--text-secondary)]" />

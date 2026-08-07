@@ -19,7 +19,7 @@ const FAILURE_CACHE_TTL = 30000; // If DB fails, don't retry for 30s
  * Stores session in database and returns the token and maxAge.
  * The caller is responsible for setting the cookie on the response.
  */
-export async function createSession(userCid, userRole, rememberMe = false) {
+export async function createSession(userCid, userRole, rememberMe = false, isImpersonation = false) {
   await initDb();
 
   const durationMs = rememberMe ? REMEMBER_ME_DURATION_MS : SESSION_DURATION_MS;
@@ -35,6 +35,8 @@ export async function createSession(userCid, userRole, rememberMe = false) {
     userCid,
     "role:",
     userRole,
+    "impersonation:",
+    isImpersonation,
     "expires:",
     expiresAtStr,
   );
@@ -56,9 +58,9 @@ export async function createSession(userCid, userRole, rememberMe = false) {
 
   // Create new session
   await db.execute({
-    sql: `INSERT INTO user_sessions (token, user_cid, role, expires_at)
-          VALUES (?, ?, ?, ?)`,
-    args: [token, userCid, userRole, expiresAtStr],
+    sql: `INSERT INTO user_sessions (token, user_cid, role, expires_at, is_impersonation)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [token, userCid, userRole, expiresAtStr, isImpersonation ? 1 : 0],
   });
 
   console.log(
@@ -66,7 +68,7 @@ export async function createSession(userCid, userRole, rememberMe = false) {
     token.substring(0, 8) + "...",
   );
 
-  return { token, maxAge: rememberMe ? REMEMBER_ME_DURATION_HOURS * 60 * 60 : SESSION_DURATION_HOURS * 60 * 60 };
+  return { token, maxAge: rememberMe ? REMEMBER_ME_DURATION_HOURS * 60 * 60 : SESSION_DURATION_HOURS * 60 * 60, isImpersonation };
 }
 
 /**
@@ -104,7 +106,7 @@ export async function getSession() {
     );
 
     const result = await db.execute({
-      sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
+      sql: `SELECT s.*, s.is_impersonation, c.name, c.email, c.status, c.group_name
             FROM user_sessions s
             LEFT JOIN contacts c ON s.user_cid = c.cid
             WHERE s.token = ? AND s.expires_at > NOW()`,
@@ -148,6 +150,7 @@ export async function getSession() {
       role: session.role,
       group_name: session.group_name,
       token: session.token,
+      is_impersonation: !!session.is_impersonation,
     };
 
     // Cache the session for 5s
