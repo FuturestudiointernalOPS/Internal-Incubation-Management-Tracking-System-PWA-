@@ -487,8 +487,21 @@ function ContactsPageContent() {
     );
   };
 
-  const copyJoinLink = (groupName) => {
-    const link = `${window.location.origin}/register-staff?group=${encodeURIComponent(groupName)}`;
+  const copyJoinLink = async (groupName) => {
+    let link = `${window.location.origin}/register-staff?group=${encodeURIComponent(groupName)}`;
+    try {
+      const gRes = await fetch(`/api/groups?search=${encodeURIComponent(groupName)}`);
+      const gData = await gRes.json();
+      if (gData.success && gData.groups && gData.groups.length > 0) {
+        const group = gData.groups[0];
+        const regId = group.registration_id || group.id;
+        const frRes = await fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(regId)}`);
+        const frData = await frRes.json();
+        if (frData.success && frData.runs && frData.runs.length > 0) {
+          link = `${window.location.origin}/s/${frData.runs[0].public_slug}`;
+        }
+      }
+    } catch (_) {}
     navigator.clipboard.writeText(link);
     setCopiedGroup(groupName);
     setTimeout(() => setCopiedGroup(null), 2000);
