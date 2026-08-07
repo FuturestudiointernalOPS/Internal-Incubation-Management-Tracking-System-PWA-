@@ -15,8 +15,11 @@ import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
  */
 export async function POST(req) {
   // ── Layer 1 & 2: Environment guard ──
+  // Uses NEXT_PUBLIC_ so only one env var is needed for both client + server
   const isProduction = process.env.VERCEL_ENV === "production";
-  const impersonationAllowed = process.env.ALLOW_IMPERSONATION === "true";
+  const impersonationAllowed =
+    process.env.ALLOW_IMPERSONATION === "true" ||
+    process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
 
   if (isProduction || !impersonationAllowed) {
     // Return 404 — don't reveal the endpoint exists
@@ -186,7 +189,9 @@ export async function POST(req) {
  */
 export async function GET() {
   const isProduction = process.env.VERCEL_ENV === "production";
-  const impersonationAllowed = process.env.ALLOW_IMPERSONATION === "true";
+  const impersonationAllowed =
+    process.env.ALLOW_IMPERSONATION === "true" ||
+    process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
 
   if (isProduction || !impersonationAllowed) {
     return NextResponse.json(
