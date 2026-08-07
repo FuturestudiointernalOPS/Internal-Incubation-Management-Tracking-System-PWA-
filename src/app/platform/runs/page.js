@@ -273,6 +273,7 @@ export default function FormRunsPage() {
   const [runs, setRuns] = useState([]);
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -293,7 +294,7 @@ export default function FormRunsPage() {
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
-  const [createData, setCreateData] = useState({ form_id: "", name: "", description: "", opens_at: "", closes_at: "" });
+  const [createData, setCreateData] = useState({ form_id: "", name: "", description: "", opens_at: "", closes_at: "", group_id: "" });
   const [saving, setSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false); // 'opens' | 'closes' | null
   const [showOpensCal, setShowOpensCal] = useState(false);
@@ -354,6 +355,14 @@ export default function FormRunsPage() {
     } catch (_) {}
   }, []);
 
+  const fetchGroups = useCallback(async () => {
+    try {
+      const res = await fetch("/api/groups");
+      const data = await res.json();
+      if (data.success) setGroups(data.groups || []);
+    } catch (_) {}
+  }, []);
+
   const fetchDashboardStats = useCallback(async () => {
     try {
       const res = await fetch("/api/platform/form-runs?dashboard=true");
@@ -362,7 +371,7 @@ export default function FormRunsPage() {
     } catch (_) {}
   }, []);
 
-  useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchDashboardStats(); }, [fetchRuns]);
+  useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchDashboardStats(); }, [fetchRuns]);
 
   const openRun = useCallback(async (run) => {
     setSelectedRun(run);
@@ -395,10 +404,16 @@ export default function FormRunsPage() {
     if (!createData.form_id || !createData.name.trim()) return;
     setSaving(true);
     try {
+      const body = { ...createData };
+      // Attach group assignment if selected
+      if (createData.group_id) {
+        body.assignments = [{ target_type: "group", target_id: createData.group_id }];
+      }
+      delete body.group_id; // not a DB column
       const res = await fetch("/api/platform/form-runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(createData),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.success) {
@@ -876,6 +891,14 @@ export default function FormRunsPage() {
                             {contacts.map((c) => <option key={c.cid} value={c.cid}>{c.name || c.email || c.cid}</option>)}
                           </select>
                         </div>
+                      ) : assignTarget === "group" ? (
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Group</label>
+                          <select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                            <option value="">Select group...</option>
+                            {groups.map((g) => <option key={g.registration_id || g.id} value={g.registration_id || g.id}>{g.name}</option>)}
+                          </select>
+                        </div>
                       ) : (
                         <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Target ID</label><input value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder="e.g. program_id or group_id" /></div>
                       )}
@@ -1268,6 +1291,21 @@ export default function FormRunsPage() {
                     <span className="truncate">{createData.closes_at ? new Date(createData.closes_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Set close date...'}</span>
                   </button>
                 </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Assign to Group (optional)</label>
+                <select
+                  value={createData.group_id}
+                  onChange={(e) => setCreateData({ ...createData, group_id: e.target.value })}
+                  className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
+                >
+                  <option value="">No group (assign later)</option>
+                  {groups.map((g) => (
+                    <option key={g.registration_id || g.id} value={g.registration_id || g.id}>
+                      {g.name} {g.program_id ? `(Program: ${g.program_id})` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">Cancel</button><button onClick={handleCreate} disabled={saving || !createData.form_id || !createData.name.trim()} className="flex-1 btn btn-primary">{saving ? "Creating..." : "Create Run"}</button></div>
