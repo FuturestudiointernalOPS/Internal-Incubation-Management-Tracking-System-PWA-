@@ -55,19 +55,9 @@ export default function LoginPage() {
     typeof window !== "undefined" &&
     process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
 
-  // Hardcoded staging test users as fallback (from README)
+  // Hardcoded staging test users as fallback
   const FALLBACK_USERS = {
-    super_admin: [{ cid: "sa", name: "Super Admin", email: "superadmin@impactos.staging" }],
-    program_manager: [{ cid: "pm-test", name: "Program Manager", email: "pm@impactos.staging" }],
-    staff: [
-      { cid: "staff1", name: "Staff 1", email: "staff1@impactos.staging" },
-      { cid: "staff2", name: "Staff 2", email: "staff2@impactos.staging" },
-    ],
-    developer: [{ cid: "dev-test", name: "Developer", email: "developer@impactos.staging" }],
-    participant: [{ cid: "part-test", name: "Participant", email: "participant@impactos.staging" }],
-    teacher: [{ cid: "teacher-test", name: "Teacher", email: "teacher@impactos.staging" }],
-    investor: [{ cid: "investor-test", name: "Investor", email: "investor@impactos.staging" }],
-    mentor: [{ cid: "mentor-test", name: "Mentor", email: "mentor@impactos.staging" }],
+    super_admin: [{ cid: "sp", name: "Super Admin", email: "sp@staging.bj" }],
   };
 
   // Fetch available users when dev tools are opened
