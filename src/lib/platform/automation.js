@@ -119,16 +119,11 @@ const RULES = [
     },
   },
 
-  // ── CRM: Sync submission to contacts + timeline ──
+  // ── CRM: Sync submission to contacts + timeline (always — system responsibility) ──
   {
     event: PLATFORM_EVENTS.SUBMISSION_RECEIVED,
     description: "Create/update CRM contact and write timeline event",
-    condition: (ctx) => {
-      if (ctx.submission?.status !== "submitted") return false;
-      const auto = ctx.form?.settings?.automation;
-      // Default to true if no config (backward compatible)
-      return !auto || auto.on_submit?.create_crm_contact !== false;
-    },
+    condition: (ctx) => ctx.submission?.status === "submitted",
     action: async (ctx) => {
       const cid = await syncCrmContact(ctx.submission);
       if (cid) {

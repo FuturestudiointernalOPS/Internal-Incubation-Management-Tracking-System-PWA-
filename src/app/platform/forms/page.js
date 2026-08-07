@@ -94,7 +94,7 @@ export default function PlatformForms() {
   const [automationConfig, setAutomationConfig] = useState(null);
 
   const DEFAULT_AUTOMATION = {
-    on_submit: { send_acknowledgement: true, create_crm_contact: true },
+    on_submit: { send_acknowledgement: true },
     on_approve: { send_approval_email: true, create_platform_user: true, send_activation_email: true, enroll_in_program: true, assign_to_group: true },
     on_reject: { send_rejection_email: true },
     redirect_after_submit: "",
@@ -1242,7 +1242,6 @@ export default function PlatformForms() {
                     <div className="space-y-2 pl-1">
                       <p className="text-[8px] font-black text-amber-400 uppercase">On Submit</p>
                       <Toggle path="on_submit.send_acknowledgement" label="Send acknowledgement email" desc="Confirmation on form submission" />
-                      <Toggle path="on_submit.create_crm_contact" label="Create CRM contact" desc="Auto-create from submission data" />
                       <p className="text-[8px] font-black text-emerald-400 uppercase pt-1">On Approval</p>
                       <Toggle path="on_approve.send_approval_email" label="Send approval email" desc="Notify applicant of acceptance" />
                       <Toggle path="on_approve.create_platform_user" label="Create platform user" desc="Generate user account" />
