@@ -30,21 +30,21 @@ export async function GET(req) {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
       const form = await db.execute({
-        sql: "SELECT * FROM platform_forms WHERE id = ?",
-        args: [parseInt(id)],
+        sql: "SELECT * FROM platform_forms WHERE id::text = ?",
+        args: [id],
       });
       if (form.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
       }
 
       const sections = await db.execute({
-        sql: "SELECT * FROM platform_form_sections WHERE form_id = ? ORDER BY sort_order",
-        args: [parseInt(id)],
+        sql: "SELECT * FROM platform_form_sections WHERE form_id::text = ? ORDER BY sort_order",
+        args: [id],
       });
 
       const fields = await db.execute({
-        sql: "SELECT * FROM platform_form_fields WHERE form_id = ? ORDER BY sort_order",
-        args: [parseInt(id)],
+        sql: "SELECT * FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order",
+        args: [id],
       });
 
       let sectionsResult = sections.rows;

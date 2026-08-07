@@ -35,12 +35,9 @@ export default function JoinGroupPage() {
         if (g.form_id) {
           const formRes = await fetch(`/api/platform/forms?id=${g.form_id}`);
           const formData = await formRes.json();
-          if (formData.success && formData.forms?.length) {
-            setForm(formData.forms[0]);
-
-            const fieldsRes = await fetch(`/api/platform/forms?id=${g.form_id}&fields=true`);
-            const fieldsData = await fieldsRes.json();
-            if (fieldsData.success) setFields(fieldsData.fields || []);
+          if (formData.success && formData.form) {
+            setForm(formData.form);
+            setFields(formData.fields || []);
           }
         }
       } catch (e) {
