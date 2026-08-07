@@ -21,7 +21,8 @@ export async function POST(req) {
     process.env.ALLOW_IMPERSONATION === "true" ||
     process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
 
-  if (isProduction || !impersonationAllowed) {
+  // Allow impersonation if explicitly enabled via env vars, even on Vercel "production" branch
+  if (!impersonationAllowed) {
     // Return 404 — don't reveal the endpoint exists
     return NextResponse.json(
       { success: false, error: "Not found" },
@@ -193,7 +194,7 @@ export async function GET() {
     process.env.ALLOW_IMPERSONATION === "true" ||
     process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
 
-  if (isProduction || !impersonationAllowed) {
+  if (!impersonationAllowed) {
     return NextResponse.json(
       { success: false, error: "Not found" },
       { status: 404 }
