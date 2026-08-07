@@ -108,7 +108,17 @@ export default function LoginPage() {
       const data = await res.json();
       if (data.success) {
         localStorage.setItem("user", JSON.stringify(data.user));
-        window.location.href = data.redirect;
+        // Resolve target same as normal login
+        var role = data.user.role;
+        var target;
+        if (role === "super_admin") target = "/admin";
+        else if (role === "program_manager") target = "/pm";
+        else if (role === "staff") target = "/staff";
+        else if (role === "teacher") target = "/teacher";
+        else if (role === "developer") target = "/developer";
+        else if (role === "investor") target = "/investor/dashboard";
+        else target = "/participant";
+        window.location.href = target;
       } else {
         setImpersonateError(data.error || "Impersonation failed.");
         setImpersonateLoading(false);
