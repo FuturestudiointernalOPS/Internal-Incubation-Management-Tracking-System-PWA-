@@ -105,10 +105,16 @@ export default function LoginPage() {
     setImpersonateLoading(true);
     setImpersonateError("");
     try {
+      // Find the selected user's email for fallback lookup
+      const selectedUsers = impersonateUsers[selectedRole] || [];
+      const selectedUser = selectedUsers.find(u => u.cid === selectedUserCid);
+      const body = { cid: selectedUserCid };
+      if (selectedUser && selectedUser.email) body.email = selectedUser.email;
+
       const res = await fetch("/api/auth/impersonate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cid: selectedUserCid }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.success) {
