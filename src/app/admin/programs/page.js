@@ -909,10 +909,19 @@ export default function ProgramManagement() {
                       {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={encodeURIComponent(String(editingProgram.assigned_segments[0] || ''))}
                     </code>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const gid = editingProgram.assigned_segments[0];
                         if (!gid) return;
-                        navigator.clipboard.writeText(`${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(gid))}`);
+                        // Check for form run URL first
+                        let link = `${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(gid))}`;
+                        try {
+                          const frRes = await fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(gid)}`);
+                          const frData = await frRes.json();
+                          if (frData.success && frData.runs && frData.runs.length > 0) {
+                            link = `${window.location.origin}/s/${frData.runs[0].public_slug}`;
+                          }
+                        } catch (_) {}
+                        navigator.clipboard.writeText(link);
                         window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
                       }}
                       className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
@@ -1303,10 +1312,19 @@ export default function ProgramManagement() {
                             <span 
                               className="text-[8px] font-medium text-emerald-400/80 hover:text-emerald-400 truncate mt-0.5"
                               title="Click to copy registration link"
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
                                 const regId = s.registration_id || s.id;
-                                navigator.clipboard.writeText(`${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(regId))}`);
+                                // Check for form run URL first
+                                let link = `${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(regId))}`;
+                                try {
+                                  const frRes = await fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(regId)}`);
+                                  const frData = await frRes.json();
+                                  if (frData.success && frData.runs && frData.runs.length > 0) {
+                                    link = `${window.location.origin}/s/${frData.runs[0].public_slug}`;
+                                  }
+                                } catch (_) {}
+                                navigator.clipboard.writeText(link);
                                 window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t?.("admin.copied") || "Registration link copied to clipboard" } }));
                               }}
                             >

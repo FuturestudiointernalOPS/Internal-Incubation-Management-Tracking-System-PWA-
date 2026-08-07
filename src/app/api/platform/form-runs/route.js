@@ -322,9 +322,17 @@ export async function GET(req) {
       return NextResponse.json({ success: true, submissions: subs.rows });
     }
 
-    // List all runs
-    let sql = "SELECT r.*, f.name as form_name FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE 1=1";
+    // List all runs (optionally filtered by group_id)
+    const groupId = searchParams.get("group_id");
+    let sql = "SELECT r.*, f.name as form_name FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id";
     const args = [];
+
+    if (groupId) {
+      sql += " JOIN platform_form_run_assignments a ON r.id = a.run_id AND a.target_type = 'group' AND a.target_id = ?";
+      args.push(groupId);
+    }
+
+    sql += " WHERE 1=1";
     if (formId) { sql += " AND r.form_id = ?"; args.push(parseInt(formId)); }
     if (status && status !== "all") { sql += " AND r.status = ?"; args.push(status); }
     sql += " ORDER BY r.updated_at DESC";
