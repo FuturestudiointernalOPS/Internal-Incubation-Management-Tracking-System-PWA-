@@ -205,17 +205,23 @@ export async function PUT(req) {
         return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
       }
 
-      // Upsert sections
+      // ── Step 1: Collect section IDs that will be deleted in this request.
+      //    We must NOT delete them yet — fields still reference them and must be
+      //    updated first. Deleting a section before its fields are re-assigned
+      //    triggers the FK violation ("platform_form_fields_section_id_fkey").
+      const deletedSectionIds = new Set();
       if (Array.isArray(sections)) {
         for (const sec of sections) {
-          // Handle deletion: section marked for removal
           if (sec._delete && sec.id) {
-            await db.execute({
-              sql: "DELETE FROM platform_form_sections WHERE id = ? AND form_id = ?",
-              args: [parseInt(sec.id), parseInt(id)],
-            });
-            continue;
+            deletedSectionIds.add(parseInt(sec.id));
           }
+        }
+      }
+
+      // ── Step 2: Upsert sections (inserts/updates only — deletions come later).
+      if (Array.isArray(sections)) {
+        for (const sec of sections) {
+          if (sec._delete) continue; // handled in Step 4
           if (sec.id) {
             await db.execute({
               sql: "UPDATE platform_form_sections SET title = ?, description = ?, sort_order = ?, settings = ? WHERE id = ? AND form_id = ?",
@@ -230,10 +236,11 @@ export async function PUT(req) {
         }
       }
 
-      // Upsert fields
+      // ── Step 3: Upsert fields.
+      //    If a field's section_id points to a section that is being deleted in
+      //    this same request, use null instead — avoids the FK violation.
       if (Array.isArray(fields)) {
         for (const fld of fields) {
-          // Handle deletion: field marked for removal
           if (fld._delete && fld.id) {
             await db.execute({
               sql: "DELETE FROM platform_form_fields WHERE id = ? AND form_id = ?",
@@ -241,6 +248,15 @@ export async function PUT(req) {
             });
             continue;
           }
+
+          // Resolve section_id: null-out if the section is being deleted or
+          // if the value is a non-numeric temp string (e.g. "_tmp_xyz").
+          const rawSectionId = fld.section_id ? parseInt(fld.section_id) : null;
+          const resolvedSectionId =
+            rawSectionId && !isNaN(rawSectionId) && !deletedSectionIds.has(rawSectionId)
+              ? rawSectionId
+              : null;
+
           if (fld.id) {
             await db.execute({
               sql: `UPDATE platform_form_fields
@@ -255,19 +271,19 @@ export async function PUT(req) {
                 fld.validation ? JSON.stringify(fld.validation) : null,
                 fld.conditional_logic ? JSON.stringify(fld.conditional_logic) : null,
                 fld.sort_order || 0,
-                fld.section_id ? parseInt(fld.section_id) : null,
+                resolvedSectionId,
                 JSON.stringify(fld.settings || {}),
                 parseInt(fld.id), parseInt(id),
               ],
             });
           } else {
-            const result = await db.execute({
+            await db.execute({
               sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, placeholder, help_text, required, options, validation, conditional_logic, sort_order)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     RETURNING *`,
               args: [
                 parseInt(id),
-                fld.section_id ? parseInt(fld.section_id) : null,
+                resolvedSectionId,
                 fld.field_type || "text",
                 fld.label,
                 fld.placeholder || null,
@@ -281,6 +297,17 @@ export async function PUT(req) {
             });
           }
         }
+      }
+
+      // ── Step 4: Now it is safe to delete sections.
+      //    All fields that referenced them have already been re-assigned to null,
+      //    so no FK violation can occur. The DB ON DELETE SET NULL acts as a
+      //    safety net for any edge-case fields not sent in this payload.
+      for (const sectionId of deletedSectionIds) {
+        await db.execute({
+          sql: "DELETE FROM platform_form_sections WHERE id = ? AND form_id = ?",
+          args: [sectionId, parseInt(id)],
+        });
       }
 
       await db.execute({
