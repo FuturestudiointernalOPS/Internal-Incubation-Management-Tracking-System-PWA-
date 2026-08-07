@@ -108,12 +108,12 @@ export default function LoginPage() {
       // Find the selected user's email for login
       const selectedUsers = impersonateUsers[selectedRole] || [];
       const selectedUser = selectedUsers.find(u => u.cid === selectedUserCid);
-      const email = selectedUser ? selectedUser.email : selectedUserCid;
+      const userEmail = selectedUser ? selectedUser.email : selectedUserCid;
 
-      const res = await fetch("/api/auth/quick-login", {
+      const res = await fetch("/api/auth/session-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: userEmail, password: "Aa.123456" }),
       });
       const data = await res.json();
       if (data.success) {
