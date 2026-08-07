@@ -4,26 +4,31 @@ import { requireAuth } from "@/lib/auth";
 
 import { v4 as uuidv4 } from "uuid";
 
-export async function GET() {
+export async function GET(req) {
   try {
     await initDb();
+    const { searchParams } = new URL(req.url);
+    const regId = searchParams.get("registration_id");
+
+    // Lookup by registration_id is public (used by join page)
+    if (regId) {
+      const result = await db.execute({
+        sql: "SELECT * FROM families WHERE registration_id = ?",
+        args: [regId],
+      });
+      return NextResponse.json({ success: true, families: result.rows });
+    }
+
+    // All other queries require auth
     const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "participant",
+      "staff", "super_admin", "program_manager", "teacher", "participant",
     ]);
     if (authError) return authError;
-    const result = await db.execute(
-      "SELECT * FROM families ORDER BY name ASC",
-    ).catch(() => db.execute("SELECT * FROM families ORDER BY name ASC"));
+
+    const result = await db.execute("SELECT * FROM families ORDER BY name ASC");
     return NextResponse.json({ success: true, families: result.rows });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -34,52 +39,59 @@ export async function POST(req) {
     if (authError) return authError;
     const { name, type, program_id, description } = await req.json();
 
-    // Schema Migration: Ensure description exists
     try {
       await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
-    } catch (e) {
-      // Column likely exists
-    }
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS form_id UUID");
+    } catch (e) {}
 
     if (!name)
-      return NextResponse.json(
-        { success: false, error: "Name is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: "Name is required" }, { status: 400 });
 
-    const registration_id =
-      "GRP-" +
-      uuidv4().split("-")[0].toUpperCase() +
-      Math.floor(Math.random() * 1000);
+    const registration_id = "GRP-" + uuidv4().split("-")[0].toUpperCase() + Math.floor(Math.random() * 1000);
+
+    // Auto-create a Platform form for this group
+    let formId = null;
+    try {
+      const formRes = await db.execute({
+        sql: "INSERT INTO platform_forms (name, description, target_group) VALUES (?, 'Auto-created for group: ' || ?, ?) RETURNING id",
+        args: [name, name, registration_id],
+      });
+      formId = formRes.rows[0]?.id;
+      if (formId) {
+        const secRes = await db.execute({
+          sql: "INSERT INTO platform_form_sections (form_id, title, sort_order) VALUES (?, 'Profile Information', 0) RETURNING id",
+          args: [formId],
+        });
+        const sectionId = secRes.rows[0]?.id;
+        if (sectionId) {
+          const defaultFields = [
+            { label: 'Full Name', field_type: 'text', required: true, sort_order: 0 },
+            { label: 'Email Address', field_type: 'email', required: true, sort_order: 1 },
+            { label: 'Phone Number', field_type: 'phone', required: false, sort_order: 2 },
+          ];
+          for (const f of defaultFields) {
+            await db.execute({
+              sql: "INSERT INTO platform_form_fields (form_id, section_id, label, field_type, required, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
+              args: [formId, sectionId, f.label, f.field_type, f.required, f.sort_order],
+            });
+          }
+        }
+      }
+    } catch (e) { console.warn("Auto-create form failed:", e.message); }
 
     const res = await db.execute({
-      sql: "INSERT INTO families (name, registration_id, program_id, type, description) VALUES (?, ?, ?::uuid, ?, ?) RETURNING id",
-      args: [
-        name,
-        registration_id,
-        program_id || null,
-        type || "individual",
-        description || null,
-      ],
+      sql: "INSERT INTO families (name, registration_id, program_id, type, description, form_id) VALUES (?, ?, ?::uuid, ?, ?, ?::uuid) RETURNING id",
+      args: [name, registration_id, program_id || null, type || "individual", description || null, formId],
     });
 
     const newId = res.lastInsertRowid;
 
     return NextResponse.json({
-      success: true,
-      id: newId,
-      group: {
-        id: newId,
-        name,
-        registration_id,
-        description,
-      },
+      success: true, id: newId, form_id: formId,
+      group: { id: newId, name, registration_id, description, form_id: formId },
     });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
