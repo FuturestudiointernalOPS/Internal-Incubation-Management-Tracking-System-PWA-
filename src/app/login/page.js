@@ -43,28 +43,54 @@ export default function LoginPage() {
   const { t, lang, switchLang } = useI18n();
   const router = useRouter();
 
-  // ── Developer Tools (staging only) ──
+  // Developer Tools (staging only)
   const [devToolsOpen, setDevToolsOpen] = useState(false);
   const [impersonateUsers, setImpersonateUsers] = useState({});
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedUserCid, setSelectedUserCid] = useState("");
   const [impersonateLoading, setImpersonateLoading] = useState(false);
   const [impersonateError, setImpersonateError] = useState("");
+  const [impersonateDebug, setImpersonateDebug] = useState("");
   const isStaging =
     typeof window !== "undefined" &&
     process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
+
+  // Hardcoded staging test users as fallback (from README)
+  const FALLBACK_USERS = {
+    super_admin: [{ cid: "sa", name: "Super Admin", email: "superadmin@impactos.staging" }],
+    program_manager: [{ cid: "pm-test", name: "Program Manager", email: "pm@impactos.staging" }],
+    staff: [
+      { cid: "staff1", name: "Staff 1", email: "staff1@impactos.staging" },
+      { cid: "staff2", name: "Staff 2", email: "staff2@impactos.staging" },
+    ],
+    developer: [{ cid: "dev-test", name: "Developer", email: "developer@impactos.staging" }],
+    participant: [{ cid: "part-test", name: "Participant", email: "participant@impactos.staging" }],
+    teacher: [{ cid: "teacher-test", name: "Teacher", email: "teacher@impactos.staging" }],
+    investor: [{ cid: "investor-test", name: "Investor", email: "investor@impactos.staging" }],
+    mentor: [{ cid: "mentor-test", name: "Mentor", email: "mentor@impactos.staging" }],
+  };
 
   // Fetch available users when dev tools are opened
   useEffect(() => {
     if (!devToolsOpen || !isStaging) return;
     async function fetchUsers() {
+      setImpersonateDebug("Fetching users...");
       try {
         const res = await fetch("/api/auth/impersonate");
+        setImpersonateDebug("API responded: " + res.status);
         const data = await res.json();
-        if (data.success) {
-          setImpersonateUsers(data.users || {});
+        if (data.success && Object.keys(data.users || {}).length > 0) {
+          setImpersonateUsers(data.users);
+          setImpersonateDebug("Loaded " + Object.keys(data.users).length + " roles from API");
+        } else {
+          // Fallback to hardcoded users
+          setImpersonateDebug("API returned empty — using fallback users");
+          setImpersonateUsers(FALLBACK_USERS);
         }
-      } catch (_) {}
+      } catch (err) {
+        setImpersonateDebug("Fetch failed: " + (err.message || "network error") + " — using fallback");
+        setImpersonateUsers(FALLBACK_USERS);
+      }
     }
     fetchUsers();
   }, [devToolsOpen, isStaging]);
@@ -113,10 +139,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (data.success) {
-        // Persist user to localStorage so dashboard fallback works immediately
         localStorage.setItem("user", JSON.stringify(data.user));
         setSuccess(true);
-        // Use full page navigation to ensure the session cookie is sent
         setTimeout(async () => {
           let target =
             data.user.role === "super_admin"
@@ -199,7 +223,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="........"
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
                 <button
@@ -251,7 +275,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* ── Developer Tools: Staging-Only Impersonation ── */}
+        {/* Developer Tools: Staging-Only Impersonation */}
         {isStaging && (
           <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg overflow-hidden">
             <button
@@ -277,6 +301,13 @@ export default function LoginPage() {
                     Login as any user without password
                   </p>
 
+                  {/* Debug info */}
+                  {impersonateDebug && (
+                    <div className="mb-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-[8px] font-bold text-amber-500/80 uppercase">{impersonateDebug}</p>
+                    </div>
+                  )}
+
                   {/* Role selector */}
                   <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1 block">
                     Role
@@ -286,7 +317,7 @@ export default function LoginPage() {
                     onChange={(e) => setSelectedRole(e.target.value)}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-2 px-3 text-xs font-medium outline-none focus:border-amber-500 transition-all mb-2"
                   >
-                    <option value="">— Select role —</option>
+                    <option value="">-- Select role --</option>
                     {Object.keys(impersonateUsers).map((role) => (
                       <option key={role} value={role}>
                         {role.replace(/_/g, " ").toUpperCase()}
@@ -305,7 +336,7 @@ export default function LoginPage() {
                         onChange={(e) => setSelectedUserCid(e.target.value)}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-2 px-3 text-xs font-medium outline-none focus:border-amber-500 transition-all mb-2"
                       >
-                        <option value="">— Select user —</option>
+                        <option value="">-- Select user --</option>
                         {impersonateUsers[selectedRole].map((u) => (
                           <option key={u.cid} value={u.cid}>
                             {u.name} ({u.email})
