@@ -123,7 +123,12 @@ const RULES = [
   {
     event: PLATFORM_EVENTS.SUBMISSION_RECEIVED,
     description: "Create/update CRM contact and write timeline event",
-    condition: (ctx) => ctx.submission?.status === "submitted",
+    condition: (ctx) => {
+      if (ctx.submission?.status !== "submitted") return false;
+      const auto = ctx.form?.settings?.automation;
+      // Default to true if no config (backward compatible)
+      return !auto || auto.on_submit?.create_crm_contact !== false;
+    },
     action: async (ctx) => {
       const cid = await syncCrmContact(ctx.submission);
       if (cid) {
@@ -190,22 +195,29 @@ const RULES = [
     },
   },
 
-  // ── CRM: Write review decision to timeline ──
+  // ── CRM: Write review decision to timeline + auto-enroll ──
   {
     event: PLATFORM_EVENTS.REVIEW_COMPLETED,
-    description: "Write review decision to CRM contact timeline",
+    description: "Write review decision to CRM, auto-enroll into program/group, send activation email",
     condition: (ctx) => ctx.review?.decision && (ctx.review.decision === "approved" || ctx.review.decision === "rejected"),
     action: async (ctx) => {
       if (!ctx.submission?.submitter_id) return;
       const isApproved = ctx.review.decision === "approved";
       const runName = ctx.run?.name || "form";
+      const auto = ctx.form?.settings?.automation;
+
+      // Write CRM timeline
       await writeCrmTimeline(ctx.submission.submitter_id,
         isApproved ? "application_approved" : "application_rejected",
         isApproved ? `Application approved for "${runName}"` : `Application not successful for "${runName}"`,
         "forms", ctx.submission.id, ctx.review.reviewer_id || "system",
         { decision: ctx.review.decision, run_id: ctx.submission.run_id });
 
-      if (isApproved && ctx.run?.form_id) {
+      if (!isApproved) return;
+
+      // ── Program enrollment (respects automation config) ──
+      const shouldEnroll = !auto || auto.on_approve?.enroll_in_program !== false;
+      if (shouldEnroll && ctx.run?.form_id) {
         try {
           const { default: db, initDb } = await import("@/lib/db");
           await initDb();
@@ -223,6 +235,72 @@ const RULES = [
               "Enrolled in program", "programs", pid, "system", { program_id: pid });
           }
         } catch (e) {}
+      }
+
+      // ── Group assignment from form run (respects automation config) ──
+      const shouldAssignGroup = !auto || auto.on_approve?.assign_to_group !== false;
+      if (shouldAssignGroup && ctx.run?.id) {
+        try {
+          const { default: db, initDb } = await import("@/lib/db");
+          await initDb();
+          // Find group assignments for this form run
+          const assignments = await db.execute({
+            sql: "SELECT target_id FROM platform_form_run_assignments WHERE run_id = ? AND target_type = 'group'",
+            args: [ctx.run.id],
+          });
+          for (const a of assignments.rows) {
+            // Add participant to group via the families table
+            const group = await db.execute({
+              sql: "SELECT id, name FROM families WHERE registration_id = ? OR id = ?",
+              args: [a.target_id, a.target_id],
+            });
+            if (group.rows.length > 0) {
+              // Update the contact's group_name
+              await db.execute({
+                sql: "UPDATE contacts SET group_name = COALESCE(NULLIF(group_name, ''), ?) WHERE cid = ? AND (group_name IS NULL OR group_name = '' OR group_name = 'unassigned')",
+                args: [group.rows[0].name, ctx.submission.submitter_id],
+              });
+              await writeCrmTimeline(ctx.submission.submitter_id, "assigned_to_group",
+                `Assigned to group "${group.rows[0].name}"`, "groups", group.rows[0].id, "system", { group_id: a.target_id });
+            }
+          }
+        } catch (e) {}
+      }
+
+      // ── Create platform user + send activation email (respects automation config) ──
+      const shouldCreateUser = !auto || auto.on_approve?.create_platform_user !== false;
+      const shouldSendActivation = !auto || auto.on_approve?.send_activation_email !== false;
+      if (shouldCreateUser && shouldSendActivation) {
+        try {
+          const { default: db, initDb } = await import("@/lib/db");
+          await initDb();
+          // Find the contact
+          const contact = await db.execute({
+            sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
+            args: [ctx.submission.submitter_id],
+          });
+          if (contact.rows.length > 0 && contact.rows[0].email) {
+            // Generate activation token
+            const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+            const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
+            await db.execute({
+              sql: `INSERT INTO activation_tokens (email, token, expires_at, created_at) VALUES (?, ?, ?, NOW()) ON CONFLICT(email) DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at`,
+              args: [contact.rows[0].email, token, expiresAt],
+            });
+            // Send activation email
+            const { sendInviteEmail } = await import("@/lib/email");
+            await sendInviteEmail({
+              to: contact.rows[0].email,
+              name: contact.rows[0].name || "Participant",
+              role: "participant",
+              token,
+            });
+            await writeCrmTimeline(ctx.submission.submitter_id, "activation_sent",
+              "Activation email sent", "forms", ctx.submission.id, "system", {});
+          }
+        } catch (e) {
+          console.error("[Automation] Activation email failed:", e.message);
+        }
       }
     },
   },
@@ -343,8 +421,8 @@ export function onSubmission(submission, run, form, session) {
   fireEvent(event, { submission, run, form, session });
 }
 
-export function onReview(review, submission, run, session) {
-  fireEvent(PLATFORM_EVENTS.REVIEW_COMPLETED, { review, submission, run, session });
+export function onReview(review, submission, run, session, form = null) {
+  fireEvent(PLATFORM_EVENTS.REVIEW_COMPLETED, { review, submission, run, form, session });
 }
 
 export function onRunCreated(run, session) {

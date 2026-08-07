@@ -424,7 +424,13 @@ export async function POST(req) {
         // Fire automation
         if (newStatus !== "draft") {
           const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
-          onSubmission(result.rows[0], fullRun.rows[0] || { id: parseInt(run_id) }, null, session);
+          const runRow = fullRun.rows[0];
+          let formRow = null;
+          if (runRow) {
+            const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runRow.form_id] });
+            formRow = f.rows[0] || null;
+          }
+          onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
           // Fire-and-forget AI evaluation
           if (shouldEvaluate) {
             const subId = result.rows[0].id;
@@ -443,7 +449,13 @@ export async function POST(req) {
         // Fire automation
         if (newStatus !== "draft") {
           const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
-          onSubmission(result.rows[0], fullRun.rows[0] || { id: parseInt(run_id) }, null, session);
+          const runRow = fullRun.rows[0];
+          let formRow = null;
+          if (runRow) {
+            const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runRow.form_id] });
+            formRow = f.rows[0] || null;
+          }
+          onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
           // Fire-and-forget AI evaluation
           if (shouldEvaluate) {
             const subId = result.rows[0].id;
@@ -512,52 +524,53 @@ export async function POST(req) {
 
       logTimeline(parseInt(submission_id), decision, session.cid, reviewerName, { comment, internal_note });
 
-      // Send decision email to applicant
+      // Send decision email to applicant (respects automation config)
       try {
         const subData = result.rows[0].data || {};
         const applicantEmail = Object.values(subData).find(v => typeof v === "string" && v.includes("@"));
         if (applicantEmail) {
-          const applicantName = result.rows[0].submitter_name || "";
-          const runInfo = await db.execute({ sql: "SELECT f.name FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
-          const formName = runInfo.rows[0]?.name || "";
-          await sendDecisionEmail({
-            to: applicantEmail,
-            applicantName,
-            formName,
-            decision,
-            comment: comment || "",
-          });
-          logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision });
+          // Check automation config
+          let shouldSend = true;
+          try {
+            const runInfo2 = await db.execute({ sql: "SELECT r.form_id, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
+            if (runInfo2.rows[0]) {
+              const auto = (runInfo2.rows[0].settings || {}).automation;
+              if (decision === "approved" && auto?.on_approve?.send_approval_email === false) shouldSend = false;
+              if (decision === "rejected" && auto?.on_reject?.send_rejection_email === false) shouldSend = false;
+            }
+          } catch (_) {}
+          if (shouldSend) {
+            const applicantName = result.rows[0].submitter_name || "";
+            const runInfo = await db.execute({ sql: "SELECT f.name FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
+            const formName = runInfo.rows[0]?.name || "";
+            await sendDecisionEmail({
+              to: applicantEmail,
+              applicantName,
+              formName,
+              decision,
+              comment: comment || "",
+            });
+            logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision });
+          }
         }
       } catch (_) {}
 
-      // Fire automation — get run details for context
+      // Fire automation — get run details + form config for context
       const sub = await db.execute({ sql: "SELECT run_id FROM platform_form_submissions WHERE id = ?", args: [parseInt(submission_id)] });
       if (sub.rows.length > 0) {
         const runData = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [sub.rows[0].run_id] });
+        let formData = null;
+        if (runData.rows[0]) {
+          const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
+          formData = f.rows[0] || null;
+        }
         onReview(
           { id: null, submission_id: parseInt(submission_id), decision, comment, reviewer_name: reviewerName },
           result.rows[0],
           runData.rows[0] || null,
-          session
+          session,
+          formData
         );
-      }
-
-      // Auto-enroll approved applicant into linked program
-      if (decision === "approved") {
-        try {
-          const runRec = await db.execute({ sql: "SELECT form_id FROM platform_form_runs WHERE id = ?", args: [result.rows[0].run_id] });
-          if (runRec.rows.length > 0) {
-            const prog = await db.execute({ sql: "SELECT program_id FROM platform_forms WHERE id = ? AND program_id IS NOT NULL", args: [runRec.rows[0].form_id] });
-            if (prog.rows.length > 0) {
-              const pid = prog.rows[0].program_id;
-              const subId = result.rows[0].submitter_id;
-              await db.execute({ sql: "INSERT INTO participant_programs (participant_id, program_id, status, accepted_at) VALUES (?, ?, 'active', NOW()) ON CONFLICT DO NOTHING", args: [subId, pid] });
-              await db.execute({ sql: "INSERT INTO v2_participants (program_id, user_id, name, email, status) VALUES (?, ?, ?, ?, 'active') ON CONFLICT DO NOTHING", args: [pid, subId, subId, subId] });
-              await db.execute({ sql: "INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, metadata) VALUES (?, 'participant_enrolled', 'Enrolled in program', 'programs', ?, '{}'::jsonb)", args: [subId, pid] });
-            }
-          }
-        } catch (_) {}
       }
 
       return NextResponse.json({ success: true, submission: result.rows[0] });

@@ -91,6 +91,14 @@ export default function PlatformForms() {
   // Workflow config panel
   const [showWorkflow, setShowWorkflow] = useState(false);
   const [workflowConfig, setWorkflowConfig] = useState(null);
+  const [automationConfig, setAutomationConfig] = useState(null);
+
+  const DEFAULT_AUTOMATION = {
+    on_submit: { send_acknowledgement: true, create_crm_contact: true },
+    on_approve: { send_approval_email: true, create_platform_user: true, send_activation_email: true, enroll_in_program: true, assign_to_group: true },
+    on_reject: { send_rejection_email: true },
+    redirect_after_submit: "",
+  };
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
@@ -133,6 +141,9 @@ export default function PlatformForms() {
 
     // Load workflow config from form settings
     setWorkflowConfig(formSettings.workflow || null);
+
+    // Load automation config from form settings
+    setAutomationConfig(formSettings.automation || { ...DEFAULT_AUTOMATION });
 
     try {
       const res = await fetch(`/api/platform/forms?id=${form.id}`);
@@ -1126,7 +1137,7 @@ export default function PlatformForms() {
                     await fetch("/api/platform/forms", {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ id: editingForm.id, settings: { ...(editingForm.settings || {}), workflow: workflowConfig } }),
+                      body: JSON.stringify({ id: editingForm.id, settings: { ...(editingForm.settings || {}), workflow: workflowConfig, automation: automationConfig || DEFAULT_AUTOMATION } }),
                     });
                     notify("Workflow saved");
                   } catch (_) {}
@@ -1202,6 +1213,47 @@ export default function PlatformForms() {
                     );
                   })}
                 </div>
+
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-4">Automation Actions</h4>
+                <p className="text-[9px] text-[var(--text-secondary)] mb-3">What happens automatically after form events. Defaults to full Program Application workflow.</p>
+
+                {(() => {
+                  const autoCfg = automationConfig || DEFAULT_AUTOMATION;
+                  const update = (path, val) => {
+                    const next = JSON.parse(JSON.stringify(autoCfg));
+                    const keys = path.split(".");
+                    let obj = next;
+                    for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
+                    obj[keys[keys.length - 1]] = val;
+                    setAutomationConfig(next);
+                  };
+                  const Toggle = ({ path, label, desc }) => {
+                    const keys = path.split(".");
+                    let val = autoCfg;
+                    for (const k of keys) val = val?.[k];
+                    return (
+                      <label className="flex items-center gap-3 p-2 rounded-lg bg-tertiary/50 cursor-pointer hover:bg-amber-500/5 transition-all">
+                        <input type="checkbox" checked={!!val} onChange={(e) => update(path, e.target.checked)} className="w-3.5 h-3.5 rounded accent-amber-500 shrink-0" />
+                        <div><p className="text-[9px] font-bold text-[var(--text-primary)]">{label}</p>{desc && <p className="text-[7px] text-[var(--text-secondary)]">{desc}</p>}</div>
+                      </label>
+                    );
+                  };
+                  return (
+                    <div className="space-y-2 pl-1">
+                      <p className="text-[8px] font-black text-amber-400 uppercase">On Submit</p>
+                      <Toggle path="on_submit.send_acknowledgement" label="Send acknowledgement email" desc="Confirmation on form submission" />
+                      <Toggle path="on_submit.create_crm_contact" label="Create CRM contact" desc="Auto-create from submission data" />
+                      <p className="text-[8px] font-black text-emerald-400 uppercase pt-1">On Approval</p>
+                      <Toggle path="on_approve.send_approval_email" label="Send approval email" desc="Notify applicant of acceptance" />
+                      <Toggle path="on_approve.create_platform_user" label="Create platform user" desc="Generate user account" />
+                      <Toggle path="on_approve.send_activation_email" label="Send activation email" desc="Password setup link" />
+                      <Toggle path="on_approve.enroll_in_program" label="Enroll in program" desc="Add to linked program" />
+                      <Toggle path="on_approve.assign_to_group" label="Assign to group" desc="Add to form run group" />
+                      <p className="text-[8px] font-black text-rose-400 uppercase pt-1">On Rejection</p>
+                      <Toggle path="on_reject.send_rejection_email" label="Send rejection email" desc="Notify applicant of decision" />
+                    </div>
+                  );
+                })()}
 
                 <button
                   onClick={() => setWorkflowConfig(null)}
