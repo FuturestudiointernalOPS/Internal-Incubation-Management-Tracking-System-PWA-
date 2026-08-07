@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 
 /**
  * PLATFORM FORMS API — CRUD with versioning
+ * Fix applied: section deletions now run AFTER field upserts to prevent FK violations.
  *
  * GET    /api/platform/forms                   — List all forms
  * GET    /api/platform/forms?id=X              — Get one form + its fields + sections
