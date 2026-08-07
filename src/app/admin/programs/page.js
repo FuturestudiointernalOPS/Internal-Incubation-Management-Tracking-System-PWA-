@@ -57,6 +57,27 @@ export default function ProgramManagement() {
     target_value: 80,
   });
   const [isKpiSubmitting, setIsKpiSubmitting] = useState(false);
+  const [groupRegLinks, setGroupRegLinks] = useState({});
+
+  // Pre-fetch form run URLs for assigned groups when edit modal opens
+  useEffect(() => {
+    if (!editingProgram?.assigned_segments || editingProgram.assigned_segments.length === 0) {
+      setGroupRegLinks({});
+      return;
+    }
+    const gids = editingProgram.assigned_segments;
+    gids.forEach((gid) => {
+      if (!gid) return;
+      fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(gid)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success && d.runs && d.runs.length > 0) {
+            setGroupRegLinks((prev) => ({ ...prev, [gid]: `${window.location.origin}/s/${d.runs[0].public_slug}` }));
+          }
+        })
+        .catch(() => {});
+    });
+  }, [editingProgram?.assigned_segments]);
 
   useEffect(() => {
     if (editingProgram?.id) {
@@ -906,21 +927,20 @@ export default function ProgramManagement() {
                   </label>
                   <div className="flex items-center gap-2 bg-primary/50 rounded-xl px-1 py-1 border border-[var(--border-primary)]">
                     <code className="flex-1 text-[9px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>
-                      {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={encodeURIComponent(String(editingProgram.assigned_segments[0] || ''))}
+                      {(() => {
+                        const gid = editingProgram.assigned_segments[0];
+                        const formUrl = groupRegLinks[gid];
+                        if (formUrl) return formUrl;
+                        const origin = typeof window !== "undefined" ? window.location.origin : "";
+                        return `${origin}/register-participant?group_id=${encodeURIComponent(String(gid || ''))}`;
+                      })()}
                     </code>
                     <button
-                      onClick={async () => {
+                      onClick={() => {
                         const gid = editingProgram.assigned_segments[0];
                         if (!gid) return;
-                        // Check for form run URL first
-                        let link = `${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(gid))}`;
-                        try {
-                          const frRes = await fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(gid)}`);
-                          const frData = await frRes.json();
-                          if (frData.success && frData.runs && frData.runs.length > 0) {
-                            link = `${window.location.origin}/s/${frData.runs[0].public_slug}`;
-                          }
-                        } catch (_) {}
+                        const formUrl = groupRegLinks[gid];
+                        const link = formUrl || `${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(gid))}`;
                         navigator.clipboard.writeText(link);
                         window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
                       }}
