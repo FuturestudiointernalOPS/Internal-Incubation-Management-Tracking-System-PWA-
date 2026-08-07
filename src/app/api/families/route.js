@@ -101,14 +101,8 @@ export async function PUT(req) {
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
     const {
-      id,
-      name,
-      program_id,
-      type,
-      shared_email,
-      shared_password_read,
-      shared_password_edit,
-      description,
+      id, name, program_id, type, form_id,
+      shared_email, shared_password_read, shared_password_edit, description,
     } = await req.json();
     if (!id)
       return NextResponse.json(
@@ -117,11 +111,12 @@ export async function PUT(req) {
       );
 
     await db.execute({
-      sql: "UPDATE families SET name = ?, program_id = ?, type = ?, shared_email = ?, shared_password_read = ?, shared_password_edit = ?, description = ? WHERE id = ?",
+      sql: "UPDATE families SET name = ?, program_id = ?, type = ?, form_id = ?, shared_email = ?, shared_password_read = ?, shared_password_edit = ?, description = ? WHERE id = ?",
       args: [
         name,
         program_id || null,
         type || "individual",
+        form_id || null,
         shared_email || null,
         shared_password_read || null,
         shared_password_edit || null,
