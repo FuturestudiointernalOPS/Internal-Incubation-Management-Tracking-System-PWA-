@@ -43,6 +43,8 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
   const filtered = useMemo(() => {
     return runs.filter((r) => {
       if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
+      // When "all" is selected, exclude archived
+      if (statusFilter === "all" && r.status === "archived") return false;
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
       return true;
     });
@@ -458,6 +460,19 @@ export default function FormRunsPage() {
     } catch (_) {}
   };
 
+  const handleDeleteRun = async (id) => {
+    if (!confirm("Permanently delete this run and all its submissions? This cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/platform/form-runs?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        notify("Run deleted");
+        setSelectedRun(null);
+        fetchRuns();
+      }
+    } catch (_) {}
+  };
+
   const handleReview = async () => {
     if (!reviewing) return;
     setSaving(true);
@@ -604,6 +619,9 @@ export default function FormRunsPage() {
           )}
           {selectedRun.status === "closed" && (
             <button onClick={() => handleStatusChange(selectedRun.id, "archived")} className="px-3 py-1.5 rounded-xl bg-slate-500/10 text-slate-500 border border-slate-500/30 text-[9px] font-black uppercase hover:bg-slate-500/20 flex items-center gap-1"><Archive className="w-3 h-3" /> Archive</button>
+          )}
+          {selectedRun.status === "archived" && (
+            <button onClick={() => handleDeleteRun(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[9px] font-black uppercase hover:bg-rose-500/20 flex items-center gap-1"><Trash2 className="w-3 h-3" /> Delete</button>
           )}
           {(selectedRun.status === "closed" || selectedRun.status === "cancelled") && (
             <button onClick={() => handleStatusChange(selectedRun.id, "active")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Reactivate</button>
