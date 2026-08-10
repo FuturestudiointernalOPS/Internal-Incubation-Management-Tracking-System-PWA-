@@ -48,9 +48,23 @@ export async function GET(req) {
       args: [run.rows[0].form_id],
     });
 
+    // Fetch group name if this run is assigned to a group
+    let groupName = null;
+    try {
+      const groupQuery = await db.execute({
+        sql: "SELECT f.name FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1",
+        args: [parseInt(run.rows[0].id)],
+      });
+      if (groupQuery.rows.length > 0) {
+        groupName = groupQuery.rows[0].name;
+      }
+    } catch (_) {}
+
+    const runData = { ...run.rows[0], group_name: groupName };
+
     return NextResponse.json({
       success: true,
-      run: run.rows[0],
+      run: runData,
       sections: sections.rows,
       fields: fields.rows,
     });

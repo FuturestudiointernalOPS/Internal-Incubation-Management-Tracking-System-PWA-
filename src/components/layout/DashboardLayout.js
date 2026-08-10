@@ -59,7 +59,7 @@ const NAV_KEY_MAP = {
   internal_ops_board: "navigation.internalOpsBoard",
   messages: "navigation.messages",
   communication: "navigation.communication",
-  campaigns: "navigation.campaigns",
+
   forms: "navigation.forms",
   all_contacts: "navigation.contacts",
   knowledge: "navigation.knowledgeBase",
@@ -296,7 +296,7 @@ const NAVIGATION_MATRIX = {
         { id: "forms", name: "FORMS", href: "/platform" },
         { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
         { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
-        { id: "campaigns", name: "CAMPAIGNS", href: "/admin/communications/campaigns" },
+
       ],
     },
 
@@ -732,7 +732,7 @@ const NAV_RESPONSIBILITY_MAP = {
   forms: "crm",
   messages: "crm",
   announcements: "crm",
-  campaigns: "crm",
+
   // Programs
   programs: "program_management",
   all_programs: "program_management",
@@ -1198,7 +1198,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     const counts = {
       messages: unreadMessageCount,
       announcements: 0,
-      campaigns: 0,
       forms: 0,
       all_contacts: 0,
       pending_users: pendingUsersCount,
@@ -1207,7 +1206,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     for (const n of notifications) {
       if (!n.is_read) {
         if (n.type === "announcement") counts.announcements++;
-        if (n.type === "campaign") counts.campaigns++;
         if (n.type === "form") counts.forms++;
       }
     }
@@ -1220,7 +1218,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     const commSubIds = [
       "messages",
       "announcements",
-      "campaigns",
       "forms",
       "all_contacts",
       "pending_users",

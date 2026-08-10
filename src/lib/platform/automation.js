@@ -269,52 +269,113 @@ const RULES = [
         try {
           const { default: db, initDb } = await import("@/lib/db");
           await initDb();
-          // Find the contact
-          const contact = await db.execute({
-            sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
-            args: [ctx.submission.submitter_id],
-          });
-          if (contact.rows.length > 0 && contact.rows[0].email) {
-            // Set role from the GROUP's default_role (group defines identity, not form)
-            let targetRole = null;
-            if (ctx.run?.id) {
+          
+          // Extract contact email and name from submission data
+          const submissionData = ctx.submission?.data || {};
+          let contactEmail = null;
+          let contactName = ctx.submission?.submitter_name || "Participant";
+          
+          // Try to get email from submitter_id (may be email or CID)
+          if (ctx.submission?.submitter_id) {
+            if (ctx.submission.submitter_id.includes("@")) {
+              contactEmail = ctx.submission.submitter_id;
+            } else {
+              // It's a CID, look up the contact
               try {
-                const grp = await db.execute({
-                  sql: `SELECT f.default_role FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1`,
-                  args: [ctx.run.id],
+                const cRes = await db.execute({
+                  sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
+                  args: [ctx.submission.submitter_id],
                 });
-                if (grp.rows.length > 0) {
-                  targetRole = grp.rows[0].default_role;
+                if (cRes.rows.length > 0 && cRes.rows[0].email) {
+                  contactEmail = cRes.rows[0].email;
+                  contactName = cRes.rows[0].name || contactName;
                 }
               } catch (_) {}
             }
-            if (targetRole) {
-              await db.execute({
-                sql: "UPDATE contacts SET role = ?, status = 'active' WHERE cid = ?",
-                args: [targetRole, ctx.submission.submitter_id],
-              });
-            }
-            // Generate activation token
-            const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-            const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
-            await db.execute({
-              sql: `INSERT INTO activation_tokens (email, token, expires_at, created_at) VALUES (?, ?, ?, NOW()) ON CONFLICT(email) DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at`,
-              args: [contact.rows[0].email, token, expiresAt],
-            });
-            // Send activation email with form template
-            const { sendInviteEmail, getTemplate } = await import("@/lib/email");
-            const activationTemplate = getTemplate(ctx.form?.settings, "activation");
-            await sendInviteEmail({
-              to: contact.rows[0].email,
-              name: contact.rows[0].name || "Participant",
-              role: "participant",
-              token,
-              template: activationTemplate,
-              templateVars: { organization: "ImpactOS", form_name: ctx.run?.name || "" },
-            });
-            await writeCrmTimeline(ctx.submission.submitter_id, "activation_sent",
-              "Activation email sent", "forms", ctx.submission.id, "system", {});
           }
+          
+          // If still no email, search submission data values
+          if (!contactEmail || !contactEmail.includes("@")) {
+            const sData = typeof submissionData === "object" ? submissionData : {};
+            for (const val of Object.values(sData)) {
+              if (typeof val === "string" && val.includes("@")) {
+                contactEmail = val;
+                break;
+              }
+            }
+          }
+          
+          if (!contactEmail || !contactEmail.includes("@")) return;
+          
+          // Determine target role and group from form run assignment
+          let targetRole = null;
+          let groupName = null;
+          if (ctx.run?.id) {
+            try {
+              const grp = await db.execute({
+                sql: `SELECT f.name, f.default_role FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1`,
+                args: [ctx.run.id],
+              });
+              if (grp.rows.length > 0) {
+                targetRole = grp.rows[0].default_role || "staff";
+                groupName = grp.rows[0].name;
+              }
+            } catch (_) {}
+          }
+          if (!targetRole) targetRole = "staff";
+          
+          // Find or create contact by email
+          let contact = null;
+          const existingContact = await db.execute({
+            sql: "SELECT cid, name, email FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
+            args: [contactEmail],
+          });
+          
+          if (existingContact.rows.length > 0) {
+            contact = existingContact.rows[0];
+            contactName = contact.name || contactName;
+            // Update existing contact: set status to approved (NOT active — requires password setup)
+            await db.execute({
+              sql: "UPDATE contacts SET role = ?, status = 'approved', group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END WHERE cid = ?",
+              args: [targetRole, groupName || null, contact.cid],
+            });
+          } else {
+            // Create new contact
+            const cid = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
+            await db.execute({
+              sql: `INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'approved', ?)`,
+              args: [cid, contactName, contactEmail, targetRole, groupName],
+            });
+            contact = { cid, name: contactName, email: contactEmail };
+          }
+          
+          // Generate password setup token using the existing password_setup_tokens table
+          const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+          const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
+          await db.execute({
+            sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
+            args: [contact.cid, token, expiresAt],
+          });
+          
+          // Send activation email using existing email infrastructure
+          const { sendInviteEmail, getTemplate } = await import("@/lib/email");
+          const activationTemplate = getTemplate(ctx.form?.settings, "activation");
+          await sendInviteEmail({
+            to: contactEmail,
+            name: contactName,
+            role: targetRole,
+            token,
+            template: activationTemplate,
+            templateVars: {
+              organization: "ImpactOS",
+              form_name: ctx.run?.name || "",
+              group_name: groupName || "",
+              name: contactName,
+            },
+          });
+          
+          await writeCrmTimeline(contact.cid, "activation_sent",
+            "Activation email sent with password setup link", "forms", ctx.submission.id, "system", {});
         } catch (e) {
           console.error("[Automation] Activation email failed:", e.message);
         }

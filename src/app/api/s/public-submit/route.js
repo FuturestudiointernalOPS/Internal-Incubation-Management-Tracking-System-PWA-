@@ -144,7 +144,29 @@ export async function POST(req) {
       args: [parseInt(run_id), submitterId, submitterName, JSON.stringify(data)],
     });
 
-    return NextResponse.json({ success: true, id: result.rows[0].id });
+    // Fetch form settings for success message configuration
+    let successConfig = null;
+    try {
+      const formQuery = await db.execute({
+        sql: "SELECT f.name, f.settings FROM platform_forms f JOIN platform_form_runs r ON r.form_id = f.id WHERE r.id = ?",
+        args: [parseInt(run_id)],
+      });
+      if (formQuery.rows.length > 0 && formQuery.rows[0].settings) {
+        const settings = formQuery.rows[0].settings;
+        const auto = settings.automation || {};
+        successConfig = {
+          message: auto.success_message || null,
+          redirect_url: auto.redirect_after_submit || null,
+        };
+      }
+    } catch (_) {}
+
+    return NextResponse.json({ 
+      success: true, 
+      id: result.rows[0].id,
+      success_message: successConfig?.message || null,
+      redirect_url: successConfig?.redirect_url || null,
+    });
   } catch (error) {
     console.error("[Public Submit] Error:", error.message, error.stack);
     console.error("[Public Submit] Request body snippet:", JSON.stringify(body || {}).substring(0, 200));

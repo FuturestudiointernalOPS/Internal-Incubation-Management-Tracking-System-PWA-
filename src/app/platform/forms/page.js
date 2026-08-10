@@ -102,6 +102,7 @@ export default function PlatformForms() {
     on_approve: { send_approval_email: true, create_platform_user: true, send_activation_email: true, enroll_in_program: true, assign_to_group: true },
     on_reject: { send_rejection_email: true },
     redirect_after_submit: "",
+    success_message: "",
   };
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
@@ -1264,6 +1265,27 @@ export default function PlatformForms() {
                     </div>
                   );
                 })()}
+
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-4">Success Message</h4>
+                <p className="text-[9px] text-[var(--text-secondary)] mb-3">Shown to the respondent after successful form submission. Supports HTML and placeholders like {"{{name}}"}, {"{{form_name}}"}, {"{{submitter_name}}"}, {"{{group_name}}"}.</p>
+                <textarea
+                  value={automationConfig?.success_message || DEFAULT_AUTOMATION.success_message || ""}
+                  onChange={(e) => setAutomationConfig({ ...(automationConfig || DEFAULT_AUTOMATION), success_message: e.target.value })}
+                  rows={4}
+                  placeholder="<p>Thank you <strong>{{submitter_name}}</strong>!</p><p>Your response to <strong>{{form_name}}</strong> has been recorded. Our team will review your submission.</p>"
+                  className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-amber-500 resize-y font-mono"
+                />
+                <div className="space-y-1">
+                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">Redirect After Submit (optional URL)</label>
+                  <input
+                    type="url"
+                    value={automationConfig?.redirect_after_submit || ""}
+                    onChange={(e) => setAutomationConfig({ ...(automationConfig || DEFAULT_AUTOMATION), redirect_after_submit: e.target.value })}
+                    placeholder="https://example.com/thank-you"
+                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-amber-500"
+                  />
+                </div>
+                <p className="text-[7px] text-[var(--text-secondary)] italic">Available placeholders: {"{{submitter_name}}"}, {"{{submitter_email}}"}, {"{{form_name}}"}, {"{{group_name}}"}, {"{{organization}}"}, plus any form field label (e.g. {"{{full_name}}"}, {"{{email_address}}"}).</p>
 
                 <button
                   onClick={() => setWorkflowConfig(null)}
