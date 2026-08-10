@@ -475,24 +475,23 @@ const RULES = [
 // ─── ENGINE ────────────────────────────────────────────────────────
 
 export function fireEvent(event, ctx = {}) {
-  if (!event) return;
+  if (!event) return Promise.resolve();
   console.log(`[Automation] Firing event: ${event}`, Object.keys(ctx));
 
   const matching = RULES.filter((r) => r.event === event);
 
-  for (const rule of matching) {
-    Promise.resolve()
-      .then(async () => {
-        if (rule.condition) {
-          const ok = await rule.condition(ctx);
-          if (!ok) return;
-        }
-        await rule.action(ctx);
-      })
-      .catch((err) => {
-        console.error(`[Automation] Rule "${rule.description}" failed for event "${event}":`, err.message);
-      });
-  }
+  // Run all matching rules in parallel and return a promise
+  return Promise.all(matching.map((rule) =>
+    Promise.resolve().then(async () => {
+      if (rule.condition) {
+        const ok = await rule.condition(ctx);
+        if (!ok) return;
+      }
+      await rule.action(ctx);
+    }).catch((err) => {
+      console.error(`[Automation] Rule "${rule.description}" failed for event "${event}":`, err.message);
+    })
+  ));
 }
 
 export function onSubmission(submission, run, form, session) {
@@ -503,7 +502,8 @@ export function onSubmission(submission, run, form, session) {
 }
 
 export function onReview(review, submission, run, session, form = null) {
-  fireEvent(PLATFORM_EVENTS.REVIEW_COMPLETED, { review, submission, run, form, session });
+  // Return promise so caller can await critical rules (activation email)
+  return fireEvent(PLATFORM_EVENTS.REVIEW_COMPLETED, { review, submission, run, form, session });
 }
 
 export function onRunCreated(run, session) {

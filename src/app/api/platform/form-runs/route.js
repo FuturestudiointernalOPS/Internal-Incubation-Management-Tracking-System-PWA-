@@ -577,7 +577,7 @@ export async function POST(req) {
           const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
           formData = f.rows[0] || null;
         }
-        onReview(
+        await onReview(
           { id: null, submission_id: parseInt(submission_id), decision, comment, reviewer_name: reviewerName },
           result.rows[0],
           runData.rows[0] || null,
