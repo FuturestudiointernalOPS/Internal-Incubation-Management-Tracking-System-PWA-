@@ -1,11 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2, Send, CheckCircle2, AlertTriangle, FileText, Clock, Info, ChevronDown, ChevronUp, Star, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+// ─── Translation helper via MyMemory (free, no API key needed) ───
+async function translateText(text, targetLang) {
+  if (!text || !text.trim()) return text;
+  try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data?.responseData?.translatedText || text;
+  } catch (_) { return text; }
+}
+
+async function translateBatch(strings, targetLang) {
+  const results = [];
+  for (const str of strings) {
+    results.push(await translateText(str, targetLang));
+  }
+  return results;
+}
+
+
 
 const COUNTRY_CODES = [
   { flag: "🇳🇬", name: "Nigeria", code: "+234" }, { flag: "🇧🇯", name: "Benin", code: "+229" },
@@ -21,6 +42,7 @@ export default function PublicSubmitPage() {
   const runId = params.runId;
   const { t, lang, switchLang } = useI18n();
   const [loading, setLoading] = useState(true);
+  const [translating, setTranslating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -34,25 +56,71 @@ export default function PublicSubmitPage() {
   const [errors, setErrors] = useState({});
   const [expandedSections, setExpandedSections] = useState({});
 
+  // Cache raw originals so we can always restore English perfectly
+  const rawForm = useRef(null);
+  const rawSections = useRef([]);
+  const rawFields = useRef([]);
+
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
+  // Translate all form body content when language changes
+  const translateFormContent = async (targetLang) => {
+    if (!rawForm.current) return;
+    if (targetLang === "en") {
+      setForm({ ...rawForm.current });
+      setSections(rawSections.current.map(s => ({ ...s })));
+      setFields(rawFields.current.map(f => ({ ...f })));
+      return;
+    }
+    setTranslating(true);
+    try {
+      const [tForm, tSections, tLabels, tHelp, tPlaceholders] = await Promise.all([
+        translateBatch([rawForm.current?.name || "", rawForm.current?.description || ""], targetLang),
+        translateBatch(rawSections.current.map(s => s.title || ""), targetLang),
+        translateBatch(rawFields.current.map(f => f.label || ""), targetLang),
+        translateBatch(rawFields.current.map(f => f.help_text || ""), targetLang),
+        translateBatch(rawFields.current.map(f => f.placeholder || ""), targetLang),
+      ]);
+      setForm({ name: tForm[0], description: tForm[1] });
+      setSections(rawSections.current.map((s, i) => ({ ...s, title: tSections[i] || s.title })));
+      setFields(rawFields.current.map((f, i) => ({
+        ...f,
+        label: tLabels[i] || f.label,
+        help_text: tHelp[i] || f.help_text,
+        placeholder: tPlaceholders[i] || f.placeholder,
+      })));
+    } catch (e) { console.error("Translation failed:", e); }
+    setTranslating(false);
+  };
+
+  useEffect(() => { loadRun(); }, []);
+
+  // Re-translate when language is switched
   useEffect(() => {
-    loadRun();
-  }, []);
+    if (rawForm.current) translateFormContent(lang);
+  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadRun = async () => {
     try {
       const res = await fetch(`/api/s/public-run?slug=${runId}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Run not found");
+      const loadedForm = { name: data.run.form_name || data.run.name, description: data.run.form_description || data.run.description };
       setRun(data.run);
       setSections(data.sections || []);
       setFields(data.fields || []);
-      setForm({ name: data.run.form_name || data.run.name, description: data.run.form_description || data.run.description });
+      setForm(loadedForm);
+      // Cache raw originals
+      rawForm.current = loadedForm;
+      rawSections.current = data.sections || [];
+      rawFields.current = data.fields || [];
       // Expand all sections by default
       const expanded = {};
       (data.sections || []).forEach(s => { expanded[s.id] = true; });
       setExpandedSections(expanded);
+      // If a non-English language was already saved, translate immediately
+      const savedLang = typeof window !== "undefined" ? localStorage.getItem("impactos_lang") : null;
+      if (savedLang && savedLang !== "en") translateFormContent(savedLang);
     } catch (e) {
       setError(e.message);
     }
@@ -230,12 +298,15 @@ export default function PublicSubmitPage() {
         {/* Language Selector */}
         <div className="flex justify-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-600">
-            <Globe className="w-3.5 h-3.5 text-orange-400" />
-            <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider">{t("common.language")}</span>
+            {translating ? <Loader2 className="w-3.5 h-3.5 text-orange-400 animate-spin" /> : <Globe className="w-3.5 h-3.5 text-orange-400" />}
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider">
+              {translating ? "Translating..." : t("common.language")}
+            </span>
             <select
               value={lang}
               onChange={(e) => switchLang(e.target.value)}
-              className="bg-slate-700 text-[10px] font-black text-white uppercase outline-none cursor-pointer px-2 py-1 rounded border border-slate-500"
+              disabled={translating}
+              className="bg-slate-700 text-[10px] font-black text-white uppercase outline-none cursor-pointer px-2 py-1 rounded border border-slate-500 disabled:opacity-50"
             >
               <option value="en">{t("common.english")}</option>
               <option value="fr">{t("common.french")}</option>

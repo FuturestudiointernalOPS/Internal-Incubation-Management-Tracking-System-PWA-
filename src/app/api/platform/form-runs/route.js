@@ -553,6 +553,18 @@ export async function POST(req) {
               }
             } catch (_) {}
 
+            if (!contactCid) {
+              // Create the CRM contact if it doesn't exist yet
+              try {
+                const cid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
+                await db.execute({
+                  sql: "INSERT INTO contacts (cid, name, email, role, status) VALUES (?, ?, ?, 'applicant', 'approved')",
+                  args: [cid, applicantName || "Applicant", applicantEmail.toLowerCase().trim()],
+                });
+                contactCid = cid;
+              } catch (_) {}
+            }
+
             if (contactCid) {
               // 2. Generate a password setup token (expires in 48h)
               const token = uuidv4();
@@ -568,7 +580,7 @@ export async function POST(req) {
               const protocol = req.headers.get("x-forwarded-proto") || "https";
               const host = req.headers.get("host") || "impactos.futurestudio.com";
               const baseUrl = `${protocol}://${host}`;
-              const setupUrl = `${baseUrl}/setup-password/${token}`;
+              const setupUrl = `${baseUrl}/activate?token=${token}`;
 
               let formName = "application";
               try {
