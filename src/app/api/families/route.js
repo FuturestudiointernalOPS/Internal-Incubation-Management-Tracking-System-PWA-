@@ -101,31 +101,23 @@ export async function PUT(req) {
     await initDb();
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
-    const {
-      id, name, program_id, type, form_id,
-      shared_email, shared_password_read, shared_password_edit, description,
-    } = await req.json();
-    if (!id)
-      return NextResponse.json(
-        { success: false, error: "ID is required" },
-        { status: 400 },
-      );
+    const body = await req.json();
+    if (!body.id)
+      return NextResponse.json({ success: false, error: "ID is required" }, { status: 400 });
 
-    await db.execute({
-      sql: "UPDATE families SET name = ?, program_id = ?, type = ?, form_id = ?, shared_email = ?, shared_password_read = ?, shared_password_edit = ?, description = ? WHERE id = ?",
-      args: [
-        name,
-        program_id || null,
-        type || "individual",
-        form_id || null,
-        shared_email || null,
-        shared_password_read || null,
-        shared_password_edit || null,
-        description || null,
-        id,
-      ],
-    });
+    const updates = [];
+    const args = [];
+    if (body.name !== undefined) { updates.push("name = ?"); args.push(body.name); }
+    if (body.program_id !== undefined) { updates.push("program_id = ?"); args.push(body.program_id); }
+    if (body.type !== undefined) { updates.push("type = ?"); args.push(body.type); }
+    if (body.description !== undefined) { updates.push("description = ?"); args.push(body.description); }
+    if (body.default_role !== undefined) { updates.push("default_role = ?"); args.push(body.default_role || null); }
 
+    if (updates.length === 0)
+      return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
+
+    args.push(body.id);
+    await db.execute({ sql: `UPDATE families SET ${updates.join(", ")} WHERE id = ?`, args });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(
