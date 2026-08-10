@@ -432,12 +432,17 @@ export async function POST(req) {
             formRow = f.rows[0] || null;
           }
           onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
-          // Fire-and-forget AI evaluation
+          // Reliable AI evaluation (awaited)
           if (shouldEvaluate) {
             const subId = result.rows[0].id;
-            Promise.resolve().then(async () => {
-              try { const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate"); await evaluateSubmission(subId); } catch (_) {}
-            });
+            try {
+              const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
+              await evaluateSubmission(subId);
+              logTimeline(subId, "ai_evaluated", "system", "System", {});
+            } catch (e) {
+              console.error("[form-runs] AI eval failed for submission", subId, ":", e.message);
+              logTimeline(subId, "ai_eval_failed", "system", "System", { error: e.message });
+            }
           }
         }
         return NextResponse.json({ success: true, submission: result.rows[0] });
@@ -457,12 +462,17 @@ export async function POST(req) {
             formRow = f.rows[0] || null;
           }
           onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
-          // Fire-and-forget AI evaluation
+          // Reliable AI evaluation (awaited)
           if (shouldEvaluate) {
             const subId = result.rows[0].id;
-            Promise.resolve().then(async () => {
-              try { const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate"); await evaluateSubmission(subId); } catch (_) {}
-            });
+            try {
+              const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
+              await evaluateSubmission(subId);
+              logTimeline(subId, "ai_evaluated", "system", "System", {});
+            } catch (e) {
+              console.error("[form-runs] AI eval failed for submission", subId, ":", e.message);
+              logTimeline(subId, "ai_eval_failed", "system", "System", { error: e.message });
+            }
           }
         }
         return NextResponse.json({ success: true, submission: result.rows[0] });
