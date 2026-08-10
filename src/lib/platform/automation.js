@@ -267,6 +267,7 @@ const RULES = [
       const shouldSendActivation = !auto || auto.on_approve?.send_activation_email !== false;
       if (shouldCreateUser && shouldSendActivation) {
         try {
+          console.log("[Automation] Activation: starting for submission", ctx.submission?.id);
           const { default: db, initDb } = await import("@/lib/db");
           await initDb();
           
@@ -356,6 +357,7 @@ const RULES = [
             sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
             args: [contact.cid, token, expiresAt],
           });
+          console.log("[Automation] Token stored for", contactEmail, "token:", token.substring(0, 16) + "...");
           
           // Send activation email using existing email infrastructure
           const { sendInviteEmail, getTemplate } = await import("@/lib/email");
@@ -373,6 +375,7 @@ const RULES = [
               name: contactName,
             },
           });
+          console.log("[Automation] Activation email sent to", contactEmail);
           
           await writeCrmTimeline(contact.cid, "activation_sent",
             "Activation email sent with password setup link", "forms", ctx.submission.id, "system", {});
