@@ -7,6 +7,8 @@
   "submissionReceived": "Soumission recue !",
   "submissionReceivedTitle": "Soumission Recue",
   "thankYou": "Merci ! Votre reponse a ete enregistree.",
+  "thankYouDetail": "Votre candidature a bien ete recue. Notre equipe examinera votre dossier et vous recevrez un email de confirmation prochainement.",
+  "checkEmail": "Veuillez verifier votre boite de reception (y compris les spams) pour le suivi de votre candidature.",
   "submitFailed": "Echec de la soumission",
   "submit": "Envoyer",
   "submitting": "Envoi en cours...",

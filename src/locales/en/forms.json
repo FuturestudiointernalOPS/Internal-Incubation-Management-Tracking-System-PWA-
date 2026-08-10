@@ -7,6 +7,8 @@
   "submissionReceived": "Submission received!",
   "submissionReceivedTitle": "Submission Received",
   "thankYou": "Thank you! Your response has been recorded.",
+  "thankYouDetail": "Your application has been received successfully. Our team will review your submission and you will receive a confirmation email shortly.",
+  "checkEmail": "Please check your email (including spam/junk folder) for updates on your application.",
   "submitFailed": "Submission failed",
   "submit": "Submit",
   "submitting": "Submitting...",

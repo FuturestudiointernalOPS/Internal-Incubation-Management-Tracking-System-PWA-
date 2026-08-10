@@ -267,20 +267,46 @@ export default function PublicSubmitPage() {
       : null;
     
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4"><CheckCircle2 className="w-8 h-8 text-emerald-500" /></div>
-          <h1 className="text-xl font-black text-slate-100 mb-2">{t("forms.submissionReceivedTitle")}</h1>
-          {successMessage ? (
-            <div className="text-slate-300 text-sm space-y-3 mt-4 leading-relaxed" dangerouslySetInnerHTML={{ __html: successMessage.replace(/\n/g, "<br/>") }} />
-          ) : (
-            <p className="text-slate-400 text-sm">{t("forms.thankYou")}</p>
-          )}
-          {successConfig?.redirect_url && (
-            <a href={successConfig.redirect_url} className="inline-block mt-6 px-6 py-3 bg-orange-500 text-black rounded-xl text-sm font-bold hover:bg-orange-400 transition-colors">
-              {t("common.continue")}
+      <div className="min-h-screen bg-slate-950">
+        <div className="max-w-2xl mx-auto p-6 space-y-8">
+          {/* Branding */}
+          <div className="flex flex-col items-center">
+            <img src="/brand/logo_full.png" alt="Future Studio" className="h-12 object-contain mb-0" />
+          </div>
+
+          <div className="text-center max-w-md mx-auto space-y-6">
+            <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+            </div>
+            
+            <div className="space-y-3">
+              <h1 className="text-2xl font-black text-white uppercase tracking-tight">{t("forms.submissionReceivedTitle")}</h1>
+              <p className="text-slate-400 text-sm leading-relaxed max-w-sm mx-auto">
+                {t("forms.thankYouDetail")}
+              </p>
+            </div>
+
+            {successMessage ? (
+              <div className="p-6 rounded-2xl bg-slate-800 border border-slate-700">
+                <div className="text-slate-300 text-sm space-y-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: successMessage.replace(/\n/g, "<br/>") }} />
+              </div>
+            ) : null}
+
+            {successConfig?.redirect_url && (
+              <a href={successConfig.redirect_url} className="inline-block px-8 py-3.5 bg-orange-500 text-black rounded-xl text-sm font-black uppercase tracking-wider hover:bg-orange-400 transition-colors">
+                {t("common.continue")}
+              </a>
+            )}
+
+            <p className="text-[10px] text-slate-500 pt-4">{t("forms.checkEmail")}</p>
+          </div>
+
+          {/* Footer */}
+          <div className="text-center pt-8 border-t border-slate-800">
+            <a href="mailto:info@futurestudio.bj" className="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-500 hover:text-orange-400 transition-colors">
+              <Mail className="w-3 h-3" /> info@futurestudio.bj
             </a>
-          )}
+          </div>
         </div>
       </div>
     );
