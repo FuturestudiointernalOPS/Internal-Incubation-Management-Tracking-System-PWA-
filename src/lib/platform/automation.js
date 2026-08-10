@@ -275,6 +275,14 @@ const RULES = [
             args: [ctx.submission.submitter_id],
           });
           if (contact.rows.length > 0 && contact.rows[0].email) {
+            // Set target role from form config (only if explicitly defined)
+            const targetRole = auto?.on_approve?.target_role;
+            if (targetRole) {
+              await db.execute({
+                sql: "UPDATE contacts SET role = ?, status = 'active' WHERE cid = ?",
+                args: [targetRole, ctx.submission.submitter_id],
+              });
+            }
             // Generate activation token
             const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
             const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");

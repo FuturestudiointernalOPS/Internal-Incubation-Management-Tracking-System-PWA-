@@ -1258,6 +1258,23 @@ export default function PlatformForms() {
                       <Toggle path="on_approve.send_activation_email" label="Send activation email" desc="Password setup link" />
                       <Toggle path="on_approve.enroll_in_program" label="Enroll in program" desc="Add to linked program" />
                       <Toggle path="on_approve.assign_to_group" label="Assign to group" desc="Add to form run group" />
+                      <div className="p-2 rounded-lg bg-tertiary/50 mt-1">
+                        <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase mb-1 block">Target Role (optional)</label>
+                        <select
+                          value={autoCfg?.on_approve?.target_role || ""}
+                          onChange={(e) => update("on_approve.target_role", e.target.value || null)}
+                          className="w-full rounded-lg px-3 py-2 text-[9px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
+                        >
+                          <option value="">— No role change (leave as applicant) —</option>
+                          <option value="participant">Participant</option>
+                          <option value="staff">Staff</option>
+                          <option value="program_manager">Program Manager</option>
+                          <option value="teacher">Teacher / Assistant</option>
+                          <option value="mentor">Mentor</option>
+                          <option value="investor">Investor</option>
+                        </select>
+                        <p className="text-[7px] text-[var(--text-secondary)] mt-1">Sets the contact's role after approval. Leave empty to keep as applicant.</p>
+                      </div>
                       <p className="text-[8px] font-black text-rose-400 uppercase pt-1">On Rejection</p>
                       <Toggle path="on_reject.send_rejection_email" label="Send rejection email" desc="Notify applicant of decision" />
                     </div>
