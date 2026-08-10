@@ -88,7 +88,7 @@ export async function POST(req) {
         await sendEmail({
           to: inv.email,
           subject: `Investor Account ${statusLabels[newStatus]}`,
-          body: `Hello ${inv.name || ""},\n\nYour investor account has been ${statusLabels[newStatus]}${reason ? `.\n\nReason: ${reason}` : "."}\n\n${newStatus === "approved" ? "You can now access Investor OS at " + (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000") + "/login" : "Please contact Future Studio for more information."}\n\n— Future Studio Team`,
+          body: `Hello ${inv.name || ""},\n\nYour investor account has been ${statusLabels[newStatus]}${reason ? `.\n\nReason: ${reason}` : "."}\n\n${newStatus === "approved" ? "You can now access Investor OS at " + (process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")) + "/login" : "Please contact Future Studio for more information."}\n\n— Future Studio Team`,
         });
       } catch (_) {}
 

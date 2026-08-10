@@ -21,7 +21,7 @@ export const POST = createHandler(
       );
     const contact = contactRes.rows[0];
     const token = uuidv4();
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
     const resetUrl = `${appUrl}/activate?token=${token}&mode=reset`;
     await db.execute({
       sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at) VALUES (?, ?, NOW() + INTERVAL '48 hours')",

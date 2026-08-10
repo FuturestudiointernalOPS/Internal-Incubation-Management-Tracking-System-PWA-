@@ -35,7 +35,7 @@ export async function POST(req) {
     });
 
     const reqOrigin = req.headers.get("origin");
-    let appUrl = reqOrigin && reqOrigin !== "null" ? reqOrigin : process.env.NEXT_PUBLIC_APP_URL || "";
+    let appUrl = reqOrigin && reqOrigin !== "null" ? reqOrigin : (process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : ""));
     if (!appUrl) {
       try {
         appUrl = new URL(req.url).origin;
