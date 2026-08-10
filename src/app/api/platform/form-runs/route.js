@@ -532,162 +532,41 @@ export async function POST(req) {
         const applicantName = result.rows[0].submitter_name || "";
 
         if (applicantEmail) {
-          if (decision === "approved") {
-            // ── APPROVAL: Send activation email instead of a generic "approved" notice ──
-            // 1. Find or create the contact so we can link a setup token
-            let contactCid = null;
-            try {
-              const contactRes = await db.execute({
-                sql: "SELECT cid, status FROM contacts WHERE email = ? LIMIT 1",
-                args: [applicantEmail.toLowerCase().trim()],
-              });
-              if (contactRes.rows.length > 0) {
-                contactCid = contactRes.rows[0].cid;
-                // Mark them as approved if still pending
-                if (contactRes.rows[0].status === "pending") {
-                  await db.execute({
-                    sql: "UPDATE contacts SET status = 'approved' WHERE cid = ?",
-                    args: [contactCid],
-                  });
-                }
-              }
-            } catch (_) {}
-
-            if (!contactCid) {
-              // Create or update CRM contact (upsert)
-              try {
-                const cid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
-                const insRes = await db.execute({
-                  sql: `INSERT INTO contacts (cid, name, email, role, status, password, group_name)
-                        VALUES (?, ?, ?, 'applicant', 'approved', '', '')
-                        ON CONFLICT (email) DO UPDATE SET status = 'approved'
-                        RETURNING cid`,
-                  args: [cid, applicantName || "Applicant", applicantEmail.toLowerCase().trim()],
-                });
-                contactCid = insRes.rows?.[0]?.cid || cid;
-              } catch (e) {
-                console.error("[form-runs] Contact upsert failed:", e.message);
-              }
-            }
-
-            if (contactCid) {
-              // 2. Generate a password setup token (expires in 48h)
-              const token = uuidv4();
-              const expiresAt = new Date();
-              expiresAt.setHours(expiresAt.getHours() + 48);
-              await db.execute({
-                sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used)
-                      VALUES (?, ?, ?, 0)`,
-                args: [contactCid, token, expiresAt.toISOString().replace("T", " ").replace("Z", "")],
-              });
-
-              // 3. Send the activation email with the setup link
-              const protocol = req.headers.get("x-forwarded-proto") || "https";
-              const host = req.headers.get("host") || "impactos.futurestudio.com";
-              const baseUrl = `${protocol}://${host}`;
-              const setupUrl = `${baseUrl}/activate?token=${token}`;
-
-              let formName = "application";
-              try {
-                const runInfo3 = await db.execute({ sql: "SELECT f.name FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
-                if (runInfo3.rows[0]) formName = runInfo3.rows[0].name || formName;
-              } catch (_) {}
-
-              const activationHtml = `
-                <!DOCTYPE html>
-                <html>
-                <head><meta charset="utf-8"></head>
-                <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
-                  <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
-                    <tr><td align="center" style="padding: 40px 20px;">
-                      <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
-                        <tr><td style="padding: 40px;">
-                          <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
-                            <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;">OS</span>
-                          </h1>
-                          <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
-
-                          <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">Your application has been approved! 🎉</h2>
-                          <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
-                            Hi <strong style="color: #f8fafc;">${applicantName || "there"}</strong>,
-                          </p>
-                          <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-                            Congratulations! Your <strong style="color: #ff6600;">${formName}</strong> application has been approved.
-                            Click the button below to set your password and access your account.
-                          </p>
-
-                          <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
-                            <tr>
-                              <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
-                                <a href="${setupUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">SET YOUR PASSWORD</a>
-                              </td>
-                            </tr>
-                          </table>
-
-                          <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
-                            This link expires in <strong style="color: #f8fafc;">48 hours</strong>.
-                          </p>
-                          <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
-                            If the button doesn't work, copy and paste this URL into your browser:
-                          </p>
-                          <p style="color: #ff6600; font-size: 11px; word-break: break-all; margin: 0 0 24px;">${setupUrl}</p>
-
-                          <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
-                          <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
-                            If you did not apply, please ignore this email.
-                          </p>
-                        </td></tr>
-                      </table>
-                    </td></tr>
-                  </table>
-                </body>
-                </html>
-              `;
-
-              const { Resend } = await import("resend");
-              const resend = new Resend(process.env.RESEND_API_KEY);
-              await resend.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestudio.bj",
-                to: applicantEmail,
-                subject: `Welcome to Future Studio — Set Your Password`,
-                html: activationHtml,
-              });
-
-              logTimeline(parseInt(submission_id), "activation_email_sent", "system", "System", { to: applicantEmail, setup_url: setupUrl });
-            }
-          } else {
-            // ── REJECTION / OTHER: Send the standard decision email ──
-            let shouldSend = true;
+          // Send a simple decision notification for all outcomes.
+          // The automation engine handles activation emails separately.
+          let shouldSend = true;
+          if (decision !== "approved") {
             try {
               const runInfo2 = await db.execute({ sql: "SELECT r.form_id, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
               if (runInfo2.rows[0]) {
                 const auto = (runInfo2.rows[0].settings || {}).automation;
-                if (decision === "rejected" && auto?.on_reject?.send_rejection_email === false) shouldSend = false;
+                if (auto?.on_reject?.send_rejection_email === false) shouldSend = false;
               }
             } catch (_) {}
-            if (shouldSend) {
-              let decisionTemplate = null;
-              let templateVars = null;
-              try {
-                const runInfo2 = await db.execute({ sql: "SELECT f.name, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
-                if (runInfo2.rows[0]) {
-                  const tmpl = (runInfo2.rows[0].settings || {}).automation?.templates;
-                  const formName = runInfo2.rows[0].name || "";
-                  if (decision === "rejected") decisionTemplate = tmpl?.rejection;
-                  templateVars = { form_name: formName };
-                }
-              } catch (_) {}
-              await sendDecisionEmail({
-                to: applicantEmail,
-                applicantName,
-                formName: templateVars?.form_name || "application",
-                decision,
-                comment: comment || "",
-                template: decisionTemplate,
-                templateVars,
-              });
-              logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision });
-            }
+          }
+          if (shouldSend) {
+            let decisionTemplate = null;
+            let templateVars = null;
+            try {
+              const runInfo2 = await db.execute({ sql: "SELECT f.name, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
+              if (runInfo2.rows[0]) {
+                const tmpl = (runInfo2.rows[0].settings || {}).automation?.templates;
+                const formName = runInfo2.rows[0].name || "";
+                if (decision === "approved") decisionTemplate = tmpl?.approval;
+                else if (decision === "rejected") decisionTemplate = tmpl?.rejection;
+                templateVars = { form_name: formName };
+              }
+            } catch (_) {}
+            await sendDecisionEmail({
+              to: applicantEmail,
+              applicantName,
+              formName: templateVars?.form_name || "application",
+              decision,
+              comment: comment || "",
+              template: decisionTemplate,
+              templateVars,
+            });
+            logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision });
           }
         }
       } catch (emailErr) {
