@@ -35,7 +35,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
     const { name, type, program_id, description, default_role } = await req.json();
 
@@ -99,7 +99,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
     const body = await req.json();
     if (!body.id)

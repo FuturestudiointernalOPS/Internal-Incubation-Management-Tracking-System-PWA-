@@ -1332,38 +1332,34 @@ export default function ProgramManagement() {
                               {s.name || "Unnamed"}
                             </span>
                             {isActive && s.default_role && (
-                              <select
-                                value={s.default_role}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={async (e) => {
-                                  e.stopPropagation();
-                                  const newRole = e.target.value || null;
-                                  try {
-                                    await fetch("/api/families", {
-                                      method: "PUT",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ id: s.id, default_role: newRole }),
-                                    });
-                                    // Update local state
-                                    const updated = (Array.isArray(notes) ? notes : []).map((n) =>
-                                      n.id === s.id ? { ...n, default_role: newRole } : n
-                                    );
-                                    setNotes(updated);
-                                    window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Role updated" } }));
-                                  } catch (_) {}
-                                }}
-                                className="text-[7px] font-black px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase outline-none border-none cursor-pointer hover:bg-purple-500/30"
-                              >
-                                <option value={s.default_role}>{s.default_role}</option>
-                                <option value="">— None —</option>
-                                <option value="participant">Participant</option>
-                                <option value="staff">Staff</option>
-                                <option value="program_manager">Program Manager</option>
-                                <option value="teacher">Teacher</option>
-                                <option value="mentor">Mentor</option>
-                                <option value="investor">Investor</option>
-                                <option value="founder">Founder</option>
-                              </select>
+                              typeof window !== "undefined" && JSON.parse(localStorage.getItem("user") || "{}").role === "super_admin" ?
+                                <select
+                                  value={s.default_role}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={async (e) => {
+                                    e.stopPropagation();
+                                    const newRole = e.target.value || null;
+                                    try {
+                                      await fetch("/api/families", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.id, default_role: newRole }) });
+                                      const updated = (Array.isArray(notes) ? notes : []).map((n) => n.id === s.id ? { ...n, default_role: newRole } : n);
+                                      setNotes(updated);
+                                      window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Role updated" } }));
+                                    } catch (_) {}
+                                  }}
+                                  className="text-[7px] font-black px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase outline-none border-none cursor-pointer hover:bg-purple-500/30"
+                                >
+                                  <option value={s.default_role}>{s.default_role}</option>
+                                  <option value="">— None —</option>
+                                  <option value="participant">Participant</option>
+                                  <option value="staff">Staff</option>
+                                  <option value="program_manager">Program Manager</option>
+                                  <option value="teacher">Teacher</option>
+                                  <option value="mentor">Mentor</option>
+                                  <option value="investor">Investor</option>
+                                  <option value="founder">Founder</option>
+                                </select>
+                              :
+                                <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase shrink-0">{s.default_role}</span>
                             )}
                           </div>
                           {isActive && (

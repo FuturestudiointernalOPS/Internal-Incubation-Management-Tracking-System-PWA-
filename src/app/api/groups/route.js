@@ -50,11 +50,11 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const body = await req.json();
-    const { program_id, name, type, description } = body;
+    const { program_id, name, type, description, default_role } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -86,7 +86,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     const { id, name, type, description, is_archived, default_role } = await req.json();
