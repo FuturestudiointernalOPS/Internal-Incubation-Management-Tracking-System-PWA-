@@ -557,6 +557,25 @@ export default function FormRunsPage() {
     } catch (_) {}
   };
 
+  const handleDeleteSubmission = async (submissionId) => {
+    if (!confirm("Delete this submission permanently? This cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/platform/form-runs?action=delete_submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: submissionId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Submission deleted");
+        // Reload run data
+        if (selectedRun) openRun(selectedRun);
+      } else {
+        notify(data.error || "Delete failed");
+      }
+    } catch (_) {}
+  };
+
   const handleSaveSettings = async () => {
     if (!selectedRun) return;
     setSaving(true);
@@ -758,6 +777,7 @@ export default function FormRunsPage() {
                                 {s.status === "submitted" && (
                                   <button onClick={() => openReview(s)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[8px] font-black uppercase hover:bg-[var(--brand-orange)]/20">Review</button>
                                 )}
+                                <button onClick={() => handleDeleteSubmission(s.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[8px] font-black uppercase hover:bg-rose-500/20">Delete</button>
                               </div>
                             </td>
                           </tr>
