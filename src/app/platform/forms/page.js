@@ -1450,6 +1450,28 @@ export default function PlatformForms() {
             </div>
           </div>
 
+          {/* Enable AI Evaluation toggle */}
+          <label className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!(editingForm?.settings?.ai_evaluation)}
+              onChange={async (e) => {
+                const enabled = e.target.checked;
+                const updatedSettings = { ...(editingForm?.settings || {}), ai_evaluation: enabled };
+                setEditingForm(prev => ({ ...prev, settings: updatedSettings }));
+                try {
+                  await fetch("/api/platform/forms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, settings: updatedSettings }) });
+                  notify(enabled ? "AI evaluation enabled" : "AI evaluation disabled");
+                } catch (_) {}
+              }}
+              className="w-4 h-4 rounded accent-purple-500"
+            />
+            <div>
+              <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">Enable AI Evaluation</p>
+              <p className="text-[8px] text-[var(--text-secondary)]">Automatically evaluate submissions using the framework below</p>
+            </div>
+          </label>
+
           {aiEvalFramework ? (
             <>
               {/* Weight validation */}

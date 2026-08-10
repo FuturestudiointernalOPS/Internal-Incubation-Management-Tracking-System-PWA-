@@ -282,11 +282,18 @@ export async function getEvaluation(submissionId) {
  */
 export async function hasEvaluation(formId) {
   await initDb();
-  const result = await db.execute({
+  const fwResult = await db.execute({
     sql: "SELECT 1 FROM platform_evaluation_frameworks WHERE form_id = ?",
     args: [formId],
   });
-  return result.rows.length > 0;
+  if (fwResult.rows.length === 0) return false;
+  const formResult = await db.execute({
+    sql: "SELECT settings FROM platform_forms WHERE id = ?",
+    args: [formId],
+  });
+  if (formResult.rows.length === 0) return false;
+  const settings = formResult.rows[0].settings || {};
+  return settings.ai_evaluation === true;
 }
 
-export default { evaluateSubmission, hasEvaluation, getFramework };
+export default { evaluateSubmission, hasEvaluation, getFramework, getEvaluation };
