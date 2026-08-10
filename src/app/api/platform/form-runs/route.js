@@ -554,15 +554,20 @@ export async function POST(req) {
             } catch (_) {}
 
             if (!contactCid) {
-              // Create the CRM contact if it doesn't exist yet
+              // Create or update CRM contact (upsert)
               try {
                 const cid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
-                await db.execute({
-                  sql: "INSERT INTO contacts (cid, name, email, role, status) VALUES (?, ?, ?, 'applicant', 'approved')",
+                const insRes = await db.execute({
+                  sql: `INSERT INTO contacts (cid, name, email, role, status)
+                        VALUES (?, ?, ?, 'applicant', 'approved')
+                        ON CONFLICT (email) DO UPDATE SET status = 'approved'
+                        RETURNING cid`,
                   args: [cid, applicantName || "Applicant", applicantEmail.toLowerCase().trim()],
                 });
-                contactCid = cid;
-              } catch (_) {}
+                contactCid = insRes.rows?.[0]?.cid || cid;
+              } catch (e) {
+                console.error("[form-runs] Contact upsert failed:", e.message);
+              }
             }
 
             if (contactCid) {
