@@ -282,13 +282,16 @@ const RULES = [
               sql: `INSERT INTO activation_tokens (email, token, expires_at, created_at) VALUES (?, ?, ?, NOW()) ON CONFLICT(email) DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at`,
               args: [contact.rows[0].email, token, expiresAt],
             });
-            // Send activation email
-            const { sendInviteEmail } = await import("@/lib/email");
+            // Send activation email with form template
+            const { sendInviteEmail, getTemplate } = await import("@/lib/email");
+            const activationTemplate = getTemplate(ctx.form?.settings, "activation");
             await sendInviteEmail({
               to: contact.rows[0].email,
               name: contact.rows[0].name || "Participant",
               role: "participant",
               token,
+              template: activationTemplate,
+              templateVars: { organization: "ImpactOS", form_name: ctx.run?.name || "" },
             });
             await writeCrmTimeline(ctx.submission.submitter_id, "activation_sent",
               "Activation email sent", "forms", ctx.submission.id, "system", {});

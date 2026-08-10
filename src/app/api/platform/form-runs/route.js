@@ -541,14 +541,27 @@ export async function POST(req) {
           } catch (_) {}
           if (shouldSend) {
             const applicantName = result.rows[0].submitter_name || "";
-            const runInfo = await db.execute({ sql: "SELECT f.name FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
-            const formName = runInfo.rows[0]?.name || "";
+            // Get template from form settings (already fetched above)
+            let decisionTemplate = null;
+            let templateVars = null;
+            try {
+              const runInfo2 = await db.execute({ sql: "SELECT f.name, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
+              if (runInfo2.rows[0]) {
+                const tmpl = (runInfo2.rows[0].settings || {}).automation?.templates;
+                const formName = runInfo2.rows[0].name || "";
+                if (decision === "approved") decisionTemplate = tmpl?.approval;
+                else if (decision === "rejected") decisionTemplate = tmpl?.rejection;
+                templateVars = { form_name: formName };
+              }
+            } catch (_) {}
             await sendDecisionEmail({
               to: applicantEmail,
               applicantName,
-              formName,
+              formName: templateVars?.form_name || "application",
               decision,
               comment: comment || "",
+              template: decisionTemplate,
+              templateVars,
             });
             logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision });
           }

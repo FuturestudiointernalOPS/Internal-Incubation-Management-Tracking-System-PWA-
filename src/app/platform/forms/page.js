@@ -10,7 +10,7 @@ import {
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
-  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch,
+  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, XCircle,
 } from "lucide-react";
 
 /**
@@ -93,6 +93,10 @@ export default function PlatformForms() {
   const [workflowConfig, setWorkflowConfig] = useState(null);
   const [automationConfig, setAutomationConfig] = useState(null);
 
+  // Templates panel
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateConfig, setTemplateConfig] = useState(null);
+
   const DEFAULT_AUTOMATION = {
     on_submit: { send_acknowledgement: true },
     on_approve: { send_approval_email: true, create_platform_user: true, send_activation_email: true, enroll_in_program: true, assign_to_group: true },
@@ -144,6 +148,9 @@ export default function PlatformForms() {
 
     // Load automation config from form settings
     setAutomationConfig(formSettings.automation || { ...DEFAULT_AUTOMATION });
+
+    // Load template config from form settings
+    setTemplateConfig(formSettings.automation?.templates || null);
 
     try {
       const res = await fetch(`/api/platform/forms?id=${form.id}`);
@@ -897,14 +904,17 @@ export default function PlatformForms() {
           <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${editingForm?.status === "published" ? "text-emerald-500 bg-emerald-500/10" : "text-amber-500 bg-amber-500/10"}`}>{editingForm?.status || "draft"}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => { setShowAiEval(!showAiEval); setShowScoring(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showAiEval ? "bg-purple-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
+          <button onClick={() => { setShowAiEval(!showAiEval); setShowScoring(false); setShowTemplates(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showAiEval ? "bg-purple-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <Sparkles className="w-3 h-3 inline mr-1.5" />AI Eval {aiEvalFramework && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
-          <button onClick={() => { setShowScoring(!showScoring); setShowAiEval(false); setShowWorkflow(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showScoring ? "bg-indigo-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
+          <button onClick={() => { setShowScoring(!showScoring); setShowAiEval(false); setShowWorkflow(false); setShowTemplates(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showScoring ? "bg-indigo-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <BarChart3 className="w-3 h-3 inline mr-1.5" />Scoring {scoringConfig?.enabled && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
-          <button onClick={() => { setShowWorkflow(!showWorkflow); setShowAiEval(false); setShowScoring(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showWorkflow ? "bg-amber-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
+          <button onClick={() => { setShowWorkflow(!showWorkflow); setShowAiEval(false); setShowScoring(false); setShowTemplates(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showWorkflow ? "bg-amber-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <GitBranch className="w-3 h-3 inline mr-1.5" />Workflow {workflowConfig && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+          </button>
+          <button onClick={() => { setShowTemplates(!showTemplates); setShowAiEval(false); setShowScoring(false); setShowWorkflow(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showTemplates ? "bg-cyan-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
+            <Mail className="w-3 h-3 inline mr-1.5" />Templates {templateConfig && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
           <button onClick={() => setPreviewMode(!previewMode)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${previewMode ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
             <Eye className="w-3 h-3 inline mr-1.5" />{previewMode ? "Editing" : "Preview"}
@@ -1260,6 +1270,125 @@ export default function PlatformForms() {
                 >
                   Reset to defaults
                 </button>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Templates Panel */}
+      {showTemplates && (
+        <div className="px-6 py-4 bg-secondary border-b border-[var(--border-primary)] space-y-4 shrink-0 max-h-[50vh] overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Mail className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Email Templates</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={saving}
+                onClick={async () => {
+                  if (!editingForm) return;
+                  setSaving(true);
+                  try {
+                    const currentSettings = editingForm.settings || {};
+                    const currentAuto = currentSettings.automation || DEFAULT_AUTOMATION;
+                    await fetch("/api/platform/forms", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: editingForm.id, settings: { ...currentSettings, automation: { ...currentAuto, templates: templateConfig } } }),
+                    });
+                    notify("Templates saved");
+                  } catch (_) {}
+                  setSaving(false);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-cyan-500 text-white text-[9px] font-black uppercase hover:bg-cyan-600 transition-all"
+              >
+                Save Templates
+              </button>
+              <button onClick={() => setShowTemplates(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+            Customize the email messages sent to applicants. Use <code className="px-1 bg-tertiary rounded text-[var(--brand-orange)]">{`{{variable}}`}</code> placeholders.
+          </p>
+
+          {(() => {
+            const tmpl = templateConfig || {};
+            const update = (key, field, val) => {
+              const next = JSON.parse(JSON.stringify(tmpl));
+              if (!next[key]) next[key] = {};
+              next[key][field] = val;
+              setTemplateConfig(next);
+            };
+
+            const TemplateEditor = ({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars }) => (
+              <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon className="w-3.5 h-3.5 text-cyan-400" />
+                  <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
+                </div>
+                <p className="text-[8px] text-[var(--text-secondary)]">{desc}</p>
+                <div className="space-y-1">
+                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">Subject</label>
+                  <input
+                    value={tmpl[tKey]?.subject || ""}
+                    onChange={(e) => update(tKey, "subject", e.target.value)}
+                    placeholder={defaultSubject}
+                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">Body (HTML)</label>
+                  <textarea
+                    value={tmpl[tKey]?.body || ""}
+                    onChange={(e) => update(tKey, "body", e.target.value)}
+                    rows={4}
+                    placeholder={defaultBody}
+                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
+                  />
+                </div>
+                {vars && (
+                  <p className="text-[7px] text-[var(--text-secondary)] italic">Variables: {vars.join(", ")}</p>
+                )}
+              </div>
+            );
+
+            return (
+              <div className="space-y-3">
+                <TemplateEditor
+                  label="Submission Confirmation" icon={Send}
+                  tKey="acknowledgement"
+                  desc="Sent immediately after the applicant submits the form."
+                  defaultSubject="Thank you for your submission — {{form_name}}"
+                  defaultBody='<p>Hi {{name}},</p><p>We received your submission for <strong>{{form_name}}</strong>.</p><p>Our team will review it soon.</p>'
+                  vars={["name", "form_name", "organization"]}
+                />
+                <TemplateEditor
+                  label="Approval Message" icon={CheckCircle2}
+                  tKey="approval"
+                  desc="Sent when the reviewer approves the submission."
+                  defaultSubject="Your {{form_name}} application has been approved"
+                  defaultBody='<p>Congratulations {{name}}!</p><p>Your application for <strong>{{form_name}}</strong> has been approved.</p><p>We are excited to welcome you.</p>'
+                  vars={["name", "form_name", "program_name", "group_name", "organization"]}
+                />
+                <TemplateEditor
+                  label="Activation Email" icon={Key}
+                  tKey="activation"
+                  desc="Sent with the password setup link when a platform account is created."
+                  defaultSubject="Welcome to {{organization}} — Set Your Password"
+                  defaultBody='<p>Hello {{name}},</p><p>Your account has been created on <strong>{{organization}}</strong>.</p><p>Click the button below to set your password.</p>'
+                  vars={["name", "organization", "activation_link"]}
+                />
+                <TemplateEditor
+                  label="Rejection Message" icon={XCircle}
+                  tKey="rejection"
+                  desc="Sent when the application is not accepted."
+                  defaultSubject="Update on your {{form_name}} application"
+                  defaultBody='<p>Dear {{name}},</p><p>Thank you for your interest in <strong>{{form_name}}</strong>.</p><p>Unfortunately, you were not selected this time.</p><p>We encourage you to apply again.</p>'
+                  vars={["name", "form_name", "organization"]}
+                />
               </div>
             );
           })()}
