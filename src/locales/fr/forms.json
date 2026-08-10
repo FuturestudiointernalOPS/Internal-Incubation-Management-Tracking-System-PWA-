@@ -1,0 +1,14 @@
+{
+  "requiredFields": "Veuillez remplir tous les champs obligatoires",
+  "fieldRequired": "Ce champ est obligatoire",
+  "selectOption": "Selectionner...",
+  "noPrefix": "Sans prefixe",
+  "selectRating": "Choisissez une note :",
+  "submissionReceived": "Soumission recue !",
+  "submissionReceivedTitle": "Soumission Recue",
+  "thankYou": "Merci ! Votre reponse a ete enregistree.",
+  "submitFailed": "Echec de la soumission",
+  "submit": "Envoyer",
+  "submitting": "Envoi en cours...",
+  "closes": "Ferme le"
+}

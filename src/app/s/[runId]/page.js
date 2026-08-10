@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2, Send, CheckCircle2, AlertTriangle, FileText, Clock, Info, ChevronDown, ChevronUp, Star, Globe, Mail } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -18,6 +19,7 @@ const COUNTRY_CODES = [
 export default function PublicSubmitPage() {
   const params = useParams();
   const runId = params.runId;
+  const { t, lang, switchLang } = useI18n();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -31,11 +33,6 @@ export default function PublicSubmitPage() {
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [expandedSections, setExpandedSections] = useState({});
-  const [lang, setLang] = useState("en");
-
-  useEffect(() => { setLang(localStorage.getItem("impactos_lang") || "en"); }, []);
-
-  const switchLang = (l) => { setLang(l); localStorage.setItem("impactos_lang", l); };
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
@@ -71,7 +68,7 @@ export default function PublicSubmitPage() {
     const newErrors = {};
     for (const f of fields) {
       if (f.required && (!formData[f.id] || (typeof formData[f.id] === "string" && !formData[f.id].trim()))) {
-        newErrors[f.id] = "This field is required";
+        newErrors[f.id] = t("forms.fieldRequired");
       }
     }
     setErrors(newErrors);
@@ -79,7 +76,7 @@ export default function PublicSubmitPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validate()) { notify("Please fill all required fields"); return; }
+    if (!validate()) { notify(t("forms.requiredFields")); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/s/public-submit", {
@@ -93,11 +90,11 @@ export default function PublicSubmitPage() {
         if (data.success_message) {
           setSuccessConfig({ message: data.success_message, redirect_url: data.redirect_url });
         }
-        notify("Submission received!");
+        notify(t("forms.submissionReceived"));
       } else {
-        notify(data.error || "Failed to submit");
+        notify(data.error || t("forms.submitFailed"));
       }
-    } catch (_) { notify("Submission failed"); }
+    } catch (_) { notify(t("forms.submitFailed")); }
     setSaving(false);
   };
 
@@ -123,7 +120,7 @@ export default function PublicSubmitPage() {
         return (
           <div className="flex gap-2">
             <select value={phoneData.code} onChange={(e) => { const cnt = COUNTRY_CODES.find(c => c.code === e.target.value); updatePhone({ country: cnt?.name || "", code: e.target.value }); }} disabled={isDisabled} className="w-[150px] shrink-0 rounded-xl px-2 py-3 text-sm font-medium outline-none bg-slate-800 border border-slate-600 text-slate-100">
-              <option value="">No prefix</option>
+              <option value="">{t("forms.noPrefix")}</option>
               {COUNTRY_CODES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.code})</option>)}
             </select>
             <input type="tel" value={phoneData.number} onChange={(e) => { updatePhone({ number: e.target.value.replace(/[^0-9\s\-()]/g, "") }); }} placeholder={field.placeholder || "90 84 78 20"} disabled={isDisabled} className={`${inputClass} flex-1`} />
@@ -133,7 +130,7 @@ export default function PublicSubmitPage() {
       case "select": case "radio":
         return (
           <select value={value} onChange={(e) => updateField(field.id, e.target.value)} disabled={isDisabled} className={`${inputClass} [&>option]:bg-slate-800 [&>option]:text-slate-100 appearance-none`}>
-            <option value="">Select...</option>
+            <option value="">{t("forms.selectOption")}</option>
             {(field.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         );
@@ -141,7 +138,7 @@ export default function PublicSubmitPage() {
         const opts = (Array.isArray(field.options) && field.options.length > 0) ? field.options : [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }];
         return (
           <div className="space-y-2">
-            <p className="text-xs text-slate-500">Select a rating:</p>
+            <p className="text-xs text-slate-500">{t("forms.selectRating")}</p>
             <div className="flex gap-3 flex-wrap">
               {opts.map(o => (
                 <button key={o.value} type="button" onClick={() => updateField(field.id, o.value)} disabled={isDisabled}
@@ -205,15 +202,15 @@ export default function PublicSubmitPage() {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4"><CheckCircle2 className="w-8 h-8 text-emerald-500" /></div>
-          <h1 className="text-xl font-black text-slate-100 mb-2">Submission Received</h1>
+          <h1 className="text-xl font-black text-slate-100 mb-2">{t("forms.submissionReceivedTitle")}</h1>
           {successMessage ? (
             <div className="text-slate-300 text-sm space-y-3 mt-4 leading-relaxed" dangerouslySetInnerHTML={{ __html: successMessage.replace(/\n/g, "<br/>") }} />
           ) : (
-            <p className="text-slate-400 text-sm">Thank you! Your response has been recorded.</p>
+            <p className="text-slate-400 text-sm">{t("forms.thankYou")}</p>
           )}
           {successConfig?.redirect_url && (
             <a href={successConfig.redirect_url} className="inline-block mt-6 px-6 py-3 bg-orange-500 text-black rounded-xl text-sm font-bold hover:bg-orange-400 transition-colors">
-              Continue
+              {t("common.continue")}
             </a>
           )}
         </div>
@@ -232,16 +229,16 @@ export default function PublicSubmitPage() {
 
         {/* Language Selector */}
         <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700">
-            <Globe className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Language</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-600">
+            <Globe className="w-3.5 h-3.5 text-orange-400" />
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider">{t("common.language")}</span>
             <select
               value={lang}
               onChange={(e) => switchLang(e.target.value)}
-              className="bg-transparent text-[10px] font-black uppercase text-slate-200 outline-none cursor-pointer"
+              className="bg-slate-700 text-[10px] font-black text-white uppercase outline-none cursor-pointer px-2 py-1 rounded border border-slate-500"
             >
-              <option value="en">English</option>
-              <option value="fr">Francais</option>
+              <option value="en">{t("common.english")}</option>
+              <option value="fr">{t("common.french")}</option>
             </select>
           </div>
         </div>
@@ -250,7 +247,7 @@ export default function PublicSubmitPage() {
         <div>
           <h1 className="text-2xl font-black uppercase text-slate-100">{form?.name || run?.name}</h1>
           {form?.description && <p className="text-sm text-slate-400 mt-2">{form.description}</p>}
-          {run?.closes_at && <p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {new Date(run.closes_at).toLocaleDateString()}</p>}
+          {run?.closes_at && <p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("forms.closes")} {new Date(run.closes_at).toLocaleDateString()}</p>}
         </div>
 
         {/* Sections & Fields */}
@@ -294,7 +291,7 @@ export default function PublicSubmitPage() {
         {!success && run?.status === "active" && (
           <div className="pt-4">
             <button onClick={handleSubmit} disabled={saving} className="w-full px-6 py-4 rounded-xl bg-orange-500 text-white text-sm font-black uppercase hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-              <Send className="w-4 h-4" /> {saving ? "Submitting..." : "Submit"}
+              <Send className="w-4 h-4" /> {saving ? t("forms.submitting") : t("forms.submit")}
             </button>
           </div>
         )}

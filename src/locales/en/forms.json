@@ -1,0 +1,14 @@
+{
+  "requiredFields": "Please fill all required fields",
+  "fieldRequired": "This field is required",
+  "selectOption": "Select...",
+  "noPrefix": "No prefix",
+  "selectRating": "Select a rating:",
+  "submissionReceived": "Submission received!",
+  "submissionReceivedTitle": "Submission Received",
+  "thankYou": "Thank you! Your response has been recorded.",
+  "submitFailed": "Submission failed",
+  "submit": "Submit",
+  "submitting": "Submitting...",
+  "closes": "Closes"
+}
