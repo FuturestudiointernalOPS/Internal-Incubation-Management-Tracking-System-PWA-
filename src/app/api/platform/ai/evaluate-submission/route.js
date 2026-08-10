@@ -4,21 +4,52 @@ import { evaluateSubmission, hasEvaluation, getEvaluation } from "@/lib/platform
 
 /**
  * POST /api/platform/ai/evaluate-submission
- * Body: { submission_id: number }
- * Returns: { success: true, evaluation: { dimensions, overall_score, ranking } }
- *
- * GET /api/platform/ai/evaluate-submission?submission_id=X
- * Returns the latest evaluation for a submission (without triggering new one)
- *
- * GET /api/platform/ai/evaluate-submission?form_id=X
- * Returns: { success: true, has_evaluation: boolean }
+ * Body: { submission_id: number } — evaluate single
+ * Body: { form_id: number, action: "batch" } — evaluate all submissions for form
  */
 export async function POST(req) {
   try {
     const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
     if (authError) return authError;
 
-    const { submission_id } = await req.json();
+    const body = await req.json();
+
+    // ── BATCH EVALUATION ──
+    if (body.action === "batch" && body.form_id) {
+      const { default: db, initDb } = await import("@/lib/db");
+      await initDb();
+
+      // Get all submissions for runs of this form that haven't been evaluated yet
+      const subs = await db.execute({
+        sql: `SELECT ps.id FROM platform_form_submissions ps
+              JOIN platform_form_runs r ON ps.run_id = r.id
+              WHERE r.form_id = ? AND ps.status = 'submitted'
+              AND ps.id NOT IN (SELECT submission_id FROM platform_submission_evaluations)
+              ORDER BY ps.id`,
+        args: [parseInt(body.form_id)],
+      });
+
+      if (subs.rows.length === 0) {
+        return NextResponse.json({ success: true, message: "No submissions to evaluate", evaluated: 0, failed: 0 });
+      }
+
+      let evaluated = 0;
+      let failed = 0;
+      for (const row of subs.rows) {
+        try {
+          await evaluateSubmission(row.id);
+          evaluated++;
+        } catch (e) {
+          console.error("[Batch Eval] Failed for submission", row.id, ":", e.message);
+          failed++;
+        }
+      }
+
+      return NextResponse.json({ success: true, evaluated, failed, total: subs.rows.length });
+    }
+
+    // ── SINGLE EVALUATION ──
+    const { submission_id } = body;
     if (!submission_id) {
       return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
     }

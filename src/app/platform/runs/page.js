@@ -596,6 +596,26 @@ export default function FormRunsPage() {
     setSaving(false);
   };
 
+  const handleBatchEvaluate = async () => {
+    if (!selectedRun?.form_id) return notify("No form linked");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/platform/ai/evaluate-submission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ form_id: selectedRun.form_id, action: "batch" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`Evaluated ${data.evaluated} submissions` + (data.failed > 0 ? ` (${data.failed} failed)` : ""));
+        if (selectedRun) openRun(selectedRun);
+      } else {
+        notify(data.error || "Batch evaluation failed");
+      }
+    } catch (_) {}
+    setSaving(false);
+  };
+
   // ─── RUN DETAIL VIEW ───
   if (selectedRun) {
     const cfg = STATUS_CONFIG[selectedRun.status] || STATUS_CONFIG.draft;
@@ -644,6 +664,9 @@ export default function FormRunsPage() {
           )}
           {(selectedRun.status === "closed" || selectedRun.status === "cancelled") && (
             <button onClick={() => handleStatusChange(selectedRun.id, "active")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Reactivate</button>
+          )}
+          {selectedRun.status === "active" && (
+            <button onClick={handleBatchEvaluate} disabled={saving} className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-purple-500/20 flex items-center gap-1 ml-auto"><Sparkles className="w-3 h-3" /> {saving ? "Evaluating..." : "Evaluate All"}</button>
           )}
         </div>
 
