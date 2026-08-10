@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Loader2, Send, CheckCircle2, AlertTriangle, FileText, Clock, Info, ChevronDown, ChevronUp, Star } from "lucide-react";
+import { Loader2, Send, CheckCircle2, AlertTriangle, FileText, Clock, Info, ChevronDown, ChevronUp, Star, Globe, Mail } from "lucide-react";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -22,6 +22,7 @@ export default function PublicSubmitPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [successConfig, setSuccessConfig] = useState(null);
   const [notification, setNotification] = useState(null);
   const [run, setRun] = useState(null);
   const [form, setForm] = useState(null);
@@ -30,6 +31,11 @@ export default function PublicSubmitPage() {
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [expandedSections, setExpandedSections] = useState({});
+  const [lang, setLang] = useState("en");
+
+  useEffect(() => { setLang(localStorage.getItem("impactos_lang") || "en"); }, []);
+
+  const switchLang = (l) => { setLang(l); localStorage.setItem("impactos_lang", l); };
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
@@ -84,6 +90,9 @@ export default function PublicSubmitPage() {
       const data = await res.json();
       if (data.success) {
         setSuccess(true);
+        if (data.success_message) {
+          setSuccessConfig({ message: data.success_message, redirect_url: data.redirect_url });
+        }
         notify("Submission received!");
       } else {
         notify(data.error || "Failed to submit");
@@ -159,13 +168,54 @@ export default function PublicSubmitPage() {
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>;
   if (error) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="text-center"><AlertTriangle className="w-10 h-10 mx-auto text-red-500 mb-3" /><p className="text-slate-100 font-bold">{error}</p></div></div>;
 
+  const resolvePlaceholders = (template) => {
+    if (!template) return null;
+    let result = template;
+    // Resolve by field label placeholders
+    for (const f of fields) {
+      const rawLabel = (f.label || "").toLowerCase();
+      const safeKey = rawLabel.replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+      const value = formData[f.id] != null ? String(formData[f.id]) : "";
+      result = result.replace(new RegExp(`\\{\\{${safeKey}\\}\\}`, "gi"), value);
+      result = result.replace(new RegExp(`\\{\\{field_${f.id}\\}\\}`, "gi"), value);
+    }
+    // Common special placeholders
+    const nameField = fields.find(f => (f.label || "").toLowerCase().includes("name"));
+    const emailField = fields.find(f => (f.label || "").toLowerCase().includes("email"));
+    if (nameField) {
+      const nameVal = String(formData[nameField.id] || "");
+      result = result.replace(/\{\{submitter_name\}\}/gi, nameVal);
+      result = result.replace(/\{\{name\}\}/gi, nameVal);
+    }
+    if (emailField) {
+      result = result.replace(/\{\{submitter_email\}\}/gi, String(formData[emailField.id] || ""));
+    }
+    result = result.replace(/\{\{form_name\}\}/gi, form?.name || "");
+    result = result.replace(/\{\{group_name\}\}/gi, run?.group_name || "");
+    result = result.replace(/\{\{organization\}\}/gi, "ImpactOS");
+    return result;
+  };
+
   if (success) {
+    const successMessage = successConfig?.message 
+      ? resolvePlaceholders(successConfig.message) 
+      : null;
+    
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4"><CheckCircle2 className="w-8 h-8 text-emerald-500" /></div>
           <h1 className="text-xl font-black text-slate-100 mb-2">Submission Received</h1>
-          <p className="text-slate-400 text-sm">Thank you! Your response has been recorded.</p>
+          {successMessage ? (
+            <div className="text-slate-300 text-sm space-y-3 mt-4 leading-relaxed" dangerouslySetInnerHTML={{ __html: successMessage.replace(/\n/g, "<br/>") }} />
+          ) : (
+            <p className="text-slate-400 text-sm">Thank you! Your response has been recorded.</p>
+          )}
+          {successConfig?.redirect_url && (
+            <a href={successConfig.redirect_url} className="inline-block mt-6 px-6 py-3 bg-orange-500 text-black rounded-xl text-sm font-bold hover:bg-orange-400 transition-colors">
+              Continue
+            </a>
+          )}
         </div>
       </div>
     );
@@ -175,6 +225,27 @@ export default function PublicSubmitPage() {
     <div className="min-h-screen bg-slate-950">
       {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-orange-500 text-white text-xs font-black uppercase">{notification}</div>}
       <div className="max-w-2xl mx-auto p-6 space-y-8">
+        {/* Branding */}
+        <div className="flex flex-col items-center">
+          <img src="/brand/logo_full.png" alt="Future Studio" className="h-12 object-contain mb-0" />
+        </div>
+
+        {/* Language Selector */}
+        <div className="flex justify-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700">
+            <Globe className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Language</span>
+            <select
+              value={lang}
+              onChange={(e) => switchLang(e.target.value)}
+              className="bg-transparent text-[10px] font-black uppercase text-slate-200 outline-none cursor-pointer"
+            >
+              <option value="en">English</option>
+              <option value="fr">Francais</option>
+            </select>
+          </div>
+        </div>
+
         {/* Header */}
         <div>
           <h1 className="text-2xl font-black uppercase text-slate-100">{form?.name || run?.name}</h1>
@@ -227,6 +298,13 @@ export default function PublicSubmitPage() {
             </button>
           </div>
         )}
+
+        {/* Footer */}
+        <div className="text-center pt-4 border-t border-slate-800">
+          <a href="mailto:info@futurestudio.bj" className="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-500 hover:text-orange-400 transition-colors">
+            <Mail className="w-3 h-3" /> info@futurestudio.bj
+          </a>
+        </div>
       </div>
     </div>
   );
