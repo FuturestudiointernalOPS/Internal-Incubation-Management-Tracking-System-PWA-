@@ -1102,10 +1102,17 @@ export default function FormRunsPage() {
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-[9px] font-black uppercase text-purple-400 tracking-wider">AI Evaluation</p>
-                      <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                        Overall: <span className="text-purple-400 font-black">{evaluation.overall_score}%</span>
-                        {evaluation.ranking && <> · {evaluation.ranking}</>}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        {evaluation.confidence != null && (
+                          <span className="text-[9px] text-[var(--text-secondary)]">
+                            Confidence: {(evaluation.confidence * 100).toFixed(0)}%
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                          Overall: <span className="text-purple-400 font-black">{evaluation.overall_score}%</span>
+                          {evaluation.ranking && <> · {evaluation.ranking}</>}
+                        </span>
+                      </div>
                     </div>
                     <div className="rounded-xl border border-purple-500/20 overflow-hidden">
                       <table className="w-full text-left">
@@ -1122,31 +1129,34 @@ export default function FormRunsPage() {
                             <tr key={di} className="text-[10px]">
                               <td className="px-3 py-2">
                                 <span className="font-bold text-[var(--text-primary)]">{dim.name}</span>
-                                {dim.ai_reasoning && (
-                                  <p className="text-[8px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dim.ai_reasoning.substring(0, 100)}{dim.ai_reasoning.length > 100 ? "..." : ""}</p>
+                                {dim.reasoning && (
+                                  <p className="text-[8px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dim.reasoning.substring(0, 120)}{dim.reasoning.length > 120 ? "..." : ""}</p>
+                                )}
+                                {dim.confidence != null && (
+                                  <span className="text-[7px] text-[var(--text-secondary)] opacity-50">Confidence: {(dim.confidence * 100).toFixed(0)}%</span>
                                 )}
                               </td>
                               <td className="px-3 py-2 text-center">
-                                <span className="font-black text-purple-400">{dim.ai_score}</span>
+                                <span className="font-black text-purple-400">{dim.score}</span>
                               </td>
                               <td className="px-3 py-2 text-center">
                                 <input
                                   type="number" min={0} max={10} step={0.5}
                                   value={dim.human_score ?? ""}
-                                  placeholder={String(dim.ai_score)}
+                                  placeholder={String(dim.score)}
                                   onChange={(e) => {
                                     const val = e.target.value === "" ? null : parseFloat(e.target.value);
                                     const updated = { ...evaluation };
                                     updated.dimensions[di].human_score = val;
-                                    updated.dimensions[di].final_score = val ?? dim.ai_score;
+                                    updated.dimensions[di].final_score = val ?? dim.score;
                                     setEvaluation(updated);
                                   }}
-                                  className="w-14 px-1 py-0.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  className="w-14 px-1 py-0.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center"
                                 />
                               </td>
                               <td className="px-3 py-2 text-center">
-                                <span className={cn("font-black", (dim.final_score ?? dim.ai_score) >= 7 ? "text-emerald-400" : (dim.final_score ?? dim.ai_score) >= 5 ? "text-amber-400" : "text-rose-400")}>
-                                  {dim.final_score ?? dim.ai_score}
+                                <span className={cn("font-black", (dim.final_score ?? dim.score) >= 7 ? "text-emerald-400" : (dim.final_score ?? dim.score) >= 5 ? "text-amber-400" : "text-rose-400")}>
+                                  {dim.final_score ?? dim.score}
                                 </span>
                               </td>
                             </tr>
@@ -1154,10 +1164,16 @@ export default function FormRunsPage() {
                         </tbody>
                       </table>
                     </div>
+                    {evaluation.recommendation && (
+                      <div className="mt-3 p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                        <p className="text-[8px] font-black uppercase text-purple-400 tracking-wider mb-1">Recommendation</p>
+                        <p className="text-[9px] text-[var(--text-secondary)] leading-relaxed">{evaluation.recommendation}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Scoring Breakdown */}
+                {/* Scoring Breakdown (separate from AI eval) */}
                 {reviewing.data?._scores && (
                   <div className="rounded-xl bg-tertiary border border-[var(--border-primary)] p-4">
                     <div className="flex items-center justify-between mb-3">
