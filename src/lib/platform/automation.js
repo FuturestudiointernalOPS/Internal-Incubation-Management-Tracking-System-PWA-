@@ -275,8 +275,19 @@ const RULES = [
             args: [ctx.submission.submitter_id],
           });
           if (contact.rows.length > 0 && contact.rows[0].email) {
-            // Set target role from form config (only if explicitly defined)
-            const targetRole = auto?.on_approve?.target_role;
+            // Set role from the GROUP's default_role (group defines identity, not form)
+            let targetRole = null;
+            if (ctx.run?.id) {
+              try {
+                const grp = await db.execute({
+                  sql: `SELECT f.default_role FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1`,
+                  args: [ctx.run.id],
+                });
+                if (grp.rows.length > 0) {
+                  targetRole = grp.rows[0].default_role;
+                }
+              } catch (_) {}
+            }
             if (targetRole) {
               await db.execute({
                 sql: "UPDATE contacts SET role = ?, status = 'active' WHERE cid = ?",

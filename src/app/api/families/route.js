@@ -37,11 +37,12 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
-    const { name, type, program_id, description } = await req.json();
+    const { name, type, program_id, description, default_role } = await req.json();
 
     try {
       await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
       await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS form_id UUID");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
     } catch (e) {}
 
     if (!name)
@@ -80,8 +81,8 @@ export async function POST(req) {
     } catch (e) { console.warn("Auto-create form failed:", e.message); }
 
     const res = await db.execute({
-      sql: "INSERT INTO families (name, registration_id, program_id, type, description, form_id) VALUES (?, ?, ?::uuid, ?, ?, ?::uuid) RETURNING id",
-      args: [name, registration_id, program_id || null, type || "individual", description || null, formId],
+      sql: "INSERT INTO families (name, registration_id, program_id, type, description, form_id, default_role) VALUES (?, ?, ?::uuid, ?, ?, ?::uuid, ?) RETURNING id",
+      args: [name, registration_id, program_id || null, type || "individual", description || null, formId, default_role || null],
     });
 
     const newId = res.lastInsertRowid;

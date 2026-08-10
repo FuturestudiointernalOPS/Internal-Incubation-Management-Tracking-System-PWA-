@@ -42,6 +42,7 @@ export default function ProgramManagement() {
     name: "",
     description: "",
     type: "cohort",
+    default_role: "",
   });
   const [notes, setNotes] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -269,6 +270,7 @@ export default function ProgramManagement() {
           description: newGroup.description,
           type: "cohort",
           program_id: editingProgram?.id || null,
+          default_role: newGroup.default_role || null,
         }),
       });
       const data = await res.json();
@@ -284,7 +286,7 @@ export default function ProgramManagement() {
         });
         setNotes((prev) => [...prev, newSegment]);
         setIsCreatingGroup(false);
-        setNewGroup({ name: "", description: "", type: "cohort" });
+        setNewGroup({ name: "", description: "", type: "cohort", default_role: "" });
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: {
@@ -1367,6 +1369,7 @@ export default function ProgramManagement() {
                           name: editingProgram.name,
                           description: "",
                           type: "cohort",
+                          default_role: "",
                         });
                       }
                     }}
@@ -1398,6 +1401,22 @@ export default function ProgramManagement() {
                       rows={2}
                       className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-blue-400 resize-none"
                     />
+                    <select
+                      value={newGroup.default_role || ""}
+                      onChange={(e) =>
+                        setNewGroup({ ...newGroup, default_role: e.target.value })
+                      }
+                      className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-blue-400"
+                    >
+                      <option value="">— Default role (optional) —</option>
+                      <option value="participant">Participant</option>
+                      <option value="staff">Staff</option>
+                      <option value="program_manager">Program Manager</option>
+                      <option value="teacher">Teacher / Assistant</option>
+                      <option value="mentor">Mentor</option>
+                      <option value="investor">Investor</option>
+                      <option value="founder">Founder</option>
+                    </select>
                     <button
                       type="button"
                       onClick={handleCreateGroupInline}
