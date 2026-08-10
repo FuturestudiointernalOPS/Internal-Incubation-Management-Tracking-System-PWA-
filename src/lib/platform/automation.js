@@ -344,8 +344,8 @@ const RULES = [
             // Create new contact
             const cid = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
             await db.execute({
-              sql: `INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'approved', ?)`,
-              args: [cid, contactName, contactEmail, targetRole, groupName],
+              sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, password) VALUES (?, ?, ?, ?, 'approved', ?, '')`,
+              args: [cid, contactName, contactEmail, targetRole, groupName || ''],
             });
             contact = { cid, name: contactName, email: contactEmail };
           }

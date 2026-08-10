@@ -558,8 +558,8 @@ export async function POST(req) {
               try {
                 const cid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
                 const insRes = await db.execute({
-                  sql: `INSERT INTO contacts (cid, name, email, role, status)
-                        VALUES (?, ?, ?, 'applicant', 'approved')
+                  sql: `INSERT INTO contacts (cid, name, email, role, status, password, group_name)
+                        VALUES (?, ?, ?, 'applicant', 'approved', '', '')
                         ON CONFLICT (email) DO UPDATE SET status = 'approved'
                         RETURNING cid`,
                   args: [cid, applicantName || "Applicant", applicantEmail.toLowerCase().trim()],
