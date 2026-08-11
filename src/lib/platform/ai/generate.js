@@ -64,7 +64,7 @@ Rules:
 export async function generateForm(documentText) {
   try {
     const prompt = `${GENERATION_PROMPT}\n\nDOCUMENT:\n${documentText.substring(0, 15000)}`;
-    const raw = await deepseekIntelligence.chat(prompt);
+    const raw = await deepseekIntelligence.chat(prompt, undefined, 8192);
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
