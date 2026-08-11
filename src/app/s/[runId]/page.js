@@ -8,20 +8,21 @@ import { useI18n } from "@/lib/i18n";
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 // ─── Translation helper via MyMemory (free, no API key needed) ───
-async function translateText(text, targetLang) {
+async function translateText(text, sourceLang, targetLang) {
   if (!text || !text.trim()) return text;
+  if (sourceLang === targetLang) return text;
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
     const res = await fetch(url);
     const data = await res.json();
     return data?.responseData?.translatedText || text;
   } catch (_) { return text; }
 }
 
-async function translateBatch(strings, targetLang) {
+async function translateBatch(strings, sourceLang, targetLang) {
   const results = [];
   for (const str of strings) {
-    results.push(await translateText(str, targetLang));
+    results.push(await translateText(str, sourceLang, targetLang));
   }
   return results;
 }
@@ -55,18 +56,22 @@ export default function PublicSubmitPage() {
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [expandedSections, setExpandedSections] = useState({});
+  const [currentSection, setCurrentSection] = useState(0); // Multi-section stepper
 
-  // Cache raw originals so we can always restore English perfectly
+  // Cache raw originals so we can always restore original language perfectly
   const rawForm = useRef(null);
   const rawSections = useRef([]);
   const rawFields = useRef([]);
+  const originalLang = useRef("en"); // Detected form language
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
-  // Translate all form body content when language changes
+  // Translate form content when language changes
   const translateFormContent = async (targetLang) => {
     if (!rawForm.current) return;
-    if (targetLang === "en") {
+    const srcLang = originalLang.current || "en";
+    // If target matches original, restore from cache
+    if (targetLang === srcLang) {
       setForm({ ...rawForm.current });
       setSections(rawSections.current.map(s => ({ ...s })));
       setFields(rawFields.current.map(f => ({ ...f })));
@@ -75,11 +80,11 @@ export default function PublicSubmitPage() {
     setTranslating(true);
     try {
       const [tForm, tSections, tLabels, tHelp, tPlaceholders] = await Promise.all([
-        translateBatch([rawForm.current?.name || "", rawForm.current?.description || ""], targetLang),
-        translateBatch(rawSections.current.map(s => s.title || ""), targetLang),
-        translateBatch(rawFields.current.map(f => f.label || ""), targetLang),
-        translateBatch(rawFields.current.map(f => f.help_text || ""), targetLang),
-        translateBatch(rawFields.current.map(f => f.placeholder || ""), targetLang),
+        translateBatch([rawForm.current?.name || "", rawForm.current?.description || ""], srcLang, targetLang),
+        translateBatch(rawSections.current.map(s => s.title || ""), srcLang, targetLang),
+        translateBatch(rawFields.current.map(f => f.label || ""), srcLang, targetLang),
+        translateBatch(rawFields.current.map(f => f.help_text || ""), srcLang, targetLang),
+        translateBatch(rawFields.current.map(f => f.placeholder || ""), srcLang, targetLang),
       ]);
       setForm({ name: tForm[0], description: tForm[1] });
       setSections(rawSections.current.map((s, i) => ({ ...s, title: tSections[i] || s.title })));
@@ -114,13 +119,24 @@ export default function PublicSubmitPage() {
       rawForm.current = loadedForm;
       rawSections.current = data.sections || [];
       rawFields.current = data.fields || [];
-      // Expand all sections by default
-      const expanded = {};
-      (data.sections || []).forEach(s => { expanded[s.id] = true; });
-      setExpandedSections(expanded);
-      // If a non-English language was already saved, translate immediately
+
+      // Detect form's original language by scanning content for French characters
+      const allText = [
+        loadedForm.name, loadedForm.description,
+        ...(data.sections || []).map(s => s.title || ""),
+        ...(data.fields || []).flatMap(f => [f.label, f.help_text, f.placeholder].filter(Boolean))
+      ].join(" ").toLowerCase();
+      const frenchChars = (allText.match(/[éèêëàâîïôûùçœ]/g) || []).length;
+      const detectedLang = frenchChars > 2 ? "fr" : "en";
+      originalLang.current = detectedLang;
+
+      // Set the initial language to match the form's language
       const savedLang = typeof window !== "undefined" ? localStorage.getItem("impactos_lang") : null;
-      if (savedLang && savedLang !== "en") translateFormContent(savedLang);
+      if (!savedLang && detectedLang !== "en") {
+        switchLang(detectedLang);
+      } else if (savedLang && savedLang !== "en") {
+        translateFormContent(savedLang);
+      }
     } catch (e) {
       setError(e.message);
     }
@@ -347,45 +363,106 @@ export default function PublicSubmitPage() {
           {run?.closes_at && <p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("forms.closes")} {new Date(run.closes_at).toLocaleDateString()}</p>}
         </div>
 
-        {/* Sections & Fields */}
-        {sections.map(sec => {
-          const sectionFields = fields.filter(f => String(f.section_id) === String(sec.id));
-          if (sectionFields.length === 0) return null;
-          const isExpanded = expandedSections[sec.id] !== false;
+        {/* Sections — step-by-step navigation */}
+        {(() => {
+          const validSections = sections.filter(sec => fields.some(f => String(f.section_id) === String(sec.id)));
+          if (validSections.length <= 1) {
+            // Single section — render all fields directly
+            return (
+              <div className="space-y-4">
+                {fields.filter(f => !f.section_id || sections.some(s => String(s.id) === String(f.section_id))).map(f => (
+                  <div key={f.id} className="space-y-1.5">
+                    <label className="text-sm font-bold text-slate-200 flex items-center gap-1">
+                      {f.label} {f.required && <span className="text-red-400">*</span>}
+                    </label>
+                    {f.help_text && <p className="text-xs text-slate-500">{f.help_text}</p>}
+                    {renderField(f)}
+                    {errors[f.id] && <p className="text-xs text-red-400 font-bold">{errors[f.id]}</p>}
+                  </div>
+                ))}
+              </div>
+            );
+          }
+
+          // Multi-section — stepper
+          const sec = validSections[currentSection];
+          if (!sec) return null;
+          const secFields = fields.filter(f => String(f.section_id) === String(sec.id));
+          const isLast = currentSection >= validSections.length - 1;
+          const isFirst = currentSection === 0;
+
           return (
-            <div key={sec.id} className="space-y-3">
-              <button onClick={() => setExpandedSections(prev => ({ ...prev, [sec.id]: !prev[sec.id] }))} className="flex items-center gap-2 w-full text-left">
-                {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                <h2 className="text-base font-black uppercase text-slate-100">{sec.title}</h2>
-              </button>
-              {isExpanded && (
-                <div className="space-y-4">
-                  {sectionFields.map(f => (
-                    <div key={f.id} className="space-y-1.5">
-                      <label className="text-sm font-bold text-slate-200 flex items-center gap-1">
-                        {f.label} {f.required && <span className="text-red-400">*</span>}
-                      </label>
-                      {f.help_text && <p className="text-xs text-slate-500">{f.help_text}</p>}
-                      {renderField(f)}
-                      {errors[f.id] && <p className="text-xs text-red-400 font-bold">{errors[f.id]}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="space-y-6">
+              {/* Progress indicator */}
+              <div className="flex items-center gap-1">
+                {validSections.map((_, i) => (
+                  <div key={i} className={`h-1 flex-1 rounded-full ${i <= currentSection ? "bg-orange-500" : "bg-slate-700"}`} />
+                ))}
+                <span className="text-[9px] font-black text-slate-500 ml-2">{currentSection + 1}/{validSections.length}</span>
+              </div>
+
+              {/* Section title */}
+              <div>
+                <h2 className="text-lg font-black uppercase text-slate-100">{sec.title}</h2>
+                {sec.description && <p className="text-xs text-slate-400 mt-1">{sec.description}</p>}
+              </div>
+
+              {/* Fields */}
+              <div className="space-y-4">
+                {secFields.map(f => (
+                  <div key={f.id} className="space-y-1.5">
+                    <label className="text-sm font-bold text-slate-200 flex items-center gap-1">
+                      {f.label} {f.required && <span className="text-red-400">*</span>}
+                    </label>
+                    {f.help_text && <p className="text-xs text-slate-500">{f.help_text}</p>}
+                    {renderField(f)}
+                    {errors[f.id] && <p className="text-xs text-red-400 font-bold">{errors[f.id]}</p>}
+                  </div>
+                ))}
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="flex gap-3 pt-2">
+                {!isFirst && (
+                  <button
+                    onClick={() => setCurrentSection(prev => Math.max(0, prev - 1))}
+                    className="px-5 py-2.5 rounded-xl bg-slate-800 border border-slate-600 text-slate-300 text-xs font-black uppercase hover:bg-slate-700 transition-colors"
+                  >
+                    ← {t("common.previous") || "Previous"}
+                  </button>
+                )}
+                {!isLast ? (
+                  <button
+                    onClick={() => setCurrentSection(prev => Math.min(validSections.length - 1, prev + 1))}
+                    className="ml-auto px-6 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-black uppercase hover:bg-orange-600 transition-colors"
+                  >
+                    {t("common.next") || "Next"} →
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSubmit}
+                    disabled={saving}
+                    className="ml-auto px-8 py-3 rounded-xl bg-orange-500 text-white text-sm font-black uppercase hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center gap-2"
+                  >
+                    <Send className="w-4 h-4" /> {saving ? t("forms.submitting") : t("forms.submit")}
+                  </button>
+                )}
+              </div>
             </div>
           );
-        })}
+        })()}
 
-        {/* Orphan fields */}
-        {fields.filter(f => !f.section_id).map(f => (
+        {/* Orphan fields (no section) */}
+        {fields.filter(f => !f.section_id && sections.length === 0).map(f => (
           <div key={f.id} className="space-y-1.5">
             <label className="text-sm font-bold text-slate-200 flex items-center gap-1">{f.label} {f.required && <span className="text-red-400">*</span>}</label>
             {renderField(f)}
+            {errors[f.id] && <p className="text-xs text-red-400 font-bold">{errors[f.id]}</p>}
           </div>
         ))}
 
-        {/* Submit */}
-        {!success && run?.status === "active" && (
+        {/* Submit — only for forms with no sections (single-page layout) */}
+        {!success && run?.status === "active" && sections.filter(sec => fields.some(f => String(f.section_id) === String(sec.id))).length <= 1 && (
           <div className="pt-4">
             <button onClick={handleSubmit} disabled={saving} className="w-full px-6 py-4 rounded-xl bg-orange-500 text-white text-sm font-black uppercase hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
               <Send className="w-4 h-4" /> {saving ? t("forms.submitting") : t("forms.submit")}
