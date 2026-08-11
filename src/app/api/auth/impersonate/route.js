@@ -198,7 +198,13 @@ export async function GET() {
       else if (user.role === "investor") displayRole = "investor";
       else if (user.role === "founder") displayRole = "founder";
       else if (user.role === "teacher") displayRole = "teacher";
-      else if (user.role === "staff" || user.role === "project_manager" || user.role === "admin" || (user.group_name || "").toUpperCase().includes("STAFF")) {
+      else if (
+        user.role === "staff" ||
+        user.role === "project_manager" ||
+        user.role === "admin" ||
+        (user.group_name || "").toUpperCase().includes("STAFF") ||
+        (user.group_name || "").toUpperCase().includes("FUTURE STUDIO")
+      ) {
         displayRole = "staff";
       }
 
