@@ -58,9 +58,9 @@ export async function createSession(userCid, userRole, rememberMe = false, isImp
 
   // Create new session
   await db.execute({
-    sql: `INSERT INTO user_sessions (token, user_cid, role, expires_at, is_impersonation)
-          VALUES (?, ?, ?, ?, ?)`,
-    args: [token, userCid, userRole, expiresAtStr, isImpersonation ? 1 : 0],
+    sql: `INSERT INTO user_sessions (token, user_cid, role, expires_at)
+          VALUES (?, ?, ?, ?)`,
+    args: [token, userCid, userRole, expiresAtStr],
   });
 
   console.log(
@@ -106,7 +106,7 @@ export async function getSession() {
     );
 
     const result = await db.execute({
-      sql: `SELECT s.*, s.is_impersonation, c.name, c.email, c.status, c.group_name
+      sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
             FROM user_sessions s
             LEFT JOIN contacts c ON s.user_cid = c.cid
             WHERE s.token = ? AND s.expires_at > NOW()`,
@@ -150,7 +150,6 @@ export async function getSession() {
       role: session.role,
       group_name: session.group_name,
       token: session.token,
-      is_impersonation: !!session.is_impersonation,
     };
 
     // Cache the session for 5s
