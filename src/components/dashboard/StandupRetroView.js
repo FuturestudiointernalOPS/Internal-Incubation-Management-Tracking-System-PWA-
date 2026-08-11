@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Calendar, Trophy, Send, ChevronLeft, ChevronRight,
+  Calendar, Trophy, Send, ChevronLeft, ChevronRight, ChevronDown,
   CheckCircle2, Clock, AlertTriangle, User, Paperclip,
 } from "lucide-react";
 
@@ -90,6 +90,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
             </span>
           )}
           <span className={`text-[8px] font-bold uppercase tracking-wider ${cfg.text}`}>{cfg.label}</span>
+          <ChevronDown className={`w-3.5 h-3.5 text-[var(--text-tertiary)] ml-1 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </div>
       </div>
 
