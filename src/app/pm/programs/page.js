@@ -134,7 +134,7 @@ export default function PMProgramsRegistry() {
             onClick={() => setTab("all")}
             className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap ${activeTab === "all" ? "bg-[#FF6600] text-black shadow-lg shadow-[#FF6600]/20" : "bg-secondary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            All Programs
+            {t("common.allPrograms", "Tous les Programmes")}
           </button>
           <button
             onClick={() => setTab("active")}
@@ -162,10 +162,10 @@ export default function PMProgramsRegistry() {
             <div className="flex items-center gap-2 mb-4">
               <ListTodo className="w-4 h-4 text-blue-400" />
               <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter italic">
-                My Tasks
+                {t("dashboard.myTasks", "Mes Tâches")}
               </h3>
               <span className="text-[10px] font-bold text-slate-500 ml-auto">
-                {tasks.length} total
+                {tasks.length} {t("common.total", "au total")}
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -218,7 +218,7 @@ export default function PMProgramsRegistry() {
             </div>
             {tasks.length > 6 && (
               <p className="text-[7px] text-slate-500 text-center pt-3">
-                +{tasks.length - 6} more tasks
+                +{tasks.length - 6} {t("dashboard.moreTasks", "tâches supplémentaires")}
               </p>
             )}
           </section>
@@ -309,7 +309,7 @@ export default function PMProgramsRegistry() {
                       </div>
                       <div>
                         <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">
-                          {t("common.submit")}
+                          {t("pm.deliverables", "Deliverables")}
                         </p>
                         <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter flex items-center gap-2 italic">
                           {program.docs_completed || 0}/
@@ -333,14 +333,13 @@ export default function PMProgramsRegistry() {
                               e.stopPropagation();
                               try {
                                 const res = await fetch("/api/pm/programs", {
-                                  method: "PATCH",
+                                  method: "PUT",
                                   headers: {
                                     "Content-Type": "application/json",
                                   },
                                   body: JSON.stringify({
                                     id: program.id,
                                     is_archived: 0,
-                                    action: "archive",
                                   }),
                                 });
                                 if ((await res.json()).success) {
@@ -362,8 +361,10 @@ export default function PMProgramsRegistry() {
                             {t("common.refresh")}
                           </button>
                         ) : (
-                          <button className="btn-prime !py-3 !px-6 shadow-xl shadow-blue-600/10">
-                            {t("common.submit")}{" "}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); router.push(`/pm/programs/${program.id}`); }}
+                            className="btn-prime !py-3 !px-6 shadow-xl shadow-blue-600/10">
+                            {t("common.view", "View")}{" "}
                             <ArrowRight className="w-4 h-4 ml-2" />
                           </button>
                         )}

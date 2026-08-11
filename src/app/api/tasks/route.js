@@ -4,6 +4,11 @@ import { logAuditEvent, isTaskLocked } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
 import { requireAuth } from "@/lib/auth";
 import { standupUpsert } from "@/lib/standupUpsert";
+import {
+  getTaskById,
+  getTaskTitleById,
+  getTaskEndDateById,
+} from "@/lib/db/queries/tasks";
 
 /**
  * TASKS API
@@ -49,16 +54,19 @@ export async function GET(req) {
     const assigned_to = searchParams.get("assigned_to");
     const project_id_filter = searchParams.get("project_id");
 
-    // SECURITY: Users can only see their own tasks unless super_admin
+    // SECURITY (Phase 0): Users see their own tasks + tasks assigned to them.
+    // Super admin can see all but only within their authorized contexts.
     const sessionCid = session.cid;
-    if (session.role !== "super_admin") {
-      // If requesting another user's tasks, block it
-      if (user_id && user_id !== sessionCid) {
-        return NextResponse.json(
-          { success: false, error: "You can only access your own tasks." },
-          { status: 403 },
-        );
-      }
+
+    // SECURITY: When a non-SA explicitly requests another user's tasks,
+    // block unless the requester is that user's supervisor or has context access.
+    if (session.role !== "super_admin" && user_id && user_id !== sessionCid) {
+      // Allow if the requester has a task assigned to the target user
+      // (supervisor check will be added in Phase 4 when intents exist)
+      return NextResponse.json(
+        { success: false, error: "You can only access your own tasks." },
+        { status: 403 },
+      );
     }
     const status = searchParams.get("status");
     const week_number = searchParams.get("week");
@@ -68,6 +76,7 @@ export async function GET(req) {
     const sort = searchParams.get("sort");
     const limit = searchParams.get("limit");
     const brief = searchParams.get("brief") === "true";
+    const priority = searchParams.get("priority");
 
     let sql = "SELECT * FROM tasks WHERE 1=1";
     const args = [];
@@ -75,23 +84,86 @@ export async function GET(req) {
     if (id) {
       sql += " AND id = ?";
       args.push(parseInt(id));
+      const result = await db.execute({ sql, args });
+      if (result.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Task not found" },
+          { status: 404 },
+        );
+      }
+      const task = result.rows[0];
+
+      // SECURITY (Phase 0/6): ID lookup must still enforce authorization.
+      // Only the task owner, assignee, supervisor, or super_admin can view a task by ID.
+      if (
+        session.role !== "super_admin" &&
+        String(task.user_id) !== String(sessionCid) &&
+        String(task.assigned_to || "") !== String(sessionCid) &&
+        String(task.supervisor_id || "") !== String(sessionCid)
+      ) {
+        return NextResponse.json(
+          { success: false, error: "You do not have access to this task." },
+          { status: 403 },
+        );
+      }
+
+      // Fetch blockers + subtasks for this single task
+      const blockerRes = await db.execute({
+        sql: "SELECT id, title, status, severity FROM blockers WHERE task_id = ?",
+        args: [parseInt(id)],
+      });
+      const subtaskRes = await db.execute({
+        sql: "SELECT id, title, status FROM tasks WHERE parent_task_id = ?",
+        args: [parseInt(id)],
+      });
+      return NextResponse.json({
+        success: true,
+        tasks: [
+          {
+            ...task,
+            blockers: blockerRes.rows || [],
+            subtasks: subtaskRes.rows || [],
+          },
+        ],
+      });
     }
 
-    // SECURITY: Force scope to own tasks if not super_admin and no explicit filter
-    const effectiveUserId =
-      user_id ||
-      (session.role !== "super_admin" && !assigned_to && !project_id_filter
-        ? sessionCid
-        : null);
-
-    if (effectiveUserId) {
-      sql += " AND user_id = ?";
-      args.push(effectiveUserId);
-    }
-
-    if (assigned_to) {
-      sql += " AND assigned_to = ?";
-      args.push(assigned_to);
+    // SECURITY (Phase 0/6): For non-SA users, scope to: owned tasks, assigned tasks, or supervised tasks.
+    // When an explicit assigned_to filter is given, use that. Otherwise scope by session user.
+    if (session.role !== "super_admin") {
+      if (!user_id && !assigned_to) {
+        // No user/assignee filter given (with or without project_id): force scope to session user
+        sql += " AND (user_id = ? OR assigned_to = ? OR supervisor_id = ?)";
+        args.push(sessionCid, sessionCid, sessionCid);
+      } else if (user_id) {
+        // Explicit user_id filter (pre-authorized above): scope to that user
+        sql += " AND user_id = ?";
+        args.push(user_id);
+        if (assigned_to) {
+          sql += " AND assigned_to = ?";
+          args.push(assigned_to);
+        }
+      } else if (assigned_to) {
+        // Non-SA requesting by assigned_to: only allow viewing own assignments
+        if (assigned_to !== sessionCid) {
+          return NextResponse.json(
+            { success: false, error: "You can only view tasks assigned to yourself." },
+            { status: 403 },
+          );
+        }
+        sql += " AND assigned_to = ?";
+        args.push(assigned_to);
+      }
+    } else {
+      // Super admin: apply filters as requested
+      if (user_id) {
+        sql += " AND user_id = ?";
+        args.push(user_id);
+      }
+      if (assigned_to) {
+        sql += " AND assigned_to = ?";
+        args.push(assigned_to);
+      }
     }
 
     if (project_id_filter) {
@@ -102,6 +174,11 @@ export async function GET(req) {
     if (status) {
       sql += " AND status = ?";
       args.push(status);
+    }
+
+    if (priority) {
+      sql += " AND priority = ?";
+      args.push(priority);
     }
 
     if (week_number) {
@@ -147,6 +224,8 @@ export async function GET(req) {
     let blockersByTask = {};
     let subtasksByTask = {};
     let resourcesByTask = {};
+    let commentCountByTask = {};
+    let allTaskIds = [...taskIds];
 
     if (taskIds.length > 0) {
       // Single batch query for all blockers
@@ -165,30 +244,32 @@ export async function GET(req) {
         });
       }
 
-      // Single batch query for all subtasks
+      // Single batch query for all subtasks — include full field set (Ticket 1.3)
       try {
         const subtaskRes = await db.execute({
-          sql: `SELECT id, title, status, parent_task_id FROM tasks WHERE parent_task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
+          sql: `SELECT id, title, description, status, priority, assigned_to,
+                        start_date, end_date, created_week, created_year,
+                        link, parent_task_id
+                FROM tasks
+                WHERE parent_task_id IN (${taskIds.map(() => "?").join(",")})
+                ORDER BY created_at ASC`,
           args: taskIds,
         });
         for (const s of subtaskRes.rows || []) {
           const pid = s.parent_task_id;
           if (!subtasksByTask[pid]) subtasksByTask[pid] = [];
-          subtasksByTask[pid].push({
-            id: s.id,
-            title: s.title,
-            status: s.status,
-          });
+          subtasksByTask[pid].push(s);
+          allTaskIds.push(s.id);
         }
       } catch (e) {
         // parent_task_id column may not exist yet
       }
 
-      // Single batch query for all resources
+      // Single batch query for all resources (tasks + subtasks)
       try {
         const resourceRes = await db.execute({
-          sql: `SELECT id, name, url, task_id FROM task_resources WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
-          args: taskIds,
+          sql: `SELECT id, name, url, task_id, type, file_name, file_size, uploaded_by FROM task_resources WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
+          args: allTaskIds,
         });
         for (const r of resourceRes.rows || []) {
           const tid = r.task_id;
@@ -197,11 +278,37 @@ export async function GET(req) {
             id: r.id,
             name: r.name,
             url: r.url,
+            type: r.type,
+            file_name: r.file_name,
+            file_size: r.file_size,
+            uploaded_by: r.uploaded_by,
           });
         }
       } catch (e) {
         // task_resources table may not exist yet in some environments
       }
+
+      // Comment counts (tasks + subtasks) — full thread fetched on-demand per task
+      try {
+        const commentRes = await db.execute({
+          sql: `SELECT task_id, COUNT(*) AS cnt FROM v2_task_comments WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) GROUP BY task_id`,
+          args: allTaskIds,
+        });
+        for (const c of commentRes.rows || []) {
+          commentCountByTask[c.task_id] = parseInt(c.cnt) || 0;
+        }
+      } catch (e) {
+        // v2_task_comments table may not exist yet in some environments
+      }
+    }
+
+    // Attach resources/comment counts onto subtasks now that we have them
+    for (const pid of Object.keys(subtasksByTask)) {
+      subtasksByTask[pid] = subtasksByTask[pid].map((s) => ({
+        ...s,
+        resources: resourcesByTask[s.id] || [],
+        commentCount: commentCountByTask[s.id] || 0,
+      }));
     }
 
     // Map results
@@ -210,6 +317,7 @@ export async function GET(req) {
       blockers: blockersByTask[task.id] || [],
       subtasks: subtasksByTask[task.id] || [],
       resources: resourcesByTask[task.id] || [],
+      commentCount: commentCountByTask[task.id] || 0,
     }));
 
     return NextResponse.json({ success: true, tasks: tasksWithBlockers });
@@ -244,6 +352,11 @@ export async function POST(req) {
       end_date,
       assigned_to,
       link,
+      priority,
+      context_type,
+      context_id,
+      supervisor_id,
+      intent_id,
     } = body;
 
     if (!user_id || !title || !created_week || !created_year) {
@@ -277,6 +390,29 @@ export async function POST(req) {
     // Task must have project_id OR category — auto-assign "General" as fallback
     if (!finalProjectId && !finalCategory) {
       finalCategory = "General";
+    }
+
+    // Prevent task creation on closed projects
+    if (finalProjectId) {
+      try {
+        const projCheck = await db.execute({
+          sql: "SELECT status FROM v2_projects WHERE id::text = ?",
+          args: [finalProjectId],
+        });
+        if (
+          projCheck.rows.length > 0 &&
+          (projCheck.rows[0].status === "Closed" ||
+            projCheck.rows[0].status === "Archived")
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Cannot add tasks to a closed or archived project.",
+            },
+            { status: 400 },
+          );
+        }
+      } catch (_) {}
     }
 
     // Phase 5: Auto-generate start_date from created_at if not provided
@@ -324,12 +460,40 @@ export async function POST(req) {
     const needsAssignment = finalAssignedTo && finalAssignedTo !== user_id;
     const effectiveAssignedTo = needsAssignment ? null : finalAssignedTo;
 
+    // PHASE 2: Contact Group enforcement — assigner and assignee must share a group.
+    if (needsAssignment && session.role !== "super_admin") {
+      const { validateTaskAssignment } = await import("@/lib/contactGroups");
+      const groupCheck = await validateTaskAssignment(
+        user_id,
+        finalAssignedTo,
+        { context_type: context_type || "staff", context_id: context_id || null },
+      );
+      if (!groupCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Cannot assign task outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
+    const finalPriority = ["critical", "high", "medium", "low"].includes(
+      priority,
+    )
+      ? priority
+      : "medium";
+
     const result = await db.execute({
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id, category,
          created_week, created_year, carried_over_from_task_id,
-          parent_task_id, start_date, end_date, assigned_to, link)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         parent_task_id, start_date, end_date, assigned_to, link, priority,
+         context_type, context_id, supervisor_id, intent_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 ?, ?, ?, ?)
+         RETURNING id`,
       args: [
         user_id,
         user_name || "",
@@ -346,10 +510,15 @@ export async function POST(req) {
         finalEndDate,
         effectiveAssignedTo,
         link || null,
+        finalPriority,
+        context_type || "staff",
+        context_id || null,
+        supervisor_id || null,
+        intent_id || null,
       ],
     });
 
-    const taskId = Number(result.lastInsertRowid);
+    const taskId = Number(result.rows[0]?.id || result.lastInsertRowid);
 
     // Audit log: Task Created
     await logAuditEvent({
@@ -391,11 +560,8 @@ export async function POST(req) {
     if (parent_task_id) {
       try {
         // Fetch parent task title
-        const parentRes = await db.execute({
-          sql: "SELECT title FROM tasks WHERE id = ?",
-          args: [parseInt(parent_task_id)],
-        });
-        const parentTitle = parentRes.rows[0]?.title || "Unknown";
+        const parentTitle =
+          (await getTaskTitleById(parent_task_id)) || "Unknown";
 
         // Fetch all super admins
         const saRes = await db.execute({
@@ -404,15 +570,15 @@ export async function POST(req) {
         });
 
         for (const sa of saRes.rows) {
-          await fetch(`${req.nextUrl.origin}/api/notifications`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipient_id: sa.cid,
-              title: "New Sub-task Created",
-              message: `${user_name || user_id} added sub-task "${title}" under "${parentTitle}"`,
-              type: "task",
-            }),
+          await db.execute({
+            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                  VALUES (?, ?, ?, ?, 0, NOW())`,
+            args: [
+              sa.cid,
+              "New Sub-task Created",
+              `${user_name || user_id} added sub-task "${title}" under "${parentTitle}"`,
+              "subtask",
+            ],
           });
         }
       } catch (_) {}
@@ -475,12 +641,9 @@ export async function POST(req) {
     // ─── Sync parent end_date if subtask extends further ───
     if (parent_task_id && finalEndDate) {
       try {
-        const parentEndRes = await db.execute({
-          sql: "SELECT end_date FROM tasks WHERE id = ?",
-          args: [parseInt(parent_task_id)],
-        });
-        if (parentEndRes.rows.length > 0 && parentEndRes.rows[0].end_date) {
-          const parentEnd = new Date(parentEndRes.rows[0].end_date);
+        const parentEndStr = await getTaskEndDateById(parseInt(parent_task_id));
+        if (parentEndStr) {
+          const parentEnd = new Date(parentEndStr);
           const subEnd = new Date(finalEndDate);
           if (subEnd > parentEnd) {
             await db.execute({
@@ -533,7 +696,12 @@ export async function PUT(req) {
       end_date,
       assigned_to,
       link,
+      priority,
       force_complete,
+      context_type,
+      context_id,
+      supervisor_id,
+      intent_id,
     } = body;
 
     if (!id) {
@@ -544,20 +712,34 @@ export async function PUT(req) {
     }
 
     // Fetch current task state
-    const currentTask = await db.execute({
-      sql: "SELECT * FROM tasks WHERE id = ?",
-      args: [parseInt(id)],
-    });
+    const task = await getTaskById(id);
 
-    if (currentTask.rows.length === 0) {
+    if (!task) {
       return NextResponse.json(
         { success: false, error: "Task not found" },
         { status: 404 },
       );
     }
 
-    const task = currentTask.rows[0];
+    // SECURITY (Phase 0/6): Only the task owner, assignee, supervisor, or SA can update.
+    const sessionCid = String(session.cid);
+    if (
+      session.role !== "super_admin" &&
+      String(task.user_id) !== sessionCid &&
+      String(task.assigned_to || "") !== sessionCid &&
+      String(task.supervisor_id || "") !== sessionCid
+    ) {
+      return NextResponse.json(
+        { success: false, error: "You do not have permission to update this task." },
+        { status: 403 },
+      );
+    }
+
     const locked = await isTaskLocked(id);
+
+    const updateFields = [];
+    const updateArgs = [];
+    const changes = [];
 
     // Ownership enforcement: only the task creator or super_admin can change status
     if (link !== undefined && link !== task.link) {
@@ -565,16 +747,26 @@ export async function PUT(req) {
       updateArgs.push(link || null);
       changes.push("link updated");
     }
+    if (
+      priority !== undefined &&
+      ["critical", "high", "medium", "low"].includes(priority) &&
+      priority !== task.priority
+    ) {
+      updateFields.push("priority = ?");
+      updateArgs.push(priority);
+      changes.push(`priority changed to ${priority}`);
+    }
     if (status !== undefined && status !== task.status) {
       const effectiveUserId = user_id || session.cid;
       if (
         session.role !== "super_admin" &&
-        String(effectiveUserId) !== String(task.user_id)
+        String(effectiveUserId) !== String(task.user_id) &&
+        String(effectiveUserId) !== String(task.assigned_to || "")
       ) {
         return NextResponse.json(
           {
             success: false,
-            error: "Only the task creator can change its status.",
+            error: "Only the task creator or assignee can change its status.",
           },
           { status: 403 },
         );
@@ -615,25 +807,35 @@ export async function PUT(req) {
         args: [parseInt(id)],
       });
 
-      if (activeBlockers.rows.length > 0) {
-        const body2 = await req.json();
-        if (!body2.force_complete) {
+      // Also check blockers on subtasks (Rule 25)
+      const subtaskBlockers = await db.execute({
+        sql: `SELECT b.id, b.title, b.task_id, t.title AS task_title
+              FROM blockers b
+              JOIN tasks t ON b.task_id = t.id
+              WHERE t.parent_task_id = ? AND b.status = 'active'`,
+        args: [parseInt(id)],
+      });
+
+      const allBlockers = [
+        ...activeBlockers.rows.map((b) => ({ ...b, source: "task" })),
+        ...subtaskBlockers.rows.map((b) => ({ ...b, source: "subtask" })),
+      ];
+
+      if (allBlockers.length > 0) {
+        if (!force_complete) {
           return NextResponse.json({
             success: false,
             error:
               "This task has active blockers. Please confirm completion or resolve the blocker before proceeding.",
             hasActiveBlockers: true,
-            blockers: activeBlockers.rows,
+            blockers: allBlockers,
           });
         }
       }
     }
 
-    const updateFields = [];
-    const updateArgs = [];
     let auditAction = "updated";
     let auditDetails = "";
-    const changes = [];
     let needsRescheduleInc = false;
     let dateChangeLog = null; // { field, old_val, new_val } for task_audit_logs
 
@@ -683,64 +885,156 @@ export async function PUT(req) {
           // Staff not assigned — reset to pending approval
           updateFields.push("status = 'pending_project_approval'");
           // Create new approval request
-          await db.execute({
-            sql: `INSERT INTO project_approval_requests
-              (task_id, requester_id, requester_name, project_id, status)
-              VALUES (?, ?, ?, ?, 'pending')`,
-            args: [
-              parseInt(id),
-              user_id || task.user_id,
-              user_name || task.user_name || "",
-              project_id,
-            ],
-          });
+          try {
+            await db.execute({
+              sql: `INSERT INTO project_approval_requests
+                (task_id, requester_id, requester_name, project_id, status)
+                VALUES (?, ?, ?, ?, 'pending')`,
+              args: [
+                parseInt(id),
+                user_id || task.user_id,
+                user_name || task.user_name || "",
+                project_id,
+              ],
+            });
+          } catch (e) {
+            console.error(
+              "Failed to insert project_approval_request:",
+              e.message,
+            );
+          }
           changes.push("project reassignment requires approval");
         }
       }
     }
 
+    // ── PHASE 1: Context fields ──
+    if (context_type !== undefined && context_type !== (task.context_type || null)) {
+      updateFields.push("context_type = ?");
+      updateArgs.push(context_type || null);
+      changes.push(`context_type changed to ${context_type}`);
+    }
+    if (context_id !== undefined && String(context_id) !== String(task.context_id || "")) {
+      updateFields.push("context_id = ?");
+      updateArgs.push(context_id || null);
+      changes.push(`context_id changed`);
+    }
+    if (supervisor_id !== undefined && String(supervisor_id) !== String(task.supervisor_id || "")) {
+      updateFields.push("supervisor_id = ?");
+      updateArgs.push(supervisor_id || null);
+      changes.push(`supervisor updated`);
+    }
+    if (intent_id !== undefined && String(intent_id) !== String(task.intent_id || "")) {
+      updateFields.push("intent_id = ?");
+      updateArgs.push(intent_id || null);
+      changes.push(`intent linked`);
+      // Auto-populate supervisor from intent if not explicitly set
+      if (intent_id && !supervisor_id && !task.supervisor_id) {
+        try {
+          const intentRes = await db.execute({
+            sql: "SELECT responsible_id FROM intents WHERE id = ?",
+            args: [intent_id],
+          });
+          if (intentRes.rows.length > 0 && intentRes.rows[0].responsible_id) {
+            updateFields.push("supervisor_id = ?");
+            updateArgs.push(intentRes.rows[0].responsible_id);
+            changes.push("supervisor inherited from intent");
+          }
+        } catch (_) {}
+      }
+    }
+
     // ─── ASSIGNMENT MANAGEMENT ───
+    let pendingAssignmentCreated = false;
     if (assigned_to !== undefined) {
       const assignmentChanged =
         String(assigned_to) !== String(task.assigned_to || "");
-      updateFields.push("assigned_to = ?");
-      updateArgs.push(assigned_to || null);
+      const effectiveUserId = user_id || session.cid;
 
-      if (assignmentChanged && assigned_to) {
-        changes.push(`assigned to user ${assigned_to}`);
-        auditDetails = `Task "${task.title}" assigned to user ${assigned_to}`;
-
-        // Get assignee name for notification
-        let assigneeName = assigned_to;
-        try {
-          const assigneeRes = await db.execute({
-            sql: "SELECT name FROM contacts WHERE cid = ? OR id = ?",
-            args: [assigned_to, assigned_to],
-          });
-          if (assigneeRes.rows.length > 0) {
-            assigneeName = assigneeRes.rows[0].name;
+      // Un-assign: clear directly (no pending workflow needed)
+      if (assignmentChanged && !assigned_to) {
+        updateFields.push("assigned_to = ?");
+        updateArgs.push(null);
+        changes.push("assignment removed");
+        auditDetails = `Assignment removed for task "${task.title}"`;
+      }
+      // Self-assign: set directly (no pending workflow needed)
+      else if (
+        assignmentChanged &&
+        assigned_to &&
+        String(assigned_to) === String(effectiveUserId)
+      ) {
+        updateFields.push("assigned_to = ?");
+        updateArgs.push(assigned_to);
+        changes.push(`self-assigned`);
+        auditDetails = `Task "${task.title}" self-assigned`;
+      }
+      // Assign to another user: create pending assignment (requires accept/decline)
+      else if (assignmentChanged && assigned_to) {
+        // PHASE 2: Contact Group enforcement
+        if (session.role !== "super_admin") {
+          const { validateTaskAssignment } = await import("@/lib/contactGroups");
+          const groupCheck = await validateTaskAssignment(
+            effectiveUserId,
+            assigned_to,
+            {
+              context_type: task.context_type || "staff",
+              context_id: task.context_id || null,
+            },
+          );
+          if (!groupCheck.allowed) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: `Cannot assign task outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
+              },
+              { status: 403 },
+            );
           }
-        } catch (_) {}
+        }
 
-        // Send notification to assignee
+        // Do NOT push assigned_to to updateFields — task stays unassigned until acceptance
+        pendingAssignmentCreated = true;
+        changes.push(`pending assignment to user ${assigned_to}`);
+        auditDetails = `Task "${task.title}" pending assignment to user ${assigned_to}`;
+
+        // Guard against duplicate pending rows
+        const dupCheck = await db.execute({
+          sql: "SELECT id FROM task_assignments WHERE task_id = ? AND assignee_id = ? AND status = 'pending'",
+          args: [parseInt(id), assigned_to],
+        });
+
+        if (dupCheck.rows.length === 0) {
+          await db.execute({
+            sql: "INSERT INTO task_assignments (task_id, assigner_id, assignee_id) VALUES (?, ?, ?)",
+            args: [parseInt(id), effectiveUserId, assigned_to],
+          });
+        }
+
+        // Notify assignee via v2_notifications with richer messaging
+        let notifyName = user_name || session.name;
+        if (!notifyName) {
+          try {
+            const nameRes = await db.execute({
+              sql: "SELECT name FROM contacts WHERE cid = ?",
+              args: [effectiveUserId],
+            });
+            if (nameRes.rows.length > 0) notifyName = nameRes.rows[0].name;
+          } catch (_) {}
+        }
         try {
-          const notifUrl = new URL("/api/notifications", req.url).toString();
-          await fetch(notifUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipient_id: assigned_to,
-              title: "Task Assigned",
-              message: `${user_name || "Someone"} assigned you "${task.title}". Please review and accept.`,
-              type: "assignment",
-            }),
+          await db.execute({
+            sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+            args: [
+              assigned_to,
+              "New Task Assignment",
+              `${notifyName || effectiveUserId} assigned you task "${task.title}" — please accept or decline this assignment.`,
+              "task_assignment",
+            ],
           });
         } catch (notifErr) {
           console.error("Assignment notification failed:", notifErr.message);
         }
-      } else if (assignmentChanged && !assigned_to) {
-        changes.push("assignment removed");
-        auditDetails = `Assignment removed for task "${task.title}"`;
       }
     }
     // ─── SCHEDULE DRIFT DETECTION (Phase 2/11) ───
@@ -799,11 +1093,18 @@ export async function PUT(req) {
       }
     }
 
-    if (updateFields.length === 0) {
+    if (updateFields.length === 0 && !pendingAssignmentCreated) {
       return NextResponse.json(
         { success: false, error: "No fields to update" },
         { status: 400 },
       );
+    }
+
+    if (updateFields.length === 0 && pendingAssignmentCreated) {
+      return NextResponse.json({
+        success: true,
+        message: "Pending assignment created",
+      });
     }
 
     updateFields.push("updated_at = CURRENT_TIMESTAMP");
@@ -860,15 +1161,15 @@ export async function PUT(req) {
             args: [],
           });
           for (const sa of saRes.rows) {
-            await fetch(`${req.nextUrl.origin}/api/notifications`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                recipient_id: sa.cid,
-                title: "Sub-tasks Auto-completed",
-                message: `"${task.title}" was marked completed — ${updatedSubs.rowsAffected} sub-task(s) auto-completed.`,
-                type: "task",
-              }),
+            await db.execute({
+              sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
+                    VALUES (?, ?, ?, ?, 0, NOW())`,
+              args: [
+                sa.cid,
+                "Sub-tasks Auto-completed",
+                `Sub-tasks for task "${task.title}" were auto-completed by completing the parent task.`,
+                "subtask_auto_complete",
+              ],
             });
           }
         }
@@ -901,6 +1202,9 @@ export async function PUT(req) {
       const assignmentChanged =
         String(assigned_to) !== String(task.assigned_to || "");
       if (assignmentChanged) {
+        const effectiveUserId = user_id || session.cid;
+        const isPendingAssignment =
+          assigned_to && String(assigned_to) !== String(effectiveUserId);
         await logTaskEvent({
           task_id: parseInt(id),
           project_id: project_id || task.project_id,
@@ -910,10 +1214,15 @@ export async function PUT(req) {
             ? ACTION_TYPES.TASK_ASSIGNED
             : ACTION_TYPES.TASK_UPDATED,
           previous_state: { assigned_to: task.assigned_to },
-          new_state: { assigned_to: assigned_to || null },
-          description: assigned_to
-            ? `Task assigned to ${assigned_to}`
-            : `Assignment removed from task`,
+          // Pending assignment: tasks.assigned_to stays NULL until acceptance
+          new_state: {
+            assigned_to: isPendingAssignment ? null : assigned_to || null,
+          },
+          description: isPendingAssignment
+            ? `Pending assignment to ${assigned_to} (awaiting acceptance)`
+            : assigned_to
+              ? `Task assigned to ${assigned_to}`
+              : `Assignment removed from task`,
         });
       }
     }
@@ -1028,12 +1337,9 @@ export async function PUT(req) {
       try {
         const effEnd = end_date || task.end_date;
         if (effEnd) {
-          const pEndRes = await db.execute({
-            sql: "SELECT end_date FROM tasks WHERE id = ?",
-            args: [task.parent_task_id],
-          });
-          if (pEndRes.rows.length > 0 && pEndRes.rows[0].end_date) {
-            const pEnd = new Date(pEndRes.rows[0].end_date);
+          const pEndStr = await getTaskEndDateById(task.parent_task_id);
+          if (pEndStr) {
+            const pEnd = new Date(pEndStr);
             const sEnd = new Date(effEnd);
             if (sEnd > pEnd) {
               await db.execute({
@@ -1084,19 +1390,21 @@ export async function DELETE(req) {
       );
     }
 
-    // SECURITY: Only the task owner or super_admin can delete
+    // SECURITY (Phase 0/6): Only the task owner, assignee, supervisor, or SA can delete
     const taskCheck = await db.execute({
-      sql: "SELECT user_id, title, status FROM tasks WHERE id = ?",
+      sql: "SELECT user_id, assigned_to, supervisor_id, title, status FROM tasks WHERE id = ?",
       args: [parseInt(id)],
     });
     if (taskCheck.rows.length > 0) {
-      const taskOwner = taskCheck.rows[0].user_id;
+      const taskRow = taskCheck.rows[0];
       if (
         session.role !== "super_admin" &&
-        String(taskOwner) !== String(session.cid)
+        String(taskRow.user_id) !== String(session.cid) &&
+        String(taskRow.assigned_to || "") !== String(session.cid) &&
+        String(taskRow.supervisor_id || "") !== String(session.cid)
       ) {
         return NextResponse.json(
-          { success: false, error: "You can only delete your own tasks." },
+          { success: false, error: "You can only delete your own tasks, assigned tasks, or supervised tasks." },
           { status: 403 },
         );
       }
@@ -1185,6 +1493,167 @@ export async function DELETE(req) {
     });
   } catch (error) {
     console.error("DELETE tasks error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PATCH /api/tasks
+ *
+ * Accept or decline a pending task assignment.
+ * Body: { action: "accept" | "decline", task_assignment_id?: number, task_id?: number }
+ *
+ * If task_assignment_id is provided, it looks up that specific record.
+ * Otherwise, it uses task_id + the authenticated user's session cid.
+ */
+export async function PATCH(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+    const body = await req.json();
+    const { action, task_assignment_id, task_id } = body;
+
+    if (!action || !["accept", "decline"].includes(action)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Valid action ('accept' or 'decline') is required.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!task_assignment_id && !task_id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "task_assignment_id or task_id is required.",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Look up pending assignment
+    let assignment;
+    if (task_assignment_id) {
+      const res = await db.execute({
+        sql: "SELECT * FROM task_assignments WHERE id = ? AND status = 'pending'",
+        args: [parseInt(task_assignment_id)],
+      });
+      assignment = res.rows[0];
+    } else {
+      const res = await db.execute({
+        sql: "SELECT * FROM task_assignments WHERE task_id = ? AND assignee_id = ? AND status = 'pending'",
+        args: [parseInt(task_id), session.cid],
+      });
+      assignment = res.rows[0];
+    }
+
+    if (!assignment) {
+      return NextResponse.json(
+        { success: false, error: "No pending assignment found." },
+        { status: 404 },
+      );
+    }
+
+    // Only the assignee can accept or decline
+    if (String(assignment.assignee_id) !== String(session.cid)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "You can only respond to your own assignments.",
+        },
+        { status: 403 },
+      );
+    }
+
+    const newStatus = action === "accept" ? "accepted" : "declined";
+
+    // Update the assignment status
+    await db.execute({
+      sql: "UPDATE task_assignments SET status = ? WHERE id = ?",
+      args: [newStatus, assignment.id],
+    });
+
+    // If accepted, assign the task to the user
+    if (action === "accept") {
+      await db.execute({
+        sql: "UPDATE tasks SET assigned_to = ? WHERE id = ?",
+        args: [assignment.assignee_id, assignment.task_id],
+      });
+    }
+
+    // Fetch task title for notifications and audit
+    let taskTitle = `Task #${assignment.task_id}`;
+    try {
+      const taskRes = await db.execute({
+        sql: "SELECT title FROM tasks WHERE id = ?",
+        args: [assignment.task_id],
+      });
+      if (taskRes.rows.length > 0) {
+        taskTitle = taskRes.rows[0].title;
+      }
+    } catch (_) {}
+
+    // Notify the original assigner
+    const notificationTitle =
+      action === "accept"
+        ? "Task Assignment Accepted"
+        : "Task Assignment Declined";
+    const notificationMessage =
+      action === "accept"
+        ? `${session.name || session.cid} accepted your assignment for task "${taskTitle}"`
+        : `${session.name || session.cid} declined your assignment for task "${taskTitle}"`;
+
+    try {
+      await db.execute({
+        sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+        args: [
+          assignment.assigner_id,
+          notificationTitle,
+          notificationMessage,
+          "task_assignment",
+        ],
+      });
+    } catch (notifErr) {
+      console.error(
+        "Assignment response notification failed:",
+        notifErr.message,
+      );
+    }
+
+    // Audit log
+    await logAuditEvent({
+      entity_type: "task",
+      entity_id: assignment.task_id,
+      user_id: session.cid,
+      user_name: session.name || "",
+      action:
+        action === "accept"
+          ? "assignment_accepted"
+          : "assignment_declined",
+      details: `Task "${taskTitle}" assignment ${action === "accept" ? "accepted" : "declined"} by ${session.name || session.cid}`,
+      metadata: {
+        task_id: assignment.task_id,
+        assigner_id: assignment.assigner_id,
+      },
+    });
+
+    return NextResponse.json({ success: true, action: newStatus });
+  } catch (error) {
+    console.error("PATCH tasks error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },

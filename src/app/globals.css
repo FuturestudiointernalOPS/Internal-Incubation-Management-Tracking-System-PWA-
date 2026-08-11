@@ -110,6 +110,17 @@
         color: var(--text-primary);
     }
 
+    input,
+    textarea,
+    select {
+        color: var(--text-primary);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        color: var(--text-tertiary);
+    }
+
     code,
     pre {
         font-family: "JetBrains Mono", monospace;

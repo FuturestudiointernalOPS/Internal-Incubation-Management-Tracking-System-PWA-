@@ -1,40 +1,54 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function POST(req) {
-  try {
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
-    const {
-      program_id,
-      group_name,
-      team_id,
-      role = "participant",
-      expiresInDays = 7,
-      expiresInHours,
-      created_by,
+export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+  const {
+    program_id,
+    group_name,
+    team_id,
+    role = "participant",
+    expiresInDays = 7,
+    expiresInHours,
     } = await req.json();
 
-    if (!program_id) {
-      return NextResponse.json(
-        { error: "Program ID is required" },
-        { status: 400 },
-      );
-    }
+  if (!program_id) {
+    return NextResponse.json(
+      { error: "Program ID is required" },
+      { status: 400 },
+    );
+  }
 
-    const token = uuidv4();
-    const expiresAt = new Date();
-
-    if (expiresInHours) {
-      expiresAt.setHours(expiresAt.getHours() + expiresInHours);
-    } else {
-      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
-    }
-
+  // Ensure table exists
+  try {
     await db.execute({
-      sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, expires_at, created_by)
+      sql: `CREATE TABLE IF NOT EXISTS v2_invitations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT NOT NULL UNIQUE,
+        program_id TEXT NOT NULL,
+        group_name TEXT,
+        team_id TEXT,
+        role TEXT DEFAULT 'participant',
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+      args: [],
+    });
+  } catch (_) {}
+
+  const token = uuidv4();
+  const expiresAt = new Date();
+
+  if (expiresInHours) {
+    expiresAt.setHours(expiresAt.getHours() + expiresInHours);
+  } else {
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+  }
+
+  try {
+    await db.execute({
+      sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, email, expires_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [
         token,
@@ -42,8 +56,8 @@ export async function POST(req) {
         group_name || null,
         team_id || null,
         role,
+        '',
         expiresAt.toISOString().replace("T", " ").replace("Z", ""),
-        created_by || "admin",
       ],
     });
 
@@ -60,13 +74,13 @@ export async function POST(req) {
       expiresAt,
     });
   } catch (error) {
-    console.error("[Invite Generation Error]:", error);
+    console.error("[Invite Generation Error]:", error.message, error.stack);
     return NextResponse.json(
-      { error: "Failed to generate invite" },
+      { error: "Failed to generate invite: " + error.message },
       { status: 500 },
     );
   }
-}
+});
 
 export async function GET(req) {
   try {

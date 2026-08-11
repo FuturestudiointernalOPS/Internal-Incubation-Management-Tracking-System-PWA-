@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
@@ -18,6 +18,7 @@ import {
   Shield,
   Target,
   Zap,
+  Rocket,
   Clock,
   AlertCircle,
   Trash2,
@@ -33,6 +34,8 @@ import {
   UserPlus,
   Calendar,
   RefreshCw,
+  Bell,
+  Copy,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -45,7 +48,7 @@ export const dynamic = "force-dynamic";
  * Performance-first, modular data loading, and clean data-first UI.
  */
 
-export default function ProgramWorkspace() {
+function ProgramWorkspace() {
   const { id } = useParams();
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -78,6 +81,7 @@ export default function ProgramWorkspace() {
   const [assignedStaff, setAssignedStaff] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState(null);
   const toggleKpi = (type, kpiId) => {
     if (type === "session") {
       setNewSession((prev) => {
@@ -121,7 +125,7 @@ export default function ProgramWorkspace() {
       const unique = Array.from(
         new Map(allAvailable.map((s) => [s.cid, s])).values(),
       );
-      return unique.filter((s) => approvedIds.includes(s.cid));
+      return unique.filter((s) => approvedIds.includes(s.cid) && s.role !== "investor");
     } catch (e) {
       return [];
     }
@@ -150,6 +154,28 @@ export default function ProgramWorkspace() {
   });
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [promoteTarget, setPromoteTarget] = useState(null); // { team, action: 'approve' | 'promote' }
+
+  // Load existing attendance when modal opens
+  useEffect(() => {
+    if (!showAttendanceModal || !selectedSessionForAttendance) return;
+    const loadAttendance = async () => {
+      try {
+        const res = await fetch(
+          `/api/attendance?session_id=${selectedSessionForAttendance.id}&program_id=${id}`
+        );
+        const data = await res.json();
+        if (data.success && data.attendance) {
+          const records = {};
+          data.attendance.forEach((a) => {
+            records[a.participant_id] = a.status;
+          });
+          setAttendanceRecords(records);
+        }
+      } catch (_) {}
+    };
+    loadAttendance();
+  }, [showAttendanceModal, selectedSessionForAttendance, id]);
 
   const [expandedSessionId, setExpandedSessionId] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
@@ -161,10 +187,12 @@ export default function ProgramWorkspace() {
     handler_ids: [],
     handler_names: [],
     scheduled_date: "",
+    end_date: "",
     start_time: "",
     end_time: "",
     notes: "",
     extra_materials: [],
+    requirements: [],
   });
 
   const [newSessionMaterial, setNewSessionMaterial] = useState({
@@ -181,6 +209,9 @@ export default function ProgramWorkspace() {
     description: "",
     allowed_format: "pdf",
     kpi_ids: [],
+    due_date: "",
+    assignee_type: "all",
+    assignee_id: "",
   });
   const [newPMReport, setNewPMReport] = useState({
     summary: "",
@@ -213,11 +244,17 @@ export default function ProgramWorkspace() {
   });
   const [newStaff, setNewStaff] = useState({ staff_id: "", role: "staff" });
 
-  const [toast, setToast] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [reviewScore, setReviewScore] = useState("");
+  const [showFollowupFields, setShowFollowupFields] = useState(false);
+  const [followupDate, setFollowupDate] = useState("");
+  const [followupTime, setFollowupTime] = useState("");
+  const [followupDuration, setFollowupDuration] = useState(30);
+  const [followupMeetingLink, setFollowupMeetingLink] = useState("");
+  const [followupNotes, setFollowupNotes] = useState("");
 
   const configNameRef = useRef(null);
   const configDescRef = useRef(null);
@@ -228,8 +265,7 @@ export default function ProgramWorkspace() {
   const configGradingRef = useRef(null);
 
   const notify = (msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message: msg } }));
   };
 
   const saveConfig = async () => {
@@ -288,15 +324,18 @@ export default function ProgramWorkspace() {
       const payload =
         teamAssignmentMode === "new"
           ? {
-              ...newTeam,
-              group_name: detectedGroupName,
-              program_id: id,
-              member_ids: selectedParticipants,
-            }
+            name: newTeam.name,
+            group_name: detectedGroupName,
+            program_id: id,
+            member_ids: selectedParticipants,
+            ...(newTeam.handler_name ? { handler_name: newTeam.handler_name } : {}),
+            ...(newTeam.staff_id ? { handler_id: newTeam.staff_id } : {}),
+            ...(newTeam.leader_id ? { leader_id: newTeam.leader_id } : {}),
+          }
           : {
-              team_id: selectedExistingTeamId,
-              member_ids: selectedParticipants,
-            };
+            team_id: selectedExistingTeamId,
+            member_ids: selectedParticipants,
+          };
 
       const res = await fetch(endpoint, {
         method: method,
@@ -333,6 +372,32 @@ export default function ProgramWorkspace() {
     }
   };
 
+  const changeParticipantTeam = async (participantId, newTeamId) => {
+    if (!participantId || !newTeamId) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/pm/teams", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          team_id: newTeamId,
+          member_ids: [participantId],
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Participant moved to new team.");
+        fetchProgramData(true);
+      } else {
+        notify(data.error || "Failed to move participant.", "error");
+      }
+    } catch (e) {
+      notify("Network error.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const addSession = async () => {
     if (!newSession.title.trim()) return;
     if (
@@ -361,6 +426,7 @@ export default function ProgramWorkspace() {
           end_time: newSession.end_time || null,
           notes: newSession.notes || null,
           extra_materials: newSession.extra_materials || [],
+          requirements: newSession.requirements || [],
         }),
       });
       const data = await res.json();
@@ -382,6 +448,7 @@ export default function ProgramWorkspace() {
           end_time: "",
           notes: "",
           extra_materials: [],
+          requirements: [],
         });
         fetchProgramData(true);
       } else notify(data.error || "Add failed.", "error");
@@ -394,8 +461,18 @@ export default function ProgramWorkspace() {
 
   const addRequirement = async (shouldClose = true) => {
     if (!newRequirement.title.trim()) return;
+    if (!newRequirement.kpi_ids || newRequirement.kpi_ids.length === 0) {
+      notify("Please link at least one KPI. Grading parameters are derived from linked KPIs.", "error");
+      return;
+    }
     setIsSaving(true);
     try {
+      // Derive grading from linked KPIs
+      const linkedKpis = kpis.filter(k => (newRequirement.kpi_ids || []).includes(k.id));
+      const avgWeight = linkedKpis.length > 0
+        ? parseFloat((linkedKpis.reduce((s, k) => s + (parseFloat(k.weight) || 0), 0) / linkedKpis.length).toFixed(2))
+        : 1;
+
       const res = await fetch("/api/pm/curriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -407,6 +484,10 @@ export default function ProgramWorkspace() {
           description: newRequirement.description,
           allowed_format: newRequirement.allowed_format,
           kpi_ids: newRequirement.kpi_ids || [],
+          due_date: newRequirement.due_date || null,
+          assignee_type: newRequirement.assignee_type || "all",
+          assignee_id: newRequirement.assignee_id || "",
+          weight: avgWeight,
         }),
       });
       const data = await res.json();
@@ -417,6 +498,10 @@ export default function ProgramWorkspace() {
           title: "",
           description: "",
           allowed_format: "pdf",
+          kpi_ids: [],
+          due_date: "",
+          assignee_type: "all",
+          assignee_id: "",
         });
         fetchProgramData(true);
       } else notify(data.error || "Failed.", "error");
@@ -466,6 +551,13 @@ export default function ProgramWorkspace() {
     value,
     handlerName = null,
   ) => {
+    // Optimistic update: apply to local state immediately
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId ? { ...s, [field]: value } : s,
+      ),
+    );
+
     try {
       const res = await fetch("/api/pm/curriculum", {
         method: "PUT",
@@ -480,7 +572,6 @@ export default function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        // Only show notification for non-text fields to avoid spam on every keystroke
         const silentFields = ["title", "description", "notes"];
         if (!silentFields.includes(field)) {
           notify("Session field synchronized.");
@@ -512,6 +603,12 @@ export default function ProgramWorkspace() {
               }),
             });
           }
+        }
+      } else {
+        if (res.status === 401) {
+          notify("Session expired. Please save your work and refresh.", "error");
+        } else {
+          notify(data.error || "Field sync failed.", "error");
         }
       }
     } catch (e) {
@@ -643,12 +740,19 @@ export default function ProgramWorkspace() {
     }
   };
 
-  const removeKPI = async (kpiId) => {
+  const removeKPI = (kpiId) => {
     if (user.role !== "super_admin") {
       notify("Only SuperAdmin can decommission KPIs.", "error");
       return;
     }
-    if (!confirm("Decommission this KPI?")) return;
+    setConfirmTarget({
+      id: kpiId,
+      message: "Decommission this KPI?",
+      onConfirm: () => performRemoveKPI(kpiId),
+    });
+  };
+
+  const performRemoveKPI = async (kpiId) => {
     try {
       await fetch("/api/v2/kpis", {
         method: "DELETE",
@@ -656,7 +760,7 @@ export default function ProgramWorkspace() {
       });
       notify("KPI removed.");
       fetchProgramData(true);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const assignStaff = async () => {
@@ -682,8 +786,15 @@ export default function ProgramWorkspace() {
     }
   };
 
-  const removeStaff = async (staffId) => {
-    if (!confirm("Remove this staff member?")) return;
+  const removeStaff = (staffId) => {
+    setConfirmTarget({
+      id: staffId,
+      message: "Remove this staff member?",
+      onConfirm: () => performRemoveStaff(staffId),
+    });
+  };
+
+  const performRemoveStaff = async (staffId) => {
     try {
       const record = assignedStaff.find((s) => s.cid === staffId);
       if (record && record.id) {
@@ -694,11 +805,18 @@ export default function ProgramWorkspace() {
         notify("Personnel removed.");
         fetchProgramData(true);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
-  const deleteTeam = async (teamId) => {
-    if (!confirm("Decommission this student group?")) return;
+  const deleteTeam = (teamId) => {
+    setConfirmTarget({
+      id: teamId,
+      message: "Decommission this student group?",
+      onConfirm: () => performDeleteTeam(teamId),
+    });
+  };
+
+  const performDeleteTeam = async (teamId) => {
     try {
       const res = await fetch("/api/pm/teams", {
         method: "DELETE",
@@ -716,8 +834,15 @@ export default function ProgramWorkspace() {
 
   const [showArchivedSessions, setShowArchivedSessions] = useState(false);
 
-  const deleteSession = async (sessionId) => {
-    if (!confirm("Archive this session? It can be restored later.")) return;
+  const deleteSession = (sessionId) => {
+    setConfirmTarget({
+      id: sessionId,
+      message: "Archive this session? It can be restored later.",
+      onConfirm: () => performDeleteSession(sessionId),
+    });
+  };
+
+  const performDeleteSession = async (sessionId) => {
     try {
       await fetch("/api/pm/curriculum", {
         method: "POST",
@@ -731,7 +856,7 @@ export default function ProgramWorkspace() {
       });
       notify("Session archived.");
       fetchProgramData(true);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleReviewSubmission = async () => {
@@ -752,8 +877,50 @@ export default function ProgramWorkspace() {
       if (data.success) {
         notify("Submission graded successfully.");
         setShowReviewModal(false);
+        setShowFollowupFields(false);
+        setFollowupDate("");
+        setFollowupTime("");
         fetchProgramData(true);
       } else notify(data.error || "Failed to grade", "error");
+    } catch (e) {
+      notify("Network error.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleScheduleFollowup = async () => {
+    if (!selectedSubmission) return;
+    if (!followupDate || !followupTime) {
+      notify("Please select a date and time for the follow-up.", "error");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/submissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedSubmission.id,
+          status: "pending_followup",
+          score: parseInt(reviewScore) || 0,
+          feedback: followupNotes || "Follow-up scheduled",
+          followup_date: followupDate,
+          followup_time: followupTime,
+          followup_duration: parseInt(followupDuration) || 30,
+          meeting_link: followupMeetingLink || null,
+          followup_notes: followupNotes || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Follow-up scheduled successfully.");
+        setShowReviewModal(false);
+        setShowFollowupFields(false);
+        setFollowupDate("");
+        setFollowupTime("");
+        fetchProgramData(true);
+      } else notify(data.error || "Failed to schedule follow-up", "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -852,6 +1019,7 @@ export default function ProgramWorkspace() {
       roles: ["super_admin", "program_manager"],
     },
     { id: "curriculum", name: "Curriculum", icon: FileText },
+    { id: "attendance", name: "Attendance", icon: CheckCircle2 },
     { id: "reports", name: "Reports", icon: BarChart3 },
     { id: "participants", name: "Participants", icon: Users },
     { id: "submissions", name: "Submissions", icon: Activity },
@@ -914,6 +1082,7 @@ export default function ProgramWorkspace() {
         {/* WORKSPACE CONTENT */}
         <div className="pt-4">
           {activeTab === "overview" && (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="card space-y-4 border-l-4 border-blue-500">
                 <div className="flex justify-between items-start">
@@ -957,10 +1126,10 @@ export default function ProgramWorkspace() {
                     Completion Rate:{" "}
                     {participants.length > 0
                       ? Math.round(
-                          (submissions.length /
-                            (participants.length * sessions.length || 1)) *
-                            100,
-                        )
+                        (submissions.length /
+                          (participants.length * sessions.length || 1)) *
+                        100,
+                      )
                       : 0}
                     %
                   </p>
@@ -995,6 +1164,42 @@ export default function ProgramWorkspace() {
                 </div>
               </div>
             </div>
+
+            {/* REGISTRATION LINK */}
+            {families.length > 0 && families[0]?.registration_id && (
+              <div className="card mt-6 border-l-4 border-emerald-500">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1 flex-1">
+                    <p className="text-xs font-black uppercase text-[var(--text-secondary)] tracking-wider">
+                      Registration Link
+                    </p>
+                    <p className="text-[9px] text-emerald-500 font-medium mt-1">
+                      Share this link with participants to register
+                    </p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <code className="text-[10px] font-mono bg-black/30 px-3 py-2 rounded-lg border border-[var(--border-primary)] truncate max-w-[450px] block" style={{ color: "var(--text-primary)" }}>
+                        {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={families[0]?.registration_id && encodeURIComponent(families[0].registration_id)}
+                      </code>
+                      <button
+                        onClick={() => {
+                          const fid = families[0]?.registration_id;
+                          if (!fid) return;
+                          navigator.clipboard.writeText(
+                            `${window.location.origin}/register-participant?group_id=${encodeURIComponent(fid)}`
+                          );
+                          window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
+                        }}
+                        className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+                        title="Copy registration link"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            </>
           )}
 
           {activeTab === "participants" && (
@@ -1005,7 +1210,7 @@ export default function ProgramWorkspace() {
                   onClick={() => setActiveSubTab("individuals")}
                   className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "individuals" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
                 >
-                  Individuals ({participants.length})
+                  Individuals ({participants.filter(p => p.status !== 'archived').length})
                 </button>
                 <button
                   onClick={() => setActiveSubTab("groups")}
@@ -1035,7 +1240,7 @@ export default function ProgramWorkspace() {
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
-                          setSelectedParticipants(participants.map((p) => p.id))
+                          setSelectedParticipants(participants.filter(p => p.status !== 'archived').map((p) => p.id))
                         }
                         className="text-[9px] font-black uppercase text-blue-500 hover:underline"
                       >
@@ -1082,7 +1287,7 @@ export default function ProgramWorkspace() {
                         </tr>
                       </thead>
                       <tbody>
-                        {participants.map((p) => {
+                        {participants.filter(p => p.status !== 'archived').map((p) => {
                           const isSelected = selectedParticipants.includes(
                             p.id,
                           );
@@ -1142,12 +1347,26 @@ export default function ProgramWorkspace() {
                                 </div>
                               </td>
                               <td className="text-right">
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end gap-2 items-center">
+                                  <select
+                                    className="text-[10px] font-black uppercase bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1"
+                                    value={p.v2_team_id || ""}
+                                    onChange={(e) => {
+                                      const newTeamId = e.target.value;
+                                      if (newTeamId && newTeamId !== (p.v2_team_id || "")) {
+                                        changeParticipantTeam(p.id, newTeamId);
+                                      }
+                                    }}
+                                  >
+                                    <option value="">No Team</option>
+                                    {teams.map((t) => (
+                                      <option key={t.id} value={t.id}>
+                                        {t.name}
+                                      </option>
+                                    ))}
+                                  </select>
                                   <button className="p-2 hover:text-[var(--brand-blue)]">
                                     <Mail className="w-4 h-4" />
-                                  </button>
-                                  <button className="p-2 hover:text-emerald-500">
-                                    <MessageCircle className="w-4 h-4" />
                                   </button>
                                 </div>
                               </td>
@@ -1220,17 +1439,35 @@ export default function ProgramWorkspace() {
                       </div>
                       <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
                         <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                          Healthy
+                          {team.is_venture_ready ? "Venture Ready" : "In Program"}
                         </span>
+                        <div className="flex gap-2">
                         <button
                           onClick={() => {
                             setSelectedTeam(team);
                             setShowTeamDetails(true);
                           }}
-                          className="text-[var(--brand-blue)] text-xs font-bold uppercase flex items-center gap-1"
+                          className="btn btn-secondary btn-sm"
                         >
-                          Details <ChevronRight className="w-4 h-4" />
+                          <ChevronRight className="w-3 h-3" /> View
                         </button>
+                        {!team.is_venture_ready && (
+                          <button
+                            onClick={() => setPromoteTarget({ team, action: "approve" })}
+                            className="btn btn-primary btn-sm"
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> Approve
+                          </button>
+                        )}
+                        {team.is_venture_ready && !team.venture_id && (
+                          <button
+                            onClick={() => setPromoteTarget({ team, action: "promote" })}
+                            className="btn btn-primary btn-sm"
+                          >
+                            <Zap className="w-3 h-3" /> Promote
+                          </button>
+                        )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1322,11 +1559,10 @@ export default function ProgramWorkspace() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowArchivedSessions((p) => !p)}
-                    className={`text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${
-                      showArchivedSessions
-                        ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                        : "bg-transparent border-white/10 text-slate-600 hover:text-slate-400"
-                    }`}
+                    className={`text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${showArchivedSessions
+                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                      : "bg-transparent border-white/10 text-slate-600 hover:text-slate-400"
+                      }`}
                   >
                     {showArchivedSessions ? "Showing Archived" : "Archived"}
                   </button>
@@ -1336,8 +1572,8 @@ export default function ProgramWorkspace() {
                         const nextWK =
                           sessions.length > 0
                             ? Math.max(
-                                ...sessions.map((s) => s.week_number || 0),
-                              ) + 1
+                              ...sessions.map((s) => s.week_number || 0),
+                            ) + 1
                             : 1;
                         setNewSession({
                           title: "",
@@ -1405,7 +1641,10 @@ export default function ProgramWorkspace() {
                                 );
                                 let displayStatus = session.status;
                                 let statusColor = "bg-amber-500";
-                                if (session.scheduled_date) {
+                                if (session.status === "locked") {
+                                  displayStatus = "locked";
+                                  statusColor = "bg-rose-500";
+                                } else if (session.scheduled_date) {
                                   const schedDate = new Date(
                                     session.scheduled_date,
                                   );
@@ -1417,9 +1656,12 @@ export default function ProgramWorkspace() {
                                   if (session.status === "completed") {
                                     displayStatus = "completed";
                                     statusColor = "bg-emerald-500";
-                                  } else if (schedDay <= today) {
+                                  } else if (schedDay <= today && session.status !== "not started") {
                                     displayStatus = "active";
                                     statusColor = "bg-indigo-500";
+                                  } else if (session.status === "not started") {
+                                    displayStatus = "not started";
+                                    statusColor = "bg-slate-500";
                                   } else {
                                     displayStatus = "pending";
                                     statusColor = "bg-amber-500";
@@ -1456,6 +1698,11 @@ export default function ProgramWorkspace() {
                                   {new Date(
                                     session.scheduled_date,
                                   ).toLocaleDateString()}
+                                </span>
+                              )}
+                              {session.timezone && session.timezone !== 'UTC' && (
+                                <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                                  {session.timezone}
                                 </span>
                               )}
                               {session.notes && (
@@ -1500,6 +1747,24 @@ export default function ProgramWorkspace() {
                           </div>
                         </div>
 
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedSessionId(
+                                expandedSessionId === session.id
+                                  ? null
+                                  : session.id,
+                              );
+                            }}
+                            title="View session details, deliverables & resources"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${expandedSessionId === session.id ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]" : "bg-transparent border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]/50 hover:text-[var(--text-primary)]"}`}
+                          >
+                            <ChevronRight className={`w-3 h-3 transition-transform ${expandedSessionId === session.id ? "rotate-90" : ""}`} />
+                            {expandedSessionId === session.id ? "Hide Details" : "View Details"}
+                          </button>
+                        </div>
+
                         <div
                           className="flex items-center gap-3"
                           onClick={(e) => e.stopPropagation()}
@@ -1518,7 +1783,7 @@ export default function ProgramWorkspace() {
                               Attendance
                             </span>
                           </button>
-                          {isAssignedPm && (
+                          {canContribute && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1530,6 +1795,26 @@ export default function ProgramWorkspace() {
                               <Activity className="w-3.5 h-3.5" />
                               <span className="text-[9px] font-black uppercase italic tracking-wider">
                                 Give Weekly Report
+                              </span>
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newStatus = session.status === "locked" ? "not started" : "locked";
+                                updateSessionStatus(session.id, newStatus);
+                              }}
+                              title={session.status === "locked" ? "Unlock this week" : "Lock this week"}
+                              className={`btn btn-secondary !py-2 !px-4 flex items-center gap-2 transition-all ${
+                                session.status === "locked"
+                                  ? "border-rose-500/20 text-rose-500 hover:bg-rose-500/5"
+                                  : "border-amber-500/20 text-amber-500 hover:bg-amber-500/5"
+                              }`}
+                            >
+                              <span className="text-sm">{session.status === "locked" ? "🔓" : "🔒"}</span>
+                              <span className="text-[9px] font-black uppercase italic tracking-wider">
+                                {session.status === "locked" ? "Unlock" : "Lock"}
                               </span>
                             </button>
                           )}
@@ -1562,7 +1847,7 @@ export default function ProgramWorkspace() {
                               </span>
                             </div>
 
-                            <div className="space-y-4 p-5 bg-primary rounded-2xl border border-[var(--border-primary)] shadow-sm">
+                            <div className={`space-y-4 p-5 bg-primary rounded-2xl border border-[var(--border-primary)] shadow-sm ${!canEdit ? "pointer-events-none opacity-60" : ""}`}>
                               {/* Session Title */}
                               <div className="space-y-1">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
@@ -1578,7 +1863,8 @@ export default function ProgramWorkspace() {
                                       e.target.value,
                                     )
                                   }
-                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all"
+                                  disabled={session.status === "locked"}
+                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                               </div>
 
@@ -1589,13 +1875,18 @@ export default function ProgramWorkspace() {
                                 </label>
                                 <textarea
                                   value={session.description || ""}
-                                  onChange={(e) =>
+                                  onBlur={(e) =>
                                     updateSessionField(
                                       session.id,
                                       "description",
                                       e.target.value,
                                     )
                                   }
+                                  onChange={(e) => {
+                                    // Update local state only, save on blur
+                                    const updated = sessions.map(s => s.id === session.id ? {...s, description: e.target.value} : s);
+                                    setSessions(updated);
+                                  }}
                                   rows={2}
                                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all resize-none"
                                 />
@@ -1657,38 +1948,109 @@ export default function ProgramWorkspace() {
                                 </div>
                               </div>
 
-                              <div className="space-y-1">
+                              {/* Timezone */}
+                              <div className="space-y-1 mt-2">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  Assign Staff Member
+                                  Timezone
                                 </label>
                                 <select
-                                  value={session.handler_id || ""}
-                                  onChange={(e) => {
-                                    const staff = assignedStaff.find(
-                                      (s) => String(s.cid) === e.target.value,
-                                    );
-                                    updateSessionField(
-                                      session.id,
-                                      "handler_id",
-                                      e.target.value,
-                                      staff?.name,
-                                    );
-                                  }}
-                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                                  value={session.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')}
+                                  onChange={(e) =>
+                                    updateSessionField(session.id, "timezone", e.target.value)
+                                  }
+                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
                                 >
-                                  <option value="">Select Member...</option>
-                                  {programTeamMembers.length > 0
-                                    ? programTeamMembers.map((s) => (
-                                        <option key={s.cid} value={s.cid}>
-                                          {s.name} ({s.role})
-                                        </option>
-                                      ))
-                                    : assignedStaff.map((s) => (
-                                        <option key={s.cid} value={s.cid}>
-                                          {s.name} ({s.role})
-                                        </option>
-                                      ))}
+                                  {["UTC", "Africa/Porto-Novo", "Europe/Paris", "America/New_York", "Asia/Dubai", "Europe/London"].map(tz => (
+                                    <option key={tz} value={tz}>{tz}</option>
+                                  ))}
                                 </select>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
+                                  Assign Staff Member(s)
+                                </label>
+                                <div className="space-y-2 p-3 bg-tertiary border border-[var(--border-primary)] rounded-xl max-h-40 overflow-y-auto custom-scrollbar">
+                                  {(programTeamMembers.length > 0
+                                    ? programTeamMembers
+                                    : assignedStaff
+                                  ).map((s) => {
+                                    const stringId = String(s.cid);
+                                    let isSelected = false;
+                                    try {
+                                      const ids = JSON.parse(
+                                        session.handler_id || "[]",
+                                      );
+                                      isSelected = Array.isArray(ids)
+                                        ? ids.includes(stringId)
+                                        : session.handler_id === stringId;
+                                    } catch (e) {
+                                      isSelected = session.handler_id === stringId;
+                                    }
+                                    return (
+                                      <label
+                                        key={s.cid}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            let currentIds = [];
+                                            try {
+                                              currentIds = JSON.parse(
+                                                session.handler_id || "[]",
+                                              );
+                                              if (!Array.isArray(currentIds))
+                                                currentIds = session.handler_id
+                                                  ? [session.handler_id]
+                                                  : [];
+                                            } catch (err) {
+                                              currentIds = session.handler_id
+                                                ? [session.handler_id]
+                                                : [];
+                                            }
+
+                                            let newIds;
+                                            if (checked) {
+                                              newIds = [
+                                                ...new Set([...currentIds, stringId]),
+                                              ];
+                                            } else {
+                                              newIds = currentIds.filter(
+                                                (id) => id !== stringId,
+                                              );
+                                            }
+
+                                            const staffList =
+                                              programTeamMembers.length > 0
+                                                ? programTeamMembers
+                                                : assignedStaff;
+                                            const selectedStaff = staffList.filter(
+                                              (staff) =>
+                                                newIds.includes(String(staff.cid)),
+                                            );
+                                            const selectedNames = selectedStaff.map(
+                                              (staff) => staff.name,
+                                            );
+
+                                            updateSessionField(
+                                              session.id,
+                                              "handler_id",
+                                              JSON.stringify(newIds),
+                                              JSON.stringify(selectedNames),
+                                            );
+                                          }}
+                                          className="rounded border-[var(--border-primary)] bg-[var(--surface-2)] text-indigo-500"
+                                        />
+                                        <span className="text-[11px] font-bold text-[var(--text-primary)]">
+                                          {s.name} ({s.role})
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
                               </div>
 
                               <div className="grid grid-cols-2 gap-3">
@@ -1702,8 +2064,8 @@ export default function ProgramWorkspace() {
                                     value={
                                       session.scheduled_date
                                         ? new Date(session.scheduled_date)
-                                            .toISOString()
-                                            .split("T")[0]
+                                          .toISOString()
+                                          .split("T")[0]
                                         : ""
                                     }
                                     onChange={(e) =>
@@ -1726,8 +2088,8 @@ export default function ProgramWorkspace() {
                                     value={
                                       session.end_date
                                         ? new Date(session.end_date)
-                                            .toISOString()
-                                            .split("T")[0]
+                                          .toISOString()
+                                          .split("T")[0]
                                         : ""
                                     }
                                     onChange={(e) =>
@@ -1754,21 +2116,38 @@ export default function ProgramWorkspace() {
                                       e.target.value,
                                     )
                                   }
+                                  disabled={session.status === "locked"}
                                   className={`w-full mt-1 px-4 py-3 rounded-xl border text-[10px] font-black uppercase outline-none transition-all cursor-pointer ${
-                                    session.status === "completed"
-                                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                                      : session.status === "in progress"
-                                        ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
-                                        : "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                                    session.status === "locked"
+                                      ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                                      : session.status === "completed"
+                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                                        : session.status === "in progress"
+                                          ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
+                                          : session.status === "not started"
+                                            ? "bg-slate-500/10 text-slate-400 border-slate-500/30"
+                                            : "bg-amber-500/10 text-amber-500 border-amber-500/30"
                                   }`}
                                 >
+                                  <option value="not started">NOT STARTED</option>
                                   <option value="pending">PENDING</option>
                                   <option value="in progress">
                                     IN PROGRESS
                                   </option>
                                   <option value="completed">COMPLETED</option>
+                                  <option value="locked">🔒 LOCKED</option>
                                 </select>
                               </div>
+                              {session.version > 1 && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                                    Version: {session.version}
+                                  </span>
+                                  <span className="text-[7px] text-slate-500">
+                                    ({session.version - 1} revision{session.version > 2 ? 's' : ''})
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -1786,10 +2165,17 @@ export default function ProgramWorkspace() {
                                   Assessments & Deliverables
                                 </span>
                               </div>
-                              {canContribute && (
+                              {canEdit && (
                                 <button
                                   onClick={() => {
                                     setSelectedSessionId(session.id);
+                                    // Pre-populate KPIs from the session (handle JSON string or array)
+                                    let sessionKpiIds = session.kpi_ids || [];
+                                    if (typeof sessionKpiIds === "string") {
+                                      try { sessionKpiIds = JSON.parse(sessionKpiIds); } catch (_) { sessionKpiIds = []; }
+                                    }
+                                    if (!Array.isArray(sessionKpiIds)) sessionKpiIds = [];
+                                    setNewRequirement((p) => ({ ...p, kpi_ids: sessionKpiIds }));
                                     setShowRequirementModal(true);
                                   }}
                                   className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
@@ -1815,29 +2201,84 @@ export default function ProgramWorkspace() {
                                         <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
                                           {req.title}
                                         </p>
-                                        <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic">
-                                          Requirement:{" "}
-                                          {req.allowed_format || "PDF"}
+                                        <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic flex items-center gap-2">
+                                          <span>Requirement: {req.allowed_format || "PDF"}</span>
+                                          {req.due_date && (() => {
+                                            const now = new Date();
+                                            const due = new Date(req.due_date);
+                                            const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+                                            const isOverdue = diffDays < 0;
+                                            const isDueSoon = diffDays >= 0 && diffDays <= 3;
+                                            return (
+                                              <>
+                                                <span>•</span>
+                                                <span className={isOverdue ? "text-rose-500" : isDueSoon ? "text-amber-500" : "text-amber-500/60"}>
+                                                  Due: {due.toLocaleDateString()}
+                                                </span>
+                                                {isOverdue && (
+                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-rose-500/20 text-rose-400">OVERDUE</span>
+                                                )}
+                                                {isDueSoon && (
+                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-amber-500/20 text-amber-400">DUE SOON</span>
+                                                )}
+                                              </>
+                                            );
+                                          })()}
                                         </p>
                                       </div>
                                     </div>
-                                    {canEdit && (
-                                      <button className="text-rose-500/10 hover:text-rose-500 transition-all">
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
+                                    <div className="flex items-center gap-1">
+                                      {req.due_date && canEdit && (
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              const res = await fetch("/api/pm/curriculum", {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({
+                                                  action: "send_reminder",
+                                                  requirement_id: req.id,
+                                                  program_id: id,
+                                                }),
+                                              });
+                                              const data = await res.json();
+                                              if (data.success) {
+                                                const msg = data.sent > 0
+                                                  ? `Reminder sent to ${data.sent} participant(s)`
+                                                  : "Reminder sent";
+                                                notify(msg);
+                                              } else {
+                                                notify("Reminder failed");
+                                              }
+                                            } catch (e) {
+                                              notify("Reminder error");
+                                            }
+                                          }}
+                                          className="text-[7px] font-black uppercase text-[var(--brand-orange)]/60 hover:text-[var(--brand-orange)] transition-all px-2 py-1 rounded border border-[var(--brand-orange)]/20 hover:border-[var(--brand-orange)]/50"
+                                          title="Send reminder to assigned participants"
+                                        >
+                                          <Bell className="w-3 h-3 inline mr-1" />
+                                          REMIND
+                                        </button>
+                                      )}
+                                      {canEdit && (
+                                        <button className="text-rose-500/10 hover:text-rose-500 transition-all">
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 ))}
                               {requirements.filter(
                                 (r) => r.session_id === session.id,
                               ).length === 0 && (
-                                <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                                  <Shield className="w-10 h-10 mb-2" />
-                                  <p className="text-[10px] font-bold uppercase tracking-widest">
-                                    No Requirements Set
-                                  </p>
-                                </div>
-                              )}
+                                  <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
+                                    <Shield className="w-10 h-10 mb-2" />
+                                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                                      No Requirements Set
+                                    </p>
+                                  </div>
+                                )}
                             </div>
                             <p className="text-[8px] font-bold text-slate-500/50 uppercase tracking-widest italic text-center px-6">
                               These items are formal evidence submitted by
@@ -1859,184 +2300,70 @@ export default function ProgramWorkspace() {
                                   Weekly Resources
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {canContribute && (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        setMaterialSessionId(session.id);
-                                        setMaterialName("");
-                                        setMaterialUrl("");
-                                        setShowMaterialModal(true);
-                                      }}
-                                      className="text-[9px] font-black text-blue-400 uppercase hover:underline cursor-pointer flex items-center gap-1"
-                                    >
-                                      <Plus className="w-3 h-3" /> Add Link
-                                    </button>
-                                    <label className="text-[9px] font-black text-blue-500 uppercase hover:underline cursor-pointer flex items-center gap-1">
-                                      <Plus className="w-3 h-3" /> Upload
-                                      <input
-                                        type="file"
-                                        accept=".pdf"
-                                        className="hidden"
-                                        onChange={async (e) => {
-                                          const file = e.target.files[0];
-                                          if (!file) return;
-                                          notify("Syncing material...", "info");
-                                          try {
-                                            const res = await fetch(
-                                              "/api/pm/curriculum",
-                                              {
-                                                method: "POST",
-                                                headers: {
-                                                  "Content-Type":
-                                                    "application/json",
-                                                },
-                                                body: JSON.stringify({
-                                                  action: "anchor_material",
-                                                  program_id: id,
-                                                  session_id: session.id,
-                                                  file_name: file.name,
-                                                }),
-                                              },
-                                            );
-                                            if ((await res.json()).success) {
-                                              notify("Material anchored.");
-                                              fetchProgramData(true);
-                                            }
-                                          } catch (e) {
-                                            notify("Upload failed.", "error");
-                                          }
-                                        }}
-                                      />
-                                    </label>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="space-y-6">
-                              {/* ── SUPER ADMIN GUIDELINES ── */}
-                              {(program?.knowledge_assets || []).length > 0 && (
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2 pb-1">
-                                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-                                    <span className="text-[8px] font-black uppercase tracking-[0.15em] text-emerald-500">
-                                      Super Admin Guidelines
-                                    </span>
-                                    <div className="flex-1 h-px bg-gradient-to-r from-emerald-500/20 to-transparent" />
-                                  </div>
-                                  {(program?.knowledge_assets || []).map(
-                                    (kb, kIdx) => (
-                                      <div
-                                        key={`kb-${kIdx}`}
-                                        className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20 flex items-center justify-between group/asset shadow-sm"
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <BookOpen className="w-4 h-4 text-emerald-500 shrink-0" />
-                                          <div className="min-w-0">
-                                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
-                                              {kb.name || "Core Asset"}
-                                            </p>
-                                            <p className="text-[7px] text-emerald-600 font-black uppercase tracking-widest mt-0.5">
-                                              Program Guideline
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <button
-                                          onClick={() =>
-                                            setActivePDF({
-                                              url: kb.url,
-                                              name: kb.name,
-                                            })
-                                          }
-                                          className="shrink-0 px-3 py-1.5 bg-emerald-500/10 rounded-lg text-[8px] font-black text-emerald-600 uppercase hover:bg-emerald-500/20 transition-all border border-emerald-500/10"
-                                        >
-                                          View
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                </div>
-                              )}
-
-                              {/* ── WEEKLY SESSION MATERIALS ── */}
-                              {(() => {
-                                let sessionMaterials = [];
-                                try {
-                                  const raw = session.extra_materials;
-                                  sessionMaterials =
-                                    typeof raw === "string"
-                                      ? JSON.parse(raw || "[]")
-                                      : raw || [];
-                                } catch (e) {
-                                  sessionMaterials = [];
-                                }
-
-                                if (
-                                  sessionMaterials.length === 0 &&
-                                  !(program?.knowledge_assets || []).length
-                                ) {
-                                  return (
-                                    <div className="py-8 text-center opacity-20 italic space-y-2">
-                                      <Clock className="w-6 h-6 mx-auto" />
-                                      <p className="text-[9px] font-bold uppercase">
-                                        No Materials
-                                      </p>
-                                    </div>
-                                  );
-                                }
-
-                                if (sessionMaterials.length === 0) return null;
-
-                                return (
-                                  <div className="space-y-3">
-                                    <div className="flex items-center gap-2 pb-1">
-                                      <Zap className="w-3.5 h-3.5 text-blue-500" />
-                                      <span className="text-[8px] font-black uppercase tracking-[0.15em] text-blue-500">
-                                        Weekly Documents
-                                      </span>
-                                      <div className="flex-1 h-px bg-gradient-to-r from-blue-500/20 to-transparent" />
-                                    </div>
-                                    {sessionMaterials.map((mat, mIdx) => (
-                                      <div
-                                        key={`mat-${mIdx}`}
-                                        className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/20 flex items-center justify-between group/asset shadow-sm"
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <Zap className="w-4 h-4 text-blue-500 shrink-0" />
-                                          <div className="min-w-0">
-                                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
-                                              {mat.name}
-                                            </p>
-                                            <p className="text-[7px] text-blue-600 font-black uppercase tracking-widest mt-0.5">
-                                              {mat.url
-                                                ? "External Link"
-                                                : "Session Material"}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                          <button className="px-3 py-1.5 bg-blue-500/10 rounded-lg text-[8px] font-black text-blue-600 uppercase hover:bg-blue-500/20 transition-all border border-blue-500/10">
-                                            View
-                                          </button>
-                                          {canEdit && (
-                                            <button className="p-1.5 bg-rose-500/5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all border border-rose-500/10">
-                                              <Trash2 className="w-3 h-3" />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                );
-                              })()}
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
+                  ))
+                }
+              </div>
+            </div>
+          )}
+
+          {activeTab === "attendance" && (
+            <div className="space-y-6 animate-in">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  Attendance Overview
+                </h3>
+              </div>
+              <p className="text-[10px] text-[var(--text-secondary)]">
+                Select a week below to manage attendance for that session.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {sessions
+                  .filter((s) => s.type === "session")
+                  .sort((a, b) => (a.week_number || 0) - (b.week_number || 0))
+                  .map((session) => (
+                    <div
+                      key={session.id}
+                      className="card border border-[var(--border-primary)] hover:border-indigo-500/30 transition-all cursor-pointer"
+                      onClick={() => {
+                        setSelectedSessionForAttendance(session);
+                        setShowAttendanceModal(true);
+                      }}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-lg font-black text-indigo-400">
+                          {session.week_number || "?"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                            {session.title}
+                          </p>
+                          <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
+                            Week {session.week_number}
+                          </p>
+                        </div>
+                      </div>
+                      {session.scheduled_date && (
+                        <p className="text-[9px] text-[var(--text-secondary)] mb-2">
+                          {new Date(session.scheduled_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      )}
+                      <button
+                        className="w-full py-2 rounded-lg bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all"
+                      >
+                        Open Attendance
+                      </button>
+                    </div>
                   ))}
+                {sessions.filter((s) => s.type === "session").length === 0 && (
+                  <div className="col-span-3 py-12 text-center">
+                    <p className="text-[11px] text-slate-500">No sessions yet. Create weeks in the Curriculum tab first.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2074,8 +2401,8 @@ export default function ProgramWorkspace() {
                                     parsed = JSON.parse(parsed);
                                   materials = Array.isArray(parsed)
                                     ? parsed.filter(
-                                        (i) => i && i !== "[]" && i !== "",
-                                      )
+                                      (i) => i && i !== "[]" && i !== "",
+                                    )
                                     : [parsed];
                                 } catch (e) {
                                   materials = raw === "[]" ? [] : [raw];
@@ -2098,7 +2425,7 @@ export default function ProgramWorkspace() {
                                   if (typeof p === "string") p = JSON.parse(p);
                                   if (Array.isArray(p)) item = p[0];
                                   else item = p;
-                                } catch (e) {}
+                                } catch (e) { }
                               }
                               if (Array.isArray(item)) item = item[0];
                               if (item && typeof item === "object") {
@@ -2161,12 +2488,12 @@ export default function ProgramWorkspace() {
                             const rawName =
                               typeof file === "object"
                                 ? file.name ||
-                                  file.NAME ||
-                                  file.title ||
-                                  file.TITLE ||
-                                  (typeof (file.url || file.URL) === "string"
-                                    ? (file.url || file.URL).split("/").pop()
-                                    : "Program Document")
+                                file.NAME ||
+                                file.title ||
+                                file.TITLE ||
+                                (typeof (file.url || file.URL) === "string"
+                                  ? (file.url || file.URL).split("/").pop()
+                                  : "Program Document")
                                 : typeof file === "string"
                                   ? file.split("/").pop()
                                   : "Program Document";
@@ -2309,8 +2636,8 @@ export default function ProgramWorkspace() {
                           defaultValue={
                             program?.start_date
                               ? new Date(program.start_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                               : ""
                           }
                           className="w-full bg-primary border border-emerald-500/30 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 outline-none transition-all font-bold"
@@ -2327,8 +2654,8 @@ export default function ProgramWorkspace() {
                           defaultValue={
                             program?.end_date
                               ? new Date(program.end_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                               : ""
                           }
                           className="w-full bg-primary border border-rose-500/30 rounded-lg px-4 py-3 text-sm focus:border-rose-500 outline-none transition-all font-bold"
@@ -2485,6 +2812,78 @@ export default function ProgramWorkspace() {
 
           {activeTab === "reports" && (
             <div className="space-y-6">
+              {/* Export Bar */}
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mr-2">Export:</span>
+                {[
+                  { label: "Participants CSV", type: "participants", format: "csv" },
+                  { label: "Participants XLSX", type: "participants", format: "xlsx" },
+                  { label: "Attendance CSV", type: "attendance", format: "csv" },
+                  { label: "Submissions CSV", type: "submissions", format: "csv" },
+                  { label: "Teams CSV", type: "teams", format: "csv" },
+                  { label: "Calendar iCal", type: "ical", format: "ical" },
+                  { label: "Participants PDF", type: "participants", format: "pdf" },
+                ].map(({ label, type, format }) => (
+                  <button
+                    key={`${type}-${format}`}
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/pm/export?type=${type}&program_id=${id}&format=${format}`, {
+                          credentials: "include",
+                        });
+                        if (!res.ok) throw new Error("Export failed");
+                        if (format === "pdf") {
+                          const { rows: data, filename } = await res.json();
+                          const { default: jsPDF } = await import("jspdf");
+                          const doc = new jsPDF({ orientation: "landscape" });
+                          doc.setFontSize(12);
+                          doc.text(`${type.toUpperCase()} - Talent for Startups`, 10, 10);
+                          if (data && data.length > 0) {
+                            const headers = Object.keys(data[0]);
+                            let y = 20;
+                            doc.setFontSize(7);
+                            // Header row
+                            headers.forEach((h, i) => doc.text(String(h), 10 + i * 35, y));
+                            y += 5;
+                            // Data rows (max 40 rows per page)
+                            data.slice(0, 80).forEach((row, ri) => {
+                              if (y > 180) { doc.addPage(); y = 15; }
+                              headers.forEach((h, i) => {
+                                const val = String(row[h] ?? "").substring(0, 20);
+                                doc.text(val, 10 + i * 35, y);
+                              });
+                              y += 4;
+                            });
+                          }
+                          doc.save(filename);
+                        } else {
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          const ext = format === "xlsx" ? "xlsx" : "csv";
+                          a.href = url;
+                          a.download = `${type}-${id}.${ext}`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }
+                        notify(`Exported ${label}`);
+                      } catch (e) {
+                        notify("Export failed", "error");
+                      }
+                    }}
+                    className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg border transition-all ${
+                      format === "xlsx"
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                        : format === "pdf"
+                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
+                          : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border-[var(--brand-orange)]/20 hover:bg-[var(--brand-orange)]/20"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
                   Weekly Intelligence Feed
@@ -2544,7 +2943,7 @@ export default function ProgramWorkspace() {
                             Strategic Next Steps
                           </p>
                           <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.next_steps || "No data reported."}
+                            {report.planned_adjustments || report.next_steps || "No data reported."}
                           </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-2">
@@ -2715,11 +3114,10 @@ export default function ProgramWorkspace() {
         {/* TOAST */}
         {toast && (
           <div
-            className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${
-              toast.type === "error"
-                ? "bg-rose-50 text-rose-700 border-rose-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}
+            className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${toast.type === "error"
+              ? "bg-rose-50 text-rose-700 border-rose-200"
+              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+              }`}
           >
             {toast.msg}
           </div>
@@ -2897,9 +3295,9 @@ export default function ProgramWorkspace() {
                 >
                   Cancel
                 </button>
-                <button
+                 <button
                   onClick={deployTeam}
-                  disabled={isSaving || !newTeam.name.trim()}
+                  disabled={isSaving || (teamAssignmentMode === "new" && !newTeam.name.trim()) || (teamAssignmentMode === "existing" && !selectedExistingTeamId)}
                   className="flex-1 btn btn-primary"
                 >
                   {isSaving ? "Initializing..." : "Initialize Group"}
@@ -3108,11 +3506,10 @@ export default function ProgramWorkspace() {
                               }));
                             }
                           }}
-                          className={`flex items-center gap-2 p-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all text-left ${
-                            isSelected
-                              ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                              : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                          }`}
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-[11px] font-bold transition-all text-left ${isSelected
+                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
+                            : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
+                            }`}
                         >
                           <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[7px]">
                             {staff.name?.charAt(0)}
@@ -3179,11 +3576,10 @@ export default function ProgramWorkspace() {
                             name: "",
                           })
                         }
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
-                          newSessionMaterial.type === opt.id
-                            ? "bg-[var(--brand-orange)] text-black"
-                            : "text-slate-500 hover:text-white"
-                        }`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${newSessionMaterial.type === opt.id
+                          ? "bg-[var(--brand-orange)] text-black"
+                          : "text-slate-500 hover:text-white"
+                          }`}
                       >
                         <opt.icon className="w-3 h-3" />
                         {opt.label}
@@ -3342,11 +3738,10 @@ export default function ProgramWorkspace() {
                       <button
                         key={kpi.id}
                         onClick={() => toggleKpi("session", kpi.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                          (newSession.kpi_ids || []).includes(kpi.id)
-                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                            : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                        }`}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${(newSession.kpi_ids || []).includes(kpi.id)
+                          ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
+                          : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
+                          }`}
                       >
                         <span className="text-[10px] font-bold uppercase tracking-tight">
                           {kpi.title}
@@ -3356,6 +3751,85 @@ export default function ProgramWorkspace() {
                         )}
                       </button>
                     ))}
+                  </div>
+                </div>
+                <div className="space-y-2 mt-4 pt-4 border-t border-[var(--border-primary)]">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
+                    <FileText className="w-3 h-3 text-indigo-400" /> Deliverables / Requirements
+                  </label>
+                  
+                  {/* List of added requirements */}
+                  {(newSession.requirements || []).length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {(newSession.requirements || []).map((req, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-[10px]">
+                          <div>
+                            <span className="font-bold text-indigo-400 uppercase">{req.title}</span>
+                            <span className="text-slate-400 ml-2">({req.allowed_format})</span>
+                          </div>
+                          <button type="button" onClick={() => setNewSession(p => ({ ...p, requirements: p.requirements.filter((_, i) => i !== idx) }))} className="text-rose-500 hover:scale-110">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Inline Form to add a new requirement */}
+                  <div className="p-3 bg-[var(--surface-1)] rounded-xl border border-[var(--border-primary)] space-y-3">
+                    <input
+                      value={newRequirement.title}
+                      onChange={(e) => setNewRequirement(p => ({ ...p, title: e.target.value }))}
+                      placeholder="Requirement Title (e.g. Pitch Deck PDF)"
+                      className="w-full rounded-lg px-3 py-2 text-[11px] font-bold outline-none transition-colors"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={newRequirement.allowed_format}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, allowed_format: e.target.value }))}
+                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      >
+                        <option value="pdf">PDF Document</option>
+                        <option value="image">Image File</option>
+                        <option value="link">External Link</option>
+                        <option value="video">Video Upload</option>
+                      </select>
+                      <input
+                        type="date"
+                        value={newRequirement.due_date || ""}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, due_date: e.target.value }))}
+                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={newRequirement.assignee_type || "all"}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, assignee_type: e.target.value, assignee_id: "" }))}
+                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      >
+                        <option value="all">All Participants</option>
+                        <option value="team">Specific Team</option>
+                        <option value="individual">Specific Individual</option>
+                      </select>
+                      <div className="flex items-center text-[9px] text-slate-400 italic px-2">
+                        * Evaluated via Session KPIs
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!newRequirement.title.trim()}
+                      onClick={() => {
+                        setNewSession(p => ({ ...p, requirements: [...(p.requirements || []), { ...newRequirement, kpi_ids: p.kpi_ids || [] }] }));
+                        setNewRequirement({ title: "", description: "", allowed_format: "pdf", kpi_ids: [], due_date: "", assignee_type: "all", assignee_id: "" });
+                      }}
+                      className="w-full py-2 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/30 disabled:opacity-50 transition-colors"
+                    >
+                      <Plus className="w-3 h-3 inline mr-1" /> Add Deliverable
+                    </button>
                   </div>
                 </div>
               </div>
@@ -3368,7 +3842,7 @@ export default function ProgramWorkspace() {
                 </button>
                 <button
                   onClick={addSession}
-                  disabled={isSaving || !newSession.title.trim()}
+                  disabled={isSaving || !newSession.title.trim() || (kpis.length > 0 && (!newSession.kpi_ids || newSession.kpi_ids.length === 0))}
                   className="flex-1 btn btn-primary"
                 >
                   {isSaving ? "Creating..." : "Create Session"}
@@ -3408,9 +3882,10 @@ export default function ProgramWorkspace() {
                   {selectedSubmission?.participant_name || "Group Submission"}
                 </p>
                 <a
-                  href={selectedSubmission?.submission_link}
+                  href={selectedSubmission?.file_url || selectedSubmission?.submission_url || selectedSubmission?.submission_link || '#'}
                   target="_blank"
-                  className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2"
+                  rel="noreferrer"
+                  className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2 hover:text-white transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" /> View Source Material
                 </a>
@@ -3443,21 +3918,98 @@ export default function ProgramWorkspace() {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowReviewModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleReviewSubmission}
-                  disabled={isSaving || reviewScore === ""}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? "Grading..." : "Approve & Grade"}
-                </button>
-              </div>
+              {!showFollowupFields ? (
+                <>
+                  <button
+                    onClick={() => setShowFollowupFields(true)}
+                    className="w-full py-2.5 rounded-xl border border-dashed border-indigo-400/40 text-[9px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-400/10 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Calendar className="w-3.5 h-3.5" /> Schedule Follow-up
+                  </button>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowReviewModal(false)}
+                      className="flex-1 btn btn-secondary"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleReviewSubmission}
+                      disabled={isSaving || reviewScore === ""}
+                      className="flex-1 btn btn-primary"
+                    >
+                      {isSaving ? "Grading..." : "Approve & Grade"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4 pt-2 border-t border-[var(--border-primary)]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                    <Calendar className="w-3 h-3 inline mr-1" /> Schedule Follow-up Meeting
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Date *</label>
+                      <input type="date" value={followupDate}
+                        onChange={(e) => setFollowupDate(e.target.value)}
+                        className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Time *</label>
+                      <input type="time" value={followupTime}
+                        onChange={(e) => setFollowupTime(e.target.value)}
+                        className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Duration (minutes)</label>
+                    <select value={followupDuration} onChange={(e) => setFollowupDuration(e.target.value)}
+                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    >
+                      <option value="15">15 min</option>
+                      <option value="30">30 min</option>
+                      <option value="45">45 min</option>
+                      <option value="60">60 min</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Meeting Link (optional)</label>
+                    <input type="url" value={followupMeetingLink}
+                      onChange={(e) => setFollowupMeetingLink(e.target.value)}
+                      placeholder="https://meet.google.com/..."
+                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Notes (optional)</label>
+                    <textarea value={followupNotes}
+                      onChange={(e) => setFollowupNotes(e.target.value)}
+                      placeholder="Agenda or talking points..." rows={2}
+                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold resize-none"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => { setShowFollowupFields(false); setFollowupDate(""); setFollowupTime(""); }}
+                      className="flex-1 py-2.5 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                    >
+                      Back
+                    </button>
+                    <button onClick={handleScheduleFollowup}
+                      disabled={isSaving || !followupDate || !followupTime}
+                      className="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                    >
+                      {isSaving ? "Scheduling..." : <><Calendar className="w-3 h-3" /> Confirm Follow-up</>}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3667,19 +4219,93 @@ export default function ProgramWorkspace() {
                     placeholder="e.g. Project Proposal PDF"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Allowed Format
+                    </label>
+                    <select
+                      value={newRequirement.allowed_format}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          allowed_format: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="pdf">PDF Document</option>
+                      <option value="image">Image File</option>
+                      <option value="link">External Link</option>
+                      <option value="video">Video Upload</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <Calendar className="w-3 h-3" /> Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newRequirement.due_date || ""}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          due_date: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Grading — derived from linked KPIs */}
+                <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-2">
+                    <Target className="w-3 h-3 inline mr-1" /> Grading (from linked KPIs)
+                  </p>
+                  {(() => {
+                    const linked = kpis.filter(k => (newRequirement.kpi_ids || []).includes(k.id));
+                    if (linked.length === 0) {
+                      return <p className="text-[8px] text-slate-500 italic">Select at least one KPI below to determine grading parameters.</p>;
+                    }
+                    const avgWeight = (linked.reduce((s, k) => s + (parseFloat(k.weight) || 0), 0) / linked.length).toFixed(1);
+                    return <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div><span className="text-slate-500">KPIs linked:</span> <span className="font-bold text-purple-400">{linked.length}</span></div>
+                      <div><span className="text-slate-500">Avg weight:</span> <span className="font-bold text-purple-400">{avgWeight}%</span></div>
+                    </div>;
+                  })()}
+                </div>
+
                 <div className="space-y-1">
                   <label
-                    className="text-[10px] font-black uppercase tracking-widest"
+                    className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Allowed Format
+                    <Users className="w-3 h-3" /> Assign To
                   </label>
                   <select
-                    value={newRequirement.allowed_format}
+                    value={newRequirement.assignee_type || "all"}
                     onChange={(e) =>
                       setNewRequirement((p) => ({
                         ...p,
-                        allowed_format: e.target.value,
+                        assignee_type: e.target.value,
+                        assignee_id: "",
                       }))
                     }
                     className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
@@ -3689,12 +4315,65 @@ export default function ProgramWorkspace() {
                       color: "var(--text-primary)",
                     }}
                   >
-                    <option value="pdf">PDF Document</option>
-                    <option value="image">Image File</option>
-                    <option value="link">External Link</option>
-                    <option value="video">Video Upload</option>
+                    <option value="all">All Participants</option>
+                    <option value="team">Specific Team</option>
+                    <option value="individual">Specific Individual</option>
                   </select>
                 </div>
+
+                {newRequirement.assignee_type === "team" && (
+                  <div className="space-y-1">
+                    <select
+                      value={newRequirement.assignee_id || ""}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          assignee_id: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="">Select team...</option>
+                      {teams.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {newRequirement.assignee_type === "individual" && (
+                  <div className="space-y-1">
+                    <select
+                      value={newRequirement.assignee_id || ""}
+                      onChange={(e) =>
+                        setNewRequirement((p) => ({
+                          ...p,
+                          assignee_id: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                      style={{
+                        background: "var(--bg-primary)",
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="">Select participant...</option>
+                      {participants.slice(0, 50).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
@@ -3706,11 +4385,10 @@ export default function ProgramWorkspace() {
                       <button
                         key={kpi.id}
                         onClick={() => toggleKpi("requirement", kpi.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                          (newRequirement.kpi_ids || []).includes(kpi.id)
-                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                            : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                        }`}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${(newRequirement.kpi_ids || []).includes(kpi.id)
+                          ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
+                          : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
+                          }`}
                       >
                         <span className="text-[10px] font-bold uppercase tracking-tight">
                           {kpi.title}
@@ -3733,14 +4411,14 @@ export default function ProgramWorkspace() {
                 <div className="flex-1 flex flex-col gap-2">
                   <button
                     onClick={() => addRequirement(false)}
-                    disabled={isSaving || !newRequirement.title.trim()}
+                    disabled={isSaving || !newRequirement.title.trim() || (newRequirement.kpi_ids || []).length === 0}
                     className="w-full btn btn-secondary text-[9px] py-2 border-dashed"
                   >
                     {isSaving ? "Saving..." : "Save & Add Another"}
                   </button>
                   <button
                     onClick={() => addRequirement(true)}
-                    disabled={isSaving || !newRequirement.title.trim()}
+                    disabled={isSaving || !newRequirement.title.trim() || (newRequirement.kpi_ids || []).length === 0}
                     className="w-full btn btn-primary py-3"
                   >
                     {isSaving ? "Saving..." : "Save & Close"}
@@ -3774,7 +4452,7 @@ export default function ProgramWorkspace() {
               </div>
 
               <div className="space-y-3">
-                {participants.map((p) => {
+                {participants.filter(p => p.status !== 'archived').map((p) => {
                   const status = attendanceRecords[p.id] || "present";
                   return (
                     <div
@@ -3802,15 +4480,14 @@ export default function ProgramWorkspace() {
                             [p.id]: e.target.value,
                           }))
                         }
-                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${
-                          status === "present"
-                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                            : status === "absent"
-                              ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
-                              : status === "excused"
-                                ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                                : "bg-blue-500/10 text-blue-500 border-blue-500/30"
-                        }`}
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${status === "present"
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                          : status === "absent"
+                            ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                            : status === "excused"
+                              ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                              : "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                          }`}
                       >
                         <option value="present">Present</option>
                         <option value="absent">Absent</option>
@@ -3840,21 +4517,24 @@ export default function ProgramWorkspace() {
                     setIsSaving(true);
                     try {
                       const today = new Date().toISOString().split("T")[0];
-                      for (const p of participants) {
-                        const status = attendanceRecords[p.id] || "present";
-                        await fetch("/api/attendance", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            session_id: selectedSessionForAttendance.id,
-                            program_id: id,
-                            participant_id: p.id,
-                            status,
-                            date: today,
-                          }),
-                        });
-                      }
-                      notify("Attendance recorded.");
+                      const records = participants.map((p) => {
+                        const pid = p.user_id || p.cid || p.id;
+                        return {
+                          session_id: selectedSessionForAttendance.id,
+                          program_id: id,
+                          participant_id: pid,
+                          status: attendanceRecords[pid] || "present",
+                          date: today,
+                        };
+                      });
+                      const res = await fetch("/api/attendance", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(records),
+                      });
+                      const data = await res.json();
+                      if (!data.success) throw new Error(data.error || "Unknown error");
+                      notify(`Attendance recorded — ${data.upserted} participants.`);
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});
                     } catch (e) {
@@ -3928,11 +4608,10 @@ export default function ProgramWorkspace() {
                                 week_status: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.week_status === opt
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.week_status === opt
+                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt.replace("_", " ")}
                           </button>
@@ -3957,17 +4636,16 @@ export default function ProgramWorkspace() {
                                 week_rating: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.week_rating === opt
-                                ? opt === "excellent"
-                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                  : opt === "good"
-                                    ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                    : opt === "fair"
-                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                                      : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.week_rating === opt
+                              ? opt === "excellent"
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                                : opt === "good"
+                                  ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                                  : opt === "fair"
+                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                                    : "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt}
                           </button>
@@ -4024,11 +4702,10 @@ export default function ProgramWorkspace() {
                               assignment_given: true,
                             }))
                           }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.assignment_given === true
-                              ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.assignment_given === true
+                            ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
+                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
                         >
                           Yes
                         </button>
@@ -4043,11 +4720,10 @@ export default function ProgramWorkspace() {
                               assignment_outcome: "",
                             }))
                           }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.assignment_given === false
-                              ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.assignment_given === false
+                            ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
                         >
                           No
                         </button>
@@ -4087,16 +4763,15 @@ export default function ProgramWorkspace() {
                                         ...p,
                                         assignment_kpi_ids: isSelected
                                           ? p.assignment_kpi_ids.filter(
-                                              (id) => id !== kpi.id,
-                                            )
+                                            (id) => id !== kpi.id,
+                                          )
                                           : [...p.assignment_kpi_ids, kpi.id],
                                       }))
                                     }
-                                    className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold uppercase tracking-tight transition-all text-left ${
-                                      isSelected
-                                        ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
-                                        : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
-                                    }`}
+                                    className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold uppercase tracking-tight transition-all text-left ${isSelected
+                                      ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
+                                      : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
+                                      }`}
                                   >
                                     <span>{kpi.title}</span>
                                     <span className="text-[8px] opacity-50">
@@ -4180,11 +4855,10 @@ export default function ProgramWorkspace() {
                                 attendance_level: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.attendance_level === opt
-                                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.attendance_level === opt
+                              ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt}
                           </button>
@@ -4208,11 +4882,10 @@ export default function ProgramWorkspace() {
                                 participation_level: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.participation_level === opt
-                                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.participation_level === opt
+                              ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt.replace("_", " ")}
                           </button>
@@ -4235,18 +4908,16 @@ export default function ProgramWorkspace() {
                                 !p.participants_need_attention,
                             }))
                           }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.participants_need_attention
-                              ? "bg-amber-500"
-                              : "bg-white/10"
-                          }`}
+                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.participants_need_attention
+                            ? "bg-amber-500"
+                            : "bg-white/10"
+                            }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.participants_need_attention
-                                ? "left-5"
-                                : "left-0.5"
-                            }`}
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.participants_need_attention
+                              ? "left-5"
+                              : "left-0.5"
+                              }`}
                           />
                         </button>
                       </div>
@@ -4280,18 +4951,16 @@ export default function ProgramWorkspace() {
                               standout_participants: !p.standout_participants,
                             }))
                           }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.standout_participants
-                              ? "bg-emerald-500"
-                              : "bg-white/10"
-                          }`}
+                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.standout_participants
+                            ? "bg-emerald-500"
+                            : "bg-white/10"
+                            }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.standout_participants
-                                ? "left-5"
-                                : "left-0.5"
-                            }`}
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.standout_participants
+                              ? "left-5"
+                              : "left-0.5"
+                              }`}
                           />
                         </button>
                       </div>
@@ -4341,17 +5010,16 @@ export default function ProgramWorkspace() {
                                 delivery_quality: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.delivery_quality === opt
-                                ? opt === "excellent"
-                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                  : opt === "good"
-                                    ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                    : opt === "fair"
-                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                                      : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.delivery_quality === opt
+                              ? opt === "excellent"
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                                : opt === "good"
+                                  ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                                  : opt === "fair"
+                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                                    : "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt}
                           </button>
@@ -4375,11 +5043,10 @@ export default function ProgramWorkspace() {
                                 participant_understanding: opt,
                               }))
                             }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                              newPMReport.participant_understanding === opt
-                                ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
+                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.participant_understanding === opt
+                              ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                              }`}
                           >
                             {opt}
                           </button>
@@ -4401,18 +5068,16 @@ export default function ProgramWorkspace() {
                               delivery_challenges: !p.delivery_challenges,
                             }))
                           }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.delivery_challenges
-                              ? "bg-rose-500"
-                              : "bg-white/10"
-                          }`}
+                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.delivery_challenges
+                            ? "bg-rose-500"
+                            : "bg-white/10"
+                            }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.delivery_challenges
-                                ? "left-5"
-                                : "left-0.5"
-                            }`}
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.delivery_challenges
+                              ? "left-5"
+                              : "left-0.5"
+                              }`}
                           />
                         </button>
                       </div>
@@ -4460,16 +5125,14 @@ export default function ProgramWorkspace() {
                               had_issues: !p.had_issues,
                             }))
                           }
-                          className={`w-10 h-5 rounded-full transition-all relative ${
-                            newPMReport.had_issues
-                              ? "bg-rose-500"
-                              : "bg-white/10"
-                          }`}
+                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.had_issues
+                            ? "bg-rose-500"
+                            : "bg-white/10"
+                            }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                              newPMReport.had_issues ? "left-5" : "left-0.5"
-                            }`}
+                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.had_issues ? "left-5" : "left-0.5"
+                              }`}
                           />
                         </button>
                       </div>
@@ -4501,16 +5164,15 @@ export default function ProgramWorkspace() {
                                         ...p,
                                         issue_types: isSelected
                                           ? p.issue_types.filter(
-                                              (t) => t !== type,
-                                            )
+                                            (t) => t !== type,
+                                          )
                                           : [...p.issue_types, type],
                                       }))
                                     }
-                                    className={`px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${
-                                      isSelected
-                                        ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                        : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                                    }`}
+                                    className={`px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${isSelected
+                                      ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                                      : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                                      }`}
                                   >
                                     {type}
                                   </button>
@@ -4533,18 +5195,16 @@ export default function ProgramWorkspace() {
                                     !p.requires_admin_attention,
                                 }))
                               }
-                              className={`w-10 h-5 rounded-full transition-all relative ${
-                                newPMReport.requires_admin_attention
-                                  ? "bg-amber-500"
-                                  : "bg-white/10"
-                              }`}
+                              className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.requires_admin_attention
+                                ? "bg-amber-500"
+                                : "bg-white/10"
+                                }`}
                             >
                               <div
-                                className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                                  newPMReport.requires_admin_attention
-                                    ? "left-5"
-                                    : "left-0.5"
-                                }`}
+                                className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.requires_admin_attention
+                                  ? "left-5"
+                                  : "left-0.5"
+                                  }`}
                               />
                             </button>
                           </div>
@@ -4595,11 +5255,10 @@ export default function ProgramWorkspace() {
                               program_on_track: true,
                             }))
                           }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.program_on_track === true
-                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.program_on_track === true
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
                         >
                           Yes
                         </button>
@@ -4611,11 +5270,10 @@ export default function ProgramWorkspace() {
                               program_on_track: false,
                             }))
                           }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
-                            newPMReport.program_on_track === false
-                              ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
+                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.program_on_track === false
+                            ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                            }`}
                         >
                           No
                         </button>
@@ -4767,11 +5425,11 @@ export default function ProgramWorkspace() {
                             const avgScore =
                               participantSubmissions.length > 0
                                 ? Math.round(
-                                    participantSubmissions.reduce(
-                                      (acc, s) => acc + (s.score || 0),
-                                      0,
-                                    ) / participantSubmissions.length,
-                                  )
+                                  participantSubmissions.reduce(
+                                    (acc, s) => acc + (s.score || 0),
+                                    0,
+                                  ) / participantSubmissions.length,
+                                )
                                 : 0;
 
                             return (
@@ -4866,13 +5524,13 @@ export default function ProgramWorkspace() {
                   {participants.filter(
                     (p) => p.group_name === selectedTeam.name,
                   ).length === 0 && (
-                    <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                      <Users className="w-12 h-12 mb-4" />
-                      <p className="text-sm font-black uppercase tracking-[0.3em]">
-                        No members found in this team
-                      </p>
-                    </div>
-                  )}
+                      <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
+                        <Users className="w-12 h-12 mb-4" />
+                        <p className="text-sm font-black uppercase tracking-[0.3em]">
+                          No members found in this team
+                        </p>
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -4891,111 +5549,249 @@ export default function ProgramWorkspace() {
             </div>
           </div>
         )}
-      </div>
 
-      {/* ADD MATERIAL MODAL */}
-      {showMaterialModal && (
+      {/* Team Details Modal */}
+      {showTeamDetails && selectedTeam && (
         <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => setShowMaterialModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => { setShowTeamDetails(false); setSelectedTeam(null); }}
+          style={{ background: "rgba(0,0,0,0.6)" }}
         >
           <div
-            className="card w-full max-w-sm space-y-6"
+            className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center">
-              <h3
-                className="text-base font-black uppercase tracking-tight"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Add Link
-              </h3>
-              <button onClick={() => setShowMaterialModal(false)}>
-                <X className="w-5 h-5" />
+            <div className="flex items-center justify-between p-6 border-b border-gray-800">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Target className="w-5 h-5 text-[var(--brand-orange)]" />
+                {selectedTeam.name}
+              </h2>
+              <button onClick={() => { setShowTeamDetails(false); setSelectedTeam(null); }} className="p-2 hover:bg-white/5 rounded-lg">
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Material Name
-                </label>
-                <input
-                  value={materialName}
-                  onChange={(e) => setMaterialName(e.target.value)}
-                  placeholder="e.g. Design Guide"
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                />
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Program</p>
+                  <p className="font-medium">{program?.name || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <span className={"text-xs px-2.5 py-1 rounded-full " + (selectedTeam.is_venture_ready ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400")}>
+                    {selectedTeam.is_venture_ready ? "Venture Ready" : "In Program"}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Team Lead</p>
+                  <p className="font-medium">{selectedTeam.leader_name || selectedTeam.leader_id || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Handler</p>
+                  <p className="font-medium">{selectedTeam.handler_name || "Unassigned"}</p>
+                </div>
+                {selectedTeam.venture_id && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500 mb-1">Venture ID</p>
+                    <p className="font-mono text-sm text-[var(--brand-orange)]">{selectedTeam.venture_id}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 border-t border-gray-800">
+                <h3 className="text-sm font-medium mb-3">
+                  Members ({participants.filter(p => p.v2_team_id === selectedTeam.id).length})
+                </h3>
+                <div className="space-y-2">
+                  {participants
+                    .filter(p => p.v2_team_id === selectedTeam.id)
+                    .map(p => (
+                      <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#020617]">
+                        <div className="w-8 h-8 rounded-full bg-tertiary flex items-center justify-center text-xs font-bold">
+                          {p.name?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{p.name}</p>
+                          <p className="text-xs text-gray-500">{p.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                  {participants.filter(p => p.v2_team_id === selectedTeam.id).length === 0 && (
+                    <p className="text-sm text-gray-500">No members assigned to this team.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Approve/Promote */}
+      {promoteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setPromoteTarget(null)}
+          style={{ background: "rgba(0,0,0,0.6)" }}
+        >
+          <div
+            className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              {promoteTarget.action === "approve" ? (
+                <>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-emerald-500/10 rounded-xl">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">Approve Team</h3>
+                      <p className="text-sm text-gray-400">
+                        Approve "{promoteTarget.team.name}" for Venture OS promotion?
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setPromoteTarget(null)}
+                      className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const team = promoteTarget.team;
+                        setPromoteTarget(null);
+                        try {
+                          const res = await fetch("/api/pm/teams", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              team_id: team.id,
+                              action: "set_venture_ready",
+                              is_venture_ready: true,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            notify("Team approved for Venture OS!");
+                            fetchProgramData(true);
+                          } else {
+                            notify(data.error || "Approval failed.", "error");
+                          }
+                        } catch (e) {
+                          notify("Network error.", "error");
+                        }
+                      }}
+                      className="flex-1 px-4 py-2.5 bg-emerald-500 rounded-lg text-sm font-medium hover:bg-emerald-600"
+                    >
+                      Approve
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-[var(--brand-orange)]/10 rounded-xl">
+                      <Zap className="w-6 h-6 text-[var(--brand-orange)]" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">Promote to Venture OS</h3>
+                      <p className="text-sm text-gray-400">
+                        Promote "{promoteTarget.team.name}" to Venture OS?
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setPromoteTarget(null)}
+                      className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const team = promoteTarget.team;
+                        setPromoteTarget(null);
+                        try {
+                          const res = await fetch("/api/ventures/promote", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ team_id: team.id }),
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            notify("Venture promoted!");
+                            fetchProgramData(true);
+                          } else {
+                            notify(data.error || "Promotion failed.", "error");
+                          }
+                        } catch (e) {
+                          notify("Network error.", "error");
+                        }
+                      }}
+                      className="flex-1 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold hover:opacity-90"
+                    >
+                      Promote
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMATION MODAL */}
+      {confirmTarget && (
+        <div
+          className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-6"
+          onClick={() => setConfirmTarget(null)}
+        >
+          <div
+            className="card w-full max-w-sm space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-rose-500" />
               </div>
               <div className="space-y-1">
-                <label
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  URL or Note
-                </label>
-                <input
-                  value={materialUrl}
-                  onChange={(e) => setMaterialUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: "1px solid var(--border-primary)",
-                    color: "var(--text-primary)",
-                  }}
-                />
+                <p className="text-sm font-bold">Confirm Action</p>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {confirmTarget.message}
+                </p>
               </div>
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setShowMaterialModal(false)}
-                className="flex-1 btn btn-secondary"
+                onClick={() => setConfirmTarget(null)}
+                className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg text-sm font-bold hover:opacity-80"
               >
                 Cancel
               </button>
               <button
                 onClick={() => {
-                  if (!materialName.trim() || !materialUrl.trim()) return;
-                  const current = (() => {
-                    try {
-                      const sessionData = sessions.find(
-                        (s) => s.id === materialSessionId,
-                      );
-                      if (!sessionData) return [];
-                      return typeof sessionData.extra_materials === "string"
-                        ? JSON.parse(sessionData.extra_materials)
-                        : sessionData.extra_materials || [];
-                    } catch {
-                      return [];
-                    }
-                  })();
-                  updateSessionField(materialSessionId, "extra_materials", [
-                    ...current,
-                    {
-                      name: materialName.trim(),
-                      url: materialUrl.trim(),
-                      type: "link",
-                    },
-                  ]);
-                  setShowMaterialModal(false);
+                  confirmTarget.onConfirm();
+                  setConfirmTarget(null);
                 }}
-                disabled={!materialName.trim() || !materialUrl.trim()}
-                className="flex-1 btn btn-primary"
+                className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-lg text-sm font-bold hover:bg-rose-600"
               >
-                Add Material
+                Confirm
               </button>
             </div>
           </div>
         </div>
       )}
+        </div>
     </DashboardLayout>
+  );
+}
+
+export default function ProgramWorkspacePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-primary flex items-center justify-center"><div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" /></div>}>
+      <ProgramWorkspace />
+    </Suspense>
   );
 }

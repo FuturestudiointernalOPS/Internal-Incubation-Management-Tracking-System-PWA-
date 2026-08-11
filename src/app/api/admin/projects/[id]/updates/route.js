@@ -137,7 +137,7 @@ export async function POST(req, { params }) {
          overall_status, notes)
         VALUES (?, ?, ?, ?, ?, ?,
          ?, ?, ?, ?,
-         ?, ?)`,
+         ?, ?) RETURNING id`,
       args: [
         id,
         user_id,
@@ -156,7 +156,7 @@ export async function POST(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      id: Number(result.lastInsertRowid),
+      id: Number(result.rows[0]?.id ?? result.lastInsertRowid),
       action: "created",
       week_number: currentWeek,
       year: currentYear,

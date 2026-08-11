@@ -71,7 +71,7 @@ export async function GET() {
     if (authError) return authError;
     // Use BigInt safe query
     const notesRes = await db.execute(
-      "SELECT * FROM v2_knowledge_bank ORDER BY timestamp DESC",
+      "SELECT * FROM v2_knowledge_bank ORDER BY created_at DESC"
     );
     const filesRes = await db.execute("SELECT * FROM v2_knowledge_attachments");
 

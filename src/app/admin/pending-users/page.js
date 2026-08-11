@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronRight,
   RefreshCw,
+  Archive,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -92,7 +93,6 @@ export default function PendingUsersPage() {
   };
 
   const handleArchive = async (userCid, userName) => {
-    if (!confirm(`Archive ${userName}? They will go to the recycle bin.`)) return;
     setProcessingId(userCid);
     setActionMsg(null);
     try {
@@ -130,10 +130,10 @@ export default function PendingUsersPage() {
       }
     } catch (err) {
       setActionMsg({ type: "error", text: "Network error." });
-      } finally {
-        setProcessingId(null);
-      }
-    };
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const handleReject = async (userCid, userName) => {
     setProcessingId(userCid);

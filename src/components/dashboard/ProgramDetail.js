@@ -29,8 +29,11 @@ import {
   Mail,
   X,
   Upload,
+  Send
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
+import SubmissionVersionHistory from "./SubmissionVersionHistory";
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -52,7 +55,7 @@ function StatusBadge({ status }) {
 }
 
 // ─── Week Card (simplified) ────────────────────────────────────────
-function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
+function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
   const completedCount = week.deliverables.filter(
     (d) => d.submission?.status === "approved",
   ).length;
@@ -88,24 +91,25 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-[var(--text-primary)]">
-                Week {week.number}
+                {t("participant.week")} {week.number}
               </span>
               {week.isCurrent && (
                 <span className="text-[10px] font-semibold text-[var(--brand-orange)]">
-                  (Current)
+                  ({t("participant.current")})
                 </span>
               )}
               {week.locked && (
                 <span className="text-[10px] text-[var(--text-tertiary)]">
-                  (Locked)
+                  ({t("participant.locked")})
                 </span>
               )}
             </div>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               {week.sessions.length > 0
                 ? week.sessions.map((s) => s.title).join(", ")
-                : `${totalCount} deliverable${totalCount > 1 ? "s" : ""}`}
-            </p>
+                : `${totalCount} ${t("participant.deliverables").toLowerCase()}`
+            }
+          </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -127,7 +131,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
           {week.sessions.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
-                Sessions
+                {t("participant.sessions")}
               </h4>
               {week.sessions.map((session) => (
                 <div
@@ -202,7 +206,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
           {week.deliverables.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-[var(--text-secondary)]">
-                Deliverables
+                {t("participant.deliverables")}
               </h4>
               {week.deliverables.map((del) => (
                 <div
@@ -210,17 +214,24 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
                   className="flex items-center justify-between py-2 px-3 rounded-lg bg-[var(--surface-2)]"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-[var(--text-primary)]">
-                        {del.title}
-                      </p>
-                      {del.submission && (
-                        <StatusBadge status={del.submission.status} />
-                      )}
-                      {!del.submission && !week.locked && del.allowedFormat && (
-                        <span className="text-xs text-[var(--text-tertiary)]">
-                          ({del.allowedFormat})
-                        </span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-[var(--text-primary)]">
+                          {del.title}
+                        </p>
+                        {del.submission && (
+                          <StatusBadge status={del.submission.status} />
+                        )}
+                        {!del.submission && !week.locked && del.allowedFormat && (
+                          <span className="text-xs text-[var(--text-tertiary)]">
+                            ({del.allowedFormat})
+                          </span>
+                        )}
+                      </div>
+                      {!del.submission && del.dueDate && (
+                        <p className="text-[10px] text-amber-500/80 font-medium mt-0.5 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Due {new Date(del.dueDate).toLocaleDateString()}
+                        </p>
                       )}
                     </div>
                     {del.submission && (
@@ -256,11 +267,11 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSubmit?.(del.id, week.number);
+                          onSubmit?.(del.id, week.number, del);
                         }}
                         className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-xs font-medium hover:brightness-110"
                       >
-                        Submit
+                        {t("participant.submit")}
                       </button>
                     )}
                   </div>
@@ -274,7 +285,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit }) {
   );
 }
 
-function SubmitForm({ programId, deliverableId, onDone }) {
+function SubmitForm({ programId, deliverableId, onDone, t }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -290,10 +301,11 @@ function SubmitForm({ programId, deliverableId, onDone }) {
     if (!file && !url.trim()) return;
     setSubmitting(true);
     try {
-      let fileUrl = url.trim() || null;
+      let fileUrl = null;
+      let supportingUrl = url.trim() || null;
 
-      // If a file was selected, upload it first
-      if (file && !fileUrl) {
+      // If a file was selected, upload it
+      if (file) {
         try {
           const { uploadFile } = await import("@/lib/storage");
           const result = await uploadFile(
@@ -309,7 +321,9 @@ function SubmitForm({ programId, deliverableId, onDone }) {
         participant_id: user.cid || user.id,
         program_id: programId,
         deliverable_id: deliverableId,
+        document_id: deliverableId, // Track 2 compatibility (v2_document_requirements uses integer IDs)
         file_url: fileUrl,
+        supporting_url: supportingUrl,
         status: "pending",
       };
       const res = await fetch("/api/submissions", {
@@ -331,6 +345,34 @@ function SubmitForm({ programId, deliverableId, onDone }) {
 
   return (
     <div className="space-y-4">
+      {/* Deliverable Info */}
+      {deliverable && (
+        <div className="bg-[var(--surface-2)] rounded-lg p-3 border border-[var(--border-primary)] space-y-1">
+          <p className="text-[9px] font-bold text-[var(--text-primary)]">
+            {deliverable.title}
+          </p>
+          {deliverable.description && (
+            <p className="text-[8px] text-[var(--text-secondary)]">
+              {deliverable.description}
+            </p>
+          )}
+          {deliverable.dueDate && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <Clock className="w-3 h-3 text-amber-400" />
+              <span className={`text-[8px] font-bold ${new Date(deliverable.dueDate) < new Date() ? 'text-rose-400' : 'text-amber-400'}`}>
+                Due: {new Date(deliverable.dueDate).toLocaleDateString()}
+                {new Date(deliverable.dueDate) < new Date() ? ' (Overdue)' : ''}
+              </span>
+            </div>
+          )}
+          {deliverable.allowedFormat && (
+            <p className="text-[7px] text-[var(--text-tertiary)] mt-1">
+              Format: {deliverable.allowedFormat}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-1">
         <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
           Upload File
@@ -338,7 +380,7 @@ function SubmitForm({ programId, deliverableId, onDone }) {
         <input
           type="file"
           onChange={(e) => setFile(e.target.files[0])}
-          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none"
+          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer"
         />
       </div>
       <div className="text-center text-[8px] text-slate-500 uppercase tracking-widest">
@@ -346,7 +388,7 @@ function SubmitForm({ programId, deliverableId, onDone }) {
       </div>
       <div className="space-y-1">
         <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-          Link URL
+          Supporting URL
         </label>
         <input
           type="url"
@@ -367,10 +409,10 @@ function SubmitForm({ programId, deliverableId, onDone }) {
         className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
       >
         {submitting ? (
-          "Submitting..."
+          <><RefreshCw className="w-4 h-4 animate-spin" /> Submitting...</>
         ) : (
           <>
-            <Upload className="w-4 h-4" /> Submit
+            <Upload className="w-4 h-4" /> {t ? t("participant.submit") : "Submit"}
           </>
         )}
       </button>
@@ -466,12 +508,19 @@ function DetailSkeleton() {
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProgramDetail({ programId }) {
+  const { t } = useI18n();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedWeeks, setExpandedWeeks] = useState({});
   const [activeTab, setActiveTab] = useState("curriculum");
-  const [submitModal, setSubmitModal] = useState(null); // { deliverableId, weekNumber }
+  const [user, setUser] = useState({});
+  const [submitModal, setSubmitModal] = useState(null); // { deliverableId, weekNumber, deliverable }
+
+  useEffect(() => {
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    setUser(u);
+  }, []);
 
   const fetchDetail = useCallback(async () => {
     try {
@@ -557,10 +606,10 @@ export default function ProgramDetail({ programId }) {
   const generalResources = resources?.general || [];
 
   const tabs = [
-    { id: "curriculum", label: "Curriculum", icon: Layers },
-    { id: "resources", label: "Resources", icon: BookOpen },
+    { id: "curriculum", label: t("participant.curriculum"), icon: Layers },
+    { id: "assignments", label: "Assignments", icon: FileText },
     { id: "progress", label: "Progress", icon: BarChart3 },
-    { id: "details", label: "Details", icon: FileText },
+    { id: "resources", label: "Resources", icon: BookOpen },
   ];
 
   return (
@@ -688,7 +737,7 @@ export default function ProgramDetail({ programId }) {
             <div className="text-center py-12">
               <BookOpen className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
               <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                No curriculum available yet
+                {t("participant.noCurriculumYet")}
               </p>
             </div>
           ) : (
@@ -699,14 +748,79 @@ export default function ProgramDetail({ programId }) {
                 isExpanded={!!expandedWeeks[week.number]}
                 onToggle={toggleWeek}
                 programId={programId}
+                t={t}
                 onSubmit={(delId) =>
                   setSubmitModal({
                     deliverableId: delId,
                     weekNumber: week.number,
+                    deliverable: delData,
                   })
                 }
               />
             ))
+          )}
+        </div>
+      )}
+
+      {/* ═══ Tab: Assignments ═══ */}
+      {activeTab === "assignments" && (
+        <div className="space-y-4">
+          {curriculum.weeks.filter(w => !w.locked).map((week) => (
+            <div key={week.number} className="space-y-2">
+              <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
+                Week {week.number}
+              </h3>
+              {week.deliverables.length === 0 ? (
+                <p className="text-[9px] text-[var(--text-tertiary)] italic">No assignments this week</p>
+              ) : (
+                week.deliverables.map((d) => (
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        d.submission?.status === "approved" ? "bg-emerald-500/10" :
+                        d.submission ? "bg-amber-500/10" : "bg-white/5"
+                      }`}>
+                        <FileText className={`w-4 h-4 ${
+                          d.submission?.status === "approved" ? "text-emerald-400" :
+                          d.submission ? "text-amber-400" : "text-[var(--text-tertiary)]"
+                        }`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                          {d.title}
+                        </p>
+                        <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
+                          {d.allowedFormat} {d.dueDate ? `· Due: ${new Date(d.dueDate).toLocaleDateString()}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {d.submission ? (
+                        <StatusBadge status={d.submission.status} />
+                      ) : (
+                        <span className="text-[8px] text-[var(--text-tertiary)] font-bold uppercase">Pending</span>
+                      )}
+                      {d.submission?.score != null && (
+                        <span className="text-[10px] font-black text-[var(--brand-orange)]">
+                          {d.submission.score}/100
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ))}
+          {curriculum.weeks.filter(w => !w.locked).length === 0 && (
+            <div className="text-center py-12">
+              <FileText className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
+              <p className="text-[11px] font-bold text-[var(--text-secondary)]">
+                No assignments available yet
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -846,59 +960,15 @@ export default function ProgramDetail({ programId }) {
             </div>
           </div>
 
-          {/* Submissions */}
+          {/* Submissions — Version History */}
           <div>
             <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
               Submission History
             </h3>
-            {submissions.length === 0 ? (
-              <div className="text-center py-8 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                <FileText className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-                <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                  No submissions yet
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {submissions.slice(0, 10).map((sub) => (
-                  <div
-                    key={sub.id}
-                    className="flex flex-col p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <StatusBadge status={sub.status} />
-                        <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                          Deliverable #{sub.document_id}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {sub.score > 0 && (
-                          <span className="text-[9px] font-bold text-emerald-400">
-                            {sub.score} pts
-                          </span>
-                        )}
-                        <span className="text-[8px] text-[var(--text-tertiary)]">
-                          {sub.created_at
-                            ? new Date(sub.created_at).toLocaleDateString()
-                            : ""}
-                        </span>
-                      </div>
-                    </div>
-                    {sub.feedback && (
-                      <div className="mt-2 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                        <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">
-                          PM Feedback
-                        </p>
-                        <p className="text-[10px] text-[var(--text-primary)] leading-relaxed">
-                          {sub.feedback}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <SubmissionVersionHistory
+              participantId={user?.cid || user?.id}
+              programId={programId}
+            />
           </div>
 
           {/* Follow-ups */}
@@ -1044,7 +1114,8 @@ export default function ProgramDetail({ programId }) {
                 setSubmitModal(null);
                 fetchDetail();
               }}
-            />
+                      deliverable={submitModal.deliverable}
+                    />
           </div>
         </div>
       )}

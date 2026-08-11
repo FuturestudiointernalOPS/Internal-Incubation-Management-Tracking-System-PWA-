@@ -20,6 +20,7 @@ export async function GET(req) {
       );
 
     const cid = session.cid;
+    const email = session.email;
 
     const contactRes = await db.execute({
       sql: "SELECT cid, name, email, program_id, group_name FROM contacts WHERE cid = ?",
@@ -62,7 +63,7 @@ export async function GET(req) {
     // Path 4: participant_programs junction table
     try {
       const ppRes = await db.execute({
-        sql: "SELECT program_id FROM participant_programs WHERE participant_id = ?",
+        sql: "SELECT program_id FROM participant_programs WHERE participant_id::text = ?",
         args: [cid],
       });
       ppRes.rows.forEach((r) => {
@@ -108,44 +109,44 @@ export async function GET(req) {
         reflectRes,
       ] = await Promise.all([
         db.execute({
-          sql: "SELECT * FROM v2_programs WHERE id = ?",
+          sql: "SELECT * FROM v2_programs WHERE id::text = ?",
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_sessions WHERE program_id = ? ORDER BY week_number ASC",
+          sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC",
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
+          sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ? ORDER BY created_at DESC",
           args: [cid, pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ?",
-          args: [cid, pid],
+          sql: "SELECT a.* FROM v2_attendance a WHERE a.program_id::text = ? AND a.participant_id::text = ?",
+          args: [pid, cid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
+          sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_standups WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          args: [cid, pid],
+          				sql: "SELECT * FROM v2_standups WHERE user_id = ? ORDER BY created_at DESC",
+          				args: [cid],
         }),
         db.execute({
           sql: "SELECT * FROM v2_checkins WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
           args: [cid, pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_retros WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          args: [cid, pid],
+          				sql: "SELECT * FROM v2_retros WHERE user_id = ? ORDER BY created_at DESC",
+          				args: [cid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_reflections WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          args: [cid, pid],
+          				sql: "SELECT * FROM v2_reflections WHERE user_id = ? ORDER BY created_at DESC",
+          				args: [cid],
         }),
       ]);
 
@@ -206,7 +207,7 @@ export async function GET(req) {
       const attendedSessions = attendance.filter(
         (a) => a.status === "present",
       ).length;
-      const totalSessions = unlockedSessions.length || 1;
+      const totalSessions = sessions.length || 1;
       const attendanceRate = Math.round(
         (attendedSessions / totalSessions) * 100,
       );
@@ -230,7 +231,7 @@ export async function GET(req) {
         });
         let kpiProgress = progressRes.rows || [];
         if (kpiProgress.length === 0) {
-          kpiProgress = await recalculateKpiProgress(pid);
+          kpiProgress = await recalculateKpiProgress(pid, cid);
         }
         totalKpis = kpiProgress.length;
         targetMetKpis = kpiProgress.filter(

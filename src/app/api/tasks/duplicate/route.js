@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { getTaskById } from "@/lib/db/queries/tasks";
 
 function getWeekNumber(date) {
   const d = new Date(
@@ -33,19 +34,15 @@ export async function POST(req) {
     }
 
     // Fetch the source task
-    const source = await db.execute({
-      sql: "SELECT * FROM tasks WHERE id = ?",
-      args: [parseInt(task_id)],
-    });
+    const task = await getTaskById(task_id);
 
-    if (source.rows.length === 0) {
+    if (!task) {
       return NextResponse.json(
         { success: false, error: "Task not found" },
         { status: 404 },
       );
     }
 
-    const task = source.rows[0];
     const now = new Date();
     const created_week = getWeekNumber(now);
     const created_year = now.getFullYear();
@@ -54,8 +51,9 @@ export async function POST(req) {
     const result = await db.execute({
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id, category,
-         created_week, created_year, parent_task_id, start_date, end_date, assigned_to)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         created_week, created_year, parent_task_id, start_date, end_date, assigned_to, priority, link)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         RETURNING id`,
       args: [
         task.user_id,
         task.user_name || "",
@@ -70,6 +68,8 @@ export async function POST(req) {
         task.start_date || null,
         task.end_date || null,
         task.assigned_to || null,
+        task.priority || "medium",
+        task.link || null,
       ],
     });
 
@@ -85,8 +85,9 @@ export async function POST(req) {
       await db.execute({
         sql: `INSERT INTO tasks
           (user_id, user_name, title, description, status, project_id, category,
-           created_week, created_year, parent_task_id, start_date, end_date, assigned_to)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           created_week, created_year, parent_task_id, start_date, end_date, assigned_to, priority, link)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           RETURNING id`,
         args: [
           st.user_id,
           st.user_name || "",
@@ -101,19 +102,18 @@ export async function POST(req) {
           st.start_date || null,
           st.end_date || null,
           st.assigned_to || null,
+          st.priority || "medium",
+          st.link || null,
         ],
       });
     }
 
     // Fetch the newly created task to return
-    const newTask = await db.execute({
-      sql: "SELECT * FROM tasks WHERE id = ?",
-      args: [newTaskId],
-    });
+    const newTask = await getTaskById(newTaskId);
 
     return NextResponse.json({
       success: true,
-      task: newTask.rows[0] || null,
+      task: newTask || null,
     });
   } catch (error) {
     console.error("POST /api/tasks/duplicate error:", error);

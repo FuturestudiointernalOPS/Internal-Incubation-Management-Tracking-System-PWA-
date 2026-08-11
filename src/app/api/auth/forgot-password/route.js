@@ -31,7 +31,7 @@ export async function POST(req) {
 
     // Find user (don't reveal if they exist)
     const userResult = await db.execute({
-      sql: "SELECT cid, name, email FROM contacts WHERE email = ? AND deleted = 0 AND status = 'active' LIMIT 1",
+      sql: "SELECT cid, name, email FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL AND status = 'active' LIMIT 1",
       args: [cleanEmail],
     });
 
@@ -45,17 +45,16 @@ export async function POST(req) {
 
       // Invalidate old tokens
       await db.execute({
-        sql: "UPDATE password_setup_tokens SET used = true WHERE user_cid = ? AND used = false",
+        sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ? AND used = 0",
         args: [user.cid],
       });
 
       // Create new token
       await db.execute({
-        sql: `INSERT INTO password_setup_tokens (user_cid, user_email, token, expires_at, used)
-              VALUES (?, ?, ?, ?, false)`,
+        sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used)
+              VALUES (?, ?, ?, 0)`,
         args: [
           user.cid,
-          user.email,
           token,
           expiresAt.toISOString().replace("T", " ").replace("Z", ""),
         ],

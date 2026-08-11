@@ -66,6 +66,35 @@ export async function GET(req) {
           )
         : 0;
 
+    // Blocker rate: % of all blockers that are still active
+    const blockerRate =
+      blockerStats.rows[0]?.total > 0
+        ? Math.round(
+            (blockerStats.rows[0].active / blockerStats.rows[0].total) * 100,
+          )
+        : 0;
+
+    // Average blocker resolution time (hours)
+    const resolutionTimeRes = await db.execute({
+      sql: "SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)))::int AS avg_seconds FROM blockers WHERE status = 'resolved' AND resolved_at IS NOT NULL AND created_at IS NOT NULL",
+    });
+    const avgResolutionHours = resolutionTimeRes.rows[0]?.avg_seconds
+      ? Math.round(resolutionTimeRes.rows[0].avg_seconds / 3600)
+      : 0;
+
+    // Weekly productivity: tasks completed per week (by completion date), last 8 weeks
+    const weeklyProductivity = await db.execute({
+      sql: `SELECT
+              EXTRACT(week FROM completed_at)::int AS week,
+              EXTRACT(isoyear FROM completed_at)::int AS year,
+              COUNT(*)::int AS completed
+            FROM tasks
+            WHERE status = 'completed' AND completed_at IS NOT NULL
+            GROUP BY EXTRACT(isoyear FROM completed_at), EXTRACT(week FROM completed_at)
+            ORDER BY year DESC, week DESC
+            LIMIT 8`,
+    });
+
     return NextResponse.json({
       success: true,
       analytics: {
@@ -88,6 +117,9 @@ export async function GET(req) {
               )
             : 0,
         carryoverRate,
+        blockerRate,
+        avgResolutionHours,
+        weeklyProductivity: weeklyProductivity.rows || [],
       },
     });
   } catch (error) {

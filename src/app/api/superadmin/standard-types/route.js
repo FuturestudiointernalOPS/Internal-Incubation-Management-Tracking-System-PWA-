@@ -1,77 +1,46 @@
-import db, { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
-    const { searchParams } = new URL(req.url);
-    const category = searchParams.get("category");
+const ROLE = { roles: ['super_admin'] };
 
-    let query = "SELECT * FROM v2_standard_types WHERE status = 'active'";
-    let args = [];
+export const GET = createHandler(ROLE, async (req) => {
+  const { searchParams } = new URL(req.url);
+  const category = searchParams.get("category");
 
-    if (category) {
-      query += " AND category = ?";
-      args.push(category);
-    }
+  let query = "SELECT * FROM v2_standard_types WHERE status = 'active'";
+  let args = [];
 
-    const res = await db.execute({ sql: query, args });
-    return NextResponse.json({ success: true, types: res.rows });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+  if (category) {
+    query += " AND description = ?";
+    args.push(category);
   }
-}
 
-export async function POST(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
-    const { category, label, id } = await req.json();
+  const res = await db.execute({ sql: query, args });
+  return NextResponse.json({ success: true, types: res.rows });
+});
 
-    if (id) {
-      // UPDATE MODE
-      await db.execute({
-        sql: "UPDATE v2_standard_types SET label = ? WHERE id = ?",
-        args: [label, id],
-      });
-    } else {
-      // INSERT MODE
-      await db.execute({
-        sql: "INSERT INTO v2_standard_types (category, label) VALUES (?, ?)",
-        args: [category, label],
-      });
-    }
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
-
-export async function DELETE(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
-    const { id } = await req.json();
+export const POST = createHandler(ROLE, async (req) => {
+  const { category, label, id } = await req.json();
+  if (id) {
     await db.execute({
-      sql: "DELETE FROM v2_standard_types WHERE id = ?",
-      args: [id],
+      sql: "UPDATE v2_standard_types SET name = ? WHERE id = ?",
+      args: [label, id],
     });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+  } else {
+    await db.execute({
+      sql: "INSERT INTO v2_standard_types (name, description) VALUES (?, ?)",
+      args: [label, category],
+    });
   }
-}
+  return NextResponse.json({ success: true });
+});
+
+export const DELETE = createHandler(ROLE, async (req) => {
+  const { id } = await req.json();
+  await db.execute({
+    sql: "DELETE FROM v2_standard_types WHERE id = ?",
+    args: [id],
+  });
+  return NextResponse.json({ success: true });
+});

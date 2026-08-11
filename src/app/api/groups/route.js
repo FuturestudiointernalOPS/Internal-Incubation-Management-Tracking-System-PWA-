@@ -1,289 +1,159 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
+export const dynamic = "force-dynamic";
 
 /**
- * GROUPS API
- *
- * GET    /api/groups — list all groups with defaults
- * GET    /api/groups?id=X — single group with full defaults
- * POST   /api/groups — create a new group
- * PUT    /api/groups — update group (name, description, access_profile_id)
- * DELETE /api/groups?id=X — deactivate a group
+ * GROUPS API — Contact Group management.
+ * Reads/writes the `families` table (contact groups created during program setup).
  */
 
 export async function GET(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
+    await initDb();
+    const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
     if (authError) return authError;
 
-    await initDb();
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    const groupName = searchParams.get("name");
+    const program_id = searchParams.get("program_id");
+    const search = searchParams.get("search");
 
-    if (groupName) {
-      // Lookup by name — return same as id but lookup first
-      const lookupRes = await db.execute({
-        sql: "SELECT id FROM groups WHERE name = ?",
-        args: [groupName.trim().toUpperCase()],
-      });
-      if (lookupRes.rows.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "Group not found" },
-          { status: 404 },
-        );
-      }
-      // Redirect to id-based lookup by constructing the URL
-      const url = new URL(req.url);
-      url.searchParams.delete("name");
-      url.searchParams.set("id", lookupRes.rows[0].id);
-      const redirectReq = new Request(url, req);
-      return GET(redirectReq);
+    let sql = "SELECT * FROM families";
+    let args = [];
+    let conditions = [];
+
+    if (program_id) {
+      conditions.push("program_id = ?");
+      args.push(program_id);
+    }
+    if (search) {
+      conditions.push("LOWER(name) LIKE LOWER(?)");
+      args.push(`%${search}%`);
     }
 
-    if (id) {
-      // Single group with all defaults
-      const groupRes = await db.execute({
-        sql: "SELECT * FROM groups WHERE id = ?",
-        args: [parseInt(id)],
-      });
-      if (groupRes.rows.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "Group not found" },
-          { status: 404 },
-        );
-      }
-      const group = groupRes.rows[0];
-
-      // Get default responsibilities
-      const respRes = await db.execute({
-        sql: `SELECT r.id, r.name, r.key
-              FROM group_default_responsibilities gdr
-              JOIN responsibilities r ON r.id = gdr.responsibility_id
-              WHERE gdr.group_id = ?`,
-        args: [group.id],
-      });
-
-      // Get access profile
-      let accessProfile = null;
-      if (group.access_profile_id) {
-        const profileRes = await db.execute({
-          sql: "SELECT id, name, description FROM access_profiles WHERE id = ?",
-          args: [group.access_profile_id],
-        });
-        if (profileRes.rows.length > 0) accessProfile = profileRes.rows[0];
-      }
-
-      // Get member count
-      const memberRes = await db.execute({
-        sql: "SELECT COUNT(*) as cnt FROM user_groups WHERE group_name = ?",
-        args: [group.name],
-      });
-
-      return NextResponse.json({
-        success: true,
-        group: {
-          ...group,
-          default_responsibilities: respRes.rows,
-          access_profile: accessProfile,
-          member_count: parseInt(memberRes.rows[0]?.cnt || 0),
-        },
-      });
+    if (conditions.length > 0) {
+      sql += " WHERE " + conditions.join(" AND ");
     }
 
-    // List all groups with member counts
-    const groupsRes = await db.execute({
-      sql: "SELECT * FROM groups ORDER BY name ASC",
-    });
+    sql += " ORDER BY created_at DESC";
 
-    const groups = await Promise.all(
-      groupsRes.rows.map(async (g) => {
-        const memberRes = await db.execute({
-          sql: "SELECT COUNT(*) as cnt FROM user_groups WHERE group_name = ?",
-          args: [g.name],
-        });
-        return {
-          ...g,
-          member_count: parseInt(memberRes.rows[0]?.cnt || 0),
-        };
-      }),
-    );
-
-    return NextResponse.json({ success: true, groups });
-  } catch (err) {
-    console.error("[Groups] GET error:", err);
+    const { rows } = await db.execute({ sql, args });
+    return NextResponse.json({ success: true, groups: rows });
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 },
+      { success: false, error: error.message },
+      { status: 500 }
     );
   }
 }
 
 export async function POST(req) {
   try {
+    await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    await initDb();
     const body = await req.json();
-    const { name, description, access_profile_id } = body;
+    const { program_id, name, type, description, default_role } = body;
 
-    if (!name || !name.trim()) {
+    if (!name) {
       return NextResponse.json(
-        { success: false, error: "Group name is required" },
-        { status: 400 },
-      );
-    }
-
-    const groupName = name.trim().toUpperCase();
-
-    // Check if group already exists
-    const existing = await db.execute({
-      sql: "SELECT id FROM groups WHERE name = ?",
-      args: [groupName],
-    });
-    if (existing.rows.length > 0) {
-      return NextResponse.json(
-        { success: false, error: `Group "${groupName}" already exists` },
-        { status: 409 },
+        { success: false, error: "name required" },
+        { status: 400 }
       );
     }
 
     const result = await db.execute({
-      sql: `INSERT INTO groups (name, description, access_profile_id)
-            VALUES (?, ?, ?)`,
-      args: [
-        groupName,
-        description || "",
-        access_profile_id ? parseInt(access_profile_id) : null,
-      ],
+      sql: `INSERT INTO families (program_id, name, type, description, default_role)
+             VALUES (?, ?, ?, ?, ?) RETURNING id`,
+      args: [program_id || null, name, type || "individual", description || null, body.default_role || null],
     });
+
+    const id = result.rows?.[0]?.id ?? result.lastInsertRowid;
 
     return NextResponse.json({
       success: true,
-      id: Number(result.lastInsertRowid),
-      message: `Group "${groupName}" created`,
+      group: { id, program_id, name, type, description },
     });
-  } catch (err) {
-    console.error("[Groups] POST error:", err);
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 },
+      { success: false, error: error.message },
+      { status: 500 }
     );
   }
 }
 
 export async function PUT(req) {
   try {
+    await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    await initDb();
-    const body = await req.json();
-    const { id, name, description, access_profile_id, default_responsibilities } = body;
+    const { id, name, type, description, is_archived, default_role } = await req.json();
 
     if (!id) {
       return NextResponse.json(
-        { success: false, error: "id is required" },
-        { status: 400 },
+        { success: false, error: "id required" },
+        { status: 400 }
       );
     }
 
-    const groupId = parseInt(id);
+    const updates = [];
+    const args = [];
 
-    // Update group fields
-    if (name !== undefined) {
-      await db.execute({
-        sql: "UPDATE groups SET name = ?, updated_at = NOW() WHERE id = ?",
-        args: [name.trim().toUpperCase(), groupId],
-      });
-      // Also sync user_groups group_name
-      const old = await db.execute({
-        sql: "SELECT name FROM groups WHERE id = ?",
-        args: [groupId],
-      });
-      if (old.rows.length > 0 && old.rows[0].name !== name.trim().toUpperCase()) {
-        await db.execute({
-          sql: "UPDATE user_groups SET group_name = ? WHERE group_name = ?",
-          args: [name.trim().toUpperCase(), old.rows[0].name],
-        });
-      }
-    }
-    if (description !== undefined) {
-      await db.execute({
-        sql: "UPDATE groups SET description = ?, updated_at = NOW() WHERE id = ?",
-        args: [description, groupId],
-      });
-    }
-    if (access_profile_id !== undefined) {
-      await db.execute({
-        sql: "UPDATE groups SET access_profile_id = ?, updated_at = NOW() WHERE id = ?",
-        args: [access_profile_id ? parseInt(access_profile_id) : null, groupId],
-      });
+    if (name !== undefined) { updates.push("name = ?"); args.push(name); }
+    if (type !== undefined) { updates.push("type = ?"); args.push(type); }
+    if (description !== undefined) { updates.push("description = ?"); args.push(description); }
+    if (is_archived !== undefined) { updates.push("is_archived = ?"); args.push(is_archived ? 1 : 0); }
+    if (default_role !== undefined) { updates.push("default_role = ?"); args.push(default_role || null); }
+
+    if (updates.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "No fields to update" },
+        { status: 400 }
+      );
     }
 
-    // Update default responsibilities
-    if (default_responsibilities !== undefined) {
-      await db.execute({
-        sql: "DELETE FROM group_default_responsibilities WHERE group_id = ?",
-        args: [groupId],
-      });
-      if (Array.isArray(default_responsibilities)) {
-        for (const respId of default_responsibilities) {
-          await db.execute({
-            sql: `INSERT INTO group_default_responsibilities (group_id, responsibility_id)
-                  VALUES (?, ?) ON CONFLICT DO NOTHING`,
-            args: [groupId, parseInt(respId)],
-          });
-        }
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: "Group updated",
+    args.push(id);
+    await db.execute({
+      sql: `UPDATE families SET ${updates.join(", ")} WHERE id = ?`,
+      args,
     });
-  } catch (err) {
-    console.error("[Groups] PUT error:", err);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 },
+      { success: false, error: error.message },
+      { status: 500 }
     );
   }
 }
 
 export async function DELETE(req) {
   try {
+    await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    await initDb();
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const { id } = await req.json();
 
     if (!id) {
       return NextResponse.json(
-        { success: false, error: "id is required" },
-        { status: 400 },
+        { success: false, error: "id required" },
+        { status: 400 }
       );
     }
 
-    // Soft-deactivate: set is_active = 0
     await db.execute({
-      sql: "UPDATE groups SET is_active = 0, updated_at = NOW() WHERE id = ?",
-      args: [parseInt(id)],
+      sql: "DELETE FROM families WHERE id = ?",
+      args: [id],
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Group deactivated",
-    });
-  } catch (err) {
-    console.error("[Groups] DELETE error:", err);
+    return NextResponse.json({ success: true });
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 },
+      { success: false, error: error.message },
+      { status: 500 }
     );
   }
 }

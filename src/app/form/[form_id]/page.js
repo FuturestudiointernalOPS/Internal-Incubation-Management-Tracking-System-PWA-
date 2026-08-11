@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
-export default function PublicFormView() {
+import GlobalToast from '@/components/ui/GlobalToast';
+function PublicFormContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const form_id = params.form_id;
@@ -47,7 +48,8 @@ export default function PublicFormView() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!cid && (!publicData.name || !publicData.email)) {
-      return alert("Public forms require Name and Email to process correctly.");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'warning', message: 'Public forms require Name and Email to process correctly.' } }));
+      return;
     }
     setSubmitting(true);
     try {
@@ -61,10 +63,10 @@ export default function PublicFormView() {
       if (data.success) {
         setSubmitted(true);
       } else {
-        alert(data.error);
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error } }));
       }
     } catch (err) {
-      alert('Error submitting form');
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Error submitting form' } }));
     } finally {
       setSubmitting(false);
     }
@@ -169,6 +171,15 @@ export default function PublicFormView() {
             </motion.div>
           </form>
        </div>
+       <GlobalToast />
     </div>
+  );
+}
+
+export default function PublicFormView() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+      <PublicFormContent />
+    </Suspense>
   );
 }

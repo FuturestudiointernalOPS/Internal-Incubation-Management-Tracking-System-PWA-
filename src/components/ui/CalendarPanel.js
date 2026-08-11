@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Calendar, X, Clock } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 
@@ -27,22 +28,22 @@ function formatDate(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+const MONTH_KEYS = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
 ];
 
-const DAY_HEADERS = ["S", "M", "T", "W", "T", "F", "S"];
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 const EVENT_COLORS = {
   task: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -77,6 +78,7 @@ export default function CalendarPanel({
   onEventClick,
   compact = false,
 }) {
+  const { t } = useI18n();
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -147,7 +149,7 @@ export default function CalendarPanel({
             <span
               className={`${compact ? "text-[9px]" : "text-[10px]"} font-black text-[var(--text-primary)] uppercase tracking-wider`}
             >
-              {MONTHS[month]} {year}
+              {t("time.months." + MONTH_KEYS[month])} {year}
             </span>
           </div>
           <div className="flex items-center gap-1">
@@ -155,7 +157,7 @@ export default function CalendarPanel({
               onClick={handleToday}
               className={`px-1.5 py-0.5 rounded ${compact ? "text-[7px]" : "text-[8px]"} font-black uppercase tracking-widest hover:bg-white/5 transition-all text-slate-500 hover:text-[var(--text-primary)]`}
             >
-              Today
+              {t("time.today")}
             </button>
             <button
               onClick={handleNext}
@@ -172,8 +174,8 @@ export default function CalendarPanel({
         <div
           className={`grid grid-cols-7 ${gap} text-center ${headerSize} font-black text-slate-500 uppercase tracking-widest mb-1.5`}
         >
-          {DAY_HEADERS.map((d) => (
-            <div key={d}>{d}</div>
+          {DAY_KEYS.map((k) => (
+            <div key={k}>{t("time.days." + k)}</div>
           ))}
         </div>
 
@@ -246,7 +248,7 @@ export default function CalendarPanel({
             ))}
             {events.length > 3 && (
               <p className={`text-[7px] text-slate-500 text-center pt-0.5`}>
-                +{events.length - 3} more
+                +{events.length - 3} {t("common.more")}
               </p>
             )}
           </div>
@@ -290,7 +292,7 @@ export default function CalendarPanel({
             <div className="px-5 pb-5 space-y-2">
               {selectedDay.events.length === 0 ? (
                 <p className="text-[10px] text-slate-500 italic">
-                  No events scheduled for this day
+                  {t("common.noEvents")}
                 </p>
               ) : (
                 selectedDay.events.map((ev) => (

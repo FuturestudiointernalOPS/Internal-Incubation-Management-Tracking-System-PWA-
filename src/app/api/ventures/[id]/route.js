@@ -1,0 +1,110 @@
+import { NextResponse } from "next/server";
+import { createHandler } from "@/lib/api/createHandler";
+import db, { initDb } from "@/lib/db";
+import {
+  getVentureById,
+  updateVenture,
+  logVentureActivity,
+  addVentureHistory,
+  createVentureNotification,
+} from "@/lib/ventures";
+
+/**
+ * GET /api/ventures/[id]
+ *
+ * Fetch a venture by its venture_id with all related data.
+ */
+export const GET = createHandler(
+  { roles: ["super_admin", "staff", "program_manager", "participant", "founder", "teacher", "developer"] },
+  async (req, { params }) => {
+    const { id } = await params;
+
+    const { requireVentureAccess } = await import("@/lib/ventureAuth");
+    const { session } = await requireVentureAccess(id, db);
+    if (!session) {
+      return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+    }
+
+    const venture = await getVentureById(id);
+
+    if (!venture) {
+      return NextResponse.json(
+        { success: false, error: "Venture not found" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      venture,
+    });
+  },
+);
+
+/**
+ * PATCH /api/ventures/[id]
+ *
+ * Update a venture's information.
+ * Only super_admin can update.
+ */
+export const PATCH = createHandler(
+  { roles: ["super_admin"] },
+  async (req, { params }) => {
+    const { id } = await params;
+
+    // Check venture exists
+    const existingVenture = await getVentureById(id);
+    if (!existingVenture) {
+      return NextResponse.json(
+        { success: false, error: "Venture not found" },
+        { status: 404 },
+      );
+    }
+
+    const body = await req.json();
+
+    // Validate if company_name is being updated
+    if (body.company_name !== undefined && !body.company_name.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Company name cannot be empty" },
+        { status: 400 },
+      );
+    }
+
+    // Update the venture
+    const result = await updateVenture(id, body);
+
+    // Log activity
+    const changedFields = Object.keys(body).filter(
+      (k) => body[k] !== undefined && k !== "session",
+    );
+    if (changedFields.length > 0) {
+      await logVentureActivity({
+        venture_id: id,
+        action: "VENTURE_UPDATED",
+        actor_cid: req.session?.cid || "system",
+        actor_name: req.session?.name || "System",
+        details: {
+          updated_fields: changedFields,
+        },
+      });
+
+      await addVentureHistory({
+        venture_id: id,
+        event_type: "VENTURE_UPDATED",
+        description: `Venture information updated: ${changedFields.join(", ")}`,
+        metadata: {
+          updated_fields: changedFields,
+        },
+      });
+    }
+
+    // Fetch updated venture
+    const updatedVenture = await getVentureById(id);
+
+    return NextResponse.json({
+      success: true,
+      venture: updatedVenture,
+    });
+  },
+);

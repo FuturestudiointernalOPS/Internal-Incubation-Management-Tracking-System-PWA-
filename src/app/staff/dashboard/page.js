@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import StandupRetroView from "@/components/dashboard/StandupRetroView";
 import { useI18n } from "@/lib/i18n";
 
 export default function StaffDashboard() {
@@ -86,6 +87,13 @@ export default function StaffDashboard() {
             submissions for evaluation.
           </p>
         </header>
+
+        {/* ── STAND-UP & RETRO (Phase 7 Redesign) ── */}
+        <StandupRetroView
+          user={user}
+          context={{ context_type: "staff", context_id: null }}
+          contextLabel="Future Studio — Staff Operations"
+        />
 
         {/* UPCOMING TASKS */}
         <div className="card">

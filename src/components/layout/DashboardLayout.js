@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Sun,
   Moon,
+  Monitor,
   Users,
   LayoutDashboard,
   Briefcase,
@@ -34,6 +35,10 @@ import {
   ListTodo,
   Wrench,
   CheckSquare,
+  Megaphone,
+  HeartPulse,
+  Blocks,
+  Clock,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -54,7 +59,7 @@ const NAV_KEY_MAP = {
   internal_ops_board: "navigation.internalOpsBoard",
   messages: "navigation.messages",
   communication: "navigation.communication",
-  campaigns: "navigation.campaigns",
+
   forms: "navigation.forms",
   all_contacts: "navigation.contacts",
   knowledge: "navigation.knowledgeBase",
@@ -73,6 +78,8 @@ const NAV_KEY_MAP = {
   blockers: "reports.blockers",
   no_new_intel: "navigation.noNewIntel",
   intel_feed: "navigation.intelFeed",
+  announcements: "navigation.announcements",
+  followups: "navigation.followups",
 };
 
 function tnav(key) {
@@ -98,6 +105,8 @@ const SidebarContent = ({
   handleLogout,
   t,
   submissionCount,
+  unreadByType,
+  hasCommunicationActivity,
 }) => {
   return (
     <>
@@ -128,7 +137,7 @@ const SidebarContent = ({
       )}
 
       <nav className="flex-1 space-y-2 overflow-y-auto min-h-0 pr-1">
-        {navItems.map((item) => {
+        {(navItems || []).map((item) => {
           if (item.subItems) {
             const isChildActive = item.subItems.some((sub) =>
               pathname?.startsWith(sub.href),
@@ -142,9 +151,15 @@ const SidebarContent = ({
                   className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isChildActive ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
                 >
                   <div className="flex items-center gap-4">
-                    <item.icon
-                      className={`w-4 h-4 flex-shrink-0 ${isChildActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
-                    />
+                    <div className="relative">
+                      <item.icon
+                        className={`w-4 h-4 flex-shrink-0 ${isChildActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
+                      />
+                      {item.id === "communication" &&
+                        hasCommunicationActivity && (
+                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
+                        )}
+                    </div>
                     {!collapsed && (
                       <span className="truncate">
                         {t(tnav(item.id)) || item.name}
@@ -157,6 +172,11 @@ const SidebarContent = ({
                       <span className="text-[8px] font-black bg-[var(--brand-orange)] text-black px-1.5 py-0.5 rounded-full mr-2">
                         {submissionCount}
                       </span>
+                    )}
+                  {!collapsed &&
+                    item.id === "communication" &&
+                    hasCommunicationActivity && (
+                      <span className="w-2 h-2 rounded-full bg-[var(--brand-orange)] shrink-0" />
                     )}
                   {!collapsed && (
                     <ChevronDown
@@ -180,6 +200,11 @@ const SidebarContent = ({
                               ? subItem.name
                               : t(tnav(subItem.id)) || subItem.name}
                           </span>
+                          {unreadByType && unreadByType[subItem.id] > 0 && (
+                            <span className="ml-auto w-5 h-5 rounded-full bg-[var(--brand-orange)] text-black text-[8px] font-black flex items-center justify-center shrink-0">
+                              {unreadByType[subItem.id]}
+                            </span>
+                          )}
                         </Link>
                       );
                     })}
@@ -217,12 +242,25 @@ const SidebarContent = ({
           </p>
         )}
         <Link
-          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" || role === "intern" ? "developer" : "participant"}/profile`}
+          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`}
           className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
         >
           <User className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span>{t(tnav("profile"))}</span>}
         </Link>
+        <button
+          onClick={() => {
+            if (typeof window === "undefined") return;
+            const current = localStorage.getItem("impactos_lang") || "en";
+            const next = current === "en" ? "fr" : "en";
+            localStorage.setItem("impactos_lang", next);
+            window.location.reload();
+          }}
+          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-black uppercase tracking-widest text-[10px]"
+        >
+          <Globe className="w-4 h-4 flex-shrink-0" />
+          {!collapsed && <span>FR/EN</span>}
+        </button>
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all font-black uppercase tracking-widest text-[10px]"
@@ -242,6 +280,24 @@ const NAVIGATION_MATRIX = {
       name: "DASHBOARD",
       icon: LayoutDashboard,
       href: "/admin",
+    },
+
+    {
+      id: "crm",
+      name: "CRM",
+      icon: Users,
+      subItems: [
+        { id: "crm_dashboard", name: "DASHBOARD", href: "/admin/crm" },
+        { id: "all_contacts", name: "PEOPLE", href: "/admin/communications/contacts" },
+        { id: "crm_timeline", name: "TIMELINE", href: "/admin/crm/timeline" },
+        { id: "crm_duplicates", name: "DUPLICATES", href: "/admin/crm/duplicates" },
+        { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },
+        { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/bulk-upload" },
+        { id: "forms", name: "FORMS", href: "/platform" },
+        { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
+        { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
+
+      ],
     },
 
     {
@@ -265,105 +321,78 @@ const NAVIGATION_MATRIX = {
     },
 
     {
-      id: "internal_ops",
-      name: "Internal Ops",
-      icon: ListTodo,
+      id: "ventures",
+      name: "VENTURES",
+      icon: Rocket,
       subItems: [
-        { id: "internal_ops_board", name: "WORKSPACE", href: "/admin/work" },
-        {
-          id: "all_projects",
-          name: "PROJECTS",
-          href: "/admin/projects",
-        },
-        {
-          id: "create_project",
-          name: "CREATE PROJECT",
-          href: "/admin/projects?action=create",
-        },
-        {
-          id: "internal_reports",
-          name: "REPORTS",
-          href: "/admin/op-reports",
-        },
+        { id: "all_ventures", name: "ALL VENTURES", href: "/admin/ventures" },
+        { id: "register_venture", name: "REGISTER STARTUP", href: "/admin/ventures/register" },
       ],
     },
 
     {
-      id: "communication",
-      name: "COMMUNICATIONS",
-      icon: Send,
+      id: "investors",
+      name: "INVESTORS",
+      icon: Briefcase,
       subItems: [
-        { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
-        {
-          id: "campaigns",
-          name: "CAMPAIGNS",
-          href: "/admin/communications/campaigns",
-        },
-        { id: "forms", name: "FORMS", href: "/admin/communications/forms" },
-        {
-          id: "all_contacts",
-          name: "CONTACTS",
-          href: "/admin/communications/contacts",
-        },
-        {
-          id: "pending_users",
-          name: "PENDING USERS",
-          href: "/admin/pending-users",
-        },
-        { id: "bulk_upload", name: "BULK UPLOAD", href: "/admin/bulk-upload" },
+        { id: "investors_manage", name: "INVESTOR MANAGEMENT", href: "/admin/investors" },
+        { id: "investors_dashboard", name: "DASHBOARD", href: "/admin/investors/dashboard" },
+        { id: "investors_review", name: "REVIEW", href: "/admin/investors/review" },
+        { id: "investors_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
+        { id: "investors_campaigns", name: "CAMPAIGNS", href: "/admin/investors/campaigns" },
+        { id: "investors_relationships", name: "RELATIONSHIPS", href: "/admin/investors/relationships" },
+      ],
+    },
+
+    {
+      id: "operations",
+      name: "OPERATIONS",
+      icon: ListTodo,
+      subItems: [
+        { id: "internal_ops_board", name: "WORKSPACE", href: "/admin/work" },
+        { id: "all_projects", name: "PROJECTS", href: "/admin/projects" },
+        { id: "create_project", name: "CREATE PROJECT", href: "/admin/projects?action=create" },
+        { id: "tasks", name: "TASKS", href: "/admin/tasks" },
+        { id: "blockers", name: "BLOCKERS", href: "/admin/blockers" },
+        { id: "standup", name: "STANDUP", href: "/staff/op-report" },
+        { id: "retro", name: "RETRO", href: "/staff/op-report" },
       ],
     },
 
     {
       id: "knowledge",
-      name: "KNOWLEDGE BASE",
+      name: "KNOWLEDGE",
       icon: Library,
-      href: "/admin/knowledge",
+      subItems: [
+        { id: "knowledge_base", name: "KNOWLEDGE BASE", href: "/admin/knowledge" },
+        { id: "intelligence", name: "INTELLIGENCE", href: "/admin/intelligence" },
+      ],
+    },
+
+    { id: "finance", name: "FINANCE", icon: BarChart3, href: "/admin/finance" },
+    {
+      id: "reports",
+      name: "REPORTS",
+      icon: FileText,
+      subItems: [
+        { id: "program_reports", name: "PROGRAM REPORTS", href: "/admin/reports/responses" },
+        { id: "internal_reports", name: "OP REPORTS", href: "/admin/op-reports" },
+        { id: "metrics", name: "PROGRAM HEALTH", href: "/admin/metrics" },
+      ],
     },
 
     {
-      id: "intelligence",
-      name: "INTELLIGENCE",
-      icon: TrendingUp,
-      href: "/admin/intelligence",
-    },
-    {
-      id: "finance",
-      name: "FINANCE",
-      icon: BarChart3,
-      href: "/admin/finance",
-    },
-    {
-      id: "metrics",
-      name: "HEALTH",
-      icon: Activity,
-      href: "/admin/metrics",
-    },
-    {
-      id: "standups_retros",
-      name: "STANDUPS & RETROS",
-      icon: MessageSquare,
-      subItems: [
-        { id: "standup", name: "STANDUP", href: "/staff/op-report" },
-        { id: "retro", name: "RETRO", href: "/staff/op-report" },
-      ],
-    },
-    {
-      id: "engineering",
-      name: "ENGINEERING",
+      id: "settings",
+      name: "SETTINGS",
       icon: Wrench,
       subItems: [
-        {
-          id: "engineering_dashboard",
-          name: "DASHBOARD",
-          href: "/admin/engineering",
-        },
-        {
-          id: "permissions",
-          name: "PERMISSIONS",
-          href: "/admin/engineering/permissions",
-        },
+        { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
+        { id: "security", name: "SECURITY", href: "/admin/security" },
+        { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
         { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
+        { id: "permissions", name: "PERMISSIONS", href: "/admin/engineering/permissions" },
+        { id: "engineering_dashboard", name: "ENGINEERING", href: "/admin/engineering" },
+        { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
       ],
     },
   ],
@@ -436,27 +465,28 @@ const NAVIGATION_MATRIX = {
       href: "/staff",
     },
     {
-      id: "communication",
-      name: "COMMUNICATION",
+      id: "standup",
+      name: "STANDUP",
       icon: MessageSquare,
-      href: "/staff/messages",
+      href: "/staff/op-report?tab=standup",
     },
     {
-      id: "reports",
-      name: "REPORTS",
-      icon: BarChart3,
-      subItems: [
-        {
-          id: "internal_reports",
-          name: "INTERNAL REPORTS",
-          href: "/staff/op-report",
-        },
-        {
-          id: "my_projects",
-          name: "MY PROJECTS",
-          href: "/staff/projects",
-        },
-      ],
+      id: "retro",
+      name: "RETRO",
+      icon: MessageSquare,
+      href: "/staff/op-report?tab=retro",
+    },
+    {
+      id: "my_projects",
+      name: "MY PROJECTS",
+      icon: Briefcase,
+      href: "/staff/projects",
+    },
+    {
+      id: "messages",
+      name: "MESSAGES",
+      icon: Send,
+      href: "/staff/messages",
     },
   ],
 
@@ -576,24 +606,103 @@ const NAVIGATION_MATRIX = {
       href: "/participant/dashboard",
     },
     {
-      id: "assignments",
-      name: "ASSIGNMENTS",
+      id: "timeline",
+      name: "MY TIMELINE",
+      icon: Clock,
+      href: "/participant/timeline",
+    },
+    {
+      id: "certificates",
+      name: "MY CERTIFICATES",
       icon: FileText,
-      href: "/participant/assignments",
-    },
-    // rituals — removed from sidebar per product decision
-    // Page still exists at /participant/rituals if needed
-    {
-      id: "progress_hub",
-      name: "MY PROGRESS",
-      icon: TrendingUp,
-      href: "/participant/progress",
+      href: "/participant/certificates",
     },
     {
-      id: "communication",
-      name: "COMMUNICATION",
+      id: "messages",
+      name: "MESSAGES",
       icon: MessageSquare,
       href: "/participant/messages",
+    },
+  ],
+
+  founder: [
+    {
+      id: "dashboard",
+      name: "DASHBOARD",
+      icon: LayoutDashboard,
+      href: "/participant",
+    },
+    {
+      id: "programs",
+      name: "MY PROGRAMS",
+      icon: Briefcase,
+      href: "/participant/dashboard",
+    },
+    {
+      id: "ventures",
+      name: "MY VENTURES",
+      icon: Rocket,
+      href: "/participant/ventures",
+    },
+    {
+      id: "timeline",
+      name: "MY TIMELINE",
+      icon: Clock,
+      href: "/participant/timeline",
+    },
+    {
+      id: "messages",
+      name: "MESSAGES",
+      icon: MessageSquare,
+      href: "/participant/messages",
+    },
+  ],
+
+  team: [
+    {
+      id: "dashboard",
+      name: "TEAM WORKSPACE",
+      icon: LayoutDashboard,
+      href: "/team",
+    },
+    {
+      id: "programs",
+      name: "DELIVERABLES",
+      icon: FileText,
+      href: "/team",
+    },
+  ],
+
+  investor: [
+    {
+      id: "dashboard",
+      name: "DISCOVER",
+      icon: LayoutDashboard,
+      href: "/investor/dashboard",
+    },
+    {
+      id: "pipeline",
+      name: "PIPELINE",
+      icon: BarChart3,
+      href: "/investor/pipeline",
+    },
+    {
+      id: "portfolio",
+      name: "PORTFOLIO",
+      icon: TrendingUp,
+      href: "/investor/portfolio",
+    },
+    {
+      id: "activity",
+      name: "ACTIVITY",
+      icon: Clock,
+      href: "/investor/history",
+    },
+    {
+      id: "profile",
+      name: "PROFILE",
+      icon: User,
+      href: "/investor/profile",
     },
   ],
 };
@@ -607,48 +716,69 @@ const NAVIGATION_MATRIX = {
 // =============================================================================
 
 const NAV_RESPONSIBILITY_MAP = {
-  // Super Admin / Admin
+  // CRM
+  crm: "crm",
+  crm_dashboard: "crm",
+  crm_timeline: "crm",
+  all_contacts: "crm",
+  pending_users: "crm",
+  bulk_upload: "crm",
+  forms: "crm",
+  messages: "crm",
+  announcements: "crm",
+
+  // Programs
   programs: "program_management",
   all_programs: "program_management",
   create_program: "program_management",
   progress: "program_management",
   program_reports: "program_management",
   submissions: "program_management",
+  // Ventures
+  ventures: "program_management",
+  all_ventures: "program_management",
+  register_venture: "program_management",
+  // Projects / Operations
+  operations: "operations",
+  internal_ops: "operations",
+  internal_ops_board: "operations",
   all_projects: "project_ownership",
   create_project: "project_ownership",
-  internal_ops_board: "operations",
-  internal_reports: "reporting",
   my_projects: "project_ownership",
-  communication: "communications",
-  messages: "communications",
-  campaigns: "communications",
-  forms: "communications",
-  all_contacts: "communications",
-  pending_users: "communications",
-  bulk_upload: "communications",
-  groups: "communications",
+  tasks: "operations",
+  blockers: "operations",
+  standup: "operations",
+  retro: "operations",
+  standups_retros: "operations",
+  internal_reports: "reporting",
+  // Knowledge
   knowledge: "knowledge_base",
+  knowledge_base: "knowledge_base",
   intelligence: "intelligence",
+  // Finance & Health
   finance: "finance",
   metrics: "reporting",
+  reports: "reporting",
+  // Settings
+  settings: "system_settings",
+  audit_logs: "system_settings",
+  security: "system_settings",
+  integrations: "system_settings",
+  system: "system_settings",
+  access_summary: "user_management",
+  permissions: "user_management",
+  engineering_dashboard: "engineering",
   engineering: "engineering",
-  standups_retros: "engineering",
-  standup: "engineering",
-  retro: "engineering",
-  my_tasks: "engineering",
-  assigned_tasks: "engineering",
-  rituals: "engineering",
+  // Legacy / always visible
+  dashboard: null,
+  projects: null,
   personnel: "user_management",
   logs: "user_management",
-  reports: "reporting",
-  permissions: "user_management",
-  // Nav sections with custom naming
-  internal_ops: "operations",
-  // Additional nav items from other role matrices
-  dashboard: null, // always visible
-  projects: null, // always visible
-  access_summary: "user_management",
-  engineering_dashboard: "engineering",
+  groups: "crm",
+  communication: "crm",
+  my_tasks: "operations",
+  assigned_tasks: "operations",
+  rituals: "operations",
 };
 
 // Roles that bypass responsibility filtering entirely
@@ -739,10 +869,29 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
   const [pendingInvites, setPendingInvites] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [openMenus, setOpenMenus] = useState({});
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [userResponsibilities, setUserResponsibilities] = useState([]);
+  const [pinnedAnnouncements, setPinnedAnnouncements] = useState([]);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
+
+  const fetchAnnouncements = useCallback(async () => {
+    try {
+      const res = await fetch("/api/announcements");
+      const data = await res.json();
+      if (data.success) {
+        // Only keep pinned, non-archived announcements for the banner
+        setPinnedAnnouncements(
+          (data.announcements || []).filter(
+            (a) => a.is_pinned && !a.is_archived,
+          ),
+        );
+      }
+    } catch (_) {}
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -762,6 +911,46 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
         );
       }
     } catch (e) {}
+  }, []);
+
+  // ── Fetch actual unread message count (not from notifications) ──
+  const fetchUnreadMessageCount = useCallback(async () => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (!savedUser) return;
+      const parsedUser = JSON.parse(savedUser);
+      const cid = parsedUser.cid || parsedUser.id;
+      if (!cid) return;
+      const res = await fetch(`/api/internal-comms?cid=${cid}`);
+      const data = await res.json();
+      if (data.success) {
+        const myMessages = data.messages.filter(
+          (m) =>
+            String(m.recipient_id) === String(cid) &&
+            (m.is_read === 0 || m.is_read === null),
+        );
+        setUnreadMessageCount(myMessages.length);
+      }
+    } catch (_) {}
+  }, []);
+
+  // ── Fetch pending user approvals count ──
+  const fetchPendingUsersCount = useCallback(async () => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (!savedUser) return;
+      const parsedUser = JSON.parse(savedUser);
+      if (parsedUser.role !== "super_admin") return;
+      const res = await fetch("/api/admin/pending-users");
+      const data = await res.json();
+      if (data.success) {
+        setPendingUsersCount(
+          (data.users || data.pendingUsers || []).filter(
+            (u) => u.status === "pending",
+          ).length,
+        );
+      }
+    } catch (_) {}
   }, []);
 
   // ── Fetch pending submission count for PM ──
@@ -794,7 +983,9 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       const parsedUser = JSON.parse(savedUser);
       const cid = parsedUser.cid || parsedUser.id;
       if (!cid) return;
-      const res = await fetch(`/api/projects/invitations?invitee_id=${cid}&status=pending`);
+      const res = await fetch(
+        `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+      );
       const data = await res.json();
       if (data.success) setPendingInvites(data.invitations || []);
     } catch (_) {}
@@ -807,7 +998,9 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
       const parsedUser = JSON.parse(savedUser);
       const cid = parsedUser.cid || parsedUser.id;
       if (!cid) return;
-      const res = await fetch(`/api/tasks/assignments?assignee_id=${cid}&status=pending`);
+      const res = await fetch(
+        `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+      );
       const data = await res.json();
       if (data.success) setPendingAssignments(data.assignments || []);
     } catch (_) {}
@@ -818,23 +1011,42 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     const onRefresh = () => {
       fetchNotifications();
       fetchSubmissionCount();
+      fetchAnnouncements();
+      fetchUnreadMessageCount();
+      fetchPendingUsersCount();
     };
     window.addEventListener("notifications:refresh", onRefresh);
     return () => window.removeEventListener("notifications:refresh", onRefresh);
-  }, [fetchNotifications, fetchSubmissionCount]);
+  }, [
+    fetchNotifications,
+    fetchSubmissionCount,
+    fetchAnnouncements,
+    fetchUnreadMessageCount,
+    fetchPendingUsersCount,
+  ]);
 
   useEffect(() => {
-    // First load already done by initAuth — skip immediate fetch
-    const id = setTimeout(() => {
+    // Poll every 30s for real-time notifications
+    const id = setInterval(() => {
       fetchNotifications();
       fetchSubmissionCount();
       fetchPendingInvites();
       fetchPendingAssignments();
-    }, 15000);
-    return () => clearTimeout(id);
-  }, [fetchNotifications, fetchSubmissionCount, fetchPendingInvites, fetchPendingAssignments]);
+      fetchAnnouncements();
+      fetchUnreadMessageCount();
+      fetchPendingUsersCount();
+    }, 30000);
+    return () => clearInterval(id);
+  }, [
+    fetchNotifications,
+    fetchSubmissionCount,
+    fetchPendingInvites,
+    fetchPendingAssignments,
+    fetchAnnouncements,
+    fetchPendingUsersCount,
+  ]);
 
-  const { toggleTheme, theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState({});
   const [authChecked, setAuthChecked] = useState(false);
   const [pmPrograms, setPmPrograms] = useState([]);
@@ -906,10 +1118,18 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                 setNotifications((prev) =>
                   prev.length > 0 ? prev : notifData.notifications || [],
                 );
-                setUnreadCount(notifData.unread_count ?? 0);
+                setUnreadCount((notifData.notifications || []).filter((n) => !n.is_read).length);
               }
             } catch (_) {}
           }
+
+          // Pre-fetch announcements for banner
+          fetchAnnouncements();
+
+          // Pre-fetch unread message count for badge
+          fetchUnreadMessageCount();
+          // Pre-fetch pending users count
+          fetchPendingUsersCount();
         } else {
           // Session API failed — fallback to localStorage
           const savedUser = localStorage.getItem("user");
@@ -967,6 +1187,39 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     setOpenMenus((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
+  // Unread counts per nav type — messages from actual unread count, others from notifications
+  const unreadByType = useMemo(() => {
+    const counts = {
+      messages: unreadMessageCount,
+      announcements: 0,
+      forms: 0,
+      all_contacts: 0,
+      pending_users: pendingUsersCount,
+      bulk_upload: 0,
+    };
+    for (const n of notifications) {
+      if (!n.is_read) {
+        if (n.type === "announcement") counts.announcements++;
+        if (n.type === "form") counts.forms++;
+      }
+    }
+    return counts;
+  }, [notifications, unreadMessageCount, pendingUsersCount]);
+
+  // Whether the COMMUNICATION section has any activity in its sub-items
+  const hasCommunicationActivity = useMemo(() => {
+    if (!unreadByType) return false;
+    const commSubIds = [
+      "messages",
+      "announcements",
+      "forms",
+      "all_contacts",
+      "pending_users",
+      "bulk_upload",
+    ];
+    return commSubIds.some((id) => unreadByType[id] > 0);
+  }, [unreadByType]);
+
   const navItems = useMemo(() => {
     // Priority: user.role (from session) > role (from prop) > fallback 'admin'
     const activeRole = user.role || role || "admin";
@@ -979,8 +1232,9 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
         g.toUpperCase() === "INTERN",
     );
 
-    if (isIntern) {
+    if (isIntern && activeRole !== "participant") {
       // Interns get restricted navigation regardless of their role
+      // Exception: participants keep their own dashboard
       return [
         {
           id: "dashboard",
@@ -1091,6 +1345,8 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     handleLogout,
     t,
     submissionCount,
+    unreadByType,
+    hasCommunicationActivity,
   };
 
   if (!authChecked) {
@@ -1147,17 +1403,55 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
             </div>
 
             <div className="flex items-center gap-4 ml-auto relative z-10">
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-md"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {theme === "dark" ? (
-                  <Sun className="w-4 h-4" />
-                ) : (
-                  <Moon className="w-4 h-4" />
+              {/* Theme Selector */}
+              <div className="relative">
+                <button
+                  onClick={() => setThemeMenuOpen(!themeMenuOpen)}
+                  className="p-2 rounded-md flex items-center gap-1"
+                  style={{ color: "var(--text-secondary)" }}
+                  title={theme === "system" ? "System" : theme === "dark" ? "Dark" : "Light"}
+                >
+                  {theme === "system" ? (
+                    <Monitor className="w-4 h-4" />
+                  ) : theme === "dark" ? (
+                    <Moon className="w-4 h-4" />
+                  ) : (
+                    <Sun className="w-4 h-4" />
+                  )}
+                  <ChevronDown className="w-3 h-3 opacity-50" />
+                </button>
+                {themeMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-[210]"
+                      onClick={() => setThemeMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-10 w-36 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-2xl z-[220] overflow-hidden">
+                      {[
+                        { value: "dark", label: "Dark", icon: Moon },
+                        { value: "light", label: "Light", icon: Sun },
+                        { value: "system", label: "System", icon: Monitor },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            setTheme(opt.value);
+                            setThemeMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-bold transition-colors ${
+                            theme === opt.value
+                              ? "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10"
+                              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-primary)]"
+                          }`}
+                        >
+                          <opt.icon className="w-3.5 h-3.5" />
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
-              </button>
+              </div>
               <button
                 onClick={() => switchLang(lang === "en" ? "fr" : "en")}
                 className="px-2 py-1 text-[10px] font-bold border border-[var(--border-primary)] rounded uppercase"
@@ -1225,6 +1519,27 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                                   router.push("/participant/messages");
                                 setShowNotifications(false);
                               }
+                              if (
+                                n.type === "comment" ||
+                                n.type === "mention"
+                              ) {
+                                const role = user?.role || "";
+                                if (role === "developer")
+                                  router.push("/developer/standup");
+                                else router.push("/staff/op-report");
+                                setShowNotifications(false);
+                              }
+                              if (n.type === "blocker_discussion") {
+                                const role = user?.role || "";
+                                if (role === "super_admin")
+                                  router.push("/admin/blockers");
+                                else router.push("/staff/op-report");
+                                setShowNotifications(false);
+                              }
+                              if (n.type === "investor" && n.link) {
+                                router.push(n.link);
+                                setShowNotifications(false);
+                              }
                             }}
                             className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!n.is_read ? "bg-[var(--brand-orange)]/5" : ""}`}
                           >
@@ -1241,72 +1556,198 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                             </p>
                             {/* Accept/Decline buttons for project invitations */}
                             {n.type === "project_invite" && (
-                              <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={async () => {
-                                  setPendingInvites([]);
-                                  try {
-                                    const saved = JSON.parse(localStorage.getItem("user") || "{}");
-                                    const cid = saved.cid || saved.id;
-                                    const invRes = await fetch(`/api/projects/invitations?invitee_id=${cid}&status=pending`);
-                                    const invData = await invRes.json();
-                                    const pendingInvite = invData.invitations?.[0];
-                                    if (pendingInvite) {
-                                      await fetch("/api/projects/invitations/respond", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ invitation_id: pendingInvite.id, action: "accept" }) });
-                                    }
-                                    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
-                                    fetchNotifications();
-                                  } catch (_) {}
-                                }} className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase">Accept</button>
-                                <button onClick={async () => {
-                                  setPendingInvites([]);
-                                  try {
-                                    const saved = JSON.parse(localStorage.getItem("user") || "{}");
-                                    const cid = saved.cid || saved.id;
-                                    const invRes = await fetch(`/api/projects/invitations?invitee_id=${cid}&status=pending`);
-                                    const invData = await invRes.json();
-                                    const pendingInvite = invData.invitations?.[0];
-                                    if (pendingInvite) {
-                                      await fetch("/api/projects/invitations/respond", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ invitation_id: pendingInvite.id, action: "decline" }) });
-                                    }
-                                    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
-                                    fetchNotifications();
-                                  } catch (_) {}
-                                }} className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase">Decline</button>
+                              <div
+                                className="flex gap-2 mt-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={async () => {
+                                    setPendingInvites([]);
+                                    try {
+                                      const saved = JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      );
+                                      const cid = saved.cid || saved.id;
+                                      const invRes = await fetch(
+                                        `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+                                      );
+                                      const invData = await invRes.json();
+                                      const pendingInvite =
+                                        invData.invitations?.[0];
+                                      if (pendingInvite) {
+                                        await fetch(
+                                          "/api/projects/invitations/respond",
+                                          {
+                                            method: "POST",
+                                            headers: {
+                                              "Content-Type":
+                                                "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                              invitation_id: pendingInvite.id,
+                                              action: "accept",
+                                            }),
+                                          },
+                                        );
+                                      }
+                                      await fetch("/api/notifications", {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          id: n.id,
+                                          action: "read",
+                                        }),
+                                      });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    setPendingInvites([]);
+                                    try {
+                                      const saved = JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      );
+                                      const cid = saved.cid || saved.id;
+                                      const invRes = await fetch(
+                                        `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+                                      );
+                                      const invData = await invRes.json();
+                                      const pendingInvite =
+                                        invData.invitations?.[0];
+                                      if (pendingInvite) {
+                                        await fetch(
+                                          "/api/projects/invitations/respond",
+                                          {
+                                            method: "POST",
+                                            headers: {
+                                              "Content-Type":
+                                                "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                              invitation_id: pendingInvite.id,
+                                              action: "decline",
+                                            }),
+                                          },
+                                        );
+                                      }
+                                      await fetch("/api/notifications", {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          id: n.id,
+                                          action: "read",
+                                        }),
+                                      });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Decline
+                                </button>
                               </div>
                             )}
                             {/* Accept/Decline for task assignments */}
                             {n.type === "task_assignment" && (
-                              <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={async () => {
-                                  setPendingAssignments([]);
-                                  try {
-                                    const saved = JSON.parse(localStorage.getItem("user") || "{}");
-                                    const cid = saved.cid || saved.id;
-                                    const assRes = await fetch(`/api/tasks/assignments?assignee_id=${cid}&status=pending`);
-                                    const assData = await assRes.json();
-                                    const pendingAss = assData.assignments?.[0];
-                                    if (pendingAss) {
-                                      await fetch("/api/tasks/assignments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignment_id: pendingAss.id, action: "accept" }) });
-                                    }
-                                    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
-                                    fetchNotifications();
-                                  } catch (_) {}
-                                }} className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase">Accept</button>
-                                <button onClick={async () => {
-                                  setPendingAssignments([]);
-                                  try {
-                                    const saved = JSON.parse(localStorage.getItem("user") || "{}");
-                                    const cid = saved.cid || saved.id;
-                                    const assRes = await fetch(`/api/tasks/assignments?assignee_id=${cid}&status=pending`);
-                                    const assData = await assRes.json();
-                                    const pendingAss = assData.assignments?.[0];
-                                    if (pendingAss) {
-                                      await fetch("/api/tasks/assignments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignment_id: pendingAss.id, action: "decline" }) });
-                                    }
-                                    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n.id, action: "read" }) });
-                                    fetchNotifications();
-                                  } catch (_) {}
-                                }} className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase">Decline</button>
+                              <div
+                                className="flex gap-2 mt-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={async () => {
+                                    setPendingAssignments([]);
+                                    try {
+                                      const saved = JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      );
+                                      const cid = saved.cid || saved.id;
+                                      const assRes = await fetch(
+                                        `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+                                      );
+                                      const assData = await assRes.json();
+                                      const pendingAss =
+                                        assData.assignments?.[0];
+                                      if (pendingAss) {
+                                        await fetch("/api/tasks/assignments", {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                            assignment_id: pendingAss.id,
+                                            action: "accept",
+                                          }),
+                                        });
+                                      }
+                                      await fetch("/api/notifications", {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          id: n.id,
+                                          action: "read",
+                                        }),
+                                      });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    setPendingAssignments([]);
+                                    try {
+                                      const saved = JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      );
+                                      const cid = saved.cid || saved.id;
+                                      const assRes = await fetch(
+                                        `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+                                      );
+                                      const assData = await assRes.json();
+                                      const pendingAss =
+                                        assData.assignments?.[0];
+                                      if (pendingAss) {
+                                        await fetch("/api/tasks/assignments", {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                            assignment_id: pendingAss.id,
+                                            action: "decline",
+                                          }),
+                                        });
+                                      }
+                                      await fetch("/api/notifications", {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          id: n.id,
+                                          action: "read",
+                                        }),
+                                      });
+                                      fetchNotifications();
+                                    } catch (_) {}
+                                  }}
+                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase"
+                                >
+                                  Decline
+                                </button>
                               </div>
                             )}
                           </div>
@@ -1335,6 +1776,53 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           </header>
 
           <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
+            {/* Staging Impersonation Banner */}
+            {user?.is_impersonation && (
+              <div className="mb-6 p-3 rounded-lg bg-amber-500/15 border border-amber-500/40 flex items-center gap-3">
+                <Wrench className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                    STAGING ENVIRONMENT — Impersonating: {user?.name || "Unknown"} ({user?.role || "unknown"})
+                  </p>
+                  <p className="text-[9px] text-amber-500/70 mt-0.5">
+                    You are viewing the application as this user. Log out to return to your own account.
+                  </p>
+                </div>
+              </div>
+            )}
+            {/* Pinned Announcements Banner */}
+            {pinnedAnnouncements.length > 0 && (
+              <div className="mb-6 space-y-2">
+                {pinnedAnnouncements.map((ann) => (
+                  <div
+                    key={ann.id}
+                    className="p-4 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 flex items-center justify-between flex-wrap gap-3 cursor-pointer hover:bg-[var(--brand-orange)]/15 transition-all"
+                    onClick={() => router.push("/admin/announcements")}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Megaphone className="w-5 h-5 text-[var(--brand-orange)]" />
+                      <div>
+                        <p className="text-[11px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+                          {t(tnav("announcements"))}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">
+                          <span className="font-bold text-[var(--text-primary)]">
+                            {ann.title}
+                          </span>
+                          {" — "}
+                          {ann.body.length > 120
+                            ? ann.body.substring(0, 117) + "..."
+                            : ann.body}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[9px] text-[var(--text-secondary)] uppercase">
+                      {t("common.viewAll")} →
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Project Invitation Banner */}
             {pendingInvites.length > 0 && (
               <div className="mb-6 p-4 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 flex items-center justify-between flex-wrap gap-3">
@@ -1345,7 +1833,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                       Project Invitation
                     </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You've been invited to join <span className="font-bold text-[var(--text-primary)]">{pendingInvites[0].project_name || "a project"}</span>
+                      You've been invited to join{" "}
+                      <span className="font-bold text-[var(--text-primary)]">
+                        {pendingInvites[0].project_name || "a project"}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -1357,7 +1848,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                         await fetch("/api/projects/invitations/respond", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ invitation_id: pendingInvites[0].id, action: "accept" }),
+                          body: JSON.stringify({
+                            invitation_id: pendingInvites[0].id,
+                            action: "accept",
+                          }),
                         });
                         fetchNotifications();
                       } catch (_) {}
@@ -1373,7 +1867,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                         await fetch("/api/projects/invitations/respond", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ invitation_id: pendingInvites[0].id, action: "decline" }),
+                          body: JSON.stringify({
+                            invitation_id: pendingInvites[0].id,
+                            action: "decline",
+                          }),
                         });
                         fetchNotifications();
                       } catch (_) {}
@@ -1391,9 +1888,14 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                 <div className="flex items-center gap-3">
                   <ListTodo className="w-5 h-5 text-emerald-500" />
                   <div>
-                    <p className="text-[11px] font-black text-emerald-500 uppercase tracking-wider">Task Assignment</p>
+                    <p className="text-[11px] font-black text-emerald-500 uppercase tracking-wider">
+                      Task Assignment
+                    </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You've been assigned: <span className="font-bold text-[var(--text-primary)]">{pendingAssignments[0].task_title || "a task"}</span>
+                      You've been assigned:{" "}
+                      <span className="font-bold text-[var(--text-primary)]">
+                        {pendingAssignments[0].task_title || "a task"}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -1405,7 +1907,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                         await fetch("/api/tasks/assignments", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ assignment_id: pendingAssignments[0].id, action: "accept" }),
+                          body: JSON.stringify({
+                            assignment_id: pendingAssignments[0].id,
+                            action: "accept",
+                          }),
                         });
                         fetchNotifications();
                       } catch (_) {}
@@ -1421,7 +1926,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                         await fetch("/api/tasks/assignments", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ assignment_id: pendingAssignments[0].id, action: "decline" }),
+                          body: JSON.stringify({
+                            assignment_id: pendingAssignments[0].id,
+                            action: "decline",
+                          }),
                         });
                         fetchNotifications();
                       } catch (_) {}

@@ -5,8 +5,48 @@ import { supabase } from './supabase'
  * High-security asset management for PDFs and Course Materials.
  */
 
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+]
+
+const ALLOWED_EXTENSIONS = /\.(pdf|png|jpg|jpeg|doc|docx|xls|xlsx|ppt|pptx)$/i
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+
 export const uploadFile = async (bucket, path, file) => {
   try {
+    // Validate file existence
+    if (!file) {
+      return { success: false, error: 'No file provided.' }
+    }
+
+    // Validate file type (check MIME type first, fall back to extension)
+    const isMimeValid = ALLOWED_MIME_TYPES.includes(file.type)
+    const isExtensionValid = ALLOWED_EXTENSIONS.test(file.name)
+    if (!isMimeValid && !isExtensionValid) {
+      return {
+        success: false,
+        error: `File type "${file.type || 'unknown'}" is not supported. Supported file types: PDF, PNG, JPG, DOC, DOCX, XLS, XLSX, PPT, PPTX. Or upload a file link/URL instead.`
+      }
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        error: `File size exceeds the maximum of 5MB. This file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Please compress it or upload a file link/URL instead.`
+      }
+    }
+
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(path, file, {
@@ -14,8 +54,25 @@ export const uploadFile = async (bucket, path, file) => {
         upsert: true
       })
 
-    if (error) throw error
-    
+    if (error) {
+      // Auto-create bucket if it doesn't exist
+      if (/bucket.*not found|does not exist/i.test(error.message)) {
+        await supabase.storage.createBucket(bucket, { public: true });
+        const retry = await supabase.storage
+          .from(bucket)
+          .upload(path, file, {
+            cacheControl: '3600',
+            upsert: true,
+          });
+        if (retry.error) throw retry.error;
+        const { data: retryUrl } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(path);
+        return { success: true, url: retryUrl.publicUrl, data: retry.data };
+      }
+      throw error;
+    }
+
     // Get Public URL
     const { data: { publicUrl } } = supabase.storage
       .from(bucket)
@@ -23,8 +80,16 @@ export const uploadFile = async (bucket, path, file) => {
 
     return { success: true, url: publicUrl, data }
   } catch (error) {
-    console.error("Storage Error:", error.message)
-    return { success: false, error: error.message }
+    console.error('Storage Error:', error.message)
+
+    if (/bucket/i.test(error.message)) {
+      return {
+        success: false,
+        error: `Storage bucket "${bucket}" is not configured. Please contact your administrator.`
+      }
+    }
+
+    return { success: false, error: `Upload failed: ${error.message}` }
   }
 }
 
@@ -34,7 +99,7 @@ export const deleteFile = async (bucket, path) => {
     if (error) throw error
     return { success: true }
   } catch (error) {
-    console.error("Storage Error:", error.message)
+    console.error('Storage Error:', error.message)
     return { success: false, error: error.message }
   }
 }

@@ -1,79 +1,58 @@
-import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function POST(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
-    const body = await req.json();
-    const { program_id, title, week_number, type, teacher_id, start_at } = body;
+export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+  const body = await req.json();
+  const { program_id, title, week_number, type, teacher_id, start_at } = body;
 
-    if (!program_id || !title) {
-      return NextResponse.json(
-        { success: false, error: "Missing required fields" },
-        { status: 400 },
-      );
-    }
-
-    const res = await db.execute({
-      sql: `INSERT INTO v2_sessions (program_id, title, week_number, type, teacher_id, start_at)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [
-        program_id,
-        title,
-        week_number || 1,
-        type || "Masterclass",
-        teacher_id || null,
-        start_at || null,
-      ],
-    });
-
-    return NextResponse.json({
-      success: true,
-      session: {
-        id: Number(res.lastInsertRowid),
-        program_id,
-        title,
-        week_number,
-        type,
-        teacher_id,
-      },
-    });
-  } catch (error) {
+  if (!program_id || !title) {
     return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
+      { success: false, error: "Missing required fields" },
+      { status: 400 },
     );
   }
-}
 
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
-    const { searchParams } = new URL(req.url);
-    const program_id = searchParams.get("program_id");
+  const res = await db.execute({
+    sql: `INSERT INTO v2_sessions (program_id, title, week_number, type, teacher_id, start_at)
+          VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+    args: [
+      program_id,
+      title,
+      week_number || 1,
+      type || "Masterclass",
+      teacher_id || null,
+      start_at || null,
+    ],
+  });
 
-    let sql = "SELECT * FROM v2_sessions";
-    let args = [];
+  return NextResponse.json({
+    success: true,
+    session: {
+      id: Number(res.rows[0]?.id ?? res.lastInsertRowid),
+      program_id,
+      title,
+      week_number,
+      type,
+      teacher_id,
+    },
+  });
+});
 
-    if (program_id) {
-      sql += " WHERE program_id = ?";
-      args.push(program_id);
-    }
+export const GET = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+  const { searchParams } = new URL(req.url);
+  const program_id = searchParams.get("program_id");
 
-    sql += " ORDER BY week_number ASC";
+  let sql = "SELECT * FROM v2_sessions";
+  let args = [];
 
-    const { rows } = await db.execute({ sql, args });
-    return NextResponse.json({ success: true, sessions: rows });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+  if (program_id) {
+    sql += " WHERE program_id = ?";
+    args.push(program_id);
   }
-}
+
+  sql += " ORDER BY week_number ASC";
+
+  const { rows } = await db.execute({ sql, args });
+  return NextResponse.json({ success: true, sessions: rows });
+});

@@ -1,0 +1,41 @@
+You are receiving the Engineering Runtime framework (the `.ai/` folder).
+Your job is to ADOPT it for the project in THIS repository, following these
+instructions exactly.
+
+## Context
+This framework makes AI engineering behave like an experienced engineer:
+it preserves workflow state, never re-plans on continuations, classifies
+every message cheaply, loads only minimum context, and uses modular skills.
+
+File roles:
+- SYSTEM.md + core/        → the runtime (routing, state, context, self-test). GENERIC — do not modify.
+- skills/                  → generic procedures (feature, bug-fix, forensic, database). GENERIC — do not modify.
+- templates/               → generic report forms. GENERIC — do not modify.
+- PROJECT.md / MEMORY.md / STANDARDS.md → project-specific. These are the ONLY files you change.
+
+## Your tasks
+1. READ the runtime first: .ai/SYSTEM.md, .ai/core/*.md, .ai/ADOPTION.md.
+   Understand the rules before touching anything.
+2. REWRITE .ai/PROJECT.md for THIS project:
+   stack and architecture, data model overview, non-negotiable business rules.
+   Verify every claim against the actual code — never guess, never invent.
+3. REWRITE .ai/MEMORY.md, keeping its structure:
+   Architecture Decisions / Reusable Facts / Frequently Used Utilities /
+   Known Issues & Technical Debt / Maintenance Notes.
+   Record at least 3 genuine findings from real investigation.
+   Delete all SchoolAid-specific entries.
+4. REWRITE .ai/STANDARDS.md to match this project's actual conventions
+   (naming, folders, lint, data access, migrations).
+5. DO NOT modify SYSTEM.md, core/, skills/, templates/, or ADOPTION.md.
+   If you believe a runtime file needs changing, report it instead of changing it.
+6. VERIFY: run the self-test protocol (core/self-test.md) with debug mode on
+   and show the classification output for at least 4 of its messages.
+7. REPORT: every file changed, the findings you recorded, and any runtime
+   changes you recommend, with reasons.
+
+## Rules
+- Evidence over assumptions. Every claim must trace to code you read.
+- Do not pad documents. Lightweight is a feature.
+- If the repo is too large, follow the context ladder in core/context.md —
+  read the minimum needed and state what you did not verify.
+`

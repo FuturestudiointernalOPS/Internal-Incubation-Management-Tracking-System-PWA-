@@ -6,20 +6,25 @@ import { NextResponse } from "next/server";
 
 export const SESSION_COOKIE_NAME = "impactos_session";
 const SESSION_DURATION_HOURS = 24;
+const REMEMBER_ME_DURATION_HOURS = 720; // 30 days
 const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
+const REMEMBER_ME_DURATION_MS = REMEMBER_ME_DURATION_HOURS * 60 * 60 * 1000;
 const SESSION_CACHE_TTL = 5000; // 5s cache for session lookups
 const _sessionCache = new Map();
+const _failureCache = new Map(); // Cache DB failures to avoid cascading timeouts
+const FAILURE_CACHE_TTL = 30000; // If DB fails, don't retry for 30s
 
 /**
  * Creates a new session for a user.
  * Stores session in database and returns the token and maxAge.
  * The caller is responsible for setting the cookie on the response.
  */
-export async function createSession(userCid, userRole) {
+export async function createSession(userCid, userRole, rememberMe = false, isImpersonation = false) {
   await initDb();
 
+  const durationMs = rememberMe ? REMEMBER_ME_DURATION_MS : SESSION_DURATION_MS;
   const token = uuidv4();
-  const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+  const expiresAt = new Date(Date.now() + durationMs);
   const expiresAtStr = expiresAt
     .toISOString()
     .replace("T", " ")
@@ -30,21 +35,32 @@ export async function createSession(userCid, userRole) {
     userCid,
     "role:",
     userRole,
+    "impersonation:",
+    isImpersonation,
     "expires:",
     expiresAtStr,
   );
 
-  // Clean up old sessions for this user
-  await db.execute({
-    sql: "DELETE FROM user_sessions WHERE user_cid = ?",
+  // Enforce max 2 concurrent sessions — if already 2, remove the oldest
+  const existing = await db.execute({
+    sql: "SELECT id, created_at FROM user_sessions WHERE user_cid = ? ORDER BY created_at ASC",
     args: [userCid],
   });
+  if (existing.rows.length >= 2) {
+    const toRemove = existing.rows.length - 1; // keep 1, we'll add 1 more = 2 total
+    for (let i = 0; i < toRemove; i++) {
+      await db.execute({
+        sql: "DELETE FROM user_sessions WHERE id = ?",
+        args: [existing.rows[i].id],
+      });
+    }
+  }
 
   // Create new session
   await db.execute({
-    sql: `INSERT INTO user_sessions (token, user_cid, role, expires_at)
-          VALUES (?, ?, ?, ?)`,
-    args: [token, userCid, userRole, expiresAtStr],
+    sql: `INSERT INTO user_sessions (token, user_cid, role, expires_at, is_impersonation)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [token, userCid, userRole, expiresAtStr, isImpersonation ? 1 : 0],
   });
 
   console.log(
@@ -52,7 +68,7 @@ export async function createSession(userCid, userRole) {
     token.substring(0, 8) + "...",
   );
 
-  return { token, maxAge: SESSION_DURATION_HOURS * 60 * 60 };
+  return { token, maxAge: rememberMe ? REMEMBER_ME_DURATION_HOURS * 60 * 60 : SESSION_DURATION_HOURS * 60 * 60, isImpersonation };
 }
 
 /**
@@ -61,6 +77,12 @@ export async function createSession(userCid, userRole) {
  */
 export async function getSession() {
   try {
+    // Global failure cache: if DB was down in the last 30s, short-circuit immediately
+    if (_failureCache.has("db_down")) {
+      console.log("[session] DB failure cache active, skipping query");
+      return null;
+    }
+
     await initDb();
 
     const cookieStore = await cookies();
@@ -84,7 +106,7 @@ export async function getSession() {
     );
 
     const result = await db.execute({
-      sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
+      sql: `SELECT s.*, s.is_impersonation, c.name, c.email, c.status, c.group_name
             FROM user_sessions s
             LEFT JOIN contacts c ON s.user_cid = c.cid
             WHERE s.token = ? AND s.expires_at > NOW()`,
@@ -128,6 +150,7 @@ export async function getSession() {
       role: session.role,
       group_name: session.group_name,
       token: session.token,
+      is_impersonation: !!session.is_impersonation,
     };
 
     // Cache the session for 5s
@@ -138,7 +161,10 @@ export async function getSession() {
 
     return result_session;
   } catch (error) {
-    console.error("Session validation error:", error);
+    console.error("Session validation error:", error.message);
+    // Cache failure to prevent cascading timeouts (e.g., Supabase paused)
+    _failureCache.set("db_down", Date.now() + FAILURE_CACHE_TTL);
+    setTimeout(() => _failureCache.delete("db_down"), FAILURE_CACHE_TTL);
     return null;
   }
 }
@@ -1129,14 +1155,14 @@ export async function seedDefaultResponsibilities() {
       {
         name: "Operations",
         key: "operations",
-        description: "Internal operations — workspace, reports, CRM",
+        description: "Internal operations — workspace, reports, standups",
         icon: "Settings",
       },
       {
-        name: "Communications",
-        key: "communications",
-        description: "Messaging, campaigns, contacts, forms",
-        icon: "Send",
+        name: "CRM",
+        key: "crm",
+        description: "People, contacts, timeline, forms, communications",
+        icon: "Users",
       },
       {
         name: "Finance",

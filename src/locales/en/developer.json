@@ -1,0 +1,23 @@
+{
+  "developer": {
+    "assignedTasks": "Assigned Tasks",
+    "assignedWork": "ASSIGNED WORK",
+    "assignedSubtitle": "Tasks assigned to you by other team members",
+    "pendingReview": "Pending Review",
+    "pendingHint": "You must accept or decline these assignments before they appear in your workload.",
+    "assignedBy": "Assigned by:",
+    "accept": "Accept",
+    "decline": "Decline",
+    "noAssignedTasks": "No assigned tasks",
+    "noAssignedTasksHint": "When someone assigns a task to you, it will appear here.",
+    "newTaskAssignment": "New Task Assignment",
+    "assignmentAccepted": "Assignment Accepted",
+    "assignmentDeclined": "Assignment Declined",
+    "refresh": "Refresh",
+    "critical": "Critical",
+    "high": "High",
+    "highPriority": "High Priority",
+    "tasks": "Tasks",
+    "unknown": "Unknown"
+  }
+}

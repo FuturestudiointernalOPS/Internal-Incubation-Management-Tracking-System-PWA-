@@ -1,25 +1,17 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/pm/submissions?assigned_pm_id=X
- *
- * Returns all submissions for programs where this PM is assigned.
- * Includes program name, deliverable title, participant name.
- */
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-    ]);
-    if (authError) return authError;
-
+export const GET = createHandler(
+  { roles: ["staff", "super_admin", "program_manager"] },
+  async (req) => {
+    // Ensure indexes for performance
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_program_id ON v2_submissions(program_id)"); } catch (_) {}
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_participant_program ON v2_submissions(participant_id, program_id)"); } catch (_) {}
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_deliverable ON v2_submissions(deliverable_id)"); } catch (_) {}
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_created ON v2_submissions(created_at DESC)"); } catch (_) {}
     const { searchParams } = new URL(req.url);
     const assignedPmId = searchParams.get("assigned_pm_id");
 
@@ -30,34 +22,31 @@ export async function GET(req) {
       );
     }
 
-    // Get programs assigned to this PM
     const progRes = await db.execute({
       sql: "SELECT id, name FROM v2_programs WHERE assigned_pm_id = ? AND (is_archived = 0 OR is_archived IS NULL)",
       args: [assignedPmId],
     });
     const programs = progRes.rows || [];
-    const programIds = programs.map((p) => p.id);
+    const programIds = programs.map((p) => String(p.id));
 
     if (programIds.length === 0) {
       return NextResponse.json({ success: true, submissions: [], programs });
     }
 
-    // Fetch submissions for those programs
     const placeholders = programIds.map(() => "?").join(",");
     const subRes = await db.execute({
       sql: `SELECT s.*, d.title as deliverable_title, d.week_number as deliverable_week,
                    c.name as participant_name, c.group_name as participant_group,
                    prog.grading_mode
             FROM v2_submissions s
-            LEFT JOIN v2_document_requirements d ON s.deliverable_id = d.id
-            LEFT JOIN contacts c ON s.participant_id = c.cid
-            LEFT JOIN v2_programs prog ON s.program_id = prog.id
-            WHERE s.program_id IN (${placeholders})
+            LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
+            LEFT JOIN contacts c ON s.participant_id::text = c.cid
+            LEFT JOIN v2_programs prog ON s.program_id::text = prog.id::text
+            WHERE s.program_id::text IN (${placeholders})
             ORDER BY s.created_at DESC`,
       args: programIds,
     });
 
-    // Attach program name to each submission
     const progMap = {};
     for (const p of programs) progMap[p.id] = p.name;
     const submissions = (subRes.rows || []).map((s) => ({
@@ -66,11 +55,5 @@ export async function GET(req) {
     }));
 
     return NextResponse.json({ success: true, submissions, programs });
-  } catch (error) {
-    console.error("PM Submissions Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
+  },
+);

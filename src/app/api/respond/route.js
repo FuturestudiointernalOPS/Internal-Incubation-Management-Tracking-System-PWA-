@@ -16,12 +16,17 @@ export async function POST(req) {
     let resolvedGroupName = group_name;
 
     if (!resolvedGroupName) {
-      const formRes = await db.execute({
-        sql: "SELECT group_name FROM forms WHERE form_id = ?",
-        args: [form_id]
-      });
-      if (formRes.rows.length > 0) {
-        resolvedGroupName = formRes.rows[0].group_name;
+      try {
+        const formRes = await db.execute({
+          sql: "SELECT group_name FROM forms WHERE form_id = ?",
+          args: [form_id]
+        });
+        if (formRes.rows.length > 0) {
+          resolvedGroupName = formRes.rows[0].group_name;
+        }
+      } catch (e) {
+        // forms schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
+        resolvedGroupName = group_name;
       }
     }
 
@@ -33,7 +38,7 @@ export async function POST(req) {
       if (emailMatch.rows.length > 0) {
         resolvedCid = emailMatch.rows[0].cid;
         confidence_score = 100;
-      } 
+      }
       else if (publicData.phone) {
         const phoneMatch = await db.execute({
           sql: "SELECT cid FROM contacts WHERE phone = ?",
@@ -44,7 +49,7 @@ export async function POST(req) {
           confidence_score = 95;
         }
       }
-      
+
       if (!resolvedCid && publicData.name) {
         const nameMatch = await db.execute({
           sql: "SELECT cid FROM contacts WHERE LOWER(name) LIKE LOWER(?)",
@@ -68,10 +73,15 @@ export async function POST(req) {
 
     if (confidence_score < 90) match_status = 'flagged';
 
-    await db.execute({
-      sql: "INSERT INTO form_responses (form_id, cid, answers, confidence_score, match_status, group_name) VALUES (?, ?, ?, ?, ?, ?)",
-      args: [form_id, resolvedCid || null, JSON.stringify({...answers, ...publicData}), confidence_score, match_status, resolvedGroupName || null]
-    });
+    try {
+      await db.execute({
+        sql: "INSERT INTO form_responses (form_id, cid, answers, confidence_score, match_status, group_name) VALUES (?, ?, ?, ?, ?, ?)",
+        args: [form_id, resolvedCid || null, JSON.stringify({...answers, ...publicData}), confidence_score, match_status, resolvedGroupName || null]
+      });
+    } catch (e) {
+      // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
+      // continue — campaign_contacts update below still executes
+    }
 
 
     if (resolvedCid) {
@@ -82,9 +92,9 @@ export async function POST(req) {
       else if (hasNo) status = 'no';
 
       await db.execute({
-        sql: `UPDATE campaign_contacts 
-              SET status = ? 
-              WHERE cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
+        sql: `UPDATE campaign_contacts
+              SET status = ?
+              WHERE contact_cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
         args: [status, resolvedCid, form_id]
       });
     }

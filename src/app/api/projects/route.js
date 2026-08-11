@@ -30,6 +30,8 @@ export async function POST(req) {
       concept_note_url,
       start_date,
       end_date,
+      priority,
+      department,
       assigned_pm_id,
       assigned_pm_ids = [],
     } = body;
@@ -60,13 +62,16 @@ export async function POST(req) {
     });
 
     const result = await db.execute({
-      sql: "INSERT INTO v2_projects (program_id, name, status, start_date, end_date, meta, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
+      sql: "INSERT INTO v2_projects (program_id, name, status, start_date, end_date, priority, meta, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
       args: [
         program_id || null,
         name,
         status || "Active",
         start_date || null,
         end_date || null,
+        ["critical", "high", "medium", "low"].includes(priority)
+          ? priority
+          : "medium",
         meta,
         primaryOwnerId,
       ],
@@ -80,6 +85,23 @@ export async function POST(req) {
         sql: "INSERT INTO project_members (project_id, user_cid, role) VALUES (?, ?, 'lead') ON CONFLICT (project_id, user_cid) DO UPDATE SET role = 'lead'",
         args: [String(projectId), leadId],
       });
+    }
+
+    // Notify assigned PM leads
+    for (const leadId of leadsToAssign) {
+      try {
+        await db.execute({
+          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
+          args: [
+            leadId,
+            "New Project Assignment",
+            `You have been assigned as lead for project "${name}".`,
+            "project_assignment",
+          ],
+        });
+      } catch (notifErr) {
+        console.error("Project assignment notification failed:", notifErr.message);
+      }
     }
 
     return NextResponse.json({ success: true, project_id: projectId });
@@ -207,6 +229,7 @@ export async function PUT(req) {
       concept_note_url,
       start_date,
       end_date,
+      priority,
       assigned_pm_id,
       assigned_pm_ids,
     } = body;
@@ -237,6 +260,13 @@ export async function PUT(req) {
       updateFields.push("end_date = ?");
       updateArgs.push(end_date || null);
     }
+    if (
+      priority !== undefined &&
+      ["critical", "high", "medium", "low"].includes(priority)
+    ) {
+      updateFields.push("priority = ?");
+      updateArgs.push(priority);
+    }
 
     // If meta fields changed, update the meta JSON
     if (
@@ -248,8 +278,8 @@ export async function PUT(req) {
     ) {
       // Fetch current meta
       const current = await db.execute({
-        sql: "SELECT meta FROM v2_projects WHERE id = ?",
-        args: [parseInt(id)],
+        sql: "SELECT meta FROM v2_projects WHERE id::text = ?",
+        args: [id],
       });
 
       const rawMeta = current.rows[0]?.meta;
@@ -291,10 +321,10 @@ export async function PUT(req) {
       );
     }
 
-    updateArgs.push(parseInt(id));
+    updateArgs.push(id);
 
     await db.execute({
-      sql: `UPDATE v2_projects SET ${updateFields.join(", ")} WHERE id = ?`,
+      sql: `UPDATE v2_projects SET ${updateFields.join(", ")} WHERE id::text = ?`,
       args: updateArgs,
     });
 
@@ -324,6 +354,43 @@ export async function PUT(req) {
     return NextResponse.json({ success: true, action: "updated" });
   } catch (error) {
     console.error("PUT /api/projects error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "id is required" },
+        { status: 400 },
+      );
+    }
+
+    // Remove project members first
+    await db.execute({
+      sql: "DELETE FROM project_members WHERE project_id::text = ?",
+      args: [id],
+    });
+
+    // Then delete the project
+    await db.execute({
+      sql: "DELETE FROM v2_projects WHERE id::text = ?",
+      args: [id],
+    });
+
+    return NextResponse.json({ success: true, action: "deleted" });
+  } catch (error) {
+    console.error("DELETE /api/projects error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },

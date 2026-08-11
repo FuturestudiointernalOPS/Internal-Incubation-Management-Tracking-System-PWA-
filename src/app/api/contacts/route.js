@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireCapability } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 /**
@@ -11,20 +11,17 @@ export const dynamic = "force-dynamic";
 async function fireInvite(cid, name, email, role, groupId) {
   try {
     const token = uuidv4();
-    const tokenType =
-      role === "participant" ? "participant_invite" : "staff_invite";
 
     await db.execute({
-      sql: `INSERT INTO password_setup_tokens (token, user_cid, token_type, role, group_id, expires_at)
-            VALUES (?, ?, ?, ?, ?, NOW() + INTERVAL '48 hours')`,
-      args: [token, cid, tokenType, role || null, groupId || null],
+      sql: `INSERT INTO password_setup_tokens (token, contact_cid, expires_at)
+            VALUES (?, ?, NOW() + INTERVAL '48 hours')`,
+      args: [token, cid],
     });
 
     await db.execute({
       sql: "UPDATE contacts SET invited_at = NOW() WHERE cid = ?",
       args: [cid],
-    });
-
+    }).catch(() => {}); // Column may not exist yet — non-critical
     // Send email synchronously so Vercel doesn't kill the worker
     const { sendInviteEmail } = await import("@/lib/email");
     await sendInviteEmail({ to: email, name, role, token });
@@ -41,6 +38,16 @@ async function fireInvite(cid, name, email, role, groupId) {
 export async function POST(req) {
   try {
     await initDb();
+    // Auth is optional — public forms create contacts without login.
+    // If authenticated, check capability.
+    try {
+      const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
+      if (!authError) {
+        const capError = await requireCapability("crm", "create");
+        if (capError) return capError;
+      }
+    } catch (_) {}
+
     const body = await req.json();
     const contacts = Array.isArray(body) ? body : [body];
 
@@ -67,8 +74,10 @@ export async function POST(req) {
         uuidv4().split("-")[0].toUpperCase() +
         Math.floor(Math.random() * 10000);
 
-      // No password — user sets it via activation link
-      const hashedPassword = null;
+      // Hash password if provided; otherwise generate a temp hash (DB column is NOT NULL)
+      const hashedPassword = rawPassword
+        ? await bcrypt.hash(rawPassword, 10)
+        : await bcrypt.hash(uuidv4(), 10);
 
       // Gated Status Logic (UPPERCASE NORMALIZATION)
       const groupName = (c.group_name || "unassigned").toUpperCase();
@@ -171,15 +180,15 @@ export async function POST(req) {
         for (const pid of programIdsToAssign) {
           try {
             await db.execute({
-              sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                    VALUES (?, ?, ?, ?)
+              sql: `INSERT INTO participant_programs (participant_id, program_id)
+                    VALUES (?, ?)
                     ON CONFLICT (participant_id, program_id) DO NOTHING`,
-              args: [vc.cid, pid, "system", "registration"],
+              args: [vc.cid, pid],
             });
 
             await db.execute({
-              sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
-                    VALUES (?, ?, 'assigned', ?, 'registration')`,
+              sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
+                    VALUES (?, ?, 'assigned', ?)`,
               args: [vc.cid, pid, "system"],
             });
           } catch (e) {
@@ -205,6 +214,29 @@ export async function POST(req) {
       );
     }
 
+    // Fire duplicate detection for new contacts (non-blocking)
+    if (inserted > 0) {
+      Promise.resolve().then(async () => {
+        for (const vc of validContacts) {
+          if (!vc.phone) continue;
+          try {
+            const existing = await db.execute({
+              sql: `SELECT cid FROM contacts WHERE phone = ? AND cid != ? AND email != ? AND deleted_at IS NULL LIMIT 1`,
+              args: [vc.phone, vc.cid, vc.email],
+            });
+            if (existing.rows.length > 0) {
+              await db.execute({
+                sql: `INSERT INTO contact_duplicate_flags (contact_cid_a, contact_cid_b, match_reason, confidence)
+                      VALUES (?, ?, 'same_phone', 0.85)
+                      ON CONFLICT (contact_cid_a, contact_cid_b) DO NOTHING`,
+                args: [vc.cid, existing.rows[0].cid],
+              });
+            }
+          } catch (_) {}
+        }
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ success: true, inserted, errors });
   } catch (error) {
     console.error("CRITICAL CONTACTS ERROR:", error.message);
@@ -226,6 +258,9 @@ export async function PUT(req) {
       "participant",
     ]);
     if (authError) return authError;
+    const capError = await requireCapability("crm", "edit");
+    if (capError) return capError;
+
     const data = await req.json();
 
     if (!data.cid) {
@@ -252,6 +287,8 @@ export async function PUT(req) {
       "image",
       "status",
       "deleted",
+      "archived_at",
+      "archived_by",
       "gender",
       "mother_name",
     ];
@@ -270,6 +307,10 @@ export async function PUT(req) {
         } else if (col === "email") {
           fieldsToUpdate.push(`${col} = ?`);
           args.push(val.toLowerCase());
+        } else if (col === "archived_at" || col === "archived_by") {
+          // Allow NULL for restore, or timestamp/text for archive
+          fieldsToUpdate.push(`${col} = ?`);
+          args.push(val || null);
         } else {
           fieldsToUpdate.push(`${col} = ?`);
           args.push(col === "deleted" ? (val ? 1 : 0) : val);
@@ -328,15 +369,15 @@ export async function PUT(req) {
       for (const pid of data.program_ids) {
         try {
           await db.execute({
-            sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                  VALUES (?, ?, ?, ?)
+            sql: `INSERT INTO participant_programs (participant_id, program_id)
+                  VALUES (?, ?)
                   ON CONFLICT (participant_id, program_id) DO NOTHING`,
-            args: [data.cid, pid, data.assigned_by || "system", "manual"],
+            args: [data.cid, pid],
           });
 
           await db.execute({
-            sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
-                  VALUES (?, ?, 'assigned', ?, 'manual')`,
+            sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
+                  VALUES (?, ?, 'assigned', ?)`,
             args: [data.cid, pid, data.assigned_by || "system"],
           });
         } catch (e) {
@@ -350,15 +391,10 @@ export async function PUT(req) {
       // Single program_id fallback — ensure at least this one exists
       try {
         await db.execute({
-          sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                VALUES (?, ?, ?, ?)
+          sql: `INSERT INTO participant_programs (participant_id, program_id)
+                VALUES (?, ?)
                 ON CONFLICT (participant_id, program_id) DO NOTHING`,
-          args: [
-            data.cid,
-            data.program_id,
-            data.assigned_by || "system",
-            "manual",
-          ],
+          args: [data.cid, data.program_id],
         });
       } catch (e) {
         console.error(`PUT program sync error for ${data.cid}:`, e.message);
@@ -426,28 +462,93 @@ export async function GET(req) {
       "program_manager",
       "teacher",
       "participant",
+      "founder",
     ]);
     if (authError) return authError;
+    const capError = await requireCapability("crm", "view");
+    if (capError) return capError;
+
+    const { searchParams } = new URL(req.url);
+    const statusFilter = searchParams.get("status");
+    const roleFilter = searchParams.get("role");
 
     let result;
-    if (session.role === "participant") {
-      // Participants can only see their own contact
+    if (session.role === "participant" || session.role === "founder") {
       result = await db.execute({
         sql: "SELECT * FROM contacts WHERE cid = ?",
         args: [session.cid],
       });
-    } else if (session.role === "super_admin") {
-      // Super admins see ALL users including pending/inactive
+    } else if (statusFilter === "archived" && session.role === "super_admin") {
+      // Archived contacts (archived but not soft-deleted)
       result = await db.execute(
-        "SELECT * FROM contacts WHERE deleted = 0 ORDER BY name ASC",
+        "SELECT * FROM contacts WHERE archived_at IS NOT NULL AND deleted_at IS NULL ORDER BY name ASC",
       );
+    } else if (session.role === "super_admin") {
+      let sql = "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL";
+      const args = [];
+      if (roleFilter) {
+        const roles = roleFilter.split(",");
+        sql += " AND (" + roles.map(() => "role = ?").join(" OR ") + ")";
+        args.push(...roles);
+      }
+      sql += " ORDER BY name ASC";
+      result = await db.execute({ sql, args });
     } else {
-      // Other roles only see active users
+      // Staff/PM/Teacher: active only
       result = await db.execute(
-        "SELECT * FROM contacts WHERE deleted = 0 AND status = 'active' ORDER BY name ASC",
+        "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL AND status = 'active' ORDER BY name ASC",
       );
     }
     return NextResponse.json({ success: true, contacts: result.rows });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * DELETE — Soft-delete a contact (never physically deletes).
+ * Sets deleted_at and deleted_by. Contact disappears from all views.
+ */
+export async function DELETE(req) {
+  try {
+    await initDb();
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
+    const capError = await requireCapability("crm", "delete");
+    if (capError) return capError;
+
+    const { searchParams } = new URL(req.url);
+    const cid = searchParams.get("cid");
+    if (!cid) {
+      return NextResponse.json(
+        { success: false, error: "Contact ID (cid) is required." },
+        { status: 400 },
+      );
+    }
+
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    const deletedBy = session?.name || session?.email || session?.cid || "unknown";
+
+    const result = await db.execute({
+      sql: `UPDATE contacts SET deleted_at = NOW(), deleted_by = ? WHERE cid = ?`,
+      args: [deletedBy, cid],
+    });
+
+    if (result.rowsAffected === 0) {
+      return NextResponse.json(
+        { success: false, error: "Contact not found." },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Contact permanently deleted.",
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

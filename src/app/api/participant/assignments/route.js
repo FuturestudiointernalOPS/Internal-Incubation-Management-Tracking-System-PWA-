@@ -13,6 +13,9 @@ async function getSessionCid() {
 export async function GET(req) {
   try {
     await initDb();
+    // Ensure index exists for performance
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_participant_program ON v2_submissions(participant_id, program_id)"); } catch (_) {}
+    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_deliverable ON v2_submissions(deliverable_id)"); } catch (_) {}
     const authError = await requireAuth();
     if (authError) return authError;
 
@@ -58,7 +61,7 @@ export async function GET(req) {
     // Path 4: participant_programs junction table
     try {
       const ppRes = await db.execute({
-        sql: "SELECT program_id FROM participant_programs WHERE participant_id = ?",
+        sql: "SELECT program_id FROM participant_programs WHERE participant_id::text = ?",
         args: [cid],
       });
       ppRes.rows.forEach((r) => {
@@ -90,18 +93,21 @@ export async function GET(req) {
           args: [pid],
         }),
         db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
+          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ? ORDER BY created_at DESC",
           args: [cid, pid],
         }),
       ]);
 
-      const program = progRes.rows[0];
-      if (!program) continue;
-      const deliverables = delRes.rows || [];
-      const submissions = subRes.rows || [];
+        const program = progRes.rows[0];
+        if (!program) continue;
+        const deliverables = delRes.rows || [];
+        const submissions = subRes.rows || [];
 
-      for (const d of deliverables) {
-        const sub = submissions.find((s) => s.document_id === d.id);
+        for (const d of deliverables) {
+          // Match by document_id (preferred) or deliverable_id (legacy/int compat)
+          const sub = submissions.find(
+            (s) => s.document_id === d.id || s.deliverable_id == d.id
+          );
         allAssignments.push({
           id: d.id,
           title: d.title,
@@ -167,10 +173,30 @@ export async function POST(req) {
       );
     }
 
-    await db.execute({
-      sql: "INSERT INTO v2_submissions (participant_id, program_id, document_id, file_url, status) VALUES (?, ?, ?, ?, 'pending')",
-      args: [cid, program_id, deliverable_id, file_url || null],
+    // Check for existing submission (for version history)
+    const existing = await db.execute({
+      sql: "SELECT id, file_url, version FROM v2_submissions WHERE participant_id = ? AND deliverable_id = ?",
+      args: [cid, deliverable_id],
     });
+
+    if (existing.rows.length > 0) {
+      const prev = existing.rows[0];
+      // Archive previous version
+      await db.execute({
+        sql: "INSERT INTO v2_submission_versions (submission_id, participant_id, deliverable_id, file_url, version) VALUES (?, ?, ?, ?, ?)",
+        args: [prev.id, cid, deliverable_id, prev.file_url, prev.version || 1],
+      });
+      // Update with new version
+      await db.execute({
+        sql: "UPDATE v2_submissions SET file_url = ?, status = 'pending', version = COALESCE(version, 1) + 1, updated_at = NOW() WHERE id = ?",
+        args: [file_url || null, prev.id],
+      });
+    } else {
+      await db.execute({
+        sql: "INSERT INTO v2_submissions (participant_id, program_id, deliverable_id, file_url, status, version) VALUES (?, ?, ?, ?, 'pending', 1)",
+        args: [cid, program_id, deliverable_id, file_url || null],
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -76,14 +76,12 @@ export async function POST(req) {
       try {
         if (action === "add") {
           await db.execute({
-            sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                  VALUES (?, ?, ?, ?)
+            sql: `INSERT INTO participant_programs (participant_id, program_id)
+                  VALUES (?, ?)
                   ON CONFLICT (participant_id, program_id) DO NOTHING`,
             args: [
               participant_id,
               program_id,
-              assigned_by || null,
-              source || "bulk",
             ],
           });
         } else {
@@ -95,14 +93,13 @@ export async function POST(req) {
 
         // Audit log
         await db.execute({
-          sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
-                VALUES (?, ?, ?, ?, ?)`,
+          sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
+                VALUES (?, ?, ?, ?)`,
           args: [
             participant_id,
             program_id,
             action === "add" ? "assigned" : "removed",
             assigned_by || null,
-            source || "bulk",
           ],
         });
 

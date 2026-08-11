@@ -1,7 +1,8 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
 export const dynamic = "force-dynamic";
 
 /**
@@ -83,7 +84,7 @@ export async function GET(req) {
     const [sessions, participants, docs, reports, segments, submissions] =
       await Promise.all([
         db.execute(
-          "SELECT program_id, COUNT(*) as count, COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed FROM v2_sessions WHERE status != 'archived' GROUP BY program_id",
+          "SELECT program_id, COUNT(*) as count, 0 as completed FROM v2_sessions GROUP BY program_id",
         ),
         db.execute(
           "SELECT program_id, COUNT(*) as count FROM v2_participants GROUP BY program_id",
@@ -180,6 +181,14 @@ export async function POST(req) {
     const {
       name,
       description,
+      concept_note,
+      vision,
+      objectives,
+      program_type,
+      visibility,
+      participant_limit,
+      registration_window,
+      language,
       note_id,
       assigned_pm_id,
       assigned_assistant_id,
@@ -189,26 +198,56 @@ export async function POST(req) {
       end_date,
       assigned_segments,
       kpis,
+      expected_outcomes,
+      success_metrics,
+      banner_url,
     } = await req.json();
-    const id =
-      "P-" +
-      new Date().getFullYear() +
-      "-" +
-      uuidv4().split("-")[0].toUpperCase();
+    const id = uuidv4();
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 100) + '-' + id.substring(0, 8);
+
+    // Ensure new columns exist
+    try { await db.execute({ sql: "ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS slug TEXT", args: [] }); } catch(_) {}
+    try { await db.execute({ sql: "ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS expected_outcomes TEXT", args: [] }); } catch(_) {}
+    try { await db.execute({ sql: "ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS success_metrics TEXT", args: [] }); } catch(_) {}
+    try { await db.execute({ sql: "ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS banner_url TEXT", args: [] }); } catch(_) {}
+
+    // B6: Check duplicate program name
+    const existing = await db.execute({
+      sql: "SELECT id FROM v2_programs WHERE LOWER(name) = LOWER(?) AND is_archived = 0",
+      args: [name],
+    });
+    if (existing.rows.length > 0) {
+      return NextResponse.json(
+        { success: false, error: "A program with this name already exists." },
+        { status: 409 },
+      );
+    }
 
     await db.execute({
-      sql: `INSERT INTO v2_programs (id, name, description, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO v2_programs (id, name, slug, description, concept_note, vision, objectives, expected_outcomes, success_metrics, banner_url, program_type, visibility, participant_limit, registration_window, language, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
         name,
-        description,
+        slug,
+        description || null,
+        concept_note || null,
+        vision || null,
+        objectives || null,
+        expected_outcomes || null,
+        success_metrics || null,
+        banner_url || null,
+        program_type || "incubation",
+        visibility || "private",
+        participant_limit || 0,
+        registration_window || null,
+        language || "en",
         note_id || null,
         assigned_pm_id || null,
         assigned_assistant_id || null,
-        duration_weeks || 4,
-        "active",
+        parseInt(duration_weeks) || 4,
+        "Planned",
         0,
-        JSON.stringify(materials || []),
+        materials ? JSON.stringify(materials) : null,
         start_date || null,
         end_date || null,
       ],
@@ -233,15 +272,45 @@ export async function POST(req) {
       }
     }
 
-    // Handle KPIs
-    if (Array.isArray(kpis) && kpis.length > 0) {
-      for (const kpi of kpis) {
-        if (!kpi.title) continue;
-        await db.execute({
-          sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?)",
-          args: [id, kpi.title, kpi.target_value || 80],
-        });
-      }
+    // Handle KPIs — auto-populate defaults if none provided
+    const DEFAULT_KPIS = [
+      { title: "Attendance Rate", target_value: 80 },
+      { title: "Assignment Completion", target_value: 80 },
+      { title: "Session Participation", target_value: 80 },
+      { title: "Team Engagement", target_value: 80 },
+      { title: "Coaching Completion", target_value: 80 },
+      { title: "Graduation Rate", target_value: 80 },
+    ];
+    const kpisToCreate = (Array.isArray(kpis) && kpis.length > 0) ? kpis : DEFAULT_KPIS;
+    for (const kpi of kpisToCreate) {
+      if (!kpi.title) continue;
+      await db.execute({
+        sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?)",
+        args: [id, kpi.title, kpi.target_value || 80],
+      });
+    }
+
+    // B10: Audit log
+    const session = await getSession();
+    await logAuditEvent({
+      entity_type: "program",
+      entity_id: id,
+      user_id: session?.user_cid || "system",
+      user_name: session?.name || "System",
+      action: "created",
+      details: `Program "${name}" created`,
+    });
+
+    // B11: Notification PM assignment
+    if (assigned_pm_id) {
+      await logAuditEvent({
+        entity_type: "program_assignment",
+        entity_id: id,
+        user_id: assigned_pm_id,
+        user_name: name,
+        action: "assigned",
+        details: `You have been assigned as Program Manager for "${name}"`,
+      });
     }
 
     return NextResponse.json({ success: true, id });
@@ -262,12 +331,24 @@ export async function PUT(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "admin",
     ]);
     if (authError) return authError;
     const {
       id,
       name,
       description,
+      concept_note,
+      vision,
+      objectives,
+      expected_outcomes,
+      success_metrics,
+      banner_url,
+      program_type,
+      visibility,
+      participant_limit,
+      registration_window,
+      language,
       note_id,
       assigned_pm_id,
       assigned_assistant_id,
@@ -299,8 +380,16 @@ export async function PUT(req) {
       );
     }
 
-    // If is_archived is provided, handle archive/restore separately
-    if (is_archived !== undefined) {
+    // Name required for non-archive updates
+    if (!name && is_archived === undefined) {
+      return NextResponse.json(
+        { success: false, error: "Name required" },
+        { status: 400 },
+      );
+    }
+
+    // If is_archived is provided without a name, it's a quick archive action
+    if (is_archived !== undefined && !name) {
       const newStatus = is_archived ? "archived" : "active";
       await db.execute({
         sql: "UPDATE v2_programs SET is_archived = ?, status = ? WHERE id = ?",
@@ -314,18 +403,29 @@ export async function PUT(req) {
 
     await db.execute({
       sql: `UPDATE v2_programs
-                SET name = ?, description = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?
+                SET name = ?, description = ?, concept_note = ?, vision = ?, objectives = ?, expected_outcomes = ?, success_metrics = ?, banner_url = ?, program_type = ?, visibility = ?, participant_limit = ?, registration_window = ?, language = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?
                 WHERE id = ?`,
       args: [
         name,
         description,
+        concept_note || null,
+        vision || null,
+        objectives || null,
+        expected_outcomes || null,
+        success_metrics || null,
+        banner_url || null,
+        program_type || "incubation",
+        visibility || "private",
+        participant_limit || 0,
+        registration_window || null,
+        language || "en",
         note_id || null,
         assigned_pm_id || null,
         assigned_assistant_id || null,
         duration_weeks || 4,
         status,
         finalIsArchived,
-        JSON.stringify(materials || []),
+        JSON.stringify(typeof materials === "string" ? JSON.parse(materials || "[]") : (materials || [])),
         start_date || null,
         end_date || null,
         grading_mode || "graded",
@@ -333,13 +433,39 @@ export async function PUT(req) {
       ],
     });
 
+    // B10: Audit log
+    const session = await getSession();
+    await logAuditEvent({
+      entity_type: "program",
+      entity_id: id,
+      user_id: session?.user_cid || "system",
+      user_name: session?.name || "System",
+      action: "updated",
+      details: `Program "${name}" updated`,
+    });
+
+    // B11: Notification PM assignment change
+    if (assigned_pm_id) {
+      await logAuditEvent({
+        entity_type: "program_assignment",
+        entity_id: id,
+        user_id: assigned_pm_id,
+        user_name: name,
+        action: "assigned",
+        details: `You have been assigned as Program Manager for "${name}"`,
+      });
+    }
+
     // Handle Segment/Team Assignments
     if (Array.isArray(assigned_segments)) {
       // 1. Unlink segments currently assigned to this program
-      await db.execute({
-        sql: "UPDATE families SET program_id = NULL WHERE program_id = ?",
-        args: [id],
-      });
+      // Guard: skip if program_id column has legacy non-UUID values
+      try {
+        await db.execute({
+          sql: "UPDATE families SET program_id = NULL WHERE program_id IS NOT NULL AND program_id::text = ?",
+          args: [String(id)],
+        });
+      } catch (e) { console.warn("[programs] Could not unlink families segments:", e.message); }
 
       // 2. Link the new set of segments
       if (assigned_segments.length > 0) {
@@ -349,10 +475,12 @@ export async function PUT(req) {
           let familyName = "";
 
           if (sid !== null) {
-            await db.execute({
-              sql: "UPDATE families SET program_id = ? WHERE id = ?",
-              args: [id, sid],
-            });
+            try {
+              await db.execute({
+                sql: "UPDATE families SET program_id = ?::uuid WHERE id = ?",
+                args: [String(id), sid],
+              });
+            } catch (e) { console.warn("[programs] Could not link family by id:", e.message); }
             const fRes = await db.execute({
               sql: "SELECT name FROM families WHERE id = ?",
               args: [sid],
@@ -361,10 +489,12 @@ export async function PUT(req) {
               familyName = fRes.rows[0].name;
             }
           } else {
-            await db.execute({
-              sql: "UPDATE families SET program_id = ? WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
-              args: [id, segmentId],
-            });
+            try {
+              await db.execute({
+                sql: "UPDATE families SET program_id = ?::uuid WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
+                args: [String(id), segmentId],
+              });
+            } catch (e) { console.warn("[programs] Could not link family by name:", e.message); }
             familyName = segmentId;
           }
 
@@ -413,10 +543,10 @@ export async function PUT(req) {
                 if (cCid) {
                   try {
                     await db.execute({
-                      sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                            VALUES (?, ?, ?, ?)
+                      sql: `INSERT INTO participant_programs (participant_id, program_id)
+                            VALUES (?, ?)
                             ON CONFLICT (participant_id, program_id) DO NOTHING`,
-                      args: [cCid, id, "system", "pm_program_update"],
+                      args: [cCid, id],
                     });
                   } catch (_) {
                     // participant_programs table may not exist

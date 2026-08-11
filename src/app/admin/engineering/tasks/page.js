@@ -110,6 +110,8 @@ export default function EngineeringTasks() {
           assigned_to: formAssignee || null,
           end_date: formDueDate || null,
           status: "pending",
+          created_week: weekNumber,
+          created_year: year,
         }),
       });
 

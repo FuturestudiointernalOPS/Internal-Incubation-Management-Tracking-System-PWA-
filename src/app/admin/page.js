@@ -35,7 +35,12 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+
+function cn(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
 
 function getWeekNumber(date) {
   const d = new Date(
@@ -61,22 +66,21 @@ function getCalendarDays(year, month) {
   return days;
 }
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+const MONTH_KEYS = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
 ];
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 function isToday(d) {
   const today = new Date();
@@ -255,7 +259,7 @@ export default function AdminDashboard() {
     return t(`status.${map[key] || "pending"}`);
   };
 
-  const getMonthLabel = (idx) => t(`time.months.${MONTHS[idx].toLowerCase()}`);
+  const getMonthLabel = (idx) => t(`time.months.` + MONTH_KEYS[idx]);
 
   // Dashboard widgets state
   const now = new Date();
@@ -269,6 +273,7 @@ export default function AdminDashboard() {
   const [activeBlockers, setActiveBlockers] = useState([]);
   const [blockersLoading, setBlockersLoading] = useState(false);
   const [resolvingBlocker, setResolvingBlocker] = useState(null);
+  const [kpiSummary, setKpiSummary] = useState([]);
 
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -276,17 +281,19 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [stateRes, notifRes, opRes, blockerRes] = await Promise.all([
+      const [stateRes, notifRes, opRes, blockerRes, kpiRes] = await Promise.all([
         fetch("/api/superadmin/full-state"),
         fetch("/api/notifications?recipient_id=sa"),
         fetch("/api/op-reports"),
         fetch("/api/blockers?status=active"),
+        fetch("/api/dashboard?summary=true"),
       ]);
 
       const stateData = await stateRes.json();
       const notifData = await notifRes.json();
       const opData = await opRes.json();
       const blockerData = await blockerRes.json();
+      const kpiData = await kpiRes.json();
 
       if (stateData.success) {
         setStats(stateData.stats || {});
@@ -369,6 +376,9 @@ export default function AdminDashboard() {
             .slice(0, 6),
         );
       }
+      if (kpiData.success) {
+        setKpiSummary(kpiData.programs || []);
+      }
     } catch (err) {
       console.error("Dashboard sync failure:", err);
     } finally {
@@ -376,19 +386,22 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Fetch tasks for calendar
+  // Fetch tasks for calendar (super_admin sees all, others see own)
   const fetchWidgetData = useCallback(async () => {
     setDashboardLoading(true);
     try {
       try {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
         const userId = user.cid || user.id;
+        const isSA = user.role === "super_admin";
 
         const [taskRes, blockerRes] = await Promise.all([
-          userId
-            ? fetch(`/api/tasks?user_id=${userId}&brief=true`)
-            : fetch("/api/tasks?brief=true"),
-          fetch("/api/blockers?status=active"),
+          isSA
+            ? fetch("/api/tasks?brief=true")
+            : fetch(`/api/tasks?user_id=${userId}&brief=true`),
+          isSA
+            ? fetch("/api/blockers?status=active")
+            : fetch(`/api/blockers?user_id=${userId}&status=active`),
         ]);
         const taskData = await taskRes.json();
         const blockerData = await blockerRes.json();
@@ -410,6 +423,16 @@ export default function AdminDashboard() {
       setDashboardLoading(false);
     }
   }, []);
+
+  // Ticket 1.6: expose refresh callback for auto calendar sync
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.__refreshAdminDashboard = fetchWidgetData;
+    }
+    return () => {
+      if (typeof window !== "undefined") delete window.__refreshAdminDashboard;
+    };
+  }, [fetchWidgetData]);
 
   const handlePrevMonth = () => {
     if (calMonth === 0) {
@@ -449,7 +472,15 @@ export default function AdminDashboard() {
 
   const calendarTasks = React.useMemo(() => {
     const cal = {};
-    (tasks || []).forEach((task) => {
+    const allTasks = [...(tasks || []), ...(assignments || [])];
+    // Deduplicate by task id
+    const seen = new Set();
+    const unique = allTasks.filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+    unique.forEach((task) => {
       if (task.start_date || task.end_date) {
         const start = task.start_date ? new Date(task.start_date) : null;
         const end = task.end_date ? new Date(task.end_date) : null;
@@ -489,6 +520,15 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchWidgetData();
+  }, [fetchWidgetData]);
+
+  // Ticket 1.6: refetch calendar when tab becomes visible again
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchWidgetData();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [fetchWidgetData]);
 
   useEffect(() => {
@@ -566,6 +606,73 @@ export default function AdminDashboard() {
           </div>
         </header>
 
+        {/* ──────── PENDING APPROVALS ──────── */}
+        {notifications.filter((n) => !n.is_read && n.type === "verification").length > 0 && (
+          <div className="card border-orange-500/20 bg-orange-500/[0.02] !p-0 overflow-hidden">
+            <div className="px-5 py-4 border-b border-orange-500/10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                  <Bell className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight">Pending Access Requests</h3>
+                  <p className="text-[10px] text-[var(--text-secondary)]">{notifications.filter((n) => !n.is_read && n.type === "verification").length} new — review before approving</p>
+                </div>
+              </div>
+              <button onClick={() => router.push("/admin/pending-users")} className="text-[9px] font-black text-orange-400 uppercase hover:underline">
+                View All →
+              </button>
+            </div>
+            <div className="divide-y divide-orange-500/5 max-h-[380px] overflow-y-auto">
+              {notifications.filter((n) => !n.is_read && n.type === "verification").slice(0, 5).map((notif) => {
+                const nameMatch = notif.message?.match(/^([\w\s]+) has applied/);
+                const applicantName = nameMatch ? nameMatch[1] : "Applicant";
+                return (
+                  <div key={notif.id} className="px-5 py-4 hover:bg-orange-500/[0.03] transition-colors">
+                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                      <div className="flex items-start gap-4 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-sm font-black text-orange-500">{applicantName.charAt(0)}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-[var(--text-primary)]">{applicantName}</h4>
+                          <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{notif.message}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <button
+                              onClick={async () => {
+                                setProcessingId(notif.id);
+                                await handleApproval(notif);
+                              }}
+                              disabled={processingId === notif.id}
+                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-500 disabled:opacity-50 inline-flex items-center gap-1.5"
+                            >
+                              {processingId === notif.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => router.push("/admin/pending-users")}
+                              className="px-4 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-wider hover:border-orange-500/30"
+                            >
+                              View Details
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {notifications.filter((n) => !n.is_read && n.type === "verification").length > 5 && (
+                <div className="px-5 py-3 text-center">
+                  <button onClick={() => router.push("/admin/pending-users")} className="text-[10px] font-bold text-orange-400 hover:underline">
+                    +{notifications.filter((n) => !n.is_read && n.type === "verification").length - 5} more pending — view all
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ═══════ DASHBOARD WIDGETS ═══════ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ─── LEFT: CALENDAR ─── */}
@@ -603,10 +710,10 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
-                {DAYS.map((d) => (
-                  <div key={d} className="bg-primary p-2 text-center">
+                {DAY_KEYS.map((k) => (
+                  <div key={k} className="bg-primary p-2 text-center">
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      {t(`time.days.${d.toLowerCase()}`)}
+                      {t("time.days." + k)}
                     </span>
                   </div>
                 ))}
@@ -641,21 +748,31 @@ export default function AdminDashboard() {
                           </span>
                         )}
                       </div>
-                      <div className="space-y-0.5">
-                        {dayTasks.slice(0, 3).map((task) => (
-                          <button
-                            key={task.id}
-                            onClick={() => setSelectedTask(task)}
-                            className={`w-full text-left px-1.5 py-0.5 rounded text-[8px] font-bold truncate leading-tight ${STATUS_CONFIG[task.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[task.status]?.color || "text-slate-400"} hover:brightness-110 transition-all`}
-                          >
-                            {task.title}
-                          </button>
-                        ))}
-                        {dayTasks.length > 3 && (
-                          <span className="text-[7px] text-slate-600 pl-1">
-                            +{dayTasks.length - 3} {t("common.more")}
-                          </span>
-                        )}
+                      <div className="space-y-0.5 max-h-[80px] overflow-y-auto custom-scrollbar">
+                        {dayTasks.map((task) => {
+                          const priorityColor =
+                            task.priority === "critical"
+                              ? "bg-red-500/20 text-red-400"
+                              : task.priority === "high"
+                                ? "bg-amber-500/20 text-amber-400"
+                                : task.status === "completed"
+                                  ? "bg-emerald-500/10 text-emerald-400/70 line-through"
+                                  : task.status === "blocked"
+                                    ? "bg-rose-500/15 text-rose-400"
+                                    : STATUS_CONFIG[task.status]?.bg +
+                                        " " +
+                                        STATUS_CONFIG[task.status]?.color ||
+                                      "bg-slate-500/10 text-slate-400";
+                          return (
+                            <button
+                              key={task.id}
+                              onClick={() => setSelectedTask(task)}
+                              className={`w-full text-left px-1.5 py-0.5 rounded text-[8px] font-bold truncate leading-tight ${priorityColor} hover:brightness-110 transition-all`}
+                            >
+                              {task.title}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -872,69 +989,96 @@ export default function AdminDashboard() {
                         {isPending ? (
                           <div className="flex gap-1.5 shrink-0">
                             <button
+                              disabled={processingId !== null}
                               onClick={async () => {
-                                await fetch("/api/tasks/assignment-action", {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    task_id: task.id,
-                                    user_id:
-                                      JSON.parse(
-                                        localStorage.getItem("user") || "{}",
-                                      ).cid || "sa",
-                                    action: "accepted",
-                                  }),
-                                });
-                                fetchWidgetData();
+                                setProcessingId(task.id);
+                                try {
+                                  await fetch("/api/tasks/assignment-action", {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      task_id: task.id,
+                                      user_id:
+                                        JSON.parse(
+                                          localStorage.getItem("user") || "{}",
+                                        ).cid || "sa",
+                                      action: "accepted",
+                                    }),
+                                  });
+                                  fetchWidgetData();
+                                } finally {
+                                  setProcessingId(null);
+                                }
                               }}
-                              className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
+                              className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                             >
+                              {processingId === task.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : null}
                               {t("common.accept")}
                             </button>
                             <button
+                              disabled={processingId !== null}
                               onClick={async () => {
-                                await fetch("/api/tasks/assignment-action", {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    task_id: task.id,
-                                    user_id:
-                                      JSON.parse(
-                                        localStorage.getItem("user") || "{}",
-                                      ).cid || "sa",
-                                    action: "declined",
-                                  }),
-                                });
-                                fetchWidgetData();
+                                setProcessingId(task.id);
+                                try {
+                                  await fetch("/api/tasks/assignment-action", {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      task_id: task.id,
+                                      user_id:
+                                        JSON.parse(
+                                          localStorage.getItem("user") || "{}",
+                                        ).cid || "sa",
+                                      action: "declined",
+                                    }),
+                                  });
+                                  fetchWidgetData();
+                                } finally {
+                                  setProcessingId(null);
+                                }
                               }}
-                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110"
+                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                             >
+                              {processingId === task.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : null}
                               {t("common.decline")}
                             </button>
                           </div>
                         ) : (
                           <button
+                            disabled={processingId !== null}
                             onClick={async () => {
-                              await fetch("/api/tasks/assignment-action", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  task_id: task.id,
-                                  user_id:
-                                    JSON.parse(
-                                      localStorage.getItem("user") || "{}",
-                                    ).cid || "sa",
-                                  action: "completed_assignment",
-                                }),
-                              });
-                              fetchWidgetData();
+                              setProcessingId(task.id);
+                              try {
+                                await fetch("/api/tasks/assignment-action", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    task_id: task.id,
+                                    user_id:
+                                      JSON.parse(
+                                        localStorage.getItem("user") || "{}",
+                                      ).cid || "sa",
+                                    action: "completed_assignment",
+                                  }),
+                                });
+                                fetchWidgetData();
+                              } finally {
+                                setProcessingId(null);
+                              }
                             }}
-                            className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0"
+                            className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                           >
+                            {processingId === task.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : null}
                             {t("common.complete")}
                           </button>
                         )}
@@ -944,49 +1088,6 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-
-        {/* ──────── PENDING APPROVALS (not messages) ──────── */}
-        {notifications.filter((n) => !n.is_read && n.type === "verification")
-          .length > 0 && (
-          <div className="space-y-4">
-            {notifications
-              .filter((n) => !n.is_read && n.type === "verification")
-              .map((notif) => (
-                <div
-                  key={notif.id}
-                  className="card border-orange-500/30 bg-orange-500/5 flex flex-col md:flex-row justify-between items-center gap-6 animate-pulse hover:animate-none"
-                >
-                  <div className="flex items-center gap-5">
-                    <div className="p-3 rounded-xl bg-orange-500/20 text-orange-500">
-                      <Bell className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                        {notif.title}
-                      </h4>
-                      <p className="text-[11px] font-medium text-[var(--brand-orange)] uppercase tracking-widest mt-1">
-                        {notif.message}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleApproval(notif)}
-                    disabled={processingId === notif.id}
-                    className="btn btn-primary !bg-emerald-500 hover:!bg-emerald-600 border-none px-6 py-2.5 flex items-center gap-2"
-                  >
-                    {processingId === notif.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <UserCheck className="w-4 h-4" />
-                    )}
-                    <span className="text-[10px] font-black uppercase">
-                      {t("admin.approveAccess")}
-                    </span>
-                  </button>
-                </div>
-              ))}
-          </div>
-        )}
 
         {/* ═══════════════════════════════════════════════ */}
         {/* SECTION A — PROGRAM OPERATIONS                 */}
@@ -1137,6 +1238,60 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+
+        {/* ═══════════════════════════════════════════════ */}
+        {/* KPI PROGRESS OVERVIEW                               */}
+        {/* ═══════════════════════════════════════════════ */}
+        {kpiSummary.length > 0 && (
+          <div className="space-y-4 pt-6 border-t border-[var(--border-primary)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
+                    KPI Progress
+                  </h3>
+                  <p className="text-[9px] font-bold text-slate-500">
+                    Weighted average completion across programs
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {kpiSummary.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => router.push(`/admin/programs/${p.id}`)}
+                  className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-emerald-500/30 cursor-pointer transition-all"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate">{p.name}</span>
+                    <span className={cn("text-[8px] font-black uppercase px-2 py-0.5 rounded",
+                      p.avg_kpi_rate >= 70 ? "bg-emerald-500/10 text-emerald-400" :
+                      p.avg_kpi_rate >= 40 ? "bg-amber-500/10 text-amber-400" :
+                      "bg-rose-500/10 text-rose-400"
+                    )}>{p.avg_kpi_rate}%</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[9px] text-slate-500 mb-2">
+                    <Target className="w-3 h-3" /> {p.kpi_count} KPIs
+                    <span className={cn("ml-auto px-1.5 py-0.5 rounded text-[7px] font-bold",
+                      p.status === 'Active' ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"
+                    )}>{p.status}</span>
+                  </div>
+                  <div className="h-2 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all",
+                      p.avg_kpi_rate >= 70 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                      p.avg_kpi_rate >= 40 ? "bg-gradient-to-r from-amber-500 to-amber-400" :
+                      "bg-gradient-to-r from-rose-500 to-rose-400"
+                    )} style={{width: `${Math.max(p.avg_kpi_rate, 5)}%`}} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ═══════════════════════════════════════════════ */}
         {/* SECTION B — INTERNAL OPERATIONS                */}
@@ -1526,6 +1681,16 @@ export default function AdminDashboard() {
                           </p>
                         )}
                       </div>
+                      <button
+                        disabled={resolvingBlocker !== null}
+                        onClick={() => handleResolveBlocker(b.id)}
+                        className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-rose-500/20 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                      >
+                        {resolvingBlocker === b.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : null}
+                        {t("common.resolve")}
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1710,7 +1875,45 @@ export default function AdminDashboard() {
                     : "—"}
                 </p>
               </div>
+              <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  Priority
+                </p>
+                <p
+                  className={`text-xs font-bold ${selectedTask.priority === "critical" ? "text-red-400" : selectedTask.priority === "high" ? "text-amber-400" : "text-slate-400"}`}
+                >
+                  {selectedTask.priority || "medium"}
+                </p>
+              </div>
             </div>
+            {selectedTask.description && (
+              <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  Description
+                </p>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {selectedTask.description}
+                </p>
+              </div>
+            )}
+            {(selectedTask.blockers || []).filter((b) => b.status === "active")
+              .length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">
+                  Blockers
+                </p>
+                {selectedTask.blockers
+                  .filter((b) => b.status === "active")
+                  .map((b) => (
+                    <div
+                      key={b.id}
+                      className="p-2 rounded bg-rose-500/10 text-[9px] text-rose-400 font-bold"
+                    >
+                      {b.title}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       )}

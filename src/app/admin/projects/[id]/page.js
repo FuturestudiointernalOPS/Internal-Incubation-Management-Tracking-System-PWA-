@@ -121,6 +121,10 @@ export default function ProjectDetail() {
   const [expandedProjectTasks, setExpandedProjectTasks] = useState({});
   const [parentForSubTask, setParentForSubTask] = useState(null);
   const [userRole, setUserRole] = useState("super_admin");
+  const [discussions, setDiscussions] = useState([]);
+  const [discussionsLoading, setDiscussionsLoading] = useState(false);
+  const [newDiscussion, setNewDiscussion] = useState("");
+  const [postingDiscussion, setPostingDiscussion] = useState(false);
 
   useEffect(() => {
     try {
@@ -226,6 +230,12 @@ export default function ProjectDetail() {
     if (!projectId) return;
     setUpdatesLoading(true);
     try {
+      // Auto-generate report if none exists for current week
+      try {
+        await fetch(`/api/admin/projects/${projectId}/reports/generate`, {
+          method: "POST",
+        });
+      } catch (_) {}
       const res = await fetch(`/api/admin/projects/${projectId}/updates`);
       const data = await res.json();
       if (data.success) setUpdates(data.updates || []);
@@ -251,6 +261,44 @@ export default function ProjectDetail() {
   useEffect(() => {
     fetchUpdates();
   }, [fetchUpdates]);
+
+  const fetchDiscussions = useCallback(async () => {
+    if (!projectId) return;
+    setDiscussionsLoading(true);
+    try {
+      const res = await fetch(`/api/projects/discuss?project_id=${projectId}`);
+      const data = await res.json();
+      if (data.success) setDiscussions(data.messages || []);
+    } catch (_) {}
+    setDiscussionsLoading(false);
+  }, [projectId]);
+
+  useEffect(() => {
+    fetchDiscussions();
+  }, [fetchDiscussions]);
+
+  const handlePostDiscussion = async () => {
+    if (!newDiscussion.trim()) return;
+    setPostingDiscussion(true);
+    try {
+      const res = await fetch("/api/projects/discuss", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_id: String(projectId),
+          sender_id: userRole || "admin",
+          sender_name: "Admin",
+          body: newDiscussion.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNewDiscussion("");
+        fetchDiscussions();
+      }
+    } catch (_) {}
+    setPostingDiscussion(false);
+  };
 
   const handleSubmitUpdate = async () => {
     setSavingUpdate(true);
@@ -410,13 +458,18 @@ export default function ProjectDetail() {
                   {project.start_date && (
                     <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
                       <Calendar className="w-3 h-3" />
-                      <span className="font-bold">Start {new Date(project.start_date).toLocaleDateString()}</span>
+                      <span className="font-bold">
+                        Start{" "}
+                        {new Date(project.start_date).toLocaleDateString()}
+                      </span>
                     </div>
                   )}
                   {project.end_date && (
                     <div className="flex items-center gap-1.5 text-[10px] text-amber-400">
                       <Calendar className="w-3 h-3" />
-                      <span className="font-bold">End {new Date(project.end_date).toLocaleDateString()}</span>
+                      <span className="font-bold">
+                        End {new Date(project.end_date).toLocaleDateString()}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -508,6 +561,11 @@ export default function ProjectDetail() {
                 },
                 { id: "team", label: `TEAM (${members.length})`, icon: Users },
                 { id: "updates", label: "UPDATE", icon: FileText },
+                {
+                  id: "discussions",
+                  label: `DISCUSSIONS (${discussions.length})`,
+                  icon: MessageSquare,
+                },
                 {
                   id: "approvals",
                   label: `REQUESTS${approvalRequests.filter((r) => r.status === "pending").length > 0 ? ` (${approvalRequests.filter((r) => r.status === "pending").length})` : ""}`,
@@ -938,6 +996,24 @@ export default function ProjectDetail() {
                 <h3 className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-widest">
                   This Week&apos;s Update
                 </h3>
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(
+                        `/api/admin/projects/${projectId}/reports/generate`,
+                        { method: "POST" },
+                      );
+                      const data = await res.json();
+                      if (data.success) {
+                        fetchUpdates();
+                        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Report generated for Week ' + data.week } }));
+                      } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || 'Failed' } }));
+                    } catch (_) {}
+                  }}
+                  className="ml-auto px-3 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"
+                >
+                  Generate Report
+                </button>
               </div>
               <div className="space-y-3">
                 <div>
@@ -1292,6 +1368,87 @@ export default function ProjectDetail() {
                   </div>
                 )}
               </>
+            )}
+          </div>
+        )}
+
+        {/* ─── TAB: DISCUSSIONS ─── */}
+        {activeTab === "discussions" && (
+          <div className="space-y-6">
+            {/* Post new message */}
+            <div className="card space-y-3">
+              <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest">
+                Project Discussions
+              </h3>
+              <div className="flex gap-2">
+                <textarea
+                  value={newDiscussion}
+                  onChange={(e) => setNewDiscussion(e.target.value)}
+                  placeholder={t("messaging.typeDiscussion")}
+                  rows={2}
+                  className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none resize-none"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handlePostDiscussion();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handlePostDiscussion}
+                  disabled={postingDiscussion || !newDiscussion.trim()}
+                  className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 flex items-center gap-2 self-end"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {postingDiscussion ? "..." : t("messaging.postDiscussion")}
+                </button>
+              </div>
+            </div>
+
+            {/* Messages list */}
+            {discussionsLoading ? (
+              <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50">
+                <RefreshCw className="w-8 h-8 animate-spin mb-3" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">
+                  {t("messaging.loadingDiscussions")}
+                </p>
+              </div>
+            ) : discussions.length === 0 ? (
+              <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50">
+                <MessageSquare className="w-12 h-12 mb-3" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">
+                  {t("messaging.noDiscussions")}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {discussions.map((msg) => (
+                  <div key={msg.id} className="card p-4 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black text-[var(--text-primary)]">
+                        {(msg.sender_name || "?").charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                        {msg.sender_name || "Unknown"}
+                      </span>
+                      <span className="text-[8px] text-slate-500 ml-auto">
+                        {new Date(msg.created_at).toLocaleDateString(
+                          undefined,
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-secondary)] whitespace-pre-wrap">
+                      {msg.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

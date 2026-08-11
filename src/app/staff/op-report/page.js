@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Calendar,
   Send,
@@ -12,7 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Save,
   FileText,
   Users,
   BarChart3,
@@ -30,6 +29,7 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import TaskManager from "@/components/tasks/TaskManager";
+import TaskDetailModal from "@/components/ui/TaskDetailModal";
 
 /**
  * STAFF OPERATIONAL REPORT PAGE
@@ -123,6 +123,8 @@ export default function StaffOpReport() {
   const [toast, setToast] = useState(null);
   const [history, setHistory] = useState([]);
   const [showStandupModal, setShowStandupModal] = useState(false);
+  const [readOnly, setReadOnly] = useState(false);
+  const [isHistorical, setIsHistorical] = useState(false);
   const [expandedWeek, setExpandedWeek] = useState(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [newTaskForm, setNewTaskForm] = useState({
@@ -185,7 +187,6 @@ export default function StaffOpReport() {
   const [newTaskStartDate, setNewTaskStartDate] = useState("");
   const [newTaskEndDate, setNewTaskEndDate] = useState("");
   const [creatingTask, setCreatingTask] = useState(false);
-  const [reconciledTasks, setReconciledTasks] = useState({});
   const [reconciledBlockers, setReconciledBlockers] = useState({});
   const [taskReasons, setTaskReasons] = useState({});
 
@@ -196,12 +197,18 @@ export default function StaffOpReport() {
   const [allStaff, setAllStaff] = useState([]);
   const [taskRows, setTaskRows] = useState([]);
   const [blockerModal, setBlockerModal] = useState(null); // { taskRowIndex } or null
-  const [newBlockerDesc, setNewBlockerDesc] = useState("");
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
+  const [newBlockerTitle, setNewBlockerTitle] = useState("");
+  const [newBlockerDescription, setNewBlockerDescription] = useState("");
+  const [newBlockerPriority, setNewBlockerPriority] = useState("medium");
+  const [newBlockerRefUrl, setNewBlockerRefUrl] = useState("");
+  const [newBlockerNotes, setNewBlockerNotes] = useState("");
   const [subTaskModal, setSubTaskModal] = useState(null); // parent row id or null
   const [subTaskName, setSubTaskName] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
   const [expandedTasks, setExpandedTasks] = useState({}); // taskId -> boolean
   const [updatingTasks, setUpdatingTasks] = useState({}); // taskId -> boolean
+  const [taskDetail, setTaskDetail] = useState(null); // task object for detail modal
 
   // Summary tab state
   const [summaryTasks, setSummaryTasks] = useState([]);
@@ -210,6 +217,102 @@ export default function StaffOpReport() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryCollapsed, setSummaryCollapsed] = useState({});
   const [summaryProjectExpanded, setSummaryProjectExpanded] = useState({});
+
+  // Draft auto-save timer ref
+  const draftTimerRef = useRef(null);
+  // Draft recovery banner state
+  const [draftAvailable, setDraftAvailable] = useState(false);
+
+  // Build a localStorage key for the current user + current week
+  const getDraftKey = useCallback(() => {
+    const uid = user?.cid || user?.id;
+    if (!uid) return null;
+    return `standup_draft_${uid}_${weekInfo.week}_${weekInfo.year}`;
+  }, [user, weekInfo.week, weekInfo.year]);
+
+  // Save draft to localStorage after 2s of no changes
+  useEffect(() => {
+    if (!user || saving || !showStandupModal) return;
+    const key = getDraftKey();
+    if (!key) return;
+
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      const draft = {
+        form,
+        taskRows,
+        reportType,
+        showTaskForm,
+        savedAt: Date.now(),
+      };
+      try {
+        localStorage.setItem(key, JSON.stringify(draft));
+      } catch (e) {
+        // localStorage full or unavailable — silently ignore
+      }
+    }, 2000);
+
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, [form, taskRows, user, saving, showStandupModal, reportType, showTaskForm, getDraftKey]);
+
+  // Check for existing draft when modal opens
+  const checkDraft = useCallback(() => {
+    const key = getDraftKey();
+    if (!key) return;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // Only show banner if draft is from today or earlier (prevents showing banner right after save)
+        if (parsed.form || (parsed.taskRows && parsed.taskRows.length > 0)) {
+          setDraftAvailable(true);
+          return;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    setDraftAvailable(false);
+  }, [getDraftKey]);
+
+  // Restore draft content
+  const restoreDraft = useCallback(() => {
+    const key = getDraftKey();
+    if (!key) return;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.form) setForm(draft.form);
+        if (draft.taskRows) setTaskRows(draft.taskRows);
+        if (draft.reportType) setReportType(draft.reportType);
+        if (draft.showTaskForm !== undefined) setShowTaskForm(draft.showTaskForm);
+      }
+    } catch (e) {
+      // ignore
+    }
+    setDraftAvailable(false);
+  }, [getDraftKey]);
+
+  // Discard draft
+  const discardDraft = useCallback(() => {
+    const key = getDraftKey();
+    if (key) {
+      try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+    }
+    setDraftAvailable(false);
+  }, [getDraftKey]);
+
+  // Clear draft from localStorage (called on successful submit)
+  const clearDraft = useCallback(() => {
+    const key = getDraftKey();
+    if (key) {
+      try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+    }
+    setDraftAvailable(false);
+  }, [getDraftKey]);
 
   const toggleSummaryCollapsed = (key) => {
     setSummaryCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -390,6 +493,8 @@ export default function StaffOpReport() {
       });
 
       setTasks(Array.from(taskMap.values()));
+      // Ticket 1.6: notify dashboard calendar of changes
+      if (typeof window !== "undefined") window.__refreshDashboard?.();
     } catch (e) {
       console.error("Failed to fetch tasks:", e);
     } finally {
@@ -518,6 +623,17 @@ export default function StaffOpReport() {
     fetchAllStaff,
   ]);
 
+  // Check for saved draft when the standup modal opens
+  useEffect(() => {
+    if (showStandupModal && !readOnly && !isHistorical) {
+      // Small delay to let weekInfo state settle before checking
+      const t = setTimeout(() => checkDraft(), 50);
+      return () => clearTimeout(t);
+    } else {
+      setDraftAvailable(false);
+    }
+  }, [showStandupModal, readOnly, isHistorical, checkDraft]);
+
   const handleSubmit = async (status = "submitted") => {
     if (!user) return;
 
@@ -553,34 +669,52 @@ export default function StaffOpReport() {
           resolvedParentId = idMapping[resolvedParentId];
         }
 
-        const taskRes = await fetch("/api/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: row.name.trim(),
-            description: row.description || null,
-            project_id: row.project_id || null,
-            category: row.category || null,
-            user_id: userId,
-            user_name: user.name || "",
-            status: row.is_carryover
-              ? row.status || "in_progress"
-              : "in_progress",
-            created_week: weekData.week,
-            created_year: weekData.year,
-            parent_task_id: resolvedParentId,
-            start_date: row.start_date
-              ? `${row.start_date}${row.start_time ? `T${row.start_time}:00` : ""}`
-              : null,
-            end_date: row.due_date
-              ? `${row.due_date}${row.due_time ? `T${row.due_time}:00` : ""}`
-              : null,
-            carried_over_from_task_id: row.carried_over_from_task_id || null,
-          }),
-        });
-        const taskData = await taskRes.json();
-        if (taskData.success) {
-          idMapping[row.id] = taskData.id;
+        // Use shared carry-over API if this row has an original DB task to migrate
+        if (row.carried_over_from_task_id) {
+          const coRes = await fetch("/api/tasks/carryover", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              task_id: row.carried_over_from_task_id,
+              target_week: weekData.week,
+              target_year: weekData.year,
+              user_id: userId,
+              user_name: user.name || "",
+            }),
+          });
+          const coData = await coRes.json();
+          if (coData.success) {
+            idMapping[row.id] = coData.id;
+          }
+        } else {
+          const taskRes = await fetch("/api/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: row.name.trim(),
+              description: row.description || null,
+              project_id: row.project_id || null,
+              category: row.category || null,
+              user_id: userId,
+              user_name: user.name || "",
+              status: row.is_carryover
+                ? row.status || "in_progress"
+                : "in_progress",
+              created_week: weekData.week,
+              created_year: weekData.year,
+              parent_task_id: resolvedParentId,
+              start_date: row.start_date
+                ? `${row.start_date}${row.start_time ? `T${row.start_time}:00` : ""}`
+                : null,
+              end_date: row.due_date
+                ? `${row.due_date}${row.due_time ? `T${row.due_time}:00` : ""}`
+                : null,
+            }),
+          });
+          const taskData = await taskRes.json();
+          if (taskData.success) {
+            idMapping[row.id] = taskData.id;
+          }
         }
       }
 
@@ -619,40 +753,13 @@ export default function StaffOpReport() {
       });
       const data = await res.json();
       if (data.success) {
-        // Task reconciliation: update task statuses on retro submission
-        if (reportType === "retro" && status === "submitted") {
-          const userId = user.cid || user.id;
-          const reconciledEntries = Object.entries(reconciledTasks);
-          if (reconciledEntries.length > 0) {
-            await Promise.all(
-              reconciledEntries.map(async ([taskId, isCompleted]) => {
-                const updateBody = {
-                  id: taskId,
-                  user_id: userId,
-                  status: isCompleted ? "completed" : "carried_over",
-                  // force_complete intentionally omitted — user must resolve blockers first
-                };
-                try {
-                  await fetch("/api/tasks", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(updateBody),
-                  });
-                } catch (e) {
-                  console.error("Failed to update task", taskId, e);
-                }
-              }),
-            );
-            fetchTasks();
-          }
-        }
-
         notify(
           status === "submitted"
             ? t("reports.reportSubmitted")
             : t("reports.reportSaved"),
           "success",
         );
+        clearDraft();
         setTaskRows([]);
         setShowTaskForm(false);
         fetchReport();
@@ -759,27 +866,35 @@ export default function StaffOpReport() {
     });
   };
 
-  const removeTaskRow = async (index) => {
+  const removeTaskRow = (index) => {
     const row = taskRows[index];
-    if (row?.status) {
-      if (!window.confirm("Are you sure you want to archive this task?")) {
-        return;
-      }
-      try {
-        const res = await fetch("/api/tasks", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: row.id,
-            status: "archived",
-            user_id: user?.cid || user?.id,
-          }),
-        });
-        if (!res.ok) throw new Error("Failed to archive task");
-      } catch (err) {
-        console.error(err);
-        return;
-      }
+    if (!row?.status) {
+      setTaskRows((prev) => prev.filter((_, i) => i !== index));
+      return;
+    }
+    setConfirmTarget({
+      id: row.id,
+      message: 'Are you sure you want to archive this task?',
+      onConfirm: () => performArchiveTask(index),
+    });
+  };
+
+  const performArchiveTask = async (index) => {
+    const row = taskRows[index];
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: row.id,
+          status: "archived",
+          user_id: user?.cid || user?.id,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to archive task");
+    } catch (err) {
+      console.error(err);
+      return;
     }
     setTaskRows((prev) => prev.filter((_, i) => i !== index));
   };
@@ -995,6 +1110,8 @@ export default function StaffOpReport() {
                       <button
                         onClick={async () => {
                           if (hasCurrentWeekStandup) return;
+                          setReadOnly(false);
+                          setIsHistorical(false);
                           setShowStandupModal(true);
                           setWeekInfo(getCurrentWeek());
 
@@ -1096,7 +1213,8 @@ export default function StaffOpReport() {
                         disabled={hasCurrentWeekStandup}
                       >
                         <>
-                          <Plus className="w-4 h-4" /> Create New Standup
+                          <Plus className="w-4 h-4" />{" "}
+                          {t("staff.opReport.createNewStandup")}
                         </>
                       </button>
                     </div>
@@ -1132,7 +1250,7 @@ export default function StaffOpReport() {
                               t.created_year === report.year,
                           ).length;
                           return (
-                            <>
+                            <React.Fragment key={report.id}>
                               <tr
                                 key={report.id}
                                 className="border-b border-[var(--border-primary)]/50 hover:bg-tertiary/50 transition-colors"
@@ -1202,6 +1320,15 @@ export default function StaffOpReport() {
                                           </span>
                                           <button
                                             onClick={() => {
+                                              const currentWeek =
+                                                getCurrentWeek();
+                                              const isPastWeek =
+                                                report.week_number !==
+                                                  currentWeek.week ||
+                                                report.year !==
+                                                  currentWeek.year;
+                                              setReadOnly(isPastWeek);
+                                              setIsHistorical(isPastWeek);
                                               setWeekInfo({
                                                 week: report.week_number,
                                                 year: report.year,
@@ -1276,7 +1403,20 @@ export default function StaffOpReport() {
                                             className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                                           >
                                             <ChevronRight className="w-3 h-3" />{" "}
-                                            Edit Standup
+                                            {(() => {
+                                              const currentWeek =
+                                                getCurrentWeek();
+                                              const isPastWeek =
+                                                report.week_number !==
+                                                  currentWeek.week ||
+                                                report.year !==
+                                                  currentWeek.year;
+                                              return isPastWeek
+                                                ? t("staff.opReport.view")
+                                                : t(
+                                                    "staff.opReport.editStandup",
+                                                  );
+                                            })()}
                                           </button>
                                         </div>
                                         {tasks.filter(
@@ -1405,9 +1545,35 @@ export default function StaffOpReport() {
                                                               <div
                                                                 className={`w-1.5 h-1.5 rounded-full ${config.color.replace("text-", "bg-")} shrink-0`}
                                                               />
-                                                              <span className="text-[12px] font-medium text-[var(--text-primary)]">
+                                                              <span
+                                                                className="text-[12px] font-medium text-[var(--text-primary)] cursor-pointer hover:text-[var(--brand-orange)]"
+                                                                onClick={() =>
+                                                                  setTaskDetail(
+                                                                    task,
+                                                                  )
+                                                                }
+                                                              >
                                                                 {task.title}
                                                               </span>
+                                                              {task.priority &&
+                                                                task.priority !==
+                                                                  "medium" && (
+                                                                  <span
+                                                                    className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                                                                      task.priority ===
+                                                                      "critical"
+                                                                        ? "bg-red-500/10 text-red-400"
+                                                                        : task.priority ===
+                                                                            "high"
+                                                                          ? "bg-amber-500/10 text-amber-400"
+                                                                          : "bg-slate-500/10 text-slate-400"
+                                                                    }`}
+                                                                  >
+                                                                    {
+                                                                      task.priority
+                                                                    }
+                                                                  </span>
+                                                                )}
                                                             </div>
                                                           </td>
                                                           <td className="px-3 py-2.5 text-[11px] text-slate-500">
@@ -1467,31 +1633,43 @@ export default function StaffOpReport() {
                                             </table>
                                           </div>
                                         )}
-                                        <div className="mt-3">
-                                          <button
-                                            onClick={() => {
-                                              setWeekInfo({
-                                                week: report.week_number,
-                                                year: report.year,
-                                              });
-                                              setShowStandupModal(true);
-                                              setTimeout(
-                                                () => setShowTaskForm(true),
-                                                100,
-                                              );
-                                            }}
-                                            className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
-                                          >
-                                            <Plus className="w-3.5 h-3.5" />{" "}
-                                            {t("reports.addTask")}
-                                          </button>
-                                        </div>
+                                        {(() => {
+                                          const currentWeek = getCurrentWeek();
+                                          const isPastWeek =
+                                            report.week_number !==
+                                              currentWeek.week ||
+                                            report.year !== currentWeek.year;
+                                          if (isPastWeek) return null;
+                                          return (
+                                            <div className="mt-3">
+                                              <button
+                                                onClick={() => {
+                                                  setReadOnly(false);
+                                                  setIsHistorical(false);
+                                                  setWeekInfo({
+                                                    week: report.week_number,
+                                                    year: report.year,
+                                                  });
+                                                  setShowStandupModal(true);
+                                                  setTimeout(
+                                                    () => setShowTaskForm(true),
+                                                    100,
+                                                  );
+                                                }}
+                                                className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
+                                              >
+                                                <Plus className="w-3.5 h-3.5" />{" "}
+                                                {t("reports.addTask")}
+                                              </button>
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     </div>
                                   </td>
                                 </tr>
                               )}
-                            </>
+                            </React.Fragment>
                           );
                         })}
                       {history.filter((r) => r.report_type === "standup")
@@ -1511,13 +1689,16 @@ export default function StaffOpReport() {
                             </p>
                             <button
                               onClick={() => {
+                                setReadOnly(false);
+                                setIsHistorical(false);
                                 setShowStandupModal(true);
                                 setWeekInfo(getCurrentWeek());
                               }}
                               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-semibold hover:brightness-110 transition-all"
                             >
                               <>
-                                <Plus className="w-4 h-4" /> Create New Standup
+                                <Plus className="w-4 h-4" />{" "}
+                                {t("staff.opReport.createNewStandup")}
                               </>
                             </button>
                           </td>
@@ -1591,7 +1772,7 @@ export default function StaffOpReport() {
                           ).length;
                           const isExpanded = expandedWeek === weekKey;
                           return (
-                            <>
+                            <React.Fragment key={weekKey}>
                               <tr
                                 key={weekKey}
                                 className="border-b border-[var(--border-primary)]/50 hover:bg-tertiary/50 transition-colors"
@@ -1746,6 +1927,7 @@ export default function StaffOpReport() {
                                                                 "completed"
                                                                   ? "in_progress"
                                                                   : "completed";
+                                                              let blocked = false;
                                                               // If completing parent, cascade to all sub-tasks
                                                               if (
                                                                 newStatus ===
@@ -1753,49 +1935,98 @@ export default function StaffOpReport() {
                                                                 task.subtasks
                                                                   ?.length > 0
                                                               ) {
-                                                                await Promise.all(
-                                                                  task.subtasks.map(
-                                                                    (st) =>
-                                                                      fetch(
-                                                                        "/api/tasks",
+                                                                const subtaskResults =
+                                                                  await Promise.all(
+                                                                    task.subtasks.map(
+                                                                      async (
+                                                                        st,
+                                                                      ) => {
+                                                                        const r =
+                                                                          await fetch(
+                                                                            "/api/tasks",
+                                                                            {
+                                                                              method:
+                                                                                "PUT",
+                                                                              headers:
+                                                                                {
+                                                                                  "Content-Type":
+                                                                                    "application/json",
+                                                                                },
+                                                                              body: JSON.stringify(
+                                                                                {
+                                                                                  id: st.id,
+                                                                                  status:
+                                                                                    "completed",
+                                                                                },
+                                                                              ),
+                                                                            },
+                                                                          );
+                                                                        return {
+                                                                          subtaskId:
+                                                                            st.id,
+                                                                          data: await r.json(),
+                                                                        };
+                                                                      },
+                                                                    ),
+                                                                  );
+                                                                const blockedSubtasks =
+                                                                  subtaskResults.filter(
+                                                                    (r) =>
+                                                                      r.data
+                                                                        ?.hasActiveBlockers,
+                                                                  );
+                                                                if (
+                                                                  blockedSubtasks.length >
+                                                                  0
+                                                                ) {
+                                                                  blocked = true;
+                                                                  setBlockerModal(
+                                                                    {
+                                                                      type: "api",
+                                                                      taskId:
+                                                                        task.id,
+                                                                    },
+                                                                  );
+                                                                }
+                                                              }
+                                                              if (!blocked) {
+                                                                const res =
+                                                                  await fetch(
+                                                                    "/api/tasks",
+                                                                    {
+                                                                      method:
+                                                                        "PUT",
+                                                                      headers: {
+                                                                        "Content-Type":
+                                                                          "application/json",
+                                                                      },
+                                                                      body: JSON.stringify(
                                                                         {
-                                                                          method:
-                                                                            "PUT",
-                                                                          headers:
-                                                                            {
-                                                                              "Content-Type":
-                                                                                "application/json",
-                                                                            },
-                                                                          body: JSON.stringify(
-                                                                            {
-                                                                              id: st.id,
-                                                                              status:
-                                                                                "completed",
-                                                                            },
-                                                                          ),
+                                                                          id: task.id,
+                                                                          status:
+                                                                            newStatus,
                                                                         },
                                                                       ),
-                                                                  ),
-                                                                );
-                                                              }
-                                                              await fetch(
-                                                                "/api/tasks",
-                                                                {
-                                                                  method: "PUT",
-                                                                  headers: {
-                                                                    "Content-Type":
-                                                                      "application/json",
-                                                                  },
-                                                                  body: JSON.stringify(
-                                                                    {
-                                                                      id: task.id,
-                                                                      status:
-                                                                        newStatus,
                                                                     },
-                                                                  ),
-                                                                },
-                                                              );
-                                                              fetchTasks();
+                                                                  );
+                                                                const data =
+                                                                  await res.json();
+                                                                if (
+                                                                  data.success ===
+                                                                    false &&
+                                                                  data.hasActiveBlockers
+                                                                ) {
+                                                                  setBlockerModal(
+                                                                    {
+                                                                      type: "api",
+                                                                      taskId:
+                                                                        task.id,
+                                                                    },
+                                                                  );
+                                                                } else {
+                                                                  fetchTasks();
+                                                                }
+                                                              }
                                                             } catch (e) {
                                                               console.error(e);
                                                             } finally {
@@ -1846,6 +2077,25 @@ export default function StaffOpReport() {
                                                             >
                                                               {task.title}
                                                             </span>
+                                                            {task.priority &&
+                                                              task.priority !==
+                                                                "medium" && (
+                                                                <span
+                                                                  className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                                                                    task.priority ===
+                                                                    "critical"
+                                                                      ? "bg-red-500/10 text-red-400"
+                                                                      : task.priority ===
+                                                                          "high"
+                                                                        ? "bg-amber-500/10 text-amber-400"
+                                                                        : "bg-slate-500/10 text-slate-400"
+                                                                  }`}
+                                                                >
+                                                                  {
+                                                                    task.priority
+                                                                  }
+                                                                </span>
+                                                              )}
                                                             {(task.carried_over_from_task_id !==
                                                               null ||
                                                               task.status ===
@@ -1897,29 +2147,46 @@ export default function StaffOpReport() {
                                                                             }),
                                                                           );
                                                                           try {
-                                                                            await fetch(
-                                                                              "/api/tasks",
-                                                                              {
-                                                                                method:
-                                                                                  "PUT",
-                                                                                headers:
-                                                                                  {
-                                                                                    "Content-Type":
-                                                                                      "application/json",
-                                                                                  },
-                                                                                body: JSON.stringify(
-                                                                                  {
-                                                                                    id: st.id,
-                                                                                    status:
-                                                                                      st.status ===
-                                                                                      "completed"
-                                                                                        ? "in_progress"
-                                                                                        : "completed",
-                                                                                  },
-                                                                                ),
-                                                                              },
-                                                                            );
-                                                                            fetchTasks();
+                                                                            const stRes =
+                                                                              await fetch(
+                                                                                "/api/tasks",
+                                                                                {
+                                                                                  method:
+                                                                                    "PUT",
+                                                                                  headers:
+                                                                                    {
+                                                                                      "Content-Type":
+                                                                                        "application/json",
+                                                                                    },
+                                                                                  body: JSON.stringify(
+                                                                                    {
+                                                                                      id: st.id,
+                                                                                      status:
+                                                                                        st.status ===
+                                                                                        "completed"
+                                                                                          ? "in_progress"
+                                                                                          : "completed",
+                                                                                    },
+                                                                                  ),
+                                                                                },
+                                                                              );
+                                                                            const stData =
+                                                                              await stRes.json();
+                                                                            if (
+                                                                              stData.success ===
+                                                                                false &&
+                                                                              stData.hasActiveBlockers
+                                                                            ) {
+                                                                              setBlockerModal(
+                                                                                {
+                                                                                  type: "api",
+                                                                                  taskId:
+                                                                                    st.id,
+                                                                                },
+                                                                              );
+                                                                            } else {
+                                                                              fetchTasks();
+                                                                            }
                                                                           } catch (e) {
                                                                             console.error(
                                                                               e,
@@ -2112,7 +2379,7 @@ export default function StaffOpReport() {
                                   </td>
                                 </tr>
                               )}
-                            </>
+                            </React.Fragment>
                           );
                         })}
                       {history.filter(
@@ -2230,6 +2497,15 @@ export default function StaffOpReport() {
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-4 pt-2 border-t border-[var(--border-primary)]/30">
+                            <span className="text-[9px] text-slate-500">
+                              {t("staff.opReport.productivity")}:{" "}
+                              <span className="font-bold text-emerald-400">
+                                {planned > 0
+                                  ? Math.round((completed / planned) * 100)
+                                  : 0}
+                                %
+                              </span>
+                            </span>
                             <span className="text-[9px] text-slate-500">
                               {t("staff.opReport.blockersCreated")}:{" "}
                               <span className="font-bold text-[var(--text-primary)]">
@@ -2757,7 +3033,10 @@ export default function StaffOpReport() {
                       </h3>
                       {(() => {
                         const carryOverTasks = summaryTasks.filter(
-                          (t) => t.status !== "completed",
+                          (t) =>
+                            ["pending", "in_progress", "blocked"].includes(
+                              t.status,
+                            ),
                         );
                         if (carryOverTasks.length === 0)
                           return (
@@ -3091,7 +3370,11 @@ export default function StaffOpReport() {
       {showStandupModal && (
         <div
           className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => setShowStandupModal(false)}
+          onClick={() => {
+            setShowStandupModal(false);
+            setReadOnly(false);
+            setIsHistorical(false);
+          }}
         >
           <div
             className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-secondary border border-[var(--border-primary)] rounded-2xl shadow-2xl"
@@ -3109,7 +3392,11 @@ export default function StaffOpReport() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowStandupModal(false)}
+                  onClick={() => {
+                    setShowStandupModal(false);
+                    setReadOnly(false);
+                    setIsHistorical(false);
+                  }}
                   className="p-1.5 hover:bg-tertiary rounded-md transition-all"
                 >
                   <X className="w-4 h-4" />
@@ -3118,6 +3405,39 @@ export default function StaffOpReport() {
             </div>
 
             <div className="px-6 py-4 space-y-6">
+              {isHistorical && (
+                <div className="px-4 py-3 rounded-lg border border-amber-500/30 bg-[var(--bg-tertiary)] text-[12px] text-[var(--text-primary)] leading-relaxed flex items-start gap-3">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <span>
+                    This standup belongs to a previous reporting week and can no longer be edited.
+                  </span>
+                </div>
+              )}
+              {/* Draft Recovery Banner */}
+              {draftAvailable && !isHistorical && (
+                <div className="px-4 py-3 rounded-lg border border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-4 h-4 shrink-0 mt-0.5 text-[var(--brand-orange)]" />
+                    <span className="text-[12px] text-[var(--text-primary)] leading-relaxed font-medium">
+                      Continue where you left off?
+                    </span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={discardDraft}
+                      className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white border border-slate-600 rounded-lg hover:border-slate-400 transition-all"
+                    >
+                      Discard
+                    </button>
+                    <button
+                      onClick={restoreDraft}
+                      className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-[var(--brand-orange)] text-black rounded-lg hover:brightness-110 transition-all"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
+              )}
               {/* Section 1 — Carry Over Tasks */}
               <div>
                 <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
@@ -3159,49 +3479,39 @@ export default function StaffOpReport() {
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            onClick={async () => {
-                              // Update old task to 'carried_over'
-                              await fetch("/api/tasks", {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  id: task.id,
-                                  status: "carried_over",
-                                  user_id: user?.cid || user?.id,
-                                }),
-                              });
-                              // Clone task to current week
-                              await fetch("/api/tasks", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  title: task.title,
-                                  description: task.description || null,
-                                  project_id: task.project_id || null,
-                                  category: task.category || null,
-                                  user_id: user?.cid || user?.id,
-                                  user_name: user?.name || "",
-                                  status: "in_progress",
-                                  created_week: weekInfo.week,
-                                  created_year: weekInfo.year,
-                                  parent_task_id: null,
-                                  start_date: task.start_date || null,
-                                  end_date: task.end_date || null,
-                                  carried_over_from_task_id: task.id,
-                                }),
-                              });
-                              setCarryoverTasks((prev) =>
-                                prev.filter((t) => t.id !== task.id),
-                              );
-                              fetchTasks();
-                            }}
-                            className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
-                          >
-                            {t("staff.opReport.continue")}
-                          </button>
-                        </div>
+                        {!readOnly && !isHistorical && (
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              onClick={async () => {
+                                const res = await fetch(
+                                  "/api/tasks/carryover",
+                                  {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      task_id: task.id,
+                                      target_week: weekInfo.week,
+                                      target_year: weekInfo.year,
+                                      user_id: user?.cid || user?.id,
+                                      user_name: user?.name || "",
+                                    }),
+                                  },
+                                );
+                                if (res.ok) {
+                                  setCarryoverTasks((prev) =>
+                                    prev.filter((t) => t.id !== task.id),
+                                  );
+                                  fetchTasks();
+                                }
+                              }}
+                              className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
+                            >
+                              {t("staff.opReport.continue")}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -3237,28 +3547,30 @@ export default function StaffOpReport() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex gap-1 shrink-0">
-                            <button
-                              onClick={async () => {
-                                await fetch("/api/tasks", {
-                                  method: "PUT",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    id: task.id,
-                                    status: "in_progress",
-                                    user_id: user?.cid || user?.id,
-                                  }),
-                                });
-                                fetchTasks();
-                              }}
-                              className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
-                            >
-                              <RotateCcw className="w-2.5 h-2.5 inline mr-1" />
-                              Unarchive
-                            </button>
-                          </div>
+                          {!readOnly && !isHistorical && (
+                            <div className="flex gap-1 shrink-0">
+                              <button
+                                onClick={async () => {
+                                  await fetch("/api/tasks", {
+                                    method: "PUT",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      id: task.id,
+                                      status: "in_progress",
+                                      user_id: user?.cid || user?.id,
+                                    }),
+                                  });
+                                  fetchTasks();
+                                }}
+                                className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
+                              >
+                                <RotateCcw className="w-2.5 h-2.5 inline mr-1" />
+                                Unarchive
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                   </div>
@@ -3280,6 +3592,7 @@ export default function StaffOpReport() {
                   onTasksChange={fetchTasks}
                   weekInfo={weekInfo}
                   showCarryOver={true}
+                  readOnly={readOnly || isHistorical}
                 />
               </div>
 
@@ -3298,36 +3611,28 @@ export default function StaffOpReport() {
                   }
                   rows={2}
                   placeholder={t("staff.opReport.anythingElseNote")}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
+                  disabled={readOnly || isHistorical}
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-4 border-t border-[var(--border-primary)] sticky bottom-0 bg-primary px-6 py-4">
-              <button
-                onClick={() => {
-                  handleSubmit("draft");
-                  setShowStandupModal(false);
-                }}
-                disabled={saving}
-                className="flex-1 btn btn-secondary gap-2 py-4"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? t("common.saving") : t("reports.saveDraft")}
-              </button>
-              <button
-                onClick={() => {
-                  handleSubmit("submitted");
-                  setShowStandupModal(false);
-                }}
-                disabled={saving}
-                className="flex-1 btn btn-primary gap-2 py-4"
-              >
-                <Send className="w-4 h-4" />
-                {saving ? "Saving..." : "Save"}
-              </button>
-            </div>
+            {!readOnly && !isHistorical && (
+              <div className="flex gap-3 pt-4 border-t border-[var(--border-primary)] sticky bottom-0 bg-primary px-6 py-4">
+                <button
+                  onClick={() => {
+                    handleSubmit("submitted");
+                    setShowStandupModal(false);
+                  }}
+                  disabled={saving}
+                  className="flex-1 btn btn-primary gap-2 py-4"
+                >
+                  <Send className="w-4 h-4" />
+                  {saving ? t("common.saving") : t("common.save")}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -3386,9 +3691,34 @@ export default function StaffOpReport() {
                       }`}
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                          {b.title || b.description}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                            {b.title || b.description}
+                          </p>
+                          <span className="text-[7px] font-black uppercase text-rose-500/60 shrink-0">
+                            {b.severity || "medium"}
+                          </span>
+                        </div>
+                        {b.description && b.description !== b.title && (
+                          <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+                            {b.description}
+                          </p>
+                        )}
+                        {b.reference_url && (
+                          <a
+                            href={b.reference_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[8px] text-blue-400 underline break-all"
+                          >
+                            {b.reference_url}
+                          </a>
+                        )}
+                        {b.notes && (
+                          <p className="text-[8px] text-slate-500 italic mt-0.5">
+                            {b.notes}
+                          </p>
+                        )}
                         {b.resolved_at && (
                           <p className="text-[8px] text-[var(--text-secondary)]">
                             Resolved{" "}
@@ -3450,70 +3780,122 @@ export default function StaffOpReport() {
               }
 
               return (
-                <div className="flex gap-2">
+                <div className="space-y-2">
                   <input
                     type="text"
-                    value={newBlockerDesc}
-                    onChange={(e) => setNewBlockerDesc(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && newBlockerDesc.trim()) {
-                        e.preventDefault();
-                        blockerModal.type === "api"
-                          ? (async () => {
-                              await fetch("/api/blockers", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  task_id: blockerModal.taskId,
-                                  user_id: user?.cid || user?.id,
-                                  user_name: user?.name || "",
-                                  title: newBlockerDesc.trim(),
-                                }),
-                              });
-                              setNewBlockerDesc("");
-                              fetchTasks();
-                            })()
-                          : addBlockerToRow(
-                              blockerModal,
-                              newBlockerDesc.trim(),
-                            );
-                        setNewBlockerDesc("");
-                      }
-                    }}
-                    placeholder={t("staff.opReport.describeBlocker")}
-                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all"
+                    value={newBlockerTitle}
+                    onChange={(e) => setNewBlockerTitle(e.target.value)}
+                    placeholder={t("staff.opReport.blockerTitlePlaceholder")}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all"
+                  />
+                  <textarea
+                    value={newBlockerDescription}
+                    onChange={(e) => setNewBlockerDescription(e.target.value)}
+                    placeholder={t(
+                      "staff.opReport.blockerDescriptionPlaceholder",
+                    )}
+                    rows={2}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={newBlockerPriority}
+                      onChange={(e) => setNewBlockerPriority(e.target.value)}
+                      className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)]"
+                    >
+                      <option value="low">
+                        {t("staff.opReport.priorityLow")}
+                      </option>
+                      <option value="medium">
+                        {t("staff.opReport.priorityMedium")}
+                      </option>
+                      <option value="high">
+                        {t("staff.opReport.priorityHigh")}
+                      </option>
+                      <option value="critical">
+                        {t("staff.opReport.priorityCritical")}
+                      </option>
+                    </select>
+                    <input
+                      type="url"
+                      value={newBlockerRefUrl}
+                      onChange={(e) => setNewBlockerRefUrl(e.target.value)}
+                      placeholder={t(
+                        "staff.opReport.blockerReferenceUrlPlaceholder",
+                      )}
+                      className="flex-[2] bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none text-[var(--text-primary)] focus:border-rose-500 transition-all"
+                    />
+                  </div>
+                  <textarea
+                    value={newBlockerNotes}
+                    onChange={(e) => setNewBlockerNotes(e.target.value)}
+                    placeholder={t("staff.opReport.blockerNotesPlaceholder")}
+                    rows={2}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
                   />
                   <button
-                    onClick={() => {
-                      if (newBlockerDesc.trim()) {
-                        if (blockerModal.type === "api") {
-                          fetch("/api/blockers", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              task_id: blockerModal.taskId,
-                              user_id: user?.cid || user?.id,
-                              user_name: user?.name || "",
-                              title: newBlockerDesc.trim(),
-                            }),
-                          }).then(() => {
-                            setNewBlockerDesc("");
-                            setBlockerModal(null);
-                            fetchTasks();
-                          });
-                        } else {
-                          addBlockerToRow(blockerModal, newBlockerDesc.trim());
-                          setNewBlockerDesc("");
-                        }
+                    onClick={async () => {
+                      if (!newBlockerTitle.trim()) return;
+                      const payload = {
+                        task_id: blockerModal.taskId,
+                        user_id: user?.cid || user?.id,
+                        user_name: user?.name || "",
+                        title: newBlockerTitle.trim(),
+                        description: newBlockerDescription.trim() || null,
+                        severity: newBlockerPriority,
+                        reference_url: newBlockerRefUrl.trim() || null,
+                        notes: newBlockerNotes.trim() || null,
+                      };
+                      if (blockerModal.type === "api") {
+                        await fetch("/api/blockers", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify(payload),
+                        });
+                        setNewBlockerTitle("");
+                        setNewBlockerDescription("");
+                        setNewBlockerPriority("medium");
+                        setNewBlockerRefUrl("");
+                        setNewBlockerNotes("");
+                        fetchTasks();
+                      } else {
+                        addBlockerToRow(blockerModal, newBlockerTitle.trim());
+                        setNewBlockerTitle("");
+                        setNewBlockerDescription("");
+                        setNewBlockerPriority("medium");
+                        setNewBlockerRefUrl("");
+                        setNewBlockerNotes("");
                       }
                     }}
-                    className="px-3 py-2 bg-rose-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                    disabled={!newBlockerTitle.trim()}
+                    className="w-full px-3 py-2 bg-rose-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30"
                   >
-                    {t("common.add")}
+                    {t("staff.opReport.addBlockerButton")}
                   </button>
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      <TaskDetailModal task={taskDetail} onClose={() => setTaskDetail(null)} />
+
+      {/* Confirm Dialog */}
+      {confirmTarget && (
+        <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTarget(null)}>
+          <div className="card w-full max-w-sm space-y-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-tight">Confirm Action</h3>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{confirmTarget.message}</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">Cancel</button>
+              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">Confirm</button>
+            </div>
           </div>
         </div>
       )}

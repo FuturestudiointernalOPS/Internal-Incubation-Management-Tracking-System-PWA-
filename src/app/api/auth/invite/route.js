@@ -6,46 +6,79 @@ import { sendInviteEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/auth/invite
- *
- * Generates an invite token and sends an activation email.
- * Called automatically when a Super Admin approves a staff member
- * or when a participant registers.
- *
- * Body: { cid, email, name, role, invitedBy?, groupId?, tokenType }
- */
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const { cid, email, name, role, invitedBy, groupId, tokenType = "staff_invite" } = await req.json();
+    const body = await req.json();
+    const { email, name, role, group_id, action } = body;
 
-    if (!cid || !email || !name) {
-      return NextResponse.json({ success: false, error: "cid, email, and name are required" }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
+    // RESEND
+    if (action === "resend") {
+      const existingContact = await db.execute({
+        sql: "SELECT cid, name, email FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
+        args: [cleanEmail],
+      });
+      if (existingContact.rows.length === 0) {
+        return NextResponse.json({ success: false, error: "No contact found. Send a new invite instead." }, { status: 404 });
+      }
+      const contact = existingContact.rows[0];
+      await db.execute({ sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ?", args: [contact.cid] });
+      const token = uuidv4();
+      await db.execute({
+        sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at, token_type) VALUES (?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
+        args: [token, contact.cid],
+      });
+      await sendInviteEmail({ to: contact.email, name: contact.name || contact.email.split("@")[0], role: contact.role || "staff", token });
+      return NextResponse.json({ success: true, message: "Invitation resent", email: contact.email, token, action: "resent" });
+    }
+
+    // NEW INVITE
+    if (!name) {
+      return NextResponse.json({ success: false, error: "Name is required for new invitations" }, { status: 400 });
+    }
+
+    let contactCid;
+    const existingContact = await db.execute({
+      sql: "SELECT cid, name FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
+      args: [cleanEmail],
+    });
+
+    if (existingContact.rows.length > 0) {
+      contactCid = existingContact.rows[0].cid;
+      await db.execute({ sql: "UPDATE contacts SET name = ?, group_name = COALESCE(?, group_name) WHERE cid = ?", args: [name, group_id || null, contactCid] });
+    } else {
+      contactCid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
+      await db.execute({ sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'pending', ?)", args: [contactCid, name, cleanEmail, role || "staff", group_id || null] });
+    }
+
+    await db.execute({ sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ?", args: [contactCid] });
+
     const token = uuidv4();
-
     await db.execute({
-      sql: `INSERT INTO password_setup_tokens (token, user_cid, token_type, invited_by, role, group_id, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW() + INTERVAL '48 hours')`,
-      args: [token, cid, tokenType, invitedBy || null, role || null, groupId || null],
+      sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at, token_type) VALUES (?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
+      args: [token, contactCid],
     });
 
-    await db.execute({
-      sql: "UPDATE contacts SET invited_at = NOW() WHERE cid = ?",
-      args: [cid],
+    const contactName = name || existingContact.rows[0]?.name || cleanEmail.split("@")[0];
+    await sendInviteEmail({ to: cleanEmail, name: contactName, role: role || "staff", token });
+
+    return NextResponse.json({
+      success: true,
+      message: "Invitation sent",
+      cid: contactCid,
+      email: cleanEmail,
+      token,
+      action: existingContact.rows.length > 0 ? "reused_contact" : "new_contact",
     });
-
-    // Send email (non-blocking — fire and forget)
-    sendInviteEmail({ to: email, name, role, token }).catch((e) =>
-      console.error("Invite email failed:", e),
-    );
-
-    return NextResponse.json({ success: true, message: "Invite sent", token });
   } catch (error) {
     console.error("Invite error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

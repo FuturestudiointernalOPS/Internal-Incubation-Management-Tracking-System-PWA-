@@ -64,7 +64,7 @@ export async function GET(req) {
     // Path 4: participant_programs junction table
     try {
       const ppRes = await db.execute({
-        sql: "SELECT program_id FROM participant_programs WHERE participant_id = ?",
+        sql: "SELECT program_id FROM participant_programs WHERE participant_id::text = ?",
         args: [cid],
       });
       ppRes.rows.forEach((r) => {
@@ -89,27 +89,27 @@ export async function GET(req) {
       const [progRes, sesRes, delRes, subRes, attRes, kpiRes] =
         await Promise.all([
           db.execute({
-            sql: "SELECT * FROM v2_programs WHERE id = ?",
+            sql: "SELECT * FROM v2_programs WHERE id::text = ?",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_sessions WHERE program_id = ? ORDER BY week_number ASC, start_at ASC",
+            sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC, start_at ASC",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
+            sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
             args: [pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_submissions WHERE participant_id = ? AND program_id = ?",
+            sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ?",
             args: [cid, pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_attendance WHERE participant_id = ? AND program_id = ?",
+            sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id::text = ?",
             args: [cid, pid],
           }),
           db.execute({
-            sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
+            sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
             args: [pid],
           }),
         ]);
@@ -148,10 +148,9 @@ export async function GET(req) {
         unlockedSessions.length > 0
           ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
           : 1;
-
       const totalDeliverables = unlockedDeliverables.length || 1;
       const completedDeliverables = unlockedDeliverables.filter((d) => {
-        const sub = submissions.find((s) => s.document_id === d.id);
+        const sub = submissions.find((s) => String(s.deliverable_id || s.document_id) === String(d.id));
         return sub && sub.status === "approved";
       }).length;
       const programCompletion = Math.round(
@@ -178,12 +177,12 @@ export async function GET(req) {
       let kpiCompletion = 0;
       try {
         const progressRes = await db.execute({
-          sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+          sql: "SELECT * FROM kpi_progress WHERE program_id::text = ? ORDER BY kpi_id ASC",
           args: [pid],
         });
         let kpiProgress = progressRes.rows || [];
         if (kpiProgress.length === 0) {
-          kpiProgress = await recalculateKpiProgress(pid);
+          kpiProgress = await recalculateKpiProgress(pid, cid);
         }
         kpiCompletion =
           kpiProgress.length > 0

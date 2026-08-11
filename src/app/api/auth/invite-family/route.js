@@ -60,7 +60,7 @@ export async function POST(req) {
         const cid = `USER_${uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12)}`;
 
         await db.execute({
-          sql: "INSERT INTO contacts (cid, name, email, role, status, group_name, program_id, invited_at) VALUES (?, ?, ?, 'participant', 'pending', ?, ?, NOW())",
+          sql: "INSERT INTO contacts (cid, name, email, role, status, group_name, program_id) VALUES (?, ?, ?, 'participant', 'pending', ?, ?)",
           args: [
             cid,
             memberName,
@@ -74,10 +74,10 @@ export async function POST(req) {
         if (programId) {
           try {
             await db.execute({
-              sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                    VALUES (?, ?, ?, ?)
+              sql: `INSERT INTO participant_programs (participant_id, program_id)
+                    VALUES (?, ?)
                     ON CONFLICT (participant_id, program_id) DO NOTHING`,
-              args: [cid, programId, "system", "family_invite"],
+              args: [cid, programId],
             });
           } catch (_) {
             // participant_programs table may not exist
@@ -87,8 +87,8 @@ export async function POST(req) {
         // Generate invite token
         const token = uuidv4();
         await db.execute({
-          sql: "INSERT INTO password_setup_tokens (token, user_cid, token_type, role, group_id, expires_at) VALUES (?, ?, 'family_invite', 'participant', ?, NOW() + INTERVAL '48 hours')",
-          args: [token, cid, familyId],
+          sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at) VALUES (?, ?, NOW() + INTERVAL '48 hours')",
+          args: [token, cid],
         });
 
         // Send email

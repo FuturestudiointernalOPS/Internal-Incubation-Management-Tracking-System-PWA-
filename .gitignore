@@ -56,3 +56,4 @@ CLAUDE.md
 src/graphify-out/
 graphify-out/cache/
 graphify-out-full/cache/
+.aider*

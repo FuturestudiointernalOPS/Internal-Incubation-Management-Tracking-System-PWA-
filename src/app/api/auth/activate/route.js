@@ -23,8 +23,8 @@ export async function GET(req) {
     const tokenRes = await db.execute({
       sql: `SELECT pt.*, c.name, c.email, c.role
             FROM password_setup_tokens pt
-            JOIN contacts c ON pt.user_cid = c.cid
-            WHERE pt.token = ? AND pt.used_at IS NULL AND pt.expires_at > NOW()`,
+            JOIN contacts c ON pt.contact_cid = c.cid
+            WHERE pt.token = ? AND pt.used = 0 AND pt.expires_at > NOW()`,
       args: [token],
     });
 
@@ -51,9 +51,8 @@ export async function GET(req) {
       success: true,
       name: record.name,
       email: record.email,
-      role: record.role || record.token_type?.replace("_invite", "").replace("_", " "),
-      cid: record.user_cid,
-      tokenType: record.token_type,
+      role: record.role || "participant",
+      cid: record.contact_cid,
     });
   } catch (error) {
     console.error("Activate GET error:", error);
@@ -84,8 +83,8 @@ export async function POST(req) {
     const tokenRes = await db.execute({
       sql: `SELECT pt.*, c.email, c.name, c.role
             FROM password_setup_tokens pt
-            JOIN contacts c ON pt.user_cid = c.cid
-            WHERE pt.token = ? AND pt.used_at IS NULL AND pt.expires_at > NOW()`,
+            JOIN contacts c ON pt.contact_cid = c.cid
+            WHERE pt.token = ? AND pt.used = 0 AND pt.expires_at > NOW()`,
       args: [token],
     });
 
@@ -101,13 +100,13 @@ export async function POST(req) {
 
     // Update contact: set password, mark as active and verified
     await db.execute({
-      sql: "UPDATE contacts SET password = ?, status = 'active', email_verified = true, activated_at = NOW() WHERE cid = ?",
-      args: [hashedPassword, record.user_cid],
+      sql: "UPDATE contacts SET password = ?, status = 'active' WHERE cid = ?",
+      args: [hashedPassword, record.contact_cid],
     });
 
     // Mark token as used
     await db.execute({
-      sql: "UPDATE password_setup_tokens SET used_at = NOW() WHERE token = ?",
+      sql: "UPDATE password_setup_tokens SET used = 1 WHERE token = ?",
       args: [token],
     });
 

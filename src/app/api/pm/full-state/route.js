@@ -29,12 +29,12 @@ export async function GET(req) {
       },
       {
         name: "participants_v2",
-        sql: `SELECT CAST(id AS TEXT) as id, program_id, name, email, phone, screening_status, created_at, 'MANUAL' as group_name, 'manual' as source, v2_team_id FROM v2_participants WHERE program_id = ?`,
+        sql: `SELECT CAST(id AS TEXT) as id, user_id, program_id, name, email, phone, screening_status, status, created_at, 'MANUAL' as group_name, 'manual' as source, v2_team_id FROM v2_participants WHERE program_id = ? AND (status IS NULL OR status != 'archived')`,
         args: [id],
       },
       {
         name: "participants_contacts",
-        sql: `SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, created_at, group_name, 'group' as source, v2_team_id FROM contacts WHERE program_id IS NOT NULL AND program_id != '' AND (program_id = ? OR program_id LIKE ? OR UPPER(TRIM(group_name)) IN (SELECT UPPER(TRIM(name)) FROM families WHERE program_id = ?))`,
+        sql: `SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, status, created_at, group_name, 'group' as source, v2_team_id FROM contacts WHERE program_id IS NOT NULL AND program_id != '' AND status != 'archived' AND (program_id = ? OR program_id LIKE ? OR UPPER(TRIM(group_name)) IN (SELECT UPPER(TRIM(name)) FROM families WHERE program_id = ?))`,
         args: [id, `%${id}%`, id],
       },
       {
@@ -44,7 +44,7 @@ export async function GET(req) {
       },
       {
         name: "sessions",
-        sql: "SELECT * FROM v2_sessions WHERE program_id = ?",
+        sql: "SELECT * FROM v2_sessions WHERE program_id = ? AND (status IS NULL OR status != 'archived')",
         args: [id],
       },
       {
@@ -79,7 +79,14 @@ export async function GET(req) {
       },
       {
         name: "submissions",
-        sql: "SELECT * FROM v2_submissions WHERE program_id = ?",
+        sql: `SELECT s.*, 
+                     COALESCE(c.name, vp.name) as participant_name, 
+                     d.title as deliverable_title
+              FROM v2_submissions s
+              LEFT JOIN contacts c ON s.participant_id::text = c.cid
+              LEFT JOIN v2_participants vp ON s.participant_id::text = vp.id::text
+              LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
+              WHERE s.program_id::text = ?`,
         args: [id],
       },
       {
@@ -131,10 +138,21 @@ export async function GET(req) {
     const program = progRes.rows[0];
     if (program) {
       try {
-        program.materials =
-          typeof program.materials === "string"
-            ? JSON.parse(program.materials || "[]")
-            : program.materials || [];
+        // Defensive: materials may be double-stringified from older saves
+        if (typeof program.materials === "string") {
+          let parsed = program.materials;
+          // Try to parse up to 4 levels of nesting
+          for (let i = 0; i < 4; i++) {
+            try {
+              const p = JSON.parse(parsed);
+              if (Array.isArray(p)) { parsed = p; break; }
+              parsed = p;
+            } catch { break; }
+          }
+          program.materials = Array.isArray(parsed) ? parsed : [];
+        } else {
+          program.materials = Array.isArray(program.materials) ? program.materials : [];
+        }
 
         if (
           typeof program.note_files === "string" &&

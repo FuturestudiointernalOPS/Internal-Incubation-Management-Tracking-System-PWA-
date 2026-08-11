@@ -72,9 +72,21 @@ export default function AdminBlockers() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const userId = user.cid || user.id;
+      const isSA = user.role === "super_admin";
+
+      // Phase 6: Non-SA users see only their own blockers/tasks
+      const blockerUrl = isSA
+        ? "/api/blockers"
+        : `/api/blockers?user_id=${userId}`;
+      const taskUrl = isSA
+        ? "/api/tasks"
+        : `/api/tasks?user_id=${userId}`;
+
       const [blockerRes, taskRes] = await Promise.all([
-        fetch("/api/blockers"),
-        fetch("/api/tasks"),
+        fetch(blockerUrl),
+        fetch(taskUrl),
       ]);
       const blockerData = await blockerRes.json();
       const taskData = await taskRes.json();

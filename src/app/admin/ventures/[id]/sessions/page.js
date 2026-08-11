@@ -1,0 +1,334 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Calendar, Clock, User,
+  Video, MapPin, BookOpen, MessageCircle, Target, Trash2, Edit3,
+} from "lucide-react";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+
+const SESSION_TYPE_CFG = {
+  coaching: { label: "Coaching", color: "bg-blue-500/10 text-blue-400" },
+  mentoring: { label: "Mentoring", color: "bg-purple-500/10 text-purple-400" },
+  advisory: { label: "Advisory", color: "bg-emerald-500/10 text-emerald-400" },
+  office_hours: { label: "Office Hours", color: "bg-amber-500/10 text-amber-400" },
+  review_meeting: { label: "Review", color: "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" },
+};
+
+const STATUS_CFG = {
+  scheduled: { label: "Scheduled", color: "text-blue-400 bg-blue-500/10" },
+  confirmed: { label: "Confirmed", color: "text-emerald-400 bg-emerald-500/10" },
+  in_progress: { label: "In Progress", color: "text-amber-400 bg-amber-500/10" },
+  completed: { label: "Completed", color: "text-emerald-400 bg-emerald-500/10" },
+  cancelled: { label: "Cancelled", color: "text-slate-500 bg-slate-500/10" },
+  rescheduled: { label: "Rescheduled", color: "text-amber-400 bg-amber-500/10" },
+  no_show: { label: "No Show", color: "text-rose-400 bg-rose-500/10" },
+};
+
+export default function VentureSessionsPage() {
+  const { id } = useParams();
+  const router = useRouter();
+  const [venture, setVenture] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [coaches, setCoaches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState("upcoming");
+
+  // Form
+  const [sForm, setSForm] = useState({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "" });
+
+  // Notes
+  const [noteText, setNoteText] = useState("");
+
+  // Action items
+  const [aiTitle, setAiTitle] = useState("");
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
+
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const [vRes, sRes, cRes] = await Promise.all([
+        fetch(`/api/ventures/${id}`),
+        fetch(`/api/ventures/${id}/sessions`),
+        fetch(`/api/ventures/${id}/coaches`),
+      ]);
+      const v = await vRes.json(); const s = await sRes.json(); const c = await cRes.json();
+      if (v.success) setVenture(v.venture);
+      if (s.success) setSessions(s.sessions || []);
+      if (c.success) setCoaches(c.coaches || []);
+    } catch {} finally { setLoading(false); }
+  };
+
+  const loadSessionDetail = async (sessionId) => {
+    try {
+      const res = await fetch(`/api/ventures/${id}/sessions`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get_session", session_id: sessionId }),
+      });
+      const d = await res.json();
+      if (d.success) { setSelectedSession(d.session); setShowDetail(true); }
+    } catch {}
+  };
+
+  const createNewSession = async () => {
+    if (!sForm.title.trim() || !sForm.start_time || !sForm.end_time) { notify("Title, start and end time required", "error"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/ventures/${id}/sessions`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create_session", ...sForm, coach_id: sForm.coach_id ? parseInt(sForm.coach_id) : null }),
+      });
+      const d = await res.json();
+      if (d.success) { notify("Session created"); setShowCreateModal(false); setSForm({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "" }); fetchAll(); }
+      else notify(d.error || "Failed", "error");
+    } catch { notify("Network error", "error"); }
+    setSaving(false);
+  };
+
+  const cancelSession = async (sessionId) => {
+    await fetch(`/api/ventures/${id}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel_session", session_id: sessionId }) });
+    notify("Session cancelled");
+    setShowDetail(false);
+    fetchAll();
+  };
+
+  const addNote = async () => {
+    if (!noteText.trim() || !selectedSession) return;
+    await fetch(`/api/ventures/${id}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add_note", session_id: selectedSession.id, content: noteText.trim() }) });
+    setNoteText("");
+    loadSessionDetail(selectedSession.id);
+  };
+
+  const addActionItem = async () => {
+    if (!aiTitle.trim() || !selectedSession) return;
+    await fetch(`/api/ventures/${id}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create_action_item", session_id: selectedSession.id, title: aiTitle.trim() }) });
+    setAiTitle("");
+    loadSessionDetail(selectedSession.id);
+  };
+
+  if (loading) return (
+    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+  );
+
+  const upcoming = sessions.filter((s) => ["scheduled", "confirmed"].includes(s.status));
+  const past = sessions.filter((s) => ["completed", "cancelled", "no_show", "rescheduled"].includes(s.status));
+
+  return (
+    <DashboardLayout role="super_admin">
+      <div className="space-y-8 pb-20">
+        {toast && (
+          <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type==="error"?"bg-rose-600 text-white":"bg-emerald-600 text-white"}`}>
+            {toast.type==="error"?<AlertCircle className="w-4 h-4"/>:<CheckCircle2 className="w-4 h-4"/>}{toast.msg}
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <button onClick={()=>router.push(`/admin/ventures/${id}/dashboard`)}
+              className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
+              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+            </button>
+            <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
+              <Calendar className="w-6 h-6 text-[var(--brand-orange)]" /> Mentoring Sessions
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name||""} · {upcoming.length} upcoming</p>
+          </div>
+          <button onClick={()=>setShowCreateModal(true)} className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
+            <Plus className="w-3.5 h-3.5" /> Schedule Session
+          </button>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex gap-4 border-b border-[var(--border-primary)] pb-2">
+          {["upcoming", "past", "all"].map((f) => (
+            <button key={f} onClick={()=>setFilter(f)}
+              className={`text-[9px] font-black uppercase tracking-wider pb-2 border-b-2 transition-all ${filter===f?"border-[var(--brand-orange)] text-[var(--brand-orange)]":"border-transparent text-slate-500"}`}>
+              {f==="upcoming"?`Upcoming (${upcoming.length})`:f==="past"?`Past (${past.length})`:"All"}
+            </button>
+          ))}
+        </div>
+
+        {/* Sessions List */}
+        {(filter==="upcoming"?upcoming:filter==="past"?past:sessions).length===0 ? (
+          <div className="text-center py-16"><Calendar className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No sessions found</p></div>
+        ) : (
+          <div className="space-y-3">
+            {(filter==="upcoming"?upcoming:filter==="past"?past:sessions).map((s) => {
+              const tc = SESSION_TYPE_CFG[s.session_type] || SESSION_TYPE_CFG.coaching;
+              const sc = STATUS_CFG[s.status] || STATUS_CFG.scheduled;
+              return (
+                <div key={s.id} onClick={()=>loadSessionDetail(s.id)}
+                  className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${tc.color}`}>
+                        <Calendar className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-[var(--text-primary)]">{s.title}</p>
+                          <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${tc.color}`}>{tc.label}</span>
+                          <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sc.color}`}>{sc.label}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5 text-[9px] text-slate-500 flex-wrap">
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3"/>{new Date(s.start_time).toLocaleString()}</span>
+                          {s.coach_name && <span className="flex items-center gap-1"><User className="w-3 h-3"/>{s.coach_name}</span>}
+                          {s.meeting_link && <span className="flex items-center gap-1"><Video className="w-3 h-3"/>Online</span>}
+                          {s.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3"/>{s.location}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      {s.status==="scheduled" && (
+                        <button onClick={(e)=>{e.stopPropagation(); cancelSession(s.id);}} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg"><X className="w-4 h-4"/></button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Create Session Modal ── */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-[var(--text-primary)]">Schedule Session</h2>
+              <button onClick={()=>setShowCreateModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500"/></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Title *</label>
+                <input value={sForm.title} onChange={(e)=>setSForm((p)=>({...p,title:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Type</label>
+                  <select value={sForm.session_type} onChange={(e)=>setSForm((p)=>({...p,session_type:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                    <option value="coaching">Coaching</option><option value="mentoring">Mentoring</option><option value="advisory">Advisory</option>
+                    <option value="office_hours">Office Hours</option><option value="review_meeting">Review Meeting</option><option value="pitch_review">Pitch Review</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Coach</label>
+                  <select value={sForm.coach_id} onChange={(e)=>setSForm((p)=>({...p,coach_id:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                    <option value="">Select...</option>
+                    {(coaches||[]).filter((c)=>c.coach_type==="coach").map((c)=>(
+                      <option key={c.id} value={c.id}>{c.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Start *</label>
+                  <input type="datetime-local" value={sForm.start_time} onChange={(e)=>setSForm((p)=>({...p,start_time:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">End *</label>
+                  <input type="datetime-local" value={sForm.end_time} onChange={(e)=>setSForm((p)=>({...p,end_time:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Meeting Link</label>
+                <input value={sForm.meeting_link} onChange={(e)=>setSForm((p)=>({...p,meeting_link:e.target.value}))} placeholder="https://meet.google.com/..." className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Description</label>
+                <textarea value={sForm.description} onChange={(e)=>setSForm((p)=>({...p,description:e.target.value}))} rows={2} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={()=>setShowCreateModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">Cancel</button>
+              <button onClick={createNewSession} disabled={saving}
+                className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Calendar className="w-4 h-4"/>} Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Session Detail ── */}
+      {showDetail && selectedSession && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={()=>setShowDetail(false)} />
+          <div className="relative w-full max-w-lg bg-[var(--bg-tertiary)] border-l border-[var(--border-primary)] overflow-y-auto">
+            <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-black text-[var(--text-primary)]">{selectedSession.title}</h2>
+                <button onClick={()=>setShowDetail(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500"/></button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-[10px]">
+                <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">Date</p><p className="font-bold mt-0.5">{new Date(selectedSession.start_time).toLocaleString()}</p></div>
+                <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">Duration</p><p className="font-bold mt-0.5">{Math.round((new Date(selectedSession.end_time)-new Date(selectedSession.start_time))/60000)} min</p></div>
+                {selectedSession.coach_name && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">Coach</p><p className="font-bold mt-0.5">{selectedSession.coach_name}</p></div>}
+                {selectedSession.session_type && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">Type</p><p className="font-bold mt-0.5 capitalize">{selectedSession.session_type}</p></div>}
+              </div>
+              {selectedSession.meeting_link && (
+                <a href={selectedSession.meeting_link} target="_blank" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[9px] font-black uppercase tracking-wider hover:brightness-110 w-fit">
+                  <Video className="w-3.5 h-3.5" /> Join Meeting
+                </a>
+              )}
+              {selectedSession.agenda && <div><p className="text-[9px] font-black text-slate-500 uppercase mb-1">Agenda</p><p className="text-xs text-[var(--text-secondary)]">{selectedSession.agenda}</p></div>}
+
+              {/* Notes */}
+              <div>
+                <p className="text-[9px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1.5"><BookOpen className="w-3 h-3"/> Notes ({selectedSession.notes?.length||0})</p>
+                {(selectedSession.notes||[]).length===0 && <p className="text-[9px] text-slate-500 italic">No notes yet</p>}
+                {(selectedSession.notes||[]).map((n)=>(
+                  <div key={n.id} className="p-3 bg-primary rounded-xl mb-2 border border-[var(--border-primary)]">
+                    <p className="text-[9px] text-[var(--text-secondary)]">{n.content}</p>
+                    <p className="text-[7px] text-slate-500 mt-1">{n.author_name} · {new Date(n.created_at).toLocaleString()}</p>
+                  </div>
+                ))}
+                <div className="flex gap-2 mt-2">
+                  <input value={noteText} onChange={(e)=>setNoteText(e.target.value)} placeholder="Add a note..." className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
+                  <button onClick={addNote} disabled={!noteText.trim()} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase disabled:opacity-30">Add</button>
+                </div>
+              </div>
+
+              {/* Action Items */}
+              <div>
+                <p className="text-[9px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1.5"><Target className="w-3 h-3"/> Action Items ({selectedSession.action_items?.length||0})</p>
+                {(selectedSession.action_items||[]).length===0 && <p className="text-[9px] text-slate-500 italic">No action items</p>}
+                {(selectedSession.action_items||[]).map((a)=>(
+                  <div key={a.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg mb-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${a.status==="completed"?"bg-emerald-500":"bg-amber-500"}`} />
+                    <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1">{a.title}</span>
+                    {a.owner_name && <span className="text-[8px] text-slate-500">{a.owner_name}</span>}
+                    {a.due_date && <span className="text-[8px] text-slate-500">{new Date(a.due_date).toLocaleDateString()}</span>}
+                  </div>
+                ))}
+                <div className="flex gap-2 mt-2">
+                  <input value={aiTitle} onChange={(e)=>setAiTitle(e.target.value)} placeholder="New action item..." className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
+                  <button onClick={addActionItem} disabled={!aiTitle.trim()} className="px-3 py-2 bg-amber-500/10 text-amber-400 rounded-lg text-[8px] font-black uppercase disabled:opacity-30"><Plus className="w-3 h-3"/></button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 border-t border-[var(--border-primary)]">
+                {selectedSession.status==="scheduled" && (
+                  <button onClick={()=>cancelSession(selectedSession.id)} className="flex-1 py-2.5 rounded-xl border border-rose-500/30 text-rose-400 text-[8px] font-black uppercase tracking-wider hover:bg-rose-500/10">Cancel Session</button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

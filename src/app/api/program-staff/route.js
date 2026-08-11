@@ -1,77 +1,47 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
-    const { searchParams } = new URL(req.url);
-    const staffId = searchParams.get("staff_id");
-    const programId = searchParams.get("program_id");
+const ROLE = { roles: ['super_admin'] };
 
-    let query = `
-      SELECT ps.*, p.name as program_name, p.status as program_status
-      FROM v2_program_staff ps
-      JOIN v2_programs p ON ps.program_id = p.id
-    `;
-    let args = [];
+export const GET = createHandler(ROLE, async (req) => {
+  const { searchParams } = new URL(req.url);
+  const staffId = searchParams.get("staff_id");
+  const programId = searchParams.get("program_id");
 
-    if (staffId) {
-      query += " WHERE ps.staff_id = ?";
-      args = [staffId];
-    } else if (programId) {
-      query += " WHERE ps.program_id = ?";
-      args = [programId];
-    }
+  let query = `
+    SELECT ps.*, p.name as program_name, p.status as program_status
+    FROM v2_program_staff ps
+    JOIN v2_programs p ON ps.program_id = p.id
+  `;
+  let args = [];
 
-    const res = await db.execute({ sql: query, args });
-    return NextResponse.json({ success: true, assignments: res.rows });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
+  if (staffId) {
+    query += " WHERE ps.staff_id = ?";
+    args = [staffId];
+  } else if (programId) {
+    query += " WHERE ps.program_id = ?";
+    args = [programId];
   }
-}
 
-export async function POST(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
-    const { program_id, staff_id, role } = await req.json();
+  const res = await db.execute({ sql: query, args });
+  return NextResponse.json({ success: true, assignments: res.rows });
+});
 
-    await db.execute({
-      sql: "INSERT INTO v2_program_staff (program_id, staff_id, role) VALUES (?, ?, ?)",
-      args: [program_id, staff_id, role || "teacher"],
-    });
+export const POST = createHandler(ROLE, async (req) => {
+  const { program_id, staff_id, role } = await req.json();
+  await db.execute({
+    sql: "INSERT INTO v2_program_staff (program_id, staff_id, role) VALUES (?, ?, ?)",
+    args: [program_id, staff_id, role || "teacher"],
+  });
+  return NextResponse.json({ success: true });
+});
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
-
-export async function DELETE(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
-    const { id } = await req.json();
-    await db.execute({
-      sql: "DELETE FROM v2_program_staff WHERE id = ?",
-      args: [id],
-    });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
+export const DELETE = createHandler(ROLE, async (req) => {
+  const { id } = await req.json();
+  await db.execute({
+    sql: "DELETE FROM v2_program_staff WHERE id = ?",
+    args: [id],
+  });
+  return NextResponse.json({ success: true });
+});

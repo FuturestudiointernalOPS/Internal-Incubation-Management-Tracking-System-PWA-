@@ -23,7 +23,7 @@ export async function POST(req) {
 
     // Search Database for User
     const result = await db.execute({
-      sql: "SELECT * FROM contacts WHERE (email = ? OR id = ?) AND deleted = 0 LIMIT 1",
+      sql: "SELECT * FROM contacts WHERE (email = ? OR id = ?) AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
       args: [cleanEmail, cleanEmail],
     });
 
@@ -129,9 +129,9 @@ export async function POST(req) {
     });
 
     const activeTeammateAssignment = await db.execute({
-      sql: `SELECT id FROM v2_programs WHERE assigned_assistant_id LIKE ?
+      sql: `SELECT id::text FROM v2_programs WHERE assigned_assistant_id LIKE ?
             UNION
-            SELECT id FROM v2_teams WHERE handler_id = ?
+            SELECT id::text FROM v2_teams WHERE handler_id = ?
             LIMIT 1`,
       args: [`%${userCid}%`, userCid],
     });
@@ -147,10 +147,16 @@ export async function POST(req) {
       finalRole = "super_admin";
     } else if (user.role === "developer") {
       finalRole = "developer";
+    } else if (user.role === "investor") {
+      finalRole = "investor";
+    } else if (user.role === "founder") {
+      finalRole = "founder";
     } else if (pmLeadAssignment.rows.length > 0) {
       finalRole = "program_manager"; // Project Manager (Head)
     } else if (activeTeammateAssignment.rows.length > 0) {
       finalRole = "teacher"; // Active Teammate
+    } else if (user.role === "investor") {
+      finalRole = "investor";
     } else if (
       user.role === "project_manager" ||
       user.group_name?.toUpperCase() === "STAFF" ||

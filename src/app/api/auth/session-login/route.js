@@ -6,7 +6,7 @@ import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 export async function POST(req) {
   try {
     await initDb();
-    const { email, password } = await req.json();
+    const { email, password, remember_me } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -25,7 +25,7 @@ export async function POST(req) {
     let permission = "edit";
 
     const contactResult = await db.execute({
-      sql: "SELECT * FROM contacts WHERE (email = ? OR cid = ?) AND deleted = 0 LIMIT 1",
+      sql: "SELECT * FROM contacts WHERE (email = ? OR cid = ?) AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
       args: [cleanEmail, cleanEmail],
     });
 
@@ -157,17 +157,24 @@ export async function POST(req) {
         finalRole = "super_admin";
       } else if (user.role === "developer") {
         finalRole = "developer";
+      } else if (user.role === "investor") {
+        // Explicit DB role must win over the activeTeammateAssignment fallback below —
+        // otherwise an investor account that also happens to match a stray v2_teams
+        // handler_id (or v2_programs assistant) silently loses investor-only
+        // document visibility restrictions and is treated as a teacher.
+        finalRole = "investor";
+      } else if (user.role === "founder") {
+        finalRole = "founder";
       } else if (pmLeadAssignment.rows.length > 0) {
+        finalRole = "program_manager";
+      } else if (user.role === "program_manager") {
         finalRole = "program_manager";
       } else if (activeTeammateAssignment.rows.length > 0) {
         finalRole = "teacher";
-      } else if (user.role === "program_manager") {
-        // No program assignment found yet, but role is explicit — honor it
-        // instead of falling through to staff (was B6: PM/teacher accounts
-        // with zero program assignments always resolved to staff).
-        finalRole = "program_manager";
       } else if (user.role === "teacher") {
         finalRole = "teacher";
+      } else if (user.role === "investor") {
+        finalRole = "investor";
       } else if (user.role === "participant") {
         finalRole = "participant";
       } else if (
@@ -252,6 +259,7 @@ export async function POST(req) {
     const { token, maxAge } = await createSession(
       responseUser.cid || responseUser.id,
       isTeamLogin ? "team" : isFamilyLogin ? "participant" : finalRole,
+      remember_me || false,
     );
 
     const response = NextResponse.json({

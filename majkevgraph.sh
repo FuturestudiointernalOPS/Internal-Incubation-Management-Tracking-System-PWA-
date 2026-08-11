@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# majkevgraph: majkev + rebuild graphify graph (AST-only) + commit. No push.
+# majkevgraph: majkev + rebuild graphify graph (AST-only) + commit + push.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -17,6 +17,8 @@ if git diff --cached --quiet; then
   echo "No graph changes to commit."
 else
   git commit -m "chore: rebuild graphify code graph for src/"
+  echo "Pushing origin/Kev..."
+  git push origin Kev
 fi
 
 echo ""

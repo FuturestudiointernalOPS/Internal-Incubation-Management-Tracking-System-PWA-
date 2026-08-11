@@ -110,28 +110,34 @@ export async function POST(req) {
     for (const program_id of program_ids) {
       try {
         await db.execute({
-          sql: `INSERT INTO participant_programs (participant_id, program_id, assigned_by, source)
-                VALUES (?, ?, ?, ?)
+          sql: `INSERT INTO participant_programs (participant_id, program_id)
+                VALUES (?, ?)
                 ON CONFLICT (participant_id, program_id) DO NOTHING`,
           args: [
             participant_id,
             program_id,
-            assigned_by || null,
-            source || "manual",
           ],
         });
 
         // Audit log
         await db.execute({
-          sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
-                VALUES (?, ?, 'assigned', ?, ?)`,
+          sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
+                VALUES (?, ?, 'assigned', ?)`,
           args: [
             participant_id,
             program_id,
             assigned_by || null,
-            source || "manual",
           ],
         });
+
+        // Timeline event
+        try {
+          await db.execute({
+            sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
+                  VALUES (?, 'participant_enrolled', 'Enrolled in program', 'programs', ?, 'system', '{}'::jsonb)`,
+            args: [participant_id, program_id],
+          });
+        } catch (_) {}
 
         results.push(program_id);
       } catch (err) {
@@ -187,10 +193,19 @@ export async function DELETE(req) {
 
     // Audit log
     await db.execute({
-      sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by, source)
-            VALUES (?, ?, 'removed', ?, 'manual')`,
+      sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
+            VALUES (?, ?, 'removed', ?)`,
       args: [participant_id, program_id, body.assigned_by || null],
     });
+
+    // Timeline event
+    try {
+      await db.execute({
+        sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
+              VALUES (?, 'participant_withdrawn', 'Withdrawn from program', 'programs', ?, 'system', '{}'::jsonb)`,
+        args: [participant_id, program_id],
+      });
+    } catch (_) {}
 
     return NextResponse.json({
       success: true,

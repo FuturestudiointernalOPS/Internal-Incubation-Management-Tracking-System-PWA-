@@ -13,9 +13,29 @@ import { requireAuth } from "@/lib/auth";
 export async function GET(req) {
   try {
     await initDb();
+    const { searchParams } = new URL(req.url);
+
+    // Shortcut: KPI summary for Super Admin dashboard (no user_id required)
+    if (searchParams.get("summary") === "true") {
+      const authError = await requireAuth(["super_admin"]);
+      if (authError) return authError;
+      const kpiRes = await db.execute({
+        sql: `SELECT p.id, p.name, p.status,
+                     ROUND(AVG(kp.completion_rate)) AS avg_kpi_rate,
+                     COUNT(DISTINCT kp.kpi_id) AS kpi_count
+              FROM v2_programs p
+              LEFT JOIN kpi_progress kp ON p.id::text = kp.program_id
+              WHERE p.status NOT IN ('archived', 'cancelled')
+              GROUP BY p.id, p.name, p.status
+              HAVING COUNT(DISTINCT kp.kpi_id) > 0
+              ORDER BY avg_kpi_rate DESC NULLS LAST`,
+        args: [],
+      });
+      return NextResponse.json({ success: true, programs: kpiRes.rows });
+    }
+
     const authError = await requireAuth();
     if (authError) return authError;
-    const { searchParams } = new URL(req.url);
     const userId = searchParams.get("user_id");
     const role = searchParams.get("role");
     const year = parseInt(searchParams.get("year")) || new Date().getFullYear();
@@ -50,6 +70,7 @@ export async function GET(req) {
       activityRes,
       assignmentsRes,
       myTasksRes,
+      kpiRes,
     ] = await Promise.allSettled([
       // 1. User info
       db.execute({
@@ -57,12 +78,11 @@ export async function GET(req) {
         args: [userId],
       }),
 
-      // 2. Tasks with dates (calendar)
+      // 2. Tasks with dates (calendar) — include task_name/user_name
       db.execute({
-        sql: `SELECT id, title, start_date, end_date, status, project_id, user_id, assigned_to
+        sql: `SELECT id, title, description, start_date, end_date, status, priority, category, project_id, user_id, user_name, assigned_to, link
               FROM tasks
-              WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)
-                AND (user_id = ? OR assigned_to = ?)`,
+              WHERE (user_id = ? OR assigned_to = ?)`,
         args: [userId, userId],
       }),
 
@@ -157,10 +177,10 @@ export async function GET(req) {
                 FROM blockers b JOIN tasks t ON b.task_id = t.id
                 WHERE b.status = 'active' GROUP BY t.project_id
               ) b_stats ON p.id = b_stats.project_id
-              WHERE (p.owner_id = ? OR EXISTS (
+              WHERE (p.owner_id::text = ?::text OR EXISTS (
                 SELECT 1 FROM project_members pm
-                WHERE pm.project_id::text = p.id::text AND pm.user_cid = ? AND pm.role = 'lead'
-              )) OR ? IN ('super_admin', 'admin')
+                WHERE pm.project_id::text = p.id::text AND pm.user_cid::text = ?::text AND pm.role = 'lead'
+              )) OR ?::text IN ('super_admin', 'admin')
               ORDER BY p.created_at DESC`,
         args: [userId, userId, role],
       }),
@@ -173,32 +193,36 @@ export async function GET(req) {
 
       // 12. Recent activity
       db.execute({
-        sql: `(SELECT 'task_completed' AS action, title AS description, updated_at AS timestamp, user_id
-               FROM tasks WHERE (user_id = ? OR assigned_to = ?) AND status = 'completed'
+        sql: `(SELECT 'task_completed' AS action, title AS description, updated_at AS timestamp, user_id::text
+               FROM tasks WHERE (user_id::text = ?::text OR assigned_to::text = ?::text) AND status = 'completed'
                ORDER BY updated_at DESC LIMIT 5)
               UNION ALL
-              (SELECT 'blocker_resolved' AS action, title AS description, resolved_at AS timestamp, resolved_by AS user_id
-               FROM blockers WHERE resolved_by = ? AND status = 'resolved'
+              (SELECT 'blocker_resolved' AS action, title AS description, resolved_at AS timestamp, resolved_by::text AS user_id
+               FROM blockers WHERE resolved_by::text = ?::text AND status = 'resolved'
                ORDER BY resolved_at DESC LIMIT 3)
               UNION ALL
-              (SELECT 'task_assigned' AS action, title AS description, created_at AS timestamp, user_id
-               FROM tasks WHERE assigned_to = ?
+              (SELECT 'task_assigned' AS action, title AS description, created_at AS timestamp, user_id::text
+               FROM tasks WHERE assigned_to::text = ?::text
+               ORDER BY created_at DESC LIMIT 3)
+              UNION ALL
+              (SELECT action, details AS description, created_at AS timestamp, user_id
+               FROM audit_log WHERE entity_type = 'program_assignment' AND user_id = ?
                ORDER BY created_at DESC LIMIT 3)
               ORDER BY timestamp DESC LIMIT 10`,
-        args: [userId, userId, userId, userId],
+        args: [userId, userId, userId, userId, userId],
       }),
 
       // 13. Assignments (tasks assigned TO user)
       db.execute({
         sql: `SELECT id, title, status, end_date, user_name, user_id, priority, created_at
-              FROM tasks WHERE assigned_to = ? ORDER BY created_at DESC`,
+              FROM tasks WHERE assigned_to::text = ?::text ORDER BY created_at DESC`,
         args: [userId],
       }),
 
       // 14. User's own tasks (quick access)
       db.execute({
         sql: `SELECT id, title, status, end_date, priority, project_id
-              FROM tasks WHERE user_id = ?
+              FROM tasks WHERE user_id::text = ?::text
               ORDER BY
                 CASE status
                   WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1
@@ -207,6 +231,17 @@ export async function GET(req) {
                 end_date ASC NULLS LAST
               LIMIT 5`,
         args: [userId],
+      }),
+
+      // 15. KPI Progress (cached — updated on submissions approval)
+      db.execute({
+        sql: `SELECT kp.program_id, kp.kpi_id, k.title, k.weight, k.target_value, k.auto_weight,
+                     kp.approved_count, kp.participant_count, kp.completion_rate
+              FROM kpi_progress kp
+              JOIN v2_kpis k ON kp.kpi_id = k.id AND kp.program_id::text = k.program_id::text
+              WHERE kp.program_id IN (SELECT program_id::text FROM v2_programs WHERE assigned_pm_id = ? OR assigned_assistant_id LIKE ? OR id::text IN (SELECT program_id::text FROM v2_teams WHERE handler_id = ?))
+              ORDER BY kp.program_id, kp.kpi_id`,
+        args: [userId, `%${userId}%`, userId],
       }),
     ]);
 
@@ -220,32 +255,70 @@ export async function GET(req) {
       userName = userRes.value.rows[0].name || "User";
     }
 
+    // Helper: convert any date format (Date object, ISO string, etc.) to YYYY-MM-DD
+    const toDateStr = (val) => {
+      if (!val) return null;
+      try {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+        return d.toISOString().split("T")[0];
+      } catch {
+        return null;
+      }
+    };
+
+    // Helper: generate all dates from start to end (inclusive)
+    const dateRange = (start, end) => {
+      const dates = [];
+      const s = new Date(start + "T00:00:00Z");
+      const e = new Date(end + "T00:00:00Z");
+      if (isNaN(s.getTime()) || isNaN(e.getTime())) return dates;
+      const cur = new Date(s);
+      while (cur <= e) {
+        dates.push(cur.toISOString().split("T")[0]);
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+      return dates;
+    };
+
     // 2. Calendar events
     const calendarEvents = [];
 
-    // Tasks → calendar
+    // Tasks → calendar — span all days from start_date to end_date
     if (taskDateRes.status === "fulfilled") {
       for (const t of taskDateRes.value.rows) {
-        if (t.start_date) {
+        const startStr = toDateStr(t.start_date);
+        const endStr = toDateStr(t.end_date);
+        // If no dates at all, show on today
+        if (!startStr && !endStr) {
           calendarEvents.push({
-            id: `task-${t.id}-start`,
+            id: `task-${t.id}-${todayStr}`,
             title: t.title,
-            date: String(t.start_date).split("T")[0],
-            type: "task_start",
+            date: todayStr,
+            type: "task_active",
             source: "task",
             status: t.status,
+            priority: t.priority,
             related_id: t.id,
             project_id: t.project_id,
           });
+          continue;
         }
-        if (t.end_date) {
+        // Determine the effective date range
+        const rangeStart = startStr || endStr;
+        const rangeEnd = endStr || startStr;
+        const days = dateRange(rangeStart, rangeEnd);
+        for (const day of days) {
+          const isFirst = day === rangeStart;
+          const isLast = day === rangeEnd;
           calendarEvents.push({
-            id: `task-${t.id}-end`,
-            title: `${t.title} (due)`,
-            date: String(t.end_date).split("T")[0],
-            type: "task_due",
+            id: `task-${t.id}-${day}`,
+            title: t.title,
+            date: day,
+            type: isFirst ? "task_start" : isLast ? "task_due" : "task_active",
             source: "task",
             status: t.status,
+            priority: t.priority,
             related_id: t.id,
             project_id: t.project_id,
           });
@@ -257,26 +330,30 @@ export async function GET(req) {
     if (progDateRes.status === "fulfilled") {
       for (const p of progDateRes.value.rows) {
         if (p.start_date) {
-          calendarEvents.push({
-            id: `program-${p.id}-start`,
-            title: `${p.name} starts`,
-            date: String(p.start_date).split("T")[0],
-            type: "program_start",
-            source: "program",
-            status: "active",
-            related_id: p.id,
-          });
+          const d = toDateStr(p.start_date);
+          if (d)
+            calendarEvents.push({
+              id: `program-${p.id}-start`,
+              title: `${p.name} starts`,
+              date: d,
+              type: "program_start",
+              source: "program",
+              status: "active",
+              related_id: p.id,
+            });
         }
         if (p.end_date) {
-          calendarEvents.push({
-            id: `program-${p.id}-end`,
-            title: `${p.name} ends`,
-            date: String(p.end_date).split("T")[0],
-            type: "program_end",
-            source: "program",
-            status: "active",
-            related_id: p.id,
-          });
+          const d = toDateStr(p.end_date);
+          if (d)
+            calendarEvents.push({
+              id: `program-${p.id}-end`,
+              title: `${p.name} ends`,
+              date: d,
+              type: "program_end",
+              source: "program",
+              status: "active",
+              related_id: p.id,
+            });
         }
       }
     }
@@ -287,7 +364,7 @@ export async function GET(req) {
         calendarEvents.push({
           id: `session-${s.id}`,
           title: s.title,
-          date: String(s.start_at).split("T")[0],
+          date: toDateStr(s.start_at),
           type: "session",
           source: "session",
           status: "scheduled",
@@ -303,7 +380,7 @@ export async function GET(req) {
         calendarEvents.push({
           id: `deliverable-${d.id}`,
           title: `${d.title} due`,
-          date: String(d.due_date).split("T")[0],
+          date: toDateStr(d.due_date),
           type: "deliverable_due",
           source: "deliverable",
           status: "pending",
@@ -318,7 +395,7 @@ export async function GET(req) {
         calendarEvents.push({
           id: `v2event-${e.id}`,
           title: e.title,
-          date: String(e.start_time).split("T")[0],
+          date: toDateStr(e.start_time),
           type: "event",
           source: "event",
           status: "scheduled",
@@ -527,6 +604,12 @@ export async function GET(req) {
       myTasks = myTasksRes.value.rows;
     }
 
+    // 10. KPI Progress
+    let kpiProgress = [];
+    if (kpiRes.status === "fulfilled") {
+      kpiProgress = kpiRes.value.rows;
+    }
+
     // ─────────────────────────────────────────────
     // RESPONSE
     // ─────────────────────────────────────────────
@@ -565,6 +648,7 @@ export async function GET(req) {
         blockers: allBlockers.slice(0, 5),
       },
       assignments,
+      kpis: kpiProgress,
     });
   } catch (error) {
     console.error("GET dashboard error:", error);

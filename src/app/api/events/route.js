@@ -1,12 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { createHandler } from "@/lib/api/createHandler";
 
-export async function GET(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
+export const GET = createHandler(
+  { roles: ["staff", "super_admin"] },
+  async (req) => {
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
 
@@ -20,23 +18,12 @@ export async function GET(req) {
 
     const result = await db.execute({ sql, args });
     return NextResponse.json({ success: true, events: result.rows });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
 
-export async function POST(req) {
-  try {
-    await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-    ]);
-    if (authError) return authError;
+export const POST = createHandler(
+  { roles: ["staff", "super_admin", "program_manager"] },
+  async (req) => {
     const {
       program_id,
       participant_id,
@@ -80,11 +67,5 @@ export async function POST(req) {
     }
 
     return NextResponse.json({ success: true, event: newEvent });
-  } catch (error) {
-    console.error("Events POST Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 },
-    );
-  }
-}
+  },
+);

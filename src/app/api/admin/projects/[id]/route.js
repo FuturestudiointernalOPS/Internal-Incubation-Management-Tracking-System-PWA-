@@ -63,6 +63,32 @@ export async function GET(req, { params }) {
       args: [id],
     });
 
+    // Resources/attachments — single batched query for all tasks (Ticket 1.8)
+    let resourcesByTask = {};
+    const allTaskIds = (tasksRes.rows || []).map((t) => t.id);
+    if (allTaskIds.length > 0) {
+      try {
+        const resourceRes = await db.execute({
+          sql: `SELECT id, name, url, task_id, type, file_name, file_size, uploaded_by FROM task_resources WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
+          args: allTaskIds,
+        });
+        for (const r of resourceRes.rows || []) {
+          if (!resourcesByTask[r.task_id]) resourcesByTask[r.task_id] = [];
+          resourcesByTask[r.task_id].push({
+            id: r.id,
+            name: r.name,
+            url: r.url,
+            type: r.type,
+            file_name: r.file_name,
+            file_size: r.file_size,
+            uploaded_by: r.uploaded_by,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch task_resources:", e.message);
+      }
+    }
+
     // Attach blockers and subtasks to each task
     const tasksWithBlockers = await Promise.all(
       (tasksRes.rows || []).map(async (task) => {
@@ -80,6 +106,7 @@ export async function GET(req, { params }) {
           ...task,
           blockers: blockerRes.rows || [],
           subtasks: subtaskRes.rows || [],
+          resources: resourcesByTask[task.id] || [],
         };
       }),
     );

@@ -28,7 +28,7 @@ export default function GroupWorkspaceV2({ params }) {
     try {
       const res = await fetch(`/api/v2/groups?program_id=${programId}`);
       const data = await res.json();
-      const match = data.groups.find(g => g.id === groupId);
+      const match = data.groups.find(g => String(g.id) === String(groupId));
       setGroup(match);
       setIsLoaded(true);
     } catch (e) {
@@ -41,9 +41,9 @@ export default function GroupWorkspaceV2({ params }) {
     try {
       // In a real scenario, we'd have a PATCH /api/v2/groups/[id]
       // For now, we'll just mock the update or use the same route if supported
-      alert("Workspace metrics anchored to ledger.");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Workspace metrics anchored to ledger.' } }));
     } catch (e) {
-      alert("Update failed.");
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Update failed.' } }));
     } finally {
       setLoading(false);
     }
@@ -86,8 +86,11 @@ export default function GroupWorkspaceV2({ params }) {
                     <Rocket className="w-4 h-4 text-indigo-400" /> Project Concept
                  </h4>
                  <textarea 
+                    id="project_description"
+                    name="project_description"
+                    aria-label="Project concept description"
                     rows={6}
-                    value={group.project_description}
+                    value={group.project_description || ''}
                     onChange={e => setGroup({...group, project_description: e.target.value})}
                     placeholder="Enter deep dive on project objectives..."
                     className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white font-bold outline-none focus:border-[#FF6600]/80 transition-colors resize-none"
@@ -99,8 +102,10 @@ export default function GroupWorkspaceV2({ params }) {
                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Asset Registry</h4>
                     <div className="space-y-4">
                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest pl-2">Pitch Deck Link</label>
+                          <label htmlFor="pitch_deck_url" className="text-[9px] font-black text-slate-600 uppercase tracking-widest pl-2">Pitch Deck Link</label>
                           <input 
+                             id="pitch_deck_url"
+                             name="pitch_deck_url"
                              type="text" 
                              value={group.pitch_deck_url || ''}
                              onChange={e => setGroup({...group, pitch_deck_url: e.target.value})}
@@ -109,8 +114,10 @@ export default function GroupWorkspaceV2({ params }) {
                           />
                        </div>
                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest pl-2">Live Demo Portal</label>
+                          <label htmlFor="demo_link" className="text-[9px] font-black text-slate-600 uppercase tracking-widest pl-2">Live Demo Portal</label>
                           <input 
+                             id="demo_link"
+                             name="demo_link"
                              type="text" 
                              value={group.demo_link || ''}
                              onChange={e => setGroup({...group, demo_link: e.target.value})}

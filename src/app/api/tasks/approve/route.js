@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
+import { getTaskById } from "@/lib/db/queries/tasks";
 
 /**
  * TASK APPROVAL API
@@ -41,19 +42,14 @@ export async function POST(req) {
     }
 
     // Fetch the task
-    const taskRes = await db.execute({
-      sql: "SELECT * FROM tasks WHERE id = ?",
-      args: [parseInt(task_id)],
-    });
+    const task = await getTaskById(task_id);
 
-    if (taskRes.rows.length === 0) {
+    if (!task) {
       return NextResponse.json(
         { success: false, error: "Task not found." },
         { status: 404 },
       );
     }
-
-    const task = taskRes.rows[0];
 
     if (task.status !== "pending_project_approval") {
       return NextResponse.json(
@@ -70,10 +66,18 @@ export async function POST(req) {
       });
 
       // Update approval request
-      await db.execute({
-        sql: "UPDATE project_approval_requests SET status = 'approved', reviewed_by = ?, reviewed_at = NOW() WHERE task_id = ? AND status = 'pending'",
-        args: [reviewer_id, parseInt(task_id)],
-      });
+      try {
+        await db.execute({
+          sql: "UPDATE project_approval_requests SET status = 'approved', reviewed_by = ?, reviewed_at = NOW() WHERE task_id = ? AND status = 'pending'",
+          args: [reviewer_id, parseInt(task_id)],
+        });
+      } catch (e) {
+        console.error("Failed to update project_approval_request (approve):", e.message);
+        return NextResponse.json(
+          { success: false, error: "Approval workflow not available in this schema" },
+          { status: 200 },
+        );
+      }
     } else {
       // Reject — remove project_id, set as standalone with 'other' category
       await db.execute({
@@ -82,10 +86,18 @@ export async function POST(req) {
       });
 
       // Update approval request
-      await db.execute({
-        sql: "UPDATE project_approval_requests SET status = 'rejected', reviewed_by = ?, reviewed_at = NOW(), rejection_reason = ? WHERE task_id = ? AND status = 'pending'",
-        args: [reviewer_id, reason || "No reason provided", parseInt(task_id)],
-      });
+      try {
+        await db.execute({
+          sql: "UPDATE project_approval_requests SET status = 'rejected', reviewed_by = ?, reviewed_at = NOW(), rejection_reason = ? WHERE task_id = ? AND status = 'pending'",
+          args: [reviewer_id, reason || "No reason provided", parseInt(task_id)],
+        });
+      } catch (e) {
+        console.error("Failed to update project_approval_request (reject):", e.message);
+        return NextResponse.json(
+          { success: false, error: "Approval workflow not available in this schema" },
+          { status: 200 },
+        );
+      }
     }
 
     // Audit log

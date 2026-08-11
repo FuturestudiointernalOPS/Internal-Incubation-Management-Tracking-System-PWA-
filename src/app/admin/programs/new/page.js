@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { uploadFile } from "@/lib/storage";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * IMPACTOS MISSION DEPLOYMENT — STRATEGIC CONFIGURATION
@@ -34,6 +35,7 @@ import { useRouter } from "next/navigation";
 
 export default function NewProgram() {
   const router = useRouter();
+  const { t } = useI18n();
   const [isDeploying, setIsDeploying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -50,6 +52,21 @@ export default function NewProgram() {
     duration_weeks: 4,
     materials: [],
     assigned_segments: [],
+    name: "",
+    description: "",
+    concept_note: "",
+    vision: "",
+    objectives: "",
+    program_type: "incubation",
+    visibility: "private",
+    participant_limit: 0,
+    registration_window_start: "",
+    registration_window_end: "",
+    language: "en",
+    assigned_pm_id: "",
+    expected_outcomes: "",
+    success_metrics: "",
+    banner_url: "",
   });
 
   // Date validation
@@ -81,9 +98,15 @@ export default function NewProgram() {
   const [newKB, setNewKB] = useState({ title: "", description: "", files: [] });
   const [createdKB, setCreatedKB] = useState(null);
   const [kpisList, setKpisList] = useState([]);
-  const [kpiInput, setKpiInput] = useState({ title: "", target_value: 80 });
+  const [kpiInput, setKpiInput] = useState({ title: "", target_value: 100 });
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const [segments, setSegments] = useState([]);
+  const [customProgramTypes, setCustomProgramTypes] = useState([]);
+  const [newTypeInput, setNewTypeInput] = useState("");
+  const [showNewTypeInput, setShowNewTypeInput] = useState(false);
 
   const [selectedAssistants, setSelectedAssistants] = useState([]);
 
@@ -109,24 +132,25 @@ export default function NewProgram() {
     async function loadAssets() {
       setLoadingAssets(true);
       try {
-        const [knowRes, staffRes, segRes] = await Promise.all([
+        const [knowRes, staffRes, segRes, tmplRes] = await Promise.all([
           fetch("/api/knowledge"),
           fetch("/api/contacts"),
           fetch("/api/families"),
+          fetch("/api/pm/programs/templates"),
         ]);
 
         const knowData = await knowRes.json();
         const staffData = await staffRes.json();
         const segData = await segRes.json();
+        const tmplData = await tmplRes.json();
 
         if (knowData.success) setKnowledgeNodes(knowData.conceptNotes || []);
         if (segData.success) setSegments(segData.families || []);
-        // Filter: Only Future Studio Staff (role='staff' or 'admin')
+        if (tmplData.success) setTemplates(tmplData.templates || []);
+        // Filter: Only Future Studio contacts
         if (staffData.success) {
           const staffOnly = (staffData.contacts || []).filter(
             (c) =>
-              c.role === "staff" ||
-              c.role === "admin" ||
               c.group_name?.toUpperCase() === "FUTURE STUDIO",
           );
           setStaffList(staffOnly);
@@ -142,6 +166,13 @@ export default function NewProgram() {
       }
     }
     loadAssets();
+    // Charger les types personnalisés depuis la DB
+    fetch("/api/program-types")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.types) setCustomProgramTypes(data.types);
+      })
+      .catch(() => {});
   }, []);
 
   const handleFileUpload = async (e, type = "program") => {
@@ -186,6 +217,19 @@ export default function NewProgram() {
 
   const handleCreateGroupInline = async () => {
     if (!newGroup.name) return notify("error", "Group name is required.");
+    // Vérifier que la date actuelle est dans la fenêtre d'inscription
+    if (program.registration_window_start && program.registration_window_end) {
+      const now = new Date();
+      const start = new Date(program.registration_window_start);
+      const end = new Date(program.registration_window_end);
+      end.setHours(23, 59, 59, 999);
+      if (now < start) {
+        return notify("error", `Registration window opens on ${program.registration_window_start}.`);
+      }
+      if (now > end) {
+        return notify("error", `Registration window closed on ${program.registration_window_end}.`);
+      }
+    }
     setIsDeploying(true);
     try {
       const res = await fetch("/api/families", {
@@ -199,7 +243,13 @@ export default function NewProgram() {
         setProgram((p) => ({ ...p, assigned_segments: [data.group.id] }));
         setSegments((prev) => [...prev, data.group]);
         setIsCreatingGroup(false);
-        notify("success", "Created");
+        // Only auto-save program if PM is already selected
+        if (program.assigned_pm_id) {
+          notify("success", "Group created. Auto-saving program...");
+          setTimeout(() => handleDeploy({ preventDefault: () => {} }, data.group.id), 300);
+        } else {
+          notify("success", "Group created. Fill in the Program Manager and name, then deploy to save.");
+        }
       }
     } catch (e) {
       notify("error", e.message);
@@ -243,7 +293,7 @@ export default function NewProgram() {
     }));
   };
 
-  const handleDeploy = async (e) => {
+  const handleDeploy = async (e, existingGroupId) => {
     e.preventDefault();
     if (!program.name || !program.assigned_pm_id) {
       notify(
@@ -267,7 +317,7 @@ export default function NewProgram() {
     setIsDeploying(true);
     try {
       // Create contact group first if a group name was provided
-      let groupId = program.assigned_segments?.[0];
+      let groupId = existingGroupId || program.assigned_segments?.[0];
       if (!groupId && newGroup.name?.trim()) {
         const groupRes = await fetch("/api/families", {
           method: "POST",
@@ -289,7 +339,35 @@ export default function NewProgram() {
       const res = await fetch("/api/pm/programs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...program, kpis: kpisList }),
+        body: JSON.stringify({
+          name: program.name,
+          description: program.description || null,
+          concept_note:
+            program.conceptNoteType === "link"
+              ? program.conceptNoteLink
+              : program.description || null,
+          vision: program.vision || null,
+          objectives: program.objectives || null,
+          expected_outcomes: program.expected_outcomes || null,
+          success_metrics: program.success_metrics || null,
+          banner_url: program.banner_url || null,
+          program_type: program.program_type || "incubation",
+          visibility: program.visibility || "private",
+          participant_limit: program.participant_limit || 0,
+          registration_window: program.registration_window_start && program.registration_window_end
+            ? `${program.registration_window_start}|${program.registration_window_end}`
+            : null,
+          language: program.language || "en",
+          start_date: program.start_date,
+          end_date: program.end_date,
+          duration_weeks: program.duration_weeks,
+          assigned_pm_id: program.assigned_pm_id,
+          assigned_assistant_id: program.assigned_assistant_id || null,
+          note_id: program.note_id || null,
+          materials: program.materials,
+          assigned_segments: existingGroupId ? [existingGroupId] : program.assigned_segments,
+          kpis: kpisList,
+        }),
       });
       const data = await res.json();
 
@@ -361,11 +439,72 @@ export default function NewProgram() {
         </header>
 
         <form onSubmit={handleDeploy} className="space-y-10">
+          {/* Template Selector */}
+          {templates.length > 0 && (
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.startFromTemplate")}
+              </label>
+              <div className="flex gap-3">
+                <select
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+                >
+                  <option value="">{t("admin.selectTemplate")}</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.program_type || "incubation"})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!selectedTemplate || applyingTemplate}
+                  onClick={async () => {
+                    if (!selectedTemplate) return;
+                    setApplyingTemplate(true);
+                    try {
+                      const t = templates.find(
+                        (x) => x.id === selectedTemplate,
+                      );
+                      const res = await fetch(
+                        "/api/pm/programs/templates?action=apply",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            template_id: selectedTemplate,
+                            name: program.name || t?.name || "New Program",
+                          }),
+                        },
+                      );
+                      const data = await res.json();
+                      if (data.success) {
+                        notify("success", "Program created from template!");
+                        setTimeout(() => router.push("/admin/programs"), 1500);
+                      } else {
+                        notify("error", data.error || "Failed");
+                      }
+                    } catch (e) {
+                      notify("error", e.message);
+                    } finally {
+                      setApplyingTemplate(false);
+                    }
+                  }}
+                  className="px-6 py-3 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all disabled:opacity-40"
+                >
+                  {applyingTemplate ? "Creating..." : t("admin.apply")}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* SECTION: BASIC IDENTITY */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Program Identity
+                {t("admin.programName")}
               </label>
               <input
                 required
@@ -416,17 +555,268 @@ export default function NewProgram() {
             </div>
           </div>
 
+          {/* Program Type & Vision & Objectives */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.programType")}
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={program.program_type || "incubation"}
+                  onChange={(e) =>
+                    setProgram({ ...program, program_type: e.target.value })
+                  }
+                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+                >
+                  <option value="incubation">
+                    {t("admin.programTypes.incubation")}
+                  </option>
+                  <option value="acceleration">
+                    {t("admin.programTypes.acceleration")}
+                  </option>
+                  <option value="bootcamp">
+                    {t("admin.programTypes.bootcamp")}
+                  </option>
+                  <option value="workshop">
+                    {t("admin.programTypes.workshop")}
+                  </option>
+                  <option value="fellowship">
+                    {t("admin.programTypes.fellowship")}
+                  </option>
+                  {customProgramTypes.map((ct, i) => (
+                    <option key={i} value={ct}>
+                      {ct.toUpperCase()}
+                    </option>
+                  ))}
+                  <option value="custom">{t("admin.programTypes.custom")}</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowNewTypeInput(!showNewTypeInput)}
+                  className="px-4 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 rounded-2xl hover:bg-[var(--brand-orange)]/20 transition-all shrink-0"
+                  title="Ajouter un type"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+              {showNewTypeInput && (
+                <div className="flex gap-2 mt-2 animate-in fade-in slide-in-from-top-2">
+                  <input
+                    type="text"
+                    value={newTypeInput}
+                    onChange={(e) => setNewTypeInput(e.target.value)}
+                    placeholder="Nouveau type de programme..."
+                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-3 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!newTypeInput.trim()) return;
+                      const typeKey = newTypeInput.trim().toLowerCase().replace(/\s+/g, '_');
+                      try {
+                        await fetch("/api/program-types", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ type_key: typeKey }),
+                        });
+                      } catch {}
+                      setCustomProgramTypes([...customProgramTypes, typeKey]);
+                      setProgram({ ...program, program_type: typeKey });
+                      setNewTypeInput("");
+                      setShowNewTypeInput(false);
+                    }}
+                    className="px-4 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-emerald-500/20 hover:bg-emerald-500/20"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.visibility")}
+              </label>
+              <select
+                value={program.visibility || "private"}
+                onChange={(e) =>
+                  setProgram({ ...program, visibility: e.target.value })
+                }
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              >
+                <option value="private">
+                  {t("admin.visibilityOptions.private")}
+                </option>
+                <option value="public">
+                  {t("admin.visibilityOptions.public")}
+                </option>
+                <option value="invite_only">
+                  {t("admin.visibilityOptions.inviteOnly")}
+                </option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.language")}
+              </label>
+              <select
+                value={program.language || "en"}
+                onChange={(e) =>
+                  setProgram({ ...program, language: e.target.value })
+                }
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              >
+                <option value="en">English</option>
+                <option value="fr">French</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.vision")}
+              </label>
+              <textarea
+                rows={3}
+                value={program.vision || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, vision: e.target.value })
+                }
+                placeholder="What is the long-term vision for this program?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.objectives")}
+              </label>
+              <textarea
+                rows={3}
+                value={program.objectives || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, objectives: e.target.value })
+                }
+                placeholder="What are the key objectives?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Expected Outcomes & Success Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Expected Outcomes
+              </label>
+              <textarea
+                rows={3}
+                value={program.expected_outcomes || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, expected_outcomes: e.target.value })
+                }
+                placeholder="What are the expected outcomes?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                Success Metrics
+              </label>
+              <textarea
+                rows={3}
+                value={program.success_metrics || ""}
+                onChange={(e) =>
+                  setProgram({ ...program, success_metrics: e.target.value })
+                }
+                placeholder="How will success be measured?"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Program Banner */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              Program Banner URL
+            </label>
+            <input
+              type="url"
+              value={program.banner_url || ""}
+              onChange={(e) =>
+                setProgram({ ...program, banner_url: e.target.value })
+              }
+              placeholder="https://example.com/banner.jpg"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.participantLimit")}
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={program.participant_limit || 0}
+                onChange={(e) =>
+                  setProgram({
+                    ...program,
+                    participant_limit: parseInt(e.target.value) || 0,
+                  })
+                }
+                placeholder={t("admin.unlimited")}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+                {t("admin.registrationWindow")}
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="date"
+                  value={program.registration_window_start || ""}
+                  onChange={(e) =>
+                    setProgram({
+                      ...program,
+                      registration_window_start: e.target.value,
+                    })
+                  }
+                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all [color-scheme:dark]"
+                />
+                <span className="flex items-center text-slate-500 text-sm font-bold">→</span>
+                <input
+                  type="date"
+                  value={program.registration_window_end || ""}
+                  onChange={(e) =>
+                    setProgram({
+                      ...program,
+                      registration_window_end: e.target.value,
+                    })
+                  }
+                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all [color-scheme:dark]"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-              Concept Note
+              {t("admin.conceptNote")}
             </label>
 
             {/* Input type selector */}
             <div className="flex gap-2 bg-primary rounded-xl p-1.5 border border-[var(--border-primary)] w-fit">
               {[
-                { id: "text", label: "Rich Text", icon: FileText },
-                { id: "link", label: "External Link", icon: Plus },
-                { id: "upload", label: "Upload Document", icon: Upload },
+                { id: "text", label: t("admin.richText"), icon: FileText },
+                { id: "link", label: t("admin.externalLink"), icon: Plus },
+                {
+                  id: "upload",
+                  label: t("admin.uploadDocument"),
+                  icon: Upload,
+                },
               ].map((opt) => (
                 <button
                   key={opt.id}
@@ -735,13 +1125,13 @@ export default function NewProgram() {
                     <div className="flex items-center justify-between gap-3 bg-black/40 p-2 rounded border border-white/5 overflow-hidden">
                       <span className="text-[8px] font-mono text-white/60 truncate">
                         {window.location.origin}/register-participant?group_id=
-                        {createdGroup.registration_id}
+                        {createdGroup.registration_id && encodeURIComponent(createdGroup.registration_id)}
                       </span>
                       <button
                         type="button"
                         onClick={() => {
                           navigator.clipboard.writeText(
-                            `${window.location.origin}/register-participant?group_id=${createdGroup.registration_id}`,
+                            `${window.location.origin}/register-participant?group_id=${createdGroup.registration_id && encodeURIComponent(createdGroup.registration_id)}`,
                           );
                           notify("success", "Copied");
                         }}
@@ -875,17 +1265,41 @@ export default function NewProgram() {
                     }
                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
                   />
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={kpiInput.target_value}
+                    onChange={(e) =>
+                      setKpiInput({ ...kpiInput, target_value: parseInt(e.target.value) || 0 })
+                    }
+                    className="w-20 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] text-center"
+                    placeholder="%"
+                  />
                   <button
                     type="button"
                     onClick={() => {
                       if (!kpiInput.title.trim()) return;
+                      // Stratégie 100% : le total des KPIs fait toujours 100
+                      // Le dernier KPI existant est divisé par 2, le nouveau prend la valeur courante
+                      const currentValue = kpiInput.target_value || 100;
+                      const nextValue = Math.max(1, Math.floor(currentValue / 2));
+                      const updated = [...kpisList];
+                      if (updated.length > 0) {
+                        const last = updated[updated.length - 1];
+                        updated[updated.length - 1] = {
+                          ...last,
+                          target_value: Math.max(1, Math.floor(last.target_value / 2)),
+                        };
+                      }
                       setKpisList([
-                        ...kpisList,
+                        ...updated,
                         {
                           title: kpiInput.title,
+                          target_value: currentValue,
                         },
                       ]);
-                      setKpiInput({ title: "" });
+                      setKpiInput({ title: "", target_value: nextValue });
                     }}
                     className="px-6 bg-[var(--brand-orange)] text-black font-bold uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all flex items-center justify-center shrink-0"
                   >
@@ -909,9 +1323,9 @@ export default function NewProgram() {
                       <div>
                         <p className="text-xs font-bold text-white uppercase tracking-tighter">
                           {kpi.title}
-                        </p>
-                        <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">
-                          Target: {kpi.target_value}%
+                          <span className="text-[var(--brand-orange)] ml-2">
+                            {kpi.target_value}%
+                          </span>
                         </p>
                       </div>
                       <button
