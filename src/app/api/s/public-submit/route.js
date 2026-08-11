@@ -118,10 +118,10 @@ export async function POST(req) {
     }
     const submitterId = submitterEmail || "public-" + Date.now();
 
-    // Prevent duplicate submissions by same email
+    // Prevent duplicate SUBMITTED entries by same email
     if (submitterEmail) {
       const existing = await db.execute({
-        sql: "SELECT id FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ?",
+        sql: "SELECT id, status FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? AND status = 'submitted'",
         args: [parseInt(run_id), submitterEmail],
       });
       if (existing.rows.length > 0) {
@@ -137,12 +137,30 @@ export async function POST(req) {
       });
     } catch (_) {}
 
-    // Insert submission
-    const result = await db.execute({
-      sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, submitted_at)
-            VALUES (?, ?, ?, 'submitted', ?, NOW()) RETURNING id`,
-      args: [parseInt(run_id), submitterId, submitterName, JSON.stringify(data)],
-    });
+    // Insert submission — or upgrade existing draft
+    let submissionId;
+    if (submitterEmail) {
+      const draftCheck = await db.execute({
+        sql: "SELECT id FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? AND status = 'draft'",
+        args: [parseInt(run_id), submitterEmail],
+      });
+      if (draftCheck.rows.length > 0) {
+        await db.execute({
+          sql: "UPDATE platform_form_submissions SET status = 'submitted', data = ?, submitted_at = NOW(), submitter_name = ? WHERE id = ?",
+          args: [JSON.stringify(data), submitterName, draftCheck.rows[0].id],
+        });
+        submissionId = draftCheck.rows[0].id;
+      }
+    }
+
+    if (!submissionId) {
+      const result = await db.execute({
+        sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, submitted_at)
+              VALUES (?, ?, ?, 'submitted', ?, NOW()) RETURNING id`,
+        args: [parseInt(run_id), submitterId, submitterName, JSON.stringify(data)],
+      });
+      submissionId = result.rows[0].id;
+    }
 
     // Fetch form settings for success message configuration
     let successConfig = null;
@@ -163,7 +181,7 @@ export async function POST(req) {
 
     return NextResponse.json({ 
       success: true, 
-      id: result.rows[0].id,
+      id: submissionId,
       success_message: successConfig?.message || null,
       redirect_url: successConfig?.redirect_url || null,
     });

@@ -100,6 +100,16 @@ export default function PublicSubmitPage() {
 
   useEffect(() => { loadRun(); }, []);
 
+  // Auto-save currentSection to localStorage
+  useEffect(() => {
+    try {
+      const existing = JSON.parse(localStorage.getItem(`form_draft_${runId}`) || "{}");
+      existing.currentSection = currentSection;
+      existing.lastSaved = Date.now();
+      localStorage.setItem(`form_draft_${runId}`, JSON.stringify(existing));
+    } catch (_) {}
+  }, [currentSection, runId]);
+
   // Re-translate when language is switched
   useEffect(() => {
     if (rawForm.current) translateFormContent(lang);
@@ -119,6 +129,21 @@ export default function PublicSubmitPage() {
       rawForm.current = loadedForm;
       rawSections.current = data.sections || [];
       rawFields.current = data.fields || [];
+
+      // ── Restore saved draft from localStorage ──
+      try {
+        const draftKey = `form_draft_${runId}`;
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+          const draft = JSON.parse(savedDraft);
+          if (draft.formData && typeof draft.formData === "object") {
+            setFormData(draft.formData);
+          }
+          if (typeof draft.currentSection === "number" && draft.currentSection >= 0) {
+            setCurrentSection(draft.currentSection);
+          }
+        }
+      } catch (_) {}
 
       // Detect form's original language by scanning content for French characters
       const allText = [
@@ -144,7 +169,16 @@ export default function PublicSubmitPage() {
   };
 
   const updateField = (fieldId, value) => {
-    setFormData(prev => ({ ...prev, [fieldId]: value }));
+    const updated = (prev) => ({ ...prev, [fieldId]: value });
+    setFormData(prev => {
+      const newData = updated(prev);
+      // Auto-save to localStorage
+      try {
+        const draft = { formData: newData, currentSection, lastSaved: Date.now() };
+        localStorage.setItem(`form_draft_${runId}`, JSON.stringify(draft));
+      } catch (_) {}
+      return newData;
+    });
     setErrors(prev => ({ ...prev, [fieldId]: null }));
   };
 
@@ -170,6 +204,7 @@ export default function PublicSubmitPage() {
       });
       const data = await res.json();
       if (data.success) {
+        localStorage.removeItem(`form_draft_${runId}`);
         setSuccess(true);
         if (data.success_message) {
           setSuccessConfig({ message: data.success_message, redirect_url: data.redirect_url });
