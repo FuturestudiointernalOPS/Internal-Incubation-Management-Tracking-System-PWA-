@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import NextLink from "next/link";
@@ -12,6 +10,8 @@ import {
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
   Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, XCircle,
 } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 /**
  * PLATFORM FORMS — Visual Form Builder
@@ -51,7 +51,7 @@ export default function PlatformForms() {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("published");
   const [notification, setNotification] = useState(null);
 
   // Builder state

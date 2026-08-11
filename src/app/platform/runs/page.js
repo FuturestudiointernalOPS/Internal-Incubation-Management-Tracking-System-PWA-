@@ -6,7 +6,7 @@ import {
   XCircle, FileText, RotateCcw, Eye, MessageSquare, User, Filter,
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
-  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info,
+  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles,
 } from "lucide-react";
 
 /**
