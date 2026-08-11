@@ -465,6 +465,12 @@ const NAVIGATION_MATRIX = {
       href: "/staff",
     },
     {
+      id: "my_tasks",
+      name: "MY TASKS",
+      icon: CheckSquare,
+      href: "/staff/tasks",
+    },
+    {
       id: "standup",
       name: "STANDUP",
       icon: MessageSquare,

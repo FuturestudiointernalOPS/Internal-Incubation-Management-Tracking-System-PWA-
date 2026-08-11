@@ -33,13 +33,31 @@ function TaskDot({ status, onClick }) {
   );
 }
 
-function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete }) {
+function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete, onAssign, onAddBlocker, onSetDueDate, allStaff }) {
   const cfg = STATUS_CFG[task.status] || STATUS_CFG.pending;
   const isDone = task.status === "completed";
+  const [showAssign, setShowAssign] = useState(false);
+  const [showBlocker, setShowBlocker] = useState(false);
+  const [showDueDate, setShowDueDate] = useState(false);
+  const [assignSearch, setAssignSearch] = useState("");
+  const [blockerTitle, setBlockerTitle] = useState("");
+  const [dueDate, setDueDate] = useState(task.end_date || "");
 
   const cycleStatus = () => {
     const next = task.status === "completed" ? "in_progress" : task.status === "blocked" ? "in_progress" : "completed";
     onStatusChange(task.id, next);
+  };
+
+  const filteredStaff = (allStaff || []).filter((s) =>
+    !assignSearch || (s.name || "").toLowerCase().includes(assignSearch.toLowerCase())
+  ).slice(0, 5);
+
+  const handleBlockerSubmit = (e) => {
+    e.preventDefault();
+    if (!blockerTitle.trim()) return;
+    onAddBlocker(task.id, blockerTitle.trim());
+    setBlockerTitle("");
+    setShowBlocker(false);
   };
 
   return (
@@ -97,6 +115,68 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
             {task.end_date && <span>Due: {task.end_date}</span>}
             {task.assigned_to && <span>Assigned to: {task.assigned_to}</span>}
           </div>
+
+          {/* ── Assign / Blocker / Due Date (Phase 8) ── */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Assign */}
+            <div className="relative">
+              {!showAssign ? (
+                <button onClick={(e) => { e.stopPropagation(); setShowAssign(true); }} className="text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                  + {task.assigned_to ? "Reassign" : "Assign"}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text" value={assignSearch} onChange={(e) => setAssignSearch(e.target.value)}
+                    placeholder="Search teammate..." autoFocus
+                    className="w-40 px-2 py-1 rounded bg-white/[0.05] border border-white/10 text-[10px] text-[var(--text-primary)] outline-none"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => { if (e.key === "Escape") { setShowAssign(false); setAssignSearch(""); } }} />
+                  <button onClick={(e) => { e.stopPropagation(); setShowAssign(false); setAssignSearch(""); }} className="text-[9px] text-[var(--text-tertiary)]">✕</button>
+                  {assignSearch && filteredStaff.length > 0 && (
+                    <div className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-white/10 bg-[#0f172a] shadow-xl z-10" onClick={(e) => e.stopPropagation()}>
+                      {filteredStaff.map((s) => (
+                        <button key={s.id} onClick={() => { onAssign(task.id, s.id); setShowAssign(false); setAssignSearch(""); }}
+                          className="w-full text-left px-3 py-1.5 text-[10px] text-[var(--text-primary)] hover:bg-white/10">
+                          {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Due date */}
+            {!showDueDate ? (
+              <button onClick={(e) => { e.stopPropagation(); setShowDueDate(true); }} className="text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                + {task.end_date ? "Change due" : "Due date"}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input type="date" value={dueDate} onChange={(e) => { setDueDate(e.target.value); onSetDueDate(task.id, e.target.value); setShowDueDate(false); }}
+                  className="w-32 px-2 py-1 rounded bg-white/[0.05] border border-white/10 text-[10px] text-[var(--text-primary)] outline-none"
+                  onClick={(e) => e.stopPropagation()} />
+                <button onClick={(e) => { e.stopPropagation(); setShowDueDate(false); }} className="text-[9px] text-[var(--text-tertiary)]">✕</button>
+              </div>
+            )}
+
+            {/* Add blocker */}
+            {!showBlocker ? (
+              <button onClick={(e) => { e.stopPropagation(); setShowBlocker(true); }} className="text-[9px] font-bold text-red-400/70 hover:text-red-400 transition-colors">
+                + Blocker
+              </button>
+            ) : (
+              <form onSubmit={handleBlockerSubmit} className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <input type="text" value={blockerTitle} onChange={(e) => setBlockerTitle(e.target.value)}
+                  placeholder="What's blocking?" autoFocus
+                  className="w-40 px-2 py-1 rounded bg-white/[0.05] border border-white/10 text-[10px] text-[var(--text-primary)] outline-none" />
+                <button type="submit" className="text-[9px] font-bold text-red-400">Add</button>
+                <button type="button" onClick={() => { setShowBlocker(false); setBlockerTitle(""); }} className="text-[9px] text-[var(--text-tertiary)]">✕</button>
+              </form>
+            )}
+          </div>
+
           <div className="flex items-center gap-2 pt-2">
             {!isDone && (
               <button onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, "completed"); }}
@@ -139,6 +219,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [creatingTask, setCreatingTask] = useState(false);
+  const [allStaff, setAllStaff] = useState([]);
 
   const ctx = context || { context_type: "staff", context_id: null };
 
@@ -164,6 +245,41 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   }, [user?.cid, week.week, week.year, ctx.context_type, ctx.context_id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  /* ─── Fetch staff for assignment ─── */
+  useEffect(() => {
+    if (!user?.cid) return;
+    fetch("/api/contacts?role=staff")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setAllStaff(d.contacts || []); })
+      .catch(() => {});
+  }, [user?.cid]);
+
+  /* ─── Assignment / Blocker / Due Date handlers ─── */
+  const handleAssign = async (taskId, assigneeId) => {
+    try {
+      const res = await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, assigned_to: assigneeId, user_id: user.cid }) });
+      const data = await res.json();
+      if (!data.success) setToast({ type: "error", msg: data.error || "Assignment failed" });
+      else { setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, assigned_to: assigneeId } : t)); setToast({ type: "success", msg: "Assigned" }); }
+    } catch (e) { setToast({ type: "error", msg: "Network error" }); }
+  };
+
+  const handleAddBlocker = async (taskId, blockerTitle) => {
+    try {
+      const res = await fetch("/api/blockers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task_id: taskId, user_id: user.cid, user_name: user.name, title: blockerTitle }) });
+      const data = await res.json();
+      if (!data.success) setToast({ type: "error", msg: data.error || "Blocker failed" });
+      else { setToast({ type: "success", msg: "Blocker added" }); fetchData(); }
+    } catch (e) { setToast({ type: "error", msg: "Network error" }); }
+  };
+
+  const handleSetDueDate = async (taskId, date) => {
+    try {
+      await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, end_date: date, user_id: user.cid }) });
+      setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, end_date: date } : t));
+    } catch (e) { /* silent */ }
+  };
 
   const handleStatusChange = async (taskId, newStatus) => {
     try {
@@ -274,7 +390,9 @@ export default function StandupRetroView({ user, context, contextLabel }) {
           tasks.map((task) => (
             <TaskRow key={task.id} task={task} expanded={expandedTask === task.id}
               onToggle={() => setExpandedTask(expandedTask === task.id ? null : task.id)}
-              onStatusChange={handleStatusChange} onArchive={handleArchive} onDelete={handleDelete} />
+              onStatusChange={handleStatusChange} onArchive={handleArchive} onDelete={handleDelete}
+              onAssign={handleAssign} onAddBlocker={handleAddBlocker} onSetDueDate={handleSetDueDate}
+              allStaff={allStaff} />
           ))
         )}
         {!showNewTask ? (
