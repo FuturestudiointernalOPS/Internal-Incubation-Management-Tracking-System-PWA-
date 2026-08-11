@@ -224,7 +224,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   const ctx = context || { context_type: "staff", context_id: null };
 
   const fetchData = useCallback(async () => {
-    if (!user?.cid) return;
+    if (!user?.cid) { setLoading(false); return; }
     setLoading(true);
     try {
       const params = new URLSearchParams({ user_id: user.cid, week: week.week, year: week.year, context_type: ctx.context_type });
