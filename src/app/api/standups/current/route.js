@@ -91,12 +91,12 @@ export async function GET(req) {
 
     // ── 2. Fetch current-week tasks ──
     // These are tasks created in the target week (owned OR assigned to the user).
-    const weekTaskSql = `SELECT * FROM tasks
+    let weekTaskSql = `SELECT * FROM tasks
       WHERE (user_id = ? OR assigned_to = ?)
       AND created_week = ? AND created_year = ?
       AND context_type = ?`;
 
-    const weekTaskArgs = [user_id, user_id, w, y, context_type];
+    let weekTaskArgs = [user_id, user_id, w, y, context_type];
     if (context_id) {
       weekTaskSql += " AND context_id = ?";
       weekTaskArgs.push(context_id);
